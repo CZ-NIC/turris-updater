@@ -52,4 +52,28 @@ get_list() {
 
 get_list
 
-# Good, we have the list of packages now.
+# Good, we have the list of packages now. Decide and install.
+
+should_install() {
+	CUR_VERS=$(opkg info "$1" | grep '^Version: ' | head -n 1 | cut -f 2 -d ' ')
+	if [ -z "$CUR_VERS" ] ; then
+		return 0 # Not installed -> install
+	fi
+	# Do reinstall/upgrade/downgrade if the versions are different
+	opkg compare-versions "$2" = "$CUR_VERS"
+	# Yes, it returns 1 if they are the same and 0 otherwise
+	return $?
+}
+
+should_uninstall() {
+	return 1 # TODO
+}
+
+IFS='	'
+while read PACKAGE VERSION FLAGS ; do
+	if should_uninstall "$PACKAGE" "$FLAGS" ; then
+		:
+	elif should_install "$PACKAGE" "$VERSION" ; then
+		echo "Install $PACKAGE!"
+	fi
+done <"$TMP_DIR/list"
