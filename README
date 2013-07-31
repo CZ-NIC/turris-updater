@@ -1,0 +1,70 @@
+The updater script
+==================
+
+When this script is run, it downloads list of packages and upgrades the system
+based on the list.
+
+It can handle lists of packages individual to the given device and individual
+encrypted packages.
+
+The URL of the repository and of the package list is hardcoded at the top of
+the script.
+
+The repository layout
+---------------------
+
+Assume that `$ID` is the serial number of the device in question. The
+`$BASE_URL` is the top level of the repository structure.
+
+The list for the device is located as `$BASE_URL/lists/$ID`. If that one does
+not exist, the updater script takes a generic one, at
+`$BASE_URL/lists/generic`.
+
+An unencrypted package is located at address
+`$BASE_URL/packages/<packagename>-<packageversion>.ipk`. An encrypted one is at
+`$BASE_URL/packages/<packagename>-<packageversion>-$ID.ipk`.
+
+Note that the repository may contain packages in multiple versions.
+
+The package list format
+-----------------------
+
+Each line represents one package. The format of the line is:
+
+  <package-name>	<version>	<flags>
+
+The columns are separated by one tab. The version is the version that should be
+installed on the device.
+
+Flags represent special properties of the package. Each one is an on-off
+switch. Each flag is single letter, all of them are concatenated together.
+
+E::
+  The package is encrypted and individual for the given device.
+R::
+  Instead of installing the package, the package should be removed from the
+  system. The version should be `-` in this case.
+
+Dependencies
+------------
+
+Dependencies are not considered on the device. The list is processed from top
+to bottom, one line at a time. If one package depends on another, it should be
+listed in the list above the another.
+
+Example
+-------
+
+This is an example of the package list that includes ucollect with its all
+dependencies and removes nuci.
+
+  libgcc	4.6-linaro-1	
+  libc	0.9.33.2-1	
+  libpcap	1.1.1-2	
+  libpthread	0.9.33.2-1	
+  librt	0.9.33.2-1	
+  libopenssl	1.0.1e-1	
+  zlib	1.2.7-1
+  libuci	2013-05-02.1-1	
+  ucollect	14	E
+  nuci	-	R
