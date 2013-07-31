@@ -57,6 +57,10 @@ get_list
 # Good, we have the list of packages now. Decide and install.
 
 should_install() {
+	if echo "$3" | grep -q "R" ; then
+		# Don't install if there's an uninstall flag
+		return 1
+	fi
 	CUR_VERS=$(opkg info "$1" | grep '^Version: ' | head -n 1 | cut -f 2 -d ' ')
 	if [ -z "$CUR_VERS" ] ; then
 		return 0 # Not installed -> install
@@ -68,7 +72,8 @@ should_install() {
 }
 
 should_uninstall() {
-	return 1 # TODO
+	# It shuld be uninstalled if it is installed low and there's the 'R' flag
+	[ -n "$(opkg info "$1")" ] && echo "$2" | grep -q 'R'
 }
 
 get_pass() {
@@ -92,8 +97,8 @@ get_package() {
 IFS='	'
 while read PACKAGE VERSION FLAGS ; do
 	if should_uninstall "$PACKAGE" "$FLAGS" ; then
-		:
-	elif should_install "$PACKAGE" "$VERSION" ; then
+		opkg remove "$PACKAGE"
+	elif should_install "$PACKAGE" "$VERSION"  "$FLAGS" ; then
 		get_package "$PACKAGE" "$VERSION" "$FLAGS"
 		# Don't do deps and such, just follow the script
 		opkg --force-downgrade --nodeps install "$TMP_DIR/package.ipk" || die "Failed to install $PACKAGE"
