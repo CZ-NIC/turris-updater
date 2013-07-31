@@ -61,6 +61,10 @@ should_install() {
 		# Don't install if there's an uninstall flag
 		return 1
 	fi
+	if echo "$3" | grep -q "F" ; then
+		# (re) install every time
+		return 0
+	fi
 	CUR_VERS=$(opkg info "$1" | grep '^Version: ' | head -n 1 | cut -f 2 -d ' ')
 	if [ -z "$CUR_VERS" ] ; then
 		return 0 # Not installed -> install

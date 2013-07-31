@@ -44,6 +44,8 @@ E::
 R::
   Instead of installing the package, the package should be removed from the
   system. The version should be `-` in this case.
+F::
+  Force re-installation even if it is in current version.
 
 Dependencies
 ------------
