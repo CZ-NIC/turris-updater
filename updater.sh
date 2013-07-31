@@ -10,6 +10,7 @@ ID='12345'
 BASE_URL='http://tmp.vorner.cz'
 GENERIG_LIST_URL="$BASE_URL/lists/generic"
 SPECIFIC_LIST_URL="$BASE_URL/lists/$ID"
+PACKAGE_URL="$BASE_URL/packages"
 TMP_DIR='/tmp/update'
 
 mkdir -p "$TMP_DIR"
@@ -69,11 +70,19 @@ should_uninstall() {
 	return 1 # TODO
 }
 
+get_package() {
+	URL="$PACKAGE_URL/$PACKAGE-$VERSION.ipk"
+	# TODO: Encrypted?
+	download "$URL" package.ipk
+}
+
 IFS='	'
 while read PACKAGE VERSION FLAGS ; do
 	if should_uninstall "$PACKAGE" "$FLAGS" ; then
 		:
 	elif should_install "$PACKAGE" "$VERSION" ; then
-		echo "Install $PACKAGE!"
+		get_package "$PACKAGE" "$VERSION" "$FLAGS"
+		# Don't do deps and such, just follow the script
+		opkg --force-downgrade --nodeps install "$TMP_DIR/package.ipk" || die "Failed to install $PACKAGE"
 	fi
 done <"$TMP_DIR/list"
