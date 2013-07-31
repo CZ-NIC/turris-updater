@@ -12,6 +12,7 @@ GENERIG_LIST_URL="$BASE_URL/lists/generic"
 SPECIFIC_LIST_URL="$BASE_URL/lists/$ID"
 PACKAGE_URL="$BASE_URL/packages"
 TMP_DIR='/tmp/update'
+CIPHER='aes-256-cbc'
 
 mkdir -p "$TMP_DIR"
 trap 'rm -rf "$TMP_DIR"' EXIT INT QUIT TERM
@@ -70,10 +71,22 @@ should_uninstall() {
 	return 1 # TODO
 }
 
+get_pass() {
+	# FIXME: Replace with password generated from the atsha204 library.
+	echo -n 12345
+}
+
 get_package() {
-	URL="$PACKAGE_URL/$PACKAGE-$VERSION.ipk"
-	# TODO: Encrypted?
-	download "$URL" package.ipk
+	if echo "$3" | grep -q 'E' ; then
+		# Encrypted
+		URL="$PACKAGE_URL/$1-$2-$ID.ipk"
+		download "$URL" package.encrypted.ipk
+		get_pass "$1" "$2" | openssl "$CIPHER" -d -in "$TMP_DIR/package.encrypted.ipk" -out "$TMP_DIR/package.ipk" -pass stdin || die "Could not decrypt private package $1-$2-$ID"
+	else
+		URL="$PACKAGE_URL/$1-$2.ipk"
+		# Unencrypted
+		download "$URL" package.ipk
+	fi
 }
 
 IFS='	'
