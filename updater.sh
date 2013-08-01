@@ -20,6 +20,7 @@ trap 'rm -rf "$TMP_DIR"' EXIT INT QUIT TERM
 # Utility functions
 die() {
 	echo "$@" >&2
+	echo "$@" | logger -t updater -p daemon.error
 	exit 1
 }
 
@@ -82,6 +83,7 @@ should_uninstall() {
 
 get_pass() {
 	# FIXME: Replace with password generated from the atsha204 library.
+	echo "Using insecure hardcoded password" | logger -t updater -p daemon.warn
 	echo -n 12345
 }
 
@@ -101,8 +103,10 @@ get_package() {
 IFS='	'
 while read PACKAGE VERSION FLAGS ; do
 	if should_uninstall "$PACKAGE" "$FLAGS" ; then
-		opkg remove "$PACKAGE"
+		echo "Removing package $PACKAGE" | logger -t updater -p daemon.info
+		opkg remove "$PACKAGE" || die "Failed to remove $PACKAGE"
 	elif should_install "$PACKAGE" "$VERSION"  "$FLAGS" ; then
+		echo "Installing/upgrading $PACKAGE version $VERSION" | logger -t updater -p daemon.info
 		get_package "$PACKAGE" "$VERSION" "$FLAGS"
 		# Don't do deps and such, just follow the script
 		opkg --force-downgrade --nodeps install "$TMP_DIR/package.ipk" || die "Failed to install $PACKAGE"
