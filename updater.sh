@@ -7,7 +7,7 @@ set -x
 ID='12345'
 # Where the things live
 # TODO: Place the things somewhere reasonable, this is just testing rubbish
-BASE_URL='http://tmp.vorner.cz'
+BASE_URL='http://securt-test.labs.nic.cz/openwrt/updater-repo/'
 GENERIG_LIST_URL="$BASE_URL/lists/generic"
 SPECIFIC_LIST_URL="$BASE_URL/lists/$ID"
 PACKAGE_URL="$BASE_URL/packages"
