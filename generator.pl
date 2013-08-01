@@ -84,7 +84,7 @@ while (my @nodeps = grep { not %{$_->{dep}} } values %final) {
 		}
 		# Handle the package
 		print "$name\t$package->{desc}->{Version}\t$desired{$name}\n";
-		die "Failed to download $name\n" if system 'wget', '-q', "$url/$package->{desc}->{Filename}", '-O', "packages/$name.ipk";
+		die "Failed to download $name\n" if system 'wget', '-q', "$url/$package->{desc}->{Filename}", '-O', "packages/$name-$package->{desc}->{Version}.ipk";
 		warn "Package $name should be encrypted, but that's not supported yet ‒ you need to encrypt manually\n" if $desired{$name} =~ /E/;
 	}
 }
