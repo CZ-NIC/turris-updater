@@ -73,7 +73,7 @@ for my $desired (keys %desired) {
 my %final = map { $_->{desc}->{Package} => $_ } grep $_->{desired}, values %packages;
 
 # Keep picking the things without dependencies, output them to the list and remove them as deps from others
-mkdir -p qw(packages lists);
+mkdir 'packages';
 while (my @nodeps = grep { not %{$_->{dep}} } values %final) {
 	for my $package (@nodeps) {
 		my $name = $package->{desc}->{Package};
@@ -84,8 +84,8 @@ while (my @nodeps = grep { not %{$_->{dep}} } values %final) {
 		}
 		# Handle the package
 		print "$name\t$package->{desc}->{Version}\t$desired{$name}\n";
-		# TODO: Download and place somewhere
-		# TODO: Encryption
+		die "Failed to download $name\n" if system 'wget', '-q', "$url/$package->{desc}->{Filename}", '-O', "packages/$name.ipk";
+		warn "Package $name should be encrypted, but that's not supported yet ‒ you need to encrypt manually\n" if $desired{$name} =~ /E/;
 	}
 }
 
