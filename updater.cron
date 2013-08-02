@@ -1,2 +1,2 @@
 MAILTO=michal.vaner@nic.cz
-0     *       *       *       *       root	/usr/bin/updater.sh
+0     *       *       *       *       root	/usr/bin/updater.sh &
