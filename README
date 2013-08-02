@@ -70,3 +70,18 @@ dependencies and removes nuci.
   libuci	2013-05-02.1-1	
   ucollect	14	E
   nuci	-	R
+
+The generator script
+====================
+
+The generator script can generate the list of packages and the directory with
+the package archives.
+
+To run it, pass the base URL of the openWRT repository to generate the packages
+from. Then, pass the list of desired packages to its standard input, one
+package per line. A package name can be followed by flags.
+
+The generator tracks dependencies and includes them in the final list.
+
+It is integrated into jenkins, so the basic list is regenerated automatically.
+The list of packages is in the `list-desired` files.
