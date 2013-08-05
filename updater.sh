@@ -105,10 +105,16 @@ while read PACKAGE VERSION FLAGS ; do
 	if should_uninstall "$PACKAGE" "$FLAGS" ; then
 		echo "Removing package $PACKAGE" | logger -t updater -p daemon.info
 		opkg remove "$PACKAGE" || die "Failed to remove $PACKAGE"
+		# Let the system settle little bit before continuing
+		# Like reconnecting things that changed.
+		sleep 15
 	elif should_install "$PACKAGE" "$VERSION"  "$FLAGS" ; then
 		echo "Installing/upgrading $PACKAGE version $VERSION" | logger -t updater -p daemon.info
 		get_package "$PACKAGE" "$VERSION" "$FLAGS"
 		# Don't do deps and such, just follow the script
 		opkg --force-downgrade --nodeps install "$TMP_DIR/package.ipk" || die "Failed to install $PACKAGE"
+		# Let the system settle little bit before continuing
+		# Like reconnecting things that changed.
+		sleep 15
 	fi
 done <"$TMP_DIR/list"
