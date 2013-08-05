@@ -72,6 +72,9 @@ for my $desired (keys %desired) {
 # Generate list of packages to be installed
 my %final = map { $_->{desc}->{Package} => $_ } grep $_->{desired}, values %packages;
 
+# Print out the packages to remove first
+print map "$_\t-\t$desired{$_}\n", (grep $desired{$_} =~ /R1/, keys %desired);
+
 # Keep picking the things without dependencies, output them to the list and remove them as deps from others
 mkdir 'packages';
 while (my @nodeps = grep { not %{$_->{dep}} } values %final) {
@@ -93,4 +96,4 @@ while (my @nodeps = grep { not %{$_->{dep}} } values %final) {
 die "Circular dependencies in ", (join ", ", keys %final), "\n" if %final;
 
 # Output the packages to remove
-print map "$_\t-\t$desired{$_}\n", (grep $desired{$_} =~ /R/, keys %desired);
+print map "$_\t-\t$desired{$_}\n", (grep { $desired{$_} =~ /R/ and $desired{$_} !~ /1/ } keys %desired);
