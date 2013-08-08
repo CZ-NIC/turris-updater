@@ -6,13 +6,13 @@ set -x
 # TODO: Request from the atsha256 chip.
 ID='12345'
 # Where the things live
-# TODO: Place the things somewhere reasonable, this is just testing rubbish
 BASE_URL='http://securt-test.labs.nic.cz/openwrt/updater-repo/'
 GENERIG_LIST_URL="$BASE_URL/lists/generic"
 SPECIFIC_LIST_URL="$BASE_URL/lists/$ID"
 PACKAGE_URL="$BASE_URL/packages"
 TMP_DIR='/tmp/update'
 CIPHER='aes-256-cbc'
+COOLDOWN='3'
 
 mkdir -p "$TMP_DIR"
 trap 'rm -rf "$TMP_DIR"' EXIT INT QUIT TERM
@@ -114,7 +114,7 @@ while read PACKAGE VERSION FLAGS ; do
 		opkg remove "$PACKAGE" || die "Failed to remove $PACKAGE"
 		# Let the system settle little bit before continuing
 		# Like reconnecting things that changed.
-		sleep 15
+		sleep "$COOLDOWN"
 	elif should_install "$PACKAGE" "$VERSION"  "$FLAGS" ; then
 		echo "Installing/upgrading $PACKAGE version $VERSION" | logger -t updater -p daemon.info
 		get_package "$PACKAGE" "$VERSION" "$FLAGS"
@@ -122,6 +122,6 @@ while read PACKAGE VERSION FLAGS ; do
 		opkg --force-downgrade --nodeps install "$TMP_DIR/package.ipk" || die "Failed to install $PACKAGE"
 		# Let the system settle little bit before continuing
 		# Like reconnecting things that changed.
-		sleep 15
+		sleep "$COOLDOWN"
 	fi
 done <"$TMP_DIR/list"
