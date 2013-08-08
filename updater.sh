@@ -77,8 +77,15 @@ should_install() {
 }
 
 should_uninstall() {
-	# It shuld be uninstalled if it is installed low and there's the 'R' flag
-	[ -n "$(opkg info "$1")" ] && echo "$2" | grep -q 'R'
+	# It shuld be uninstalled if it is installed now and there's the 'R' flag
+	INFO="$(opkg info "$1")"
+	if [ -z "$INFO" ] ; then
+		return 1
+	fi
+	if echo "$INFO" | grep '^Status:.*not-installed' ; then
+		return 1
+	fi
+	echo "$2" | grep -q 'R'
 }
 
 get_pass() {
