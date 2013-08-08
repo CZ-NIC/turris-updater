@@ -79,7 +79,9 @@ the package archives.
 
 To run it, pass the base URL of the openWRT repository to generate the packages
 from. Then, pass the list of desired packages to its standard input, one
-package per line. A package name can be followed by flags.
+package per line. A package name can be followed by flags. There's another flag
+in addition to the ones in package list, `1`. If it is present, the operation
+is placed at the top of the list (it is implemented for removal only now).
 
 The generator tracks dependencies and includes them in the final list.
 
