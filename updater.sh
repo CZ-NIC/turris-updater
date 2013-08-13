@@ -3,8 +3,7 @@
 set -x
 
 # My own ID
-# TODO: Request from the atsha256 chip.
-ID='12345'
+ID="$(atsha204cmd serial-number)"
 # Where the things live
 BASE_URL='http://securt-test.labs.nic.cz/openwrt/updater-repo/'
 GENERIG_LIST_URL="$BASE_URL/lists/generic"
