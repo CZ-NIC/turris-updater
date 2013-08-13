@@ -88,9 +88,13 @@ should_uninstall() {
 }
 
 get_pass() {
-	# FIXME: Replace with password generated from the atsha204 library.
-	echo "Using insecure hardcoded password" | logger -t updater -p daemon.warn
-	echo -n 12345
+	# Each md5sum produces half of the challenge (16bytes).
+	# Use one on the package name and one on the version to generate static challenge.
+	# Not changing the challenge is OK, as the password is never transmitted over
+	# the wire and local user can get access to what is unpacked anyway.
+	PART1="$(echo -n "$1" | md5sum | cut -f1 -d' ')"
+	PART2="$(echo -n "$2" | md5sum | cut -f1 -d' ')"
+	echo "$PART1" "$PART2" | atsha204cmd challenge-response
 }
 
 get_package() {
