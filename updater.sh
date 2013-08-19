@@ -5,13 +5,14 @@ set -x
 # My own ID
 ID="$(atsha204cmd serial-number)"
 # Where the things live
-BASE_URL='http://securt-test.labs.nic.cz/openwrt/updater-repo/'
+BASE_URL='https://test.securt.cz/openwrt/updater-repo/'
 GENERIG_LIST_URL="$BASE_URL/lists/generic"
 SPECIFIC_LIST_URL="$BASE_URL/lists/$ID"
 PACKAGE_URL="$BASE_URL/packages"
 TMP_DIR='/tmp/update'
 CIPHER='aes-256-cbc'
 COOLDOWN='3'
+CERT='/etc/ssl/startcom-cznic.pem'
 
 mkdir -p "$TMP_DIR"
 trap 'rm -rf "$TMP_DIR"' EXIT INT QUIT TERM
@@ -24,21 +25,19 @@ die() {
 }
 
 url_exists() {
-	RESULT=$(wget "$1" -s 2>&1)
-	if [ "$?" -ne 0 ] ; then
-		if echo "$RESULT" | grep -q 404 ; then
-			return 1
-		else
-			die "Error examining $1: $RESULT"
-		fi
-	else
+	RESULT=$(curl --cacert "$CERT" "$1" | head -n1)
+	if echo "$RESULT" | grep -q 200 ; then
 		return 0
+	elif echo "$RESULT" | grep -q 404 ; then
+		return 1
+	else
+		die "Error examining $1: $RESULT"
 	fi
 }
 
 download() {
 	TARGET="$TMP_DIR/$2"
-	wget "$1" -O "$TARGET" || die "Failed to download $1"
+	curl --cacert "$CERT" "$1" -o "$TARGET" || die "Failed to download $1"
 }
 
 # Download the list of packages
