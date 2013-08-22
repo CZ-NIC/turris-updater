@@ -12,7 +12,8 @@ PACKAGE_URL="$BASE_URL/packages"
 TMP_DIR='/tmp/update'
 CIPHER='aes-256-cbc'
 COOLDOWN='3'
-CERT='/etc/ssl/startcom-cznic.pem'
+# FIXME: Testing certificate just for now.
+CERT='/etc/ssl/vorner.pem'
 
 # Don't load the server all at once. With NTP-synchronized time, and
 # thousand clients, it would make spikes on the CPU graph and that's not
@@ -20,8 +21,7 @@ CERT='/etc/ssl/startcom-cznic.pem'
 sleep $(( $(tr -cd 0-9 </dev/urandom | head -c 8) % 120 ))
 
 my_curl() {
-	# FIXME: Once we have working certificate, remove the -k
-	curl -k --cacert "CERT" "$@"
+	curl --cacert "$CERT" "$@"
 }
 
 mkdir -p "$TMP_DIR"
