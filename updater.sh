@@ -5,7 +5,7 @@ set -x
 # My own ID
 ID="$(atsha204cmd serial-number)"
 # Where the things live
-BASE_URL='https://securt-test.labs.nic.cz/openwrt/updater-repo/'
+BASE_URL='https://securt-test.labs.nic.cz/updater-repo/'
 GENERIG_LIST_URL="$BASE_URL/lists/generic"
 SPECIFIC_LIST_URL="$BASE_URL/lists/$ID"
 PACKAGE_URL="$BASE_URL/packages"
