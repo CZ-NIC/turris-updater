@@ -4,8 +4,10 @@ set -x
 
 # My own ID
 ID="$(atsha204cmd serial-number)"
+# We take the hardware revision as "distribution"
+REVISION="$(atsha204cmd hw-rev)"
 # Where the things live
-BASE_URL='https://test-dev.securt.cz/updater-repo/'
+BASE_URL="https://test-dev.securt.cz/updater-repo/$REVISION"
 GENERIG_LIST_URL="$BASE_URL/lists/generic"
 SPECIFIC_LIST_URL="$BASE_URL/lists/$ID"
 PACKAGE_URL="$BASE_URL/packages"
