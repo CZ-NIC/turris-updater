@@ -9,7 +9,7 @@ my $url = $ARGV[0] or die "Expected the URL of the repository as my first argume
 
 # Download and decompress the list of opkg packages.
 
-# FIXME: The use of shell here is technically insecure, but the input is ours,
+# The use of shell here is technically insecure, but the input is ours,
 # so it should be OK. Still, it would be nice to do it properly sometime.
 my $list_url = "$url/Packages.gz";
 open my $descriptions, '-|', "wget '$list_url' -O - | gzip -d" or die "Could not start download of $list_url $!\n";
@@ -42,7 +42,7 @@ my %packages = map { $_->{Package} => { desc => $_ } } @packages;
 while (my ($name, $package) = each %packages) {
 	my @deps = split /,\s*/, $package->{desc}->{Depends};
 	for my $dep (@deps) {
-		# FIXME: Some version handling instead of ignoring them
+		# FIXME: Some version handling instead of ignoring them (#2704)
 		$dep =~ s/\s*\(.*\)\s*//;
 		my $dpackage = $packages{$dep} // ( warn "Dependency $dep of $name is missing\n", next );
 		$dpackage->{revdep}->{$name} = $package;
