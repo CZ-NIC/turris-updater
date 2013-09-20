@@ -15,6 +15,7 @@ TMP_DIR='/tmp/update'
 CIPHER='aes-256-cbc'
 COOLDOWN='3'
 # FIXME: Testing certificate just for now.
+# Switch to DANE (#2703)
 CERT='/etc/ssl/vorner.pem'
 
 # Don't load the server all at once. With NTP-synchronized time, and
