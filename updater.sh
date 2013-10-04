@@ -23,6 +23,8 @@ LOCK_DIR="$STATE_DIR/lock"
 STATE_FILE="$STATE_DIR/state"
 LOG_FILE="$STATE_DIR/log"
 
+updater-wipe.sh # Remove forgotten stuff, if any
+
 # Create the state directory, set state, etc.
 mkdir -p "$STATE_DIR"
 if ! mkdir "$LOCK_DIR" ; then
