@@ -38,6 +38,7 @@ trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR"' EXIT INT QUIT TERM
 
 echo 'initial sleep' >"$STATE_FILE"
 rm -f "$LOG_FILE"
+touch "$LOG_FILE"
 
 # Don't load the server all at once. With NTP-synchronized time, and
 # thousand clients, it would make spikes on the CPU graph and that's not
