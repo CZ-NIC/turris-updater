@@ -157,6 +157,7 @@ while read PACKAGE VERSION FLAGS ; do
 		opkg remove "$PACKAGE" || die "Failed to remove $PACKAGE"
 		# Let the system settle little bit before continuing
 		# Like reconnecting things that changed.
+		echo 'cooldown' >"$STATE_FILE"
 		sleep "$COOLDOWN"
 	elif should_install "$PACKAGE" "$VERSION"  "$FLAGS" ; then
 		echo 'install' >"$STATE_FILE"
@@ -167,8 +168,10 @@ while read PACKAGE VERSION FLAGS ; do
 		opkg --force-downgrade --nodeps install "$TMP_DIR/package.ipk" || die "Failed to install $PACKAGE"
 		# Let the system settle little bit before continuing
 		# Like reconnecting things that changed.
+		echo 'cooldown' >"$STATE_FILE"
 		sleep "$COOLDOWN"
 	fi
+	echo 'examine' >"$STATE_FILE"
 done <"$TMP_DIR/list"
 
 echo 'done' >"$STATE_FILE"
