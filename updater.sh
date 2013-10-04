@@ -47,7 +47,6 @@ if [ "$1" != "-n" ] ; then
 fi
 
 my_curl() {
-	echo 'error' >"$STATE_FILE"
 	curl --cacert "$CERT" "$@"
 }
 
@@ -55,6 +54,8 @@ mkdir -p "$TMP_DIR"
 
 # Utility functions
 die() {
+	echo 'error' >"$STATE_FILE"
+	echo "$@" >"$STATE_DIR/last_error"
 	echo "$@" >&2
 	echo "$@" | logger -t updater -p daemon.err
 	exit 1
