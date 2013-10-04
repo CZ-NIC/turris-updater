@@ -17,6 +17,25 @@ COOLDOWN='3'
 # FIXME: Testing certificate just for now.
 # Switch to DANE (#2703)
 CERT='/etc/ssl/vorner.pem'
+STATE_DIR='/tmp/update-state'
+PID_FILE="$STATE_DIR/pid"
+LOCK_DIR="$STATE_DIR/lock"
+STATE_FILE="$STATE_DIR/state"
+LOG_FILE="$STATE_DIR/log"
+
+# Create the state directory, set state, etc.
+mkdir -p "$STATE_DIR"
+if ! mkdir "$LOCK_DIR" ; then
+	echo "Already running" >&2
+	echo "Already running" | logger -t updater -p daemon.warning
+	exit 0
+fi
+echo $$ >"$PID_FILE"
+
+trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR"' EXIT INT QUIT TERM
+
+echo 'initial sleep' >"$STATE_FILE"
+rm -f "$LOG_FILE"
 
 # Don't load the server all at once. With NTP-synchronized time, and
 # thousand clients, it would make spikes on the CPU graph and that's not
@@ -24,16 +43,16 @@ CERT='/etc/ssl/vorner.pem'
 sleep $(( $(tr -cd 0-9 </dev/urandom | head -c 8) % 120 ))
 
 my_curl() {
+	echo 'error' >"$STATE_FILE"
 	curl --cacert "$CERT" "$@"
 }
 
 mkdir -p "$TMP_DIR"
-trap 'rm -rf "$TMP_DIR"' EXIT INT QUIT TERM
 
 # Utility functions
 die() {
 	echo "$@" >&2
-	echo "$@" | logger -t updater -p daemon.error
+	echo "$@" | logger -t updater -p daemon.err
 	exit 1
 }
 
@@ -52,6 +71,8 @@ download() {
 	TARGET="$TMP_DIR/$2"
 	my_curl "$1" -o "$TARGET" || die "Failed to download $1"
 }
+
+echo 'get list' >"$STATE_FILE"
 
 # Download the list of packages
 get_list() {
@@ -125,12 +146,16 @@ get_package() {
 IFS='	'
 while read PACKAGE VERSION FLAGS ; do
 	if should_uninstall "$PACKAGE" "$FLAGS" ; then
+		echo 'remove' >"$STATE_FILE"
+		echo "R $PACKAGE" >>"$LOG_FILE"
 		echo "Removing package $PACKAGE" | logger -t updater -p daemon.info
 		opkg remove "$PACKAGE" || die "Failed to remove $PACKAGE"
 		# Let the system settle little bit before continuing
 		# Like reconnecting things that changed.
 		sleep "$COOLDOWN"
 	elif should_install "$PACKAGE" "$VERSION"  "$FLAGS" ; then
+		echo 'install' >"$STATE_FILE"
+		echo "I $PACKAGE $VERSION" >>"$LOG_FILE"
 		echo "Installing/upgrading $PACKAGE version $VERSION" | logger -t updater -p daemon.info
 		get_package "$PACKAGE" "$VERSION" "$FLAGS"
 		# Don't do deps and such, just follow the script
@@ -140,3 +165,5 @@ while read PACKAGE VERSION FLAGS ; do
 		sleep "$COOLDOWN"
 	fi
 done <"$TMP_DIR/list"
+
+echo 'done' >"$STATE_FILE"
