@@ -78,14 +78,29 @@ download() {
 	my_curl "$1" -o "$TARGET" || die "Failed to download $1"
 }
 
+sha_hash() {
+	openssl dgst -sha256 "$1" | sed -e 's/.* //'
+}
+
+verify() {
+	download "$1".sig signature
+	COMPUTED="$(sha_hash /tmp/update/list)"
+	EXPECTED="$(openssl rsautl -verify -inkey /usr/share/updater/updater.pub.pem -keyform PEM -pubin -in /tmp/update/signature)"
+	if [ "$COMPUTED" != "$EXPECTED" ] ; then
+		die "List signature invalid"
+	fi
+}
+
 echo 'get list' >"$STATE_FILE"
 
 # Download the list of packages
 get_list() {
 	if url_exists "$SPECIFIC_LIST_URL" ; then
 		download "$SPECIFIC_LIST_URL" list
+		verify "$SPECIFIC_LIST_URL"
 	elif url_exists "$GENERIG_LIST_URL" ; then
 		download "$GENERIG_LIST_URL" list
+		verify "$GENERIG_LIST_URL"
 	else
 		die "Could not download the list of packages"
 	fi
@@ -146,7 +161,7 @@ get_package() {
 		URL="$PACKAGE_URL/$1-$2.ipk"
 		# Unencrypted
 		download "$URL" package.ipk
-		HASH="$(openssl dgst -sha256 /tmp/update/package.ipk | sed -e 's/.* //')"
+		HASH="$(sha_hash /tmp/update/package.ipk)"
 		if [ "$4" != "$HASH" ] ; then
 			die "Hash for $1 does not match"
 		fi
