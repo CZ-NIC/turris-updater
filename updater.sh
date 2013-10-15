@@ -146,11 +146,15 @@ get_package() {
 		URL="$PACKAGE_URL/$1-$2.ipk"
 		# Unencrypted
 		download "$URL" package.ipk
+		HASH="$(openssl dgst -sha256 /tmp/update/package.ipk | sed -e 's/.* //')"
+		if [ "$4" != "$HASH" ] ; then
+			die "Hash for $1 does not match"
+		fi
 	fi
 }
 
 IFS='	'
-while read PACKAGE VERSION FLAGS ; do
+while read PACKAGE VERSION FLAGS HASH ; do
 	if should_uninstall "$PACKAGE" "$FLAGS" ; then
 		echo 'remove' >"$STATE_FILE"
 		echo "R $PACKAGE" >>"$LOG_FILE"
@@ -164,7 +168,7 @@ while read PACKAGE VERSION FLAGS ; do
 		echo 'install' >"$STATE_FILE"
 		echo "I $PACKAGE $VERSION" >>"$LOG_FILE"
 		echo "Installing/upgrading $PACKAGE version $VERSION" | logger -t updater -p daemon.info
-		get_package "$PACKAGE" "$VERSION" "$FLAGS"
+		get_package "$PACKAGE" "$VERSION" "$FLAGS" "$HASH"
 		# Don't do deps and such, just follow the script
 		opkg --force-downgrade --nodeps install "$TMP_DIR/package.ipk" || die "Failed to install $PACKAGE"
 		# Let the system settle little bit before continuing
