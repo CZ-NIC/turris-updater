@@ -157,6 +157,9 @@ get_package() {
 		URL="$PACKAGE_URL/$1-$2-$ID.ipk"
 		download "$URL" package.encrypted.ipk
 		get_pass "$1" "$2" | openssl "$CIPHER" -d -in "$TMP_DIR/package.encrypted.ipk" -out "$TMP_DIR/package.ipk" -pass stdin || die "Could not decrypt private package $1-$2-$ID"
+		# We don't check the hash with encrypted packages.
+		# For one, being able to generate valid encrypted package means the other side knows the shared secret.
+		# But also, it is expected every client would have different one and there'd be different hash then.
 	else
 		URL="$PACKAGE_URL/$1-$2.ipk"
 		# Unencrypted
