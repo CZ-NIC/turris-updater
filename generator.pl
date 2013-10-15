@@ -3,6 +3,7 @@ use common::sense;
 use utf8;
 use Scalar::Util qw(weaken);
 use Data::Dumper;
+use Digest::SHA;
 
 # Where to get the packages and their list
 my $url = $ARGV[0] or die "Expected the URL of the repository as my first argument\n";
@@ -86,8 +87,13 @@ while (my @nodeps = grep { not %{$_->{dep}} } values %final) {
 			delete $rdep->{dep}->{$name}
 		}
 		# Handle the package
-		print "$name\t$package->{desc}->{Version}\t$desired{$name}\n";
-		die "Failed to download $name\n" if system 'wget', '-q', "$url/$package->{desc}->{Filename}", '-O', "packages/$name-$package->{desc}->{Version}.ipk";
+		my $filename = "$name-$package->{desc}->{Version}.ipk";
+		die "Failed to download $name\n" if system 'wget', '-q', "$url/$package->{desc}->{Filename}", '-O', "packages/$filename";
+		my $hash = Digest::SHA->new(256);
+		$hash->addfile("packages/$filename");
+		my $hash_result = $hash->hexdigest;
+		my $flags = $desired{$name} // '.';
+		print "$name\t$package->{desc}->{Version}\t$flags\t$hash_result\n";
 		warn "Package $name should be encrypted, but that's not supported yet ‒ you need to encrypt manually\n" if $desired{$name} =~ /E/;
 	}
 }
