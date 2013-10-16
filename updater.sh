@@ -1,6 +1,6 @@
 #!/bin/busybox sh
 
-set -x
+set -xe
 
 # My own ID
 ID="$(atsha204cmd serial-number)"
@@ -25,14 +25,19 @@ LOG_FILE="$STATE_DIR/log"
 
 updater-wipe.sh # Remove forgotten stuff, if any
 
-# Create the state directory, set state, etc.
-mkdir -p "$STATE_DIR"
-if ! mkdir "$LOCK_DIR" ; then
-	echo "Already running" >&2
-	echo "Already running" | logger -t updater -p daemon.warning
-	exit 0
+if [ "$1" == '-r' ] ; then
+	shift
+	echo "Restarted" | logger -t updater -p daemon.info
+else
+	# Create the state directory, set state, etc.
+	mkdir -p "$STATE_DIR"
+	if ! mkdir "$LOCK_DIR" ; then
+		echo "Already running" >&2
+		echo "Already running" | logger -t updater -p daemon.warning
+		exit 0
+	fi
+	echo $$ >"$PID_FILE"
 fi
-echo $$ >"$PID_FILE"
 
 trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR"' EXIT INT QUIT TERM
 
@@ -45,6 +50,8 @@ touch "$LOG_FILE"
 # nice.
 if [ "$1" != "-n" ] ; then
 	sleep $(( $(tr -cd 0-9 </dev/urandom | head -c 8) % 120 ))
+else
+	shift
 fi
 
 my_curl() {
@@ -193,6 +200,10 @@ while read PACKAGE VERSION FLAGS HASH ; do
 		# Like reconnecting things that changed.
 		echo 'cooldown' >"$STATE_FILE"
 		sleep "$COOLDOWN"
+		if echo "$FLAGS" | grep -q "U" ; then
+			echo 'Update restart requested, complying' | logger -t updater -p daemon.info
+			exec "$0" -r -n "$@"
+		fi
 	fi
 	echo 'examine' >"$STATE_FILE"
 done <"$TMP_DIR/list"
