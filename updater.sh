@@ -7,16 +7,14 @@ ID="$(atsha204cmd serial-number)"
 # We take the hardware revision as "distribution"
 REVISION="$(atsha204cmd hw-rev)"
 # Where the things live
-BASE_URL="https://test-dev.securt.cz/updater-repo/$REVISION"
+BASE_URL="https://api.turris.cz/updater-repo/$REVISION"
 GENERIG_LIST_URL="$BASE_URL/lists/generic"
 SPECIFIC_LIST_URL="$BASE_URL/lists/$ID"
 PACKAGE_URL="$BASE_URL/packages"
 TMP_DIR='/tmp/update'
 CIPHER='aes-256-cbc'
 COOLDOWN='3'
-# FIXME: Testing certificate just for now.
-# Switch to DANE (#2703)
-CERT='/etc/ssl/vorner.pem'
+CERT='/etc/ssl/api.turris.pem'
 STATE_DIR='/tmp/update-state'
 PID_FILE="$STATE_DIR/pid"
 LOCK_DIR="$STATE_DIR/lock"
