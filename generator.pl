@@ -113,7 +113,6 @@ close $output;
 print $output_buffer;
 
 my $hex = Digest::SHA::sha256_hex($output_buffer);
-warn $hex;
 open my $signature, '|-', "openssl rsautl -sign -inkey '$key' -keyform PEM >$sigfilename" or die "Can't run openssl sign";
 print $signature $hex, "\n";
 close $signature;
