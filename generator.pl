@@ -55,47 +55,50 @@ while (my ($name, $package) = each %packages) {
 my @desired = <STDIN>;
 chomp @desired;
 my %desired = map { my ($name, $flags) = split /\s+/, $_, 2; ($name, $flags); } @desired;
+my @desired_names = map { my ($name) = split /\s+/, $_; $name; } @desired;
+my ($order, %desired_order) = (1);
 
-sub mark($) {
+$desired_order{$_} = $order ++ for @desired_names;
+
+sub provide($) {
 	my ($package) = @_;
-	return if $package->{desired};
-	$package->{desired} = 1;
-	&mark($_) foreach values %{$package->{dep}};
+	# Recursion sanity checking & termination
+	return if $package->{provided};
+
+	# Parameters
+	my $name = $package->{desc}->{Package};
+	my $flags = $desired{$name} // '.';
+	die "Dependency $name required to be uninstalled\n" if $flags =~ /R/;
+	my $version = $package->{desc}->{Version};
+
+	die "Circular dependency in package $name" if $package->{visited};
+
+	# Recursive calls to dependencies
+	$package->{visited} = 1;
+	&provide($_) foreach values %{$package->{dep}};
+	$package->{provided} = 1;
+
+	# The package itself
+	my $filename = "$name-$version.ipk";
+	die "Failed to download $name ($url/$package->{desc}->{Filename})\n" if system 'wget', '-q', "$url/$package->{desc}->{Filename}", '-O', "packages/$filename";
+	print "$name\t$version\t$flags\n";
+	warn "Package $name should be encrypted, but that's not supported yet ‒ you need to encrypt manually\n" if $desired{$name} =~ /E/;
 }
 
-# Mark each packet as desired, and its deps recursively too. Skip the ones to remove.
-for my $desired (keys %desired) {
-	next if $desired{$desired} =~ /R/;
-	mark($packages{$desired} // die "Package $desired doesn't exist\n");
+sub prio($) {
+	my ($name) = @_;
+	my ($prio) = ($desired{$name} =~ /(\d+)/);
+	$prio //= 1000; # If no prio specified, put it last (1000 being some very large number)
+	# Uninstall first
+	$prio -= 0.5 if $desired{$name} =~ /R/;
+	return $prio;
 }
 
-# Generate list of packages to be installed
-my %final = map { $_->{desc}->{Package} => $_ } grep $_->{desired}, values %packages;
-
-# Print out the packages to remove first
-print map "$_\t-\t$desired{$_}\n", (grep $desired{$_} =~ /R1/, keys %desired);
-
-# Keep picking the things without dependencies, output them to the list and remove them as deps from others
 mkdir 'packages';
-while (my @nodeps = grep { not %{$_->{dep}} } values %final) {
-	for my $package (@nodeps) {
-		my $name = $package->{desc}->{Package};
-		# Drop from the list of stuff to do
-		delete $final{$name};
-		for my $rdep (values %{$package->{revdep}}) {
-			delete $rdep->{dep}->{$name}
-		}
-		# Handle the package
-		my $filename = "$name-$package->{desc}->{Version}.ipk";
-		die "Failed to download $name\n" if system 'wget', '-q', "$url/$package->{desc}->{Filename}", '-O', "packages/$filename";
-		my $flags = $desired{$name} // '.';
-		print "$name\t$package->{desc}->{Version}\t$flags\n";
-		warn "Package $name should be encrypted, but that's not supported yet ‒ you need to encrypt manually\n" if $desired{$name} =~ /E/;
+for my $pname (sort { prio $a <=> prio $b or $desired_order{$a} <=> $desired_order{$b} } @desired_names) {
+	if ($desired{$pname} =~ /R/) {
+		print "$pname\t-\t$desired{$pname}\n";
+	} else {
+		provide($packages{$pname} // die "Package $pname doesn't exist\n");
 	}
 }
-
-# Make sure nothing is left
-die "Circular dependencies in ", (join ", ", keys %final), "\n" if %final;
-
-# Output the packages to remove
-print map "$_\t-\t$desired{$_}\n", (grep { $desired{$_} =~ /R/ and $desired{$_} !~ /1/ } keys %desired);
