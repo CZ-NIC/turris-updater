@@ -3,15 +3,9 @@ use common::sense;
 use utf8;
 use Scalar::Util qw(weaken);
 use Data::Dumper;
-use Digest::SHA;
-
-my $output_buffer;
-open my $output, '>', \$output_buffer or die "Could not redirect output: $!\n";
 
 # Where to get the packages and their list
 my $url = $ARGV[0] or die "Expected the URL of the repository as my first argument\n";
-my $key = $ARGV[1] or die "I want an RSA key for generating a signature\n";
-my $sigfilename = $ARGV[2] or die "I want to know where to store signature\n";
 
 # Download and decompress the list of opkg packages.
 
@@ -79,7 +73,7 @@ for my $desired (keys %desired) {
 my %final = map { $_->{desc}->{Package} => $_ } grep $_->{desired}, values %packages;
 
 # Print out the packages to remove first
-print $output map "$_\t-\t$desired{$_}\n", (grep $desired{$_} =~ /R1/, keys %desired);
+print map "$_\t-\t$desired{$_}\n", (grep $desired{$_} =~ /R1/, keys %desired);
 
 # Keep picking the things without dependencies, output them to the list and remove them as deps from others
 mkdir 'packages';
@@ -94,11 +88,8 @@ while (my @nodeps = grep { not %{$_->{dep}} } values %final) {
 		# Handle the package
 		my $filename = "$name-$package->{desc}->{Version}.ipk";
 		die "Failed to download $name\n" if system 'wget', '-q', "$url/$package->{desc}->{Filename}", '-O', "packages/$filename";
-		my $hash = Digest::SHA->new(256);
-		$hash->addfile("packages/$filename");
-		my $hash_result = $hash->hexdigest;
 		my $flags = $desired{$name} // '.';
-		print $output "$name\t$package->{desc}->{Version}\t$flags\t$hash_result\n";
+		print "$name\t$package->{desc}->{Version}\t$flags\n";
 		warn "Package $name should be encrypted, but that's not supported yet ‒ you need to encrypt manually\n" if $desired{$name} =~ /E/;
 	}
 }
@@ -107,12 +98,4 @@ while (my @nodeps = grep { not %{$_->{dep}} } values %final) {
 die "Circular dependencies in ", (join ", ", keys %final), "\n" if %final;
 
 # Output the packages to remove
-print $output map "$_\t-\t$desired{$_}\n", (grep { $desired{$_} =~ /R/ and $desired{$_} !~ /1/ } keys %desired);
-
-close $output;
-print $output_buffer;
-
-my $hex = Digest::SHA::sha256_hex($output_buffer);
-open my $signature, '|-', "openssl rsautl -sign -inkey '$key' -keyform PEM >$sigfilename" or die "Can't run openssl sign";
-print $signature $hex, "\n";
-close $signature;
+print map "$_\t-\t$desired{$_}\n", (grep { $desired{$_} =~ /R/ and $desired{$_} !~ /1/ } keys %desired);
