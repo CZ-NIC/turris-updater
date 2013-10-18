@@ -53,7 +53,7 @@ else
 fi
 
 my_curl() {
-	curl --cacert "$CERT" "$@"
+	curl --compress --cacert "$CERT" "$@"
 }
 
 mkdir -p "$TMP_DIR"
