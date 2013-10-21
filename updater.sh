@@ -98,6 +98,8 @@ verify() {
 
 echo 'get list' >"$STATE_FILE"
 
+opkg update || die "Failed to download OPKG list"
+
 # Download the list of packages
 get_list() {
 	if url_exists "$SPECIFIC_LIST_URL" ; then
