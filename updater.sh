@@ -2,10 +2,34 @@
 
 set -xe
 
+guess_id() {
+	echo 'Using unknown-id as a last-resort attempt to recover from broken atsha204cmd' | logger -t updater -p daemon.warning
+	echo 'unknown-id'
+}
+
+guess_revision() {
+	echo 'Trying to guess revision as a last-resort attempt to recover from broken atsha204cmd' | logger -t updater -p daemon.warning
+	REPO=$(grep 'cznic.*api\.turris\.cz' /etc/opkg.conf | sed -e 's#.*/\([^/]*\)/packages.*#\1#')
+	case "$REPO" in
+		ar71xx)
+			echo 00000000
+			;;
+		mpc85xx)
+			echo 00000002
+			;;
+		turris)
+			echo 00000003
+			;;
+		*)
+			echo 'unknown-revision'
+			;;
+	esac
+}
+
 # My own ID
-ID="$(atsha204cmd serial-number)"
+ID="$(atsha204cmd serial-number || guess_id)"
 # We take the hardware revision as "distribution"
-REVISION="$(atsha204cmd hw-rev)"
+REVISION="$(atsha204cmd hw-rev || guess_revision)"
 # Where the things live
 BASE_URL="https://api.turris.cz/updater-repo/$REVISION"
 GENERIG_LIST_URL="$BASE_URL/lists/generic"
