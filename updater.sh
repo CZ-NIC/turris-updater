@@ -117,8 +117,14 @@ sha_hash() {
 verify() {
 	download "$1".sig signature
 	COMPUTED="$(sha_hash /tmp/update/list)"
-	EXPECTED="$(openssl rsautl -verify -inkey /usr/share/updater/updater.pub.pem -keyform PEM -pubin -in /tmp/update/signature)"
-	if [ "$COMPUTED" != "$EXPECTED" ] ; then
+	FOUND=false
+	for KEY in /usr/share/updater/keys/*.pem ; do
+		EXPECTED="$(openssl rsautl -verify -inkey "$KEY" -keyform PEM -pubin -in /tmp/update/signature || echo "BAD")"
+		if [ "$COMPUTED" = "$EXPECTED" ] ; then
+			FOUND=true
+		fi
+	done
+	if ! "$FOUND" ; then
 		die "List signature invalid"
 	fi
 }
