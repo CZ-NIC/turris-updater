@@ -125,7 +125,11 @@ verify() {
 
 echo 'get list' >"$STATE_FILE"
 
-opkg update || die "Failed to download OPKG list"
+opkg update || (
+	echo "The opkg update doesn't work, trying without it as a fallback." | logger -t updater -p daemon.warning
+	# Remove this as it might complain about hashes of packages. Opkg doesn't work for the user now anyway
+	rm -rf /tmp/opkg-lists
+)
 
 # Download the list of packages
 get_list() {
