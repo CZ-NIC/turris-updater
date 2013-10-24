@@ -66,7 +66,7 @@ fi
 trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR"; exit 1' EXIT INT QUIT TERM ABRT
 
 echo 'initial sleep' >"$STATE_FILE"
-rm -f "$LOG_FILE"
+rm -f "$LOG_FILE" "$STATE_DIR/last_error"
 touch "$LOG_FILE"
 
 # Don't load the server all at once. With NTP-synchronized time, and
