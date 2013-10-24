@@ -44,6 +44,7 @@ PID_FILE="$STATE_DIR/pid"
 LOCK_DIR="$STATE_DIR/lock"
 STATE_FILE="$STATE_DIR/state"
 LOG_FILE="$STATE_DIR/log"
+PID="$$"
 
 updater-wipe.sh # Remove forgotten stuff, if any
 
@@ -56,12 +57,13 @@ else
 	if ! mkdir "$LOCK_DIR" ; then
 		echo "Already running" >&2
 		echo "Already running" | logger -t updater -p daemon.warning
-		exit 0
+		# For some reason, busybox sh doesn't know how to exit. Use this instead.
+		kill -SIGABRT "$PID"
 	fi
 	echo $$ >"$PID_FILE"
 fi
 
-trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR"' EXIT INT QUIT TERM
+trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR"; exit 1' EXIT INT QUIT TERM ABRT
 
 echo 'initial sleep' >"$STATE_FILE"
 rm -f "$LOG_FILE"
@@ -88,7 +90,8 @@ die() {
 	echo "$@" >"$STATE_DIR/last_error"
 	echo "$@" >&2
 	echo "$@" | logger -t updater -p daemon.err
-	exit 1
+	# For some reason, busybox sh doesn't know how to exit. Use this instead.
+	kill -SIGABRT "$PID"
 }
 
 url_exists() {
