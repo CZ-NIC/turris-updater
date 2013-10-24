@@ -45,6 +45,7 @@ LOCK_DIR="$STATE_DIR/lock"
 STATE_FILE="$STATE_DIR/state"
 LOG_FILE="$STATE_DIR/log"
 PID="$$"
+EXIT_CODE="1"
 
 updater-wipe.sh # Remove forgotten stuff, if any
 
@@ -58,12 +59,13 @@ else
 		echo "Already running" >&2
 		echo "Already running" | logger -t updater -p daemon.warning
 		# For some reason, busybox sh doesn't know how to exit. Use this instead.
+		EXIT_CODE="0"
 		kill -SIGABRT "$PID"
 	fi
 	echo $$ >"$PID_FILE"
 fi
 
-trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR"; exit 1' EXIT INT QUIT TERM ABRT
+trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR"; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
 
 echo 'initial sleep' >"$STATE_FILE"
 rm -f "$LOG_FILE" "$STATE_DIR/last_error"
@@ -246,3 +248,5 @@ while read PACKAGE VERSION FLAGS HASH ; do
 done <"$TMP_DIR/list"
 
 echo 'done' >"$STATE_FILE"
+
+EXIT_CODE="0"
