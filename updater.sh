@@ -257,5 +257,6 @@ while read PACKAGE VERSION FLAGS HASH ; do
 done <"$TMP_DIR/list"
 
 echo 'done' >"$STATE_FILE"
+echo 'Updater finished' | logger -t updater -p daemon.info
 
 EXIT_CODE="0"
