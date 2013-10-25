@@ -133,7 +133,16 @@ verify() {
 
 echo 'get list' >"$STATE_FILE"
 
-opkg update || (
+my_opkg() {
+	set +e
+	opkg "$@" >"$TMP_DIR"/opkg 2>&1
+	RESULT="$?"
+	set -e
+	cat "$TMP_DIR"/opkg | logger -t updater -p daemon.warning
+	return "$RESULT"
+}
+
+my_opkg update || (
 	echo "The opkg update doesn't work, trying without it as a fallback." | logger -t updater -p daemon.warning
 	# Remove this as it might complain about hashes of packages. Opkg doesn't work for the user now anyway
 	rm -rf /tmp/opkg-lists
@@ -223,7 +232,7 @@ while read PACKAGE VERSION FLAGS HASH ; do
 		echo 'remove' >"$STATE_FILE"
 		echo "R $PACKAGE" >>"$LOG_FILE"
 		echo "Removing package $PACKAGE" | logger -t updater -p daemon.info
-		opkg remove "$PACKAGE" || die "Failed to remove $PACKAGE"
+		my_opkg remove "$PACKAGE" || die "Failed to remove $PACKAGE"
 		# Let the system settle little bit before continuing
 		# Like reconnecting things that changed.
 		echo 'cooldown' >"$STATE_FILE"
@@ -234,7 +243,7 @@ while read PACKAGE VERSION FLAGS HASH ; do
 		echo "Installing/upgrading $PACKAGE version $VERSION" | logger -t updater -p daemon.info
 		get_package "$PACKAGE" "$VERSION" "$FLAGS" "$HASH"
 		# Don't do deps and such, just follow the script
-		opkg --force-downgrade --nodeps install "$TMP_DIR/package.ipk" || die "Failed to install $PACKAGE"
+		my_opkg --force-downgrade --nodeps install "$TMP_DIR/package.ipk" || die "Failed to install $PACKAGE"
 		# Let the system settle little bit before continuing
 		# Like reconnecting things that changed.
 		echo 'cooldown' >"$STATE_FILE"
