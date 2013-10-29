@@ -75,7 +75,7 @@ touch "$LOG_FILE"
 # thousand clients, it would make spikes on the CPU graph and that's not
 # nice.
 if [ "$1" != "-n" ] ; then
-	sleep $(( $(tr -cd 0-9 </dev/urandom | head -c 8) % 120 ))
+	sleep $(( $(tr -cd 0-9 </dev/urandom | head -c 8 | sed -e 's/^0*//' ) % 120 ))
 else
 	shift
 fi
