@@ -138,7 +138,7 @@ my_opkg() {
 	opkg "$@" >"$TMP_DIR"/opkg 2>&1
 	RESULT="$?"
 	set -e
-	cat "$TMP_DIR"/opkg | logger -t updater -p daemon.warning
+	cat "$TMP_DIR"/opkg | logger -t updater -p daemon.info
 	return "$RESULT"
 }
 
