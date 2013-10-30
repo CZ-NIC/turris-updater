@@ -138,7 +138,9 @@ my_opkg() {
 	opkg "$@" >"$TMP_DIR"/opkg 2>&1
 	RESULT="$?"
 	set -e
-	cat "$TMP_DIR"/opkg | logger -t updater -p daemon.info
+	if [ "$RESULT" != 0 ] ; then
+		cat "$TMP_DIR"/opkg | logger -t updater -p daemon.info
+	fi
 	return "$RESULT"
 }
 
