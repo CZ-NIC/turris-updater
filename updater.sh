@@ -142,12 +142,6 @@ my_opkg() {
 	return "$RESULT"
 }
 
-my_opkg update || (
-	echo "The opkg update doesn't work, trying without it as a fallback." | logger -t updater -p daemon.warning
-	# Remove this as it might complain about hashes of packages. Opkg doesn't work for the user now anyway
-	rm -rf /tmp/opkg-lists
-)
-
 # Download the list of packages
 get_list() {
 	if url_exists "$SPECIFIC_LIST_URL" ; then
@@ -242,8 +236,8 @@ while read PACKAGE VERSION FLAGS HASH ; do
 		echo "I $PACKAGE $VERSION" >>"$LOG_FILE"
 		echo "Installing/upgrading $PACKAGE version $VERSION" | logger -t updater -p daemon.info
 		get_package "$PACKAGE" "$VERSION" "$FLAGS" "$HASH"
-		# Don't do deps and such, just follow the script
-		my_opkg --force-downgrade --nodeps install "$TMP_DIR/package.ipk" || die "Failed to install $PACKAGE"
+		# Don't do deps and such, just follow the script. The conf disables checking signatures, in case the opkg packages are there.
+		my_opkg --force-downgrade --nodeps --conf /dev/null install "$TMP_DIR/package.ipk" || die "Failed to install $PACKAGE"
 		# Let the system settle little bit before continuing
 		# Like reconnecting things that changed.
 		echo 'cooldown' >"$STATE_FILE"
