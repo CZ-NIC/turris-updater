@@ -26,6 +26,7 @@ while (<STDIN>) {
 	chomp;
 	s/#.*//;
 	next unless /\S/;
+	s/\$HOME/$ENV{HOME}/g;
 	if (/^dir\s+(.*?)\s*$/) {
 		leave;
 		mkdir $1 or die "Can't create $1: $!";
