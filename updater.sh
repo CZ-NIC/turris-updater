@@ -49,7 +49,7 @@ EXIT_CODE="1"
 
 updater-wipe.sh # Remove forgotten stuff, if any
 
-if [ "$1" == '-r' ] ; then
+if [ "$1" = '-r' ] ; then
 	shift
 	echo "Restarted" | logger -t updater -p daemon.info
 else
@@ -58,6 +58,10 @@ else
 	if ! mkdir "$LOCK_DIR" ; then
 		echo "Already running" >&2
 		echo "Already running" | logger -t updater -p daemon.warning
+		if [ "$1" = '-n' ] ; then
+			# We were asked to run updater now. There's another one running, possibly sleeping. Make it stop.
+			touch "$LOCK_DIR/dont_sleep"
+		fi
 		# For some reason, busybox sh doesn't know how to exit. Use this instead.
 		EXIT_CODE="0"
 		kill -SIGABRT "$PID"
@@ -75,7 +79,13 @@ touch "$LOG_FILE"
 # thousand clients, it would make spikes on the CPU graph and that's not
 # nice.
 if [ "$1" != "-n" ] ; then
-	sleep $(( $(tr -cd 0-9 </dev/urandom | head -c 8 | sed -e 's/^0*//' ) % 120 ))
+	TIME=$(( $(tr -cd 0-9 </dev/urandom | head -c 8 | sed -e 's/^0*//' ) % 120 ))
+	for i in $(seq 1 $TIME) ; do
+		if [ -f "$LOCK_DIR/dont_sleep" ] ; then
+			break;
+		fi
+		sleep 1
+	done
 else
 	shift
 fi
