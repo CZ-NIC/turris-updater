@@ -7,7 +7,7 @@ my $indir;
 
 my $reponame;
 
-my ($generator, $fixer, $key) = map { abs_path $_ } @ARGV[0..3];
+my ($generator, $fixer, $list_dir, $key) = map { abs_path $_ } @ARGV[0..3];
 
 my $list;
 
@@ -36,7 +36,7 @@ while (<STDIN>) {
 	} elsif (/^repo\s+(\w+)\s+(.*?)\s*$/) {
 		$reponame = $1;
 		die "No list specified yet" unless $list;
-		if (system("'$generator' '$2' <'$list' >'lists/$1'")) {
+		if (system("'$generator' '$2' <'$list_dir/$list' >'lists/$1'")) {
 			die "Failed to run generator";
 		}
 		push @lists, "lists/$1";
