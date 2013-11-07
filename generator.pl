@@ -5,21 +5,21 @@ use Scalar::Util qw(weaken);
 use Data::Dumper;
 
 # Where to get the packages and their list
-my $url = $ARGV[0] or die "Expected the URL of the repository as my first argument\n";
+my $path = $ARGV[0] or die "Expected the URL of the repository as my first argument\n";
 
 # Download and decompress the list of opkg packages.
 
 # The use of shell here is technically insecure, but the input is ours,
 # so it should be OK. Still, it would be nice to do it properly sometime.
-my $list_url = "$url/Packages.gz";
-open my $descriptions, '-|', "wget '$list_url' -O - | gzip -d" or die "Could not start download of $list_url $!\n";
+my $list_path = "$path/Packages.gz";
+open my $descriptions, '<', $list_path or die "Could not open package list in $list_path: $!\n";
 my @packages;
 {
 	# The package descriptions are separated by one empty line, so pretend an empty line is EOF and read all „lines“
 	local $/ = "\n\n";
 	@packages = <$descriptions>;
 }
-close $descriptions or die "Failed to download $list_url\n";
+close $descriptions;
 
 # Parse the packages.
 
@@ -80,7 +80,7 @@ sub provide($) {
 
 	# The package itself
 	my $filename = "$name-$version.ipk";
-	die "Failed to download $name ($url/$package->{desc}->{Filename})\n" if system 'wget', '-q', "$url/$package->{desc}->{Filename}", '-O', "packages/$filename";
+	copy("$path/$package->{desc}->{Filename}", "packages/$filename") or die "Could not copy $name ($path/$package->{desc}->{Filename}";
 	print "$name\t$version\t$flags\n";
 	warn "Package $name should be encrypted, but that's not supported yet ‒ you need to encrypt manually\n" if $desired{$name} =~ /E/;
 }
