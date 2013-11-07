@@ -7,7 +7,9 @@ my $indir;
 
 my $reponame;
 
-my ($generator, $fixer, $list, $key) = map { abs_path $_ } @ARGV[0..3];
+my ($generator, $fixer, $key) = map { abs_path $_ } @ARGV[0..3];
+
+my $list;
 
 my @lists;
 
@@ -32,6 +34,7 @@ while (<STDIN>) {
 		mkdir 'lists' or die "Couldn't create lists: $!";
 	} elsif (/^repo\s+(\w+)\s+(.*?)\s*$/) {
 		$reponame = $1;
+		die "No list specified yet" unless $list;
 		if (system("'$generator' '$2' <'$list' >'lists/$1'")) {
 			die "Failed to run generator";
 		}
@@ -39,6 +42,8 @@ while (<STDIN>) {
 	} elsif (/^alias\s+(.*?)\s*$/) {
 		symlink "$reponame", "lists/$1" or die "Couldn't create alias: $!";
 		symlink "$reponame.sig", "lists/$1.sig" or die "Couldn't create sig alias: $!";
+	} elsif (/^list\s+(.*?)\s*$/) {
+		$list = $1;
 	} else {
 		die "Unknown command: $_";
 	}
