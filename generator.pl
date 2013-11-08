@@ -95,6 +95,8 @@ sub prio($) {
 }
 
 mkdir 'packages';
+
+print Dumper \%packages;
 for my $pname (sort { prio $a <=> prio $b or $desired_order{$a} <=> $desired_order{$b} } @desired_names) {
 	if ($desired{$pname} =~ /R/) {
 		print "$pname\t-\t$desired{$pname}\n";
