@@ -11,7 +11,7 @@ my $path = $ARGV[0] or die "Expected the URL of the repository as my first argum
 
 # The use of shell here is technically insecure, but the input is ours,
 # so it should be OK. Still, it would be nice to do it properly sometime.
-my $list_path = "$path/Packages.gz";
+my $list_path = "$path/Packages";
 open my $descriptions, '<', $list_path or die "Could not open package list in $list_path: $!\n";
 my @packages;
 {
