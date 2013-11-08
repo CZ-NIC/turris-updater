@@ -2,6 +2,7 @@
 use common::sense;
 use utf8;
 use Scalar::Util qw(weaken);
+use File::Copy qw(copy);
 use Data::Dumper;
 
 # Where to get the packages and their list
@@ -96,7 +97,6 @@ sub prio($) {
 
 mkdir 'packages';
 
-print STDERR Dumper \%packages;
 for my $pname (sort { prio $a <=> prio $b or $desired_order{$a} <=> $desired_order{$b} } @desired_names) {
 	if ($desired{$pname} =~ /R/) {
 		print "$pname\t-\t$desired{$pname}\n";
