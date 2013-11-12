@@ -17,7 +17,7 @@ guess_revision() {
 		mpc85xx)
 			echo 00000002
 			;;
-		turris)
+		turris*)
 			echo 00000003
 			;;
 		*)
