@@ -75,9 +75,10 @@ else
 		fi
 		# For some reason, busybox sh doesn't know how to exit. Use this instead.
 		EXIT_CODE="0"
-		kill -SIGABRT "$PID"
+		exit
 	fi
-	echo $$ >"$PID_FILE"
+	echo "$PID" >"$PID_FILE"
+	echo 'startup' >"$STATE_FILE"
 fi
 
 if $BACKGROUND ; then
