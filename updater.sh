@@ -1,5 +1,10 @@
 #!/bin/busybox sh
 
+# Switches (to be used in this order if multiple are needed)
+# -b: Fork to background.
+# -r <Reason>: Restarted. Internal switch, not to be used by other applications.
+# -n: Now. Don't wait a random amount of time before doing something.
+
 set -xe
 
 guess_id() {
@@ -46,12 +51,18 @@ STATE_FILE="$STATE_DIR/state"
 LOG_FILE="$STATE_DIR/log"
 PID="$$"
 EXIT_CODE="1"
+BACKGROUND=false
+
+if [ "$1" = "-b" ] ; then
+	BACKGROUND=true
+	shift
+fi
 
 updater-wipe.sh # Remove forgotten stuff, if any
 
 if [ "$1" = '-r' ] ; then
-	shift
-	echo "Restarted" | logger -t updater -p daemon.info
+	echo "$2" | logger -t updater -p daemon.info
+	shift 2
 else
 	# Create the state directory, set state, etc.
 	mkdir -p "$STATE_DIR"
@@ -67,6 +78,14 @@ else
 		kill -SIGABRT "$PID"
 	fi
 	echo $$ >"$PID_FILE"
+fi
+
+if $BACKGROUND ; then
+	# If we background, we do so just after setting up the state dir. Don't remove it in
+	# the trap yet and leave it up for the restarted process.
+	shift
+	nohup "$0" -r "Backgrounded" -n "$@" >/dev/null 2>&1 &
+	exit
 fi
 
 trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR"; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
@@ -256,7 +275,7 @@ while read PACKAGE VERSION FLAGS HASH ; do
 		sleep "$COOLDOWN"
 		if echo "$FLAGS" | grep -q "U" ; then
 			echo 'Update restart requested, complying' | logger -t updater -p daemon.info
-			exec "$0" -r -n "$@"
+			exec "$0" -r "Restarted" -n "$@"
 		fi
 	fi
 	echo 'examine' >"$STATE_FILE"
