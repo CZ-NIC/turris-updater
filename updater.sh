@@ -58,12 +58,12 @@ if [ "$1" = "-b" ] ; then
 	shift
 fi
 
-updater-wipe.sh # Remove forgotten stuff, if any
-
 if [ "$1" = '-r' ] ; then
 	echo "$2" | logger -t updater -p daemon.info
 	shift 2
 else
+	updater-wipe.sh # Remove forgotten stuff, if any
+
 	# Create the state directory, set state, etc.
 	mkdir -p "$STATE_DIR"
 	if ! mkdir "$LOCK_DIR" ; then
@@ -84,7 +84,9 @@ if $BACKGROUND ; then
 	# If we background, we do so just after setting up the state dir. Don't remove it in
 	# the trap yet and leave it up for the restarted process.
 	shift
-	nohup "$0" -r "Backgrounded" -n "$@" >/dev/null 2>&1 &
+	"$0" -r "Backgrounded" -n "$@" >/dev/null 2>&1 &
+	# Update the PID so updater-wipe does not remove it
+	echo $! >"$PID_FILE"
 	exit
 fi
 
