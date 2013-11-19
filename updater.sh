@@ -79,6 +79,9 @@ else
 	fi
 	echo "$PID" >"$PID_FILE"
 	echo 'startup' >"$STATE_FILE"
+	echo 'initial sleep' >"$STATE_FILE"
+	rm -f "$LOG_FILE" "$STATE_DIR/last_error"
+	touch "$LOG_FILE"
 fi
 
 if $BACKGROUND ; then
@@ -92,10 +95,6 @@ if $BACKGROUND ; then
 fi
 
 trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR"; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
-
-echo 'initial sleep' >"$STATE_FILE"
-rm -f "$LOG_FILE" "$STATE_DIR/last_error"
-touch "$LOG_FILE"
 
 # Don't load the server all at once. With NTP-synchronized time, and
 # thousand clients, it would make spikes on the CPU graph and that's not
