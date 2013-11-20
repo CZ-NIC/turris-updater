@@ -10,3 +10,4 @@ logrotate
 unbound
 oneshot
 foris
+wget
