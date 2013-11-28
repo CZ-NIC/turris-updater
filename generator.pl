@@ -81,7 +81,7 @@ while (my ($name, $package) = each %packages) {
 # Get list of desired packages from stdin
 my @desired = <STDIN>;
 chomp @desired;
-my %desired = map { my ($name, $flags) = split /\s+/, $_, 2; ($name, $flags); } @desired;
+my %desired = map { my ($name, $flags) = split /\s+/, $_, 2; ($name, $flags); } grep { not /^\s*#/ } @desired;
 my @desired_names = map { my ($name) = split /\s+/, $_; $name; } @desired;
 my ($order, %desired_order) = (1);
 
