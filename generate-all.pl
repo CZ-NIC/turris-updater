@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright (c) 2013, CZ.NIC
+# Copyright (c) 2013, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
