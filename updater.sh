@@ -312,7 +312,7 @@ do_install() {
 		echo 'cooldown' >"$STATE_FILE"
 		sleep "$COOLDOWN"
 	fi
-	if echo "$FLAGS" | grep -q "U" ; then
+	if has_flag "$FLAGS" U ; then
 		echo 'Update restart requested, complying' | logger -t updater -p daemon.info
 		exec "$0" -r "Restarted" -n "$@"
 	fi
@@ -331,6 +331,12 @@ while read PACKAGE VERSION FLAGS HASH ; do
 		get_package "$PACKAGE" "$VERSION" "$FLAGS" "$HASH"
 		mv "$TMP_DIR/package.ipk" "$FILE"
 		echo "do_install '$PACKAGE' '$VERSION' '$FLAGS'" >>"$PLAN_FILE"
+		if has_flag "$FLAGS" U ; then
+			# If we do an updater restart, we don't want to download further packages.
+			# We would throw them out anyway, since we would start updater again and
+			# downloaded them again.
+			break;
+		fi
 	fi
 done <"$TMP_DIR/list"
 
