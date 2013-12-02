@@ -218,12 +218,16 @@ get_list
 
 # Good, we have the list of packages now. Decide and install.
 
+has_flag() {
+	echo "$1" | grep -q "$2"
+}
+
 should_install() {
-	if echo "$3" | grep -q "R" ; then
+	if has_flag "$3" R ; then
 		# Don't install if there's an uninstall flag
 		return 1
 	fi
-	if echo "$3" | grep -q "F" ; then
+	if has_flag "$3" F ; then
 		# (re) install every time
 		return 0
 	fi
@@ -246,7 +250,7 @@ should_uninstall() {
 	if echo "$INFO" | grep '^Status:.*not-installed' ; then
 		return 1
 	fi
-	echo "$2" | grep -q 'R'
+	has_flag "$2" R
 }
 
 get_pass() {
@@ -260,7 +264,7 @@ get_pass() {
 }
 
 get_package() {
-	if echo "$3" | grep -q 'E' ; then
+	if has_flag "$3" E ; then
 		# Encrypted
 		URL="$PACKAGE_URL/$1-$2-$ID.ipk"
 		download "$URL" package.encrypted.ipk
