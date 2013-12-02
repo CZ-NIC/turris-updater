@@ -3,11 +3,12 @@ nuci
 updater		U1
 daemon-watchdog
 logsend
-ucollect-count
-ucollect-buckets
-ucollect-badconf
+ucollect-core	C
+ucollect-count	C
+ucollect-buckets	C
+ucollect-badconf	C
 logrotate
-unbound
+unbound	C
 oneshot
 foris
 wget
