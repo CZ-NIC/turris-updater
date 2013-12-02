@@ -289,10 +289,12 @@ do_remove() {
 	echo "R $PACKAGE" >>"$LOG_FILE"
 	echo "Removing package $PACKAGE" | logger -t updater -p daemon.info
 	my_opkg remove "$PACKAGE" || die "Failed to remove $PACKAGE"
-	# Let the system settle little bit before continuing
-	# Like reconnecting things that changed.
-	echo 'cooldown' >"$STATE_FILE"
-	sleep "$COOLDOWN"
+	if has_flag "$2" C ; then
+		# Let the system settle little bit before continuing
+		# Like reconnecting things that changed.
+		echo 'cooldown' >"$STATE_FILE"
+		sleep "$COOLDOWN"
+	fi
 	echo 'examine' >"$STATE_FILE"
 }
 
@@ -304,10 +306,12 @@ do_install() {
 	echo "Installing/upgrading $PACKAGE version $VERSION" | logger -t updater -p daemon.info
 	# Don't do deps and such, just follow the script. The conf disables checking signatures, in case the opkg packages are there.
 	my_opkg --force-downgrade --nodeps --conf /dev/null install "$TMP_DIR/$PACKAGE.ipk" || die "Failed to install $PACKAGE"
-	# Let the system settle little bit before continuing
-	# Like reconnecting things that changed.
-	echo 'cooldown' >"$STATE_FILE"
-	sleep "$COOLDOWN"
+	if has_flag "$3" C ; then
+		# Let the system settle little bit before continuing
+		# Like reconnecting things that changed.
+		echo 'cooldown' >"$STATE_FILE"
+		sleep "$COOLDOWN"
+	fi
 	if echo "$FLAGS" | grep -q "U" ; then
 		echo 'Update restart requested, complying' | logger -t updater -p daemon.info
 		exec "$0" -r "Restarted" -n "$@"
@@ -321,7 +325,7 @@ cat /dev/null >"$PLAN_FILE"
 IFS='	'
 while read PACKAGE VERSION FLAGS HASH ; do
 	if should_uninstall "$PACKAGE" "$FLAGS" ; then
-		echo "do_remove '$PACKAGE'" >>"$PLAN_FILE"
+		echo "do_remove '$PACKAGE' '$FLAGS'" >>"$PLAN_FILE"
 	elif should_install "$PACKAGE" "$VERSION"  "$FLAGS" ; then
 		FILE="$TMP_DIR/$PACKAGE.ipk"
 		get_package "$PACKAGE" "$VERSION" "$FLAGS" "$HASH"

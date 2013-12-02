@@ -46,6 +46,11 @@ R::
   system. The version should be `-` in this case.
 F::
   Force re-installation even if it is in current version.
+C::
+  Do a cooldown sleep after installing or removing this package.
+<number>::
+  Packages with lower number are considered sooner when planning the order.
+  Packages without number are left as last.
 
 Dependencies
 ------------
