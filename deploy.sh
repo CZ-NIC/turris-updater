@@ -1,10 +1,20 @@
 #!/bin/sh
 
-set -ex
+set -e
+
+# First, check this commit is signed. That means we are allowed to proceed with deployment.
+if [ "$(git log -n1 --pretty='%G?')" != 'G' ] ; then
+	echo 'The last commit on misc is not signed by trusted key, not continuing'
+	exit 1
+fi
+
+if [ "$(git log -n1 | grep 'Signed-off-by' | wc -l)" -lt 2 ] ; then
+	echo 'The last commit is not signed off by at least two people, not continuing'
+	exit 1
+fi
 
 cd "$HOME"/turris-packages
 
-# TODO: Check the git is signed by known pgp and there is a signed-off-by
 while read source target hash ; do
 	current_hash=$(cat $source/git-hash)
 	if [ "$hash" != "$current_hash" ] ; then
