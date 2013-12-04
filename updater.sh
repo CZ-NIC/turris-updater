@@ -103,11 +103,11 @@ fi
 mkdir -p "$TMP_DIR"
 
 echo 'get list' >"$STATE_FILE"
-get_list
+get_list_main list
 
 echo 'examine' >"$STATE_FILE"
 cat /dev/null >"$PLAN_FILE"
-prepare_plan
+prepare_plan list
 
 run_plan
 
