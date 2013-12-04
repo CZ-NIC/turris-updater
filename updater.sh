@@ -42,6 +42,8 @@ PID="$$"
 EXIT_CODE="1"
 BACKGROUND=false
 
+BASE_PLAN_FILE='/usr/share/updater/plan'
+
 if [ "$1" = "-b" ] ; then
 	BACKGROUND=true
 	shift
@@ -83,7 +85,7 @@ if $BACKGROUND ; then
 	exit
 fi
 
-trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR"; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
+trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR" /usr/share/updater/packages /usr/share/updater/plan; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
 
 # Don't load the server all at once. With NTP-synchronized time, and
 # thousand clients, it would make spikes on the CPU graph and that's not
@@ -106,7 +108,7 @@ echo 'get list' >"$STATE_FILE"
 get_list_main list
 
 echo 'examine' >"$STATE_FILE"
-echo '' >"$PLAN_FILE" # TODO The path to the packages
+echo 'PKG_DIR=/usr/share/updater/packages' >"$PLAN_FILE" # TODO The path to the packages
 prepare_plan list
 
 # Overwrite the restart function
@@ -115,7 +117,13 @@ do_restart() {
 	exec "$0" -r "Restarted" -n "$@"
 }
 
-run_plan "$PLAN_FILE"
+# Back up the packages to permanent storage, so we can resume on next restart if the power is unplugged
+mv "$PKG_DIR" /usr/share/updater/packages
+mv "$PLAN_FILE" "$BASE_PLAN_FILE"
+sync
+
+# Run the plan from the permanent storage
+run_plan "$BASE_PLAN_FILE"
 
 echo 'done' >"$STATE_FILE"
 echo 'Updater finished' | logger -t updater -p daemon.info
