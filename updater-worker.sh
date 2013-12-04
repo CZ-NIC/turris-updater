@@ -37,6 +37,7 @@ GENERIG_LIST_URL="$BASE_URL/lists/generic"
 SPECIFIC_LIST_URL="$BASE_URL/lists/$ID"
 PACKAGE_URL="$BASE_URL/packages"
 TMP_DIR='/tmp/update'
+PKG_DIR="$TMP_DIR/packages"
 CIPHER='aes-256-cbc'
 COOLDOWN='3'
 CERT='/etc/ssl/updater.pem'
@@ -134,6 +135,11 @@ do_remove() {
 	echo 'examine' >"$STATE_FILE"
 }
 
+do_restart() {
+	echo 'Update restart requested on abnormal run, terminating instead' | logger -t updater -p daemon.warn
+	exit 0
+}
+
 do_install() {
 	PACKAGE="$1"
 	VERSION="$2"
@@ -141,7 +147,7 @@ do_install() {
 	echo "I $PACKAGE $VERSION" >>"$LOG_FILE"
 	echo "Installing/upgrading $PACKAGE version $VERSION" | logger -t updater -p daemon.info
 	# Don't do deps and such, just follow the script. The conf disables checking signatures, in case the opkg packages are there.
-	my_opkg --force-downgrade --nodeps --conf /dev/null install "$TMP_DIR/$PACKAGE.ipk" || die "Failed to install $PACKAGE"
+	my_opkg --force-downgrade --nodeps --conf /dev/null install "$PKG_DIR/$PACKAGE.ipk" || die "Failed to install $PACKAGE"
 	if has_flag "$3" C ; then
 		# Let the system settle little bit before continuing
 		# Like reconnecting things that changed.
@@ -149,8 +155,7 @@ do_install() {
 		sleep "$COOLDOWN"
 	fi
 	if has_flag "$FLAGS" U ; then
-		echo 'Update restart requested, complying' | logger -t updater -p daemon.info
-		exec "$0" -r "Restarted" -n "$@"
+		do_restart
 	fi
 	echo 'examine' >"$STATE_FILE"
 }
@@ -158,11 +163,12 @@ do_install() {
 prepare_plan() {
 	OLD_IFS="$IFS"
 	IFS='	'
+	mkdir -p "$PKG_DIR"
 	while read PACKAGE VERSION FLAGS HASH ; do
 		if should_uninstall "$PACKAGE" "$FLAGS" ; then
 			echo "do_remove '$PACKAGE' '$FLAGS'" >>"$PLAN_FILE"
 		elif should_install "$PACKAGE" "$VERSION"  "$FLAGS" ; then
-			FILE="$TMP_DIR/$PACKAGE.ipk"
+			FILE="$PKG_DIR/$PACKAGE.ipk"
 			get_package "$PACKAGE" "$VERSION" "$FLAGS" "$HASH"
 			mv "$TMP_DIR/package.ipk" "$FILE"
 			echo "do_install '$PACKAGE' '$VERSION' '$FLAGS'" >>"$PLAN_FILE"
@@ -178,5 +184,6 @@ prepare_plan() {
 }
 
 run_plan() {
-	. "$PLAN_FILE"
+	. "$1"
+	rm "$1"
 }

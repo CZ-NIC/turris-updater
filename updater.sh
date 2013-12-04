@@ -106,10 +106,16 @@ echo 'get list' >"$STATE_FILE"
 get_list_main list
 
 echo 'examine' >"$STATE_FILE"
-cat /dev/null >"$PLAN_FILE"
+echo '' >"$PLAN_FILE" # TODO The path to the packages
 prepare_plan list
 
-run_plan
+# Overwrite the restart function
+do_restart() {
+	echo 'Update restart requested, complying' | logger -t updater -p daemon.info
+	exec "$0" -r "Restarted" -n "$@"
+}
+
+run_plan "$PLAN_FILE"
 
 echo 'done' >"$STATE_FILE"
 echo 'Updater finished' | logger -t updater -p daemon.info
