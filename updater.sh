@@ -32,29 +32,9 @@
 
 set -xe
 
-guess_id() {
-	echo 'Using unknown-id as a last-resort attempt to recover from broken atsha204cmd' | logger -t updater -p daemon.warning
-	echo 'unknown-id'
-}
-
-guess_revision() {
-	echo 'Trying to guess revision as a last-resort attempt to recover from broken atsha204cmd' | logger -t updater -p daemon.warning
-	REPO=$(grep 'cznic.*api\.turris\.cz' /etc/opkg.conf | sed -e 's#.*/\([^/]*\)/packages.*#\1#')
-	case "$REPO" in
-		ar71xx)
-			echo 00000000
-			;;
-		mpc85xx)
-			echo 00000002
-			;;
-		turris*)
-			echo 00000003
-			;;
-		*)
-			echo 'unknown-revision'
-			;;
-	esac
-}
+# Load the basic library
+LIB_DIR="$(dirname "$0")"
+. "$LIB_DIR/updater-utils.sh"
 
 # My own ID
 ID="$(atsha204cmd serial-number || guess_id)"
@@ -88,7 +68,7 @@ if [ "$1" = '-r' ] ; then
 	echo "$2" | logger -t updater -p daemon.info
 	shift 2
 else
-	updater-wipe.sh # Remove forgotten stuff, if any
+	"$LIB_DIR"/updater-wipe.sh # Remove forgotten stuff, if any
 
 	# Create the state directory, set state, etc.
 	mkdir -p "$STATE_DIR"
@@ -137,69 +117,9 @@ else
 	shift
 fi
 
-my_curl() {
-	curl --compress --cacert "$CERT" "$@"
-}
-
 mkdir -p "$TMP_DIR"
 
-# Utility functions
-die() {
-	echo 'error' >"$STATE_FILE"
-	echo "$@" >"$STATE_DIR/last_error"
-	echo "$@" >&2
-	echo "$@" | logger -t updater -p daemon.err
-	# For some reason, busybox sh doesn't know how to exit. Use this instead.
-	kill -SIGABRT "$PID"
-}
-
-url_exists() {
-	RESULT=$(my_curl --head "$1" | head -n1)
-	if echo "$RESULT" | grep -q 200 ; then
-		return 0
-	elif echo "$RESULT" | grep -q 404 ; then
-		return 1
-	else
-		die "Error examining $1: $RESULT"
-	fi
-}
-
-download() {
-	TARGET="$TMP_DIR/$2"
-	my_curl "$1" -o "$TARGET" || die "Failed to download $1"
-}
-
-sha_hash() {
-	openssl dgst -sha256 "$1" | sed -e 's/.* //'
-}
-
-verify() {
-	download "$1".sig signature
-	COMPUTED="$(sha_hash /tmp/update/list)"
-	FOUND=false
-	for KEY in /usr/share/updater/keys/*.pem ; do
-		EXPECTED="$(openssl rsautl -verify -inkey "$KEY" -keyform PEM -pubin -in /tmp/update/signature || echo "BAD")"
-		if [ "$COMPUTED" = "$EXPECTED" ] ; then
-			FOUND=true
-		fi
-	done
-	if ! "$FOUND" ; then
-		die "List signature invalid"
-	fi
-}
-
 echo 'get list' >"$STATE_FILE"
-
-my_opkg() {
-	set +e
-	opkg "$@" >"$TMP_DIR"/opkg 2>&1
-	RESULT="$?"
-	set -e
-	if [ "$RESULT" != 0 ] ; then
-		cat "$TMP_DIR"/opkg | logger -t updater -p daemon.info
-	fi
-	return "$RESULT"
-}
 
 # Download the list of packages
 get_list() {
@@ -217,10 +137,6 @@ get_list() {
 get_list
 
 # Good, we have the list of packages now. Decide and install.
-
-has_flag() {
-	echo "$1" | grep -q "$2"
-}
 
 should_install() {
 	if has_flag "$3" R ; then
