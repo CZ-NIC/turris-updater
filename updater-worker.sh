@@ -143,21 +143,25 @@ do_restart() {
 do_install() {
 	PACKAGE="$1"
 	VERSION="$2"
-	echo 'install' >"$STATE_FILE"
-	echo "I $PACKAGE $VERSION" >>"$LOG_FILE"
-	echo "Installing/upgrading $PACKAGE version $VERSION" | logger -t updater -p daemon.info
-	# Don't do deps and such, just follow the script. The conf disables checking signatures, in case the opkg packages are there.
-	my_opkg --force-downgrade --nodeps --conf /dev/null install "$PKG_DIR/$PACKAGE.ipk" || die "Failed to install $PACKAGE"
-	if has_flag "$3" C ; then
-		# Let the system settle little bit before continuing
-		# Like reconnecting things that changed.
-		echo 'cooldown' >"$STATE_FILE"
-		sleep "$COOLDOWN"
+	if [ -e "$PKG_DIR/$PACKAGE.ipk" ] ; then
+		# Check the package exists. It may have been already installed and removed
+		echo 'install' >"$STATE_FILE"
+		echo "I $PACKAGE $VERSION" >>"$LOG_FILE"
+		echo "Installing/upgrading $PACKAGE version $VERSION" | logger -t updater -p daemon.info
+		# Don't do deps and such, just follow the script. The conf disables checking signatures, in case the opkg packages are there.
+		my_opkg --force-downgrade --nodeps --conf /dev/null install "$PKG_DIR/$PACKAGE.ipk" || die "Failed to install $PACKAGE"
+		if has_flag "$3" C ; then
+			# Let the system settle little bit before continuing
+			# Like reconnecting things that changed.
+			echo 'cooldown' >"$STATE_FILE"
+			sleep "$COOLDOWN"
+		fi
+		if has_flag "$FLAGS" U ; then
+			do_restart
+		fi
+		rm "$PKG_DIR/$PACKAGE.ipk"
+		echo 'examine' >"$STATE_FILE"
 	fi
-	if has_flag "$FLAGS" U ; then
-		do_restart
-	fi
-	echo 'examine' >"$STATE_FILE"
 }
 
 prepare_plan() {
