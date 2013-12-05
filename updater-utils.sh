@@ -25,6 +25,8 @@
 
 # A library of utility functions used by the updater
 
+PID="$$"
+
 guess_id() {
 	echo 'Using unknown-id as a last-resort attempt to recover from broken atsha204cmd' | logger -t updater -p daemon.warning
 	echo 'unknown-id'

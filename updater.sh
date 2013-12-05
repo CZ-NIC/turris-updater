@@ -38,9 +38,8 @@ LIB_DIR="$(dirname "$0")"
 
 PID_FILE="$STATE_DIR/pid"
 LOCK_DIR="$STATE_DIR/lock"
-PID="$$"
-EXIT_CODE="1"
 BACKGROUND=false
+EXIT_CODE="1"
 
 BASE_PLAN_FILE='/usr/share/updater/plan'
 
