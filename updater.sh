@@ -323,7 +323,8 @@ echo 'examine' >"$STATE_FILE"
 cat /dev/null >"$PLAN_FILE"
 
 IFS='	'
-while read PACKAGE VERSION FLAGS HASH ; do
+# The EXTRA is unused. It is just placeholder to eat whatever extra columns there might be in future.
+while read PACKAGE VERSION FLAGS HASH EXTRA ; do
 	if should_uninstall "$PACKAGE" "$FLAGS" ; then
 		echo "do_remove '$PACKAGE' '$FLAGS'" >>"$PLAN_FILE"
 	elif should_install "$PACKAGE" "$VERSION"  "$FLAGS" ; then
