@@ -50,4 +50,7 @@ run_plan "$BASE_PLAN_FILE"
 echo 'done' >"$STATE_FILE"
 echo 'Updater finished' | logger -t updater -p daemon.info
 
+# Run the complete updater now, as we installed what was planned, to finish other phases
+"$LIB_DIR"/updater.sh -n
+
 EXIT_CODE=0
