@@ -170,8 +170,10 @@ prepare_plan() {
 	mkdir -p "$PKG_DIR"
 	while read PACKAGE VERSION FLAGS HASH ; do
 		if should_uninstall "$PACKAGE" "$FLAGS" ; then
+			HAVE_WORK=true
 			echo "do_remove '$PACKAGE' '$FLAGS'" >>"$PLAN_FILE"
 		elif should_install "$PACKAGE" "$VERSION"  "$FLAGS" ; then
+			HAVE_WORK=true
 			FILE="$PKG_DIR/$PACKAGE.ipk"
 			get_package "$PACKAGE" "$VERSION" "$FLAGS" "$HASH"
 			mv "$TMP_DIR/package.ipk" "$FILE"

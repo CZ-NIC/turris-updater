@@ -107,23 +107,26 @@ mkdir -p "$TMP_DIR"
 echo 'get list' >"$STATE_FILE"
 get_list_main list
 
+HAVE_WORK=false
 echo 'examine' >"$STATE_FILE"
-echo 'PKG_DIR=/usr/share/updater/packages' >"$PLAN_FILE" # TODO The path to the packages
+echo 'PKG_DIR=/usr/share/updater/packages' >"$PLAN_FILE"
 prepare_plan list
 
-# Overwrite the restart function
-do_restart() {
-	echo 'Update restart requested, complying' | logger -t updater -p daemon.info
-	exec "$0" -r "Restarted" -n "$@"
-}
+if $HAVE_WORK ; then
+	# Overwrite the restart function
+	do_restart() {
+		echo 'Update restart requested, complying' | logger -t updater -p daemon.info
+		exec "$0" -r "Restarted" -n "$@"
+	}
 
-# Back up the packages to permanent storage, so we can resume on next restart if the power is unplugged
-mv "$PKG_DIR" /usr/share/updater/packages
-mv "$PLAN_FILE" "$BASE_PLAN_FILE"
-sync
+	# Back up the packages to permanent storage, so we can resume on next restart if the power is unplugged
+	mv "$PKG_DIR" /usr/share/updater/packages
+	mv "$PLAN_FILE" "$BASE_PLAN_FILE"
+	sync
 
-# Run the plan from the permanent storage
-run_plan "$BASE_PLAN_FILE"
+	# Run the plan from the permanent storage
+	run_plan "$BASE_PLAN_FILE"
+fi
 
 echo 'done' >"$STATE_FILE"
 echo 'Updater finished' | logger -t updater -p daemon.info
