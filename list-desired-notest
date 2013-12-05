@@ -18,7 +18,7 @@ openssh-server	3
 # of openssh-client-utils). But remove it after installing the server part, so
 # it is properly turned off and its config copied.
 dropbear	R4
-opnessh-moduli	5
+openssh-moduli	5
 openssh-client-utils	5
 openssh-client	5
 openssh-sftp-server
