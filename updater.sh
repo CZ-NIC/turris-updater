@@ -243,14 +243,11 @@ should_install() {
 
 should_uninstall() {
 	# It shuld be uninstalled if it is installed now and there's the 'R' flag
-	INFO="$(opkg info "$1")"
-	if [ -z "$INFO" ] ; then
-		return 1
-	fi
-	if echo "$INFO" | grep '^Status:.*not-installed' ; then
-		return 1
-	fi
-	has_flag "$2" R
+	# The complicated two-grep construct is because opkg info sometimes reports
+	# multiple versions of a package. We then consider all Status: lines and it is
+	# installed if at least one doesn't contain not-installed (we don't grep for
+	# "installed" because not-installed also contains it.
+	opkg info "$1" | grep '^Status:' | grep -qv 'not-installed' && has_flag "$2" R
 }
 
 get_pass() {
