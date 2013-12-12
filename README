@@ -135,3 +135,8 @@ without due testing, the following needs to be done:
 
  6. Merges the modified commit into master and pushes.
  7. Launches the `Deploy` job in Jeknins (it must be started manually).
+
+[NOTE]
+The commit which hash is in the `deploy` file must still be on the HEAD of the
+`master` branch. If a newer has been pushed in between, the deploy won't work,
+because it just copies the already compiled files.
