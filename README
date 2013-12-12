@@ -114,6 +114,9 @@ without due testing, the following needs to be done:
 
  1. The hash of the tested commit on `master` branch is entered into the
     `deploy` file and a Signed-Off-By line is added by whoever adds the hash.
+    Note that this is the hash in the commit in openWRT repository, inserted
+    into file in the `misc` repository.
+
  2. This commit is pushed into special branch `pending`.
  3. Another person pulls that branch and (after checking the changes brought by
     such revision) adds their own Signed-Off-By line by:
