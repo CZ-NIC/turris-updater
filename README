@@ -92,3 +92,43 @@ The generator tracks dependencies and includes them in the final list.
 
 It is integrated into jenkins, so the basic list is regenerated automatically.
 The list of packages is in the `list-desired` files.
+
+The deployment script
+=====================
+
+There are currently 3 stages of stability of the OpenWRT repository. The first
+(most unstable) is in the `test` branch. Whenever a new version is pushed,
+Jenkinst builds the basic set of packages and generates updates for them. These
+are installed on few devices close at hand.
+
+The second stage is in the branch `master`. It acts mostly the same, except that:
+
+ * All available packages are built.
+ * The updates are installed on few other devices that are not necessarily as
+   close at hand.
+
+The last deployment is done by copying what was previously built for the
+`master` branch, after enough testing. To ensure integration into the rest of
+the deployment process and to protect against deploying untested versions
+without due testing, the following needs to be done:
+
+ 1. The hash of the tested commit on `master` branch is entered into the
+    `deploy` file and a Signed-Off-By line is added by whoever adds the hash.
+ 2. This commit is pushed into special branch `pending`.
+ 3. Another person pulls that branch and (after checking the changes brought by
+    such revision) adds their own Signed-Off-By line by:
+
+	git commit --amend -s
+
+ 4. After that, the checker force-pushes to the `pending` branch and overwrites
+    the commit by its current version:
+
+	git push -f
+
+ 5. A third person signs the commit by a PGP key trusted by the jenkins build:
+
+	git pull
+	git commit --amend -S<keyid> # Note the capital S
+
+ 6. Merges the modified commit into master and pushes.
+ 7. Launches the `Deploy` job in Jeknins (it must be started manually).
