@@ -112,6 +112,11 @@ echo 'PKG_DIR=/usr/share/updater/packages' >"$PLAN_FILE"
 prepare_plan list
 
 if $HAVE_WORK ; then
+	# Make sure the whole plan can go through
+	if ! size_check "$PKG_DIR"/* ; then
+		die "Not enough space to install whole base plan"
+	fi
+
 	# Overwrite the restart function
 	do_restart() {
 		echo 'Update restart requested, complying' | logger -t updater -p daemon.info

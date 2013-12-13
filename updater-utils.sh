@@ -113,3 +113,24 @@ my_opkg() {
 has_flag() {
 	echo "$1" | grep -q "$2"
 }
+
+# Estimate if there's enough space to install given list of packages. This is not exact, as the file system is compressed and there might be iregularities due to small files. But this should be on the safe side. We check this manually because we want to check size for multiple packages at once and opkg is terrible when it comes to low disk space.
+size_check() {
+	rm -rf "$TMP_DIR/size"
+	mkdir "$TMP_DIR/size"
+	while [ "$1" ] ; do
+		rm -rf "$TMP_DIR/pkg_unpack"
+		mkdir "$TMP_DIR/pkg_unpack"
+		cd "$TMP_DIR/pkg_unpack"
+		gunzip -c <"$1" | tar x
+		cd "$TMP_DIR/size"
+		gunzip -c <"$TMP_DIR/pkg_unpack/data.tar.gz" | tar x
+		shift
+	done
+	FREE="$(df -P / | tail -n1 | sed -e 's/  */ /g' | cut -f4 -d\ )"
+	NEEDED="$(du -s "$TMP_DIR/size" | sed -e 's/	.*//')"
+	# Include some margin, since the FS is broken and can say no space even if df shows some free blocks.
+	NEEDED="$((NEEDED + 512))"
+	rm -rf "$TMP_DIR/size" "$TMP_DIR/pkg_unpack"
+	test "$FREE" -ge "$NEEDED"
+}

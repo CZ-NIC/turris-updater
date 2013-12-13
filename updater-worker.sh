@@ -144,6 +144,9 @@ do_install() {
 	PACKAGE="$1"
 	VERSION="$2"
 	if [ -e "$PKG_DIR/$PACKAGE.ipk" ] ; then
+		if ! size_check "$PKG_DIR/$PACKAGE.ipk" ; then
+			die "Not enough space to install $PACKAGE"
+		fi
 		# Check the package exists. It may have been already installed and removed
 		echo 'install' >"$STATE_FILE"
 		echo "I $PACKAGE $VERSION" >>"$LOG_FILE"
