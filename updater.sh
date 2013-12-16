@@ -132,6 +132,13 @@ if $HAVE_WORK ; then
 	run_plan "$BASE_PLAN_FILE"
 fi
 
+# Run the consolidator, but only in case it is installed - it is possible for it to not exist on the device
+if [ -x "$LIB_DIR/updater-consolidate.py" ] ; then
+	"$LIB_DIR/updater-consolidate.py" "$REVISION" "$ID" "$TMP_DIR/list"
+else
+	echo 'Missing consolidator' | logger -t updater -p daemon.warn
+fi
+
 echo 'done' >"$STATE_FILE"
 echo 'Updater finished' | logger -t updater -p daemon.info
 
