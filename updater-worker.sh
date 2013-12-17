@@ -37,14 +37,19 @@ STATE_FILE="$STATE_DIR/state"
 LOG_FILE="$STATE_DIR/log"
 PLAN_FILE="$STATE_DIR/plan"
 
+try_download() {
+	if url_exists "$1" ; then
+		download "$1" "$2"
+		verify "$1" "$2"
+	else
+		return 1
+	fi
+}
+
 # Download the list of packages
 get_list_main() {
-	if url_exists "$SPECIFIC_LIST_URL" ; then
-		download "$SPECIFIC_LIST_URL" "$1"
-		verify "$SPECIFIC_LIST_URL" "$1"
-	elif url_exists "$GENERIC_LIST_URL" ; then
-		download "$GENERIC_LIST_URL" "$1"
-		verify "$GENERIC_LIST_URL" "$1"
+	if try_download "$SPECIFIC_LIST_URL" "$1" || try_download "$GENERIC_LIST_URL" "$1" ; then
+		: # This is OK
 	else
 		die "Could not download the list of packages"
 	fi
