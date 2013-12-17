@@ -61,7 +61,11 @@ should_install() {
 	fi
 	CUR_VERS=$(opkg status "$1" | grep '^Version: ' | head -n 1 | cut -f 2 -d ' ')
 	if [ -z "$CUR_VERS" ] ; then
-		return 0 # Not installed -> install
+		if has_flag "$3" I ; then
+			return 1 # Not installed and asked to update only if already installed.
+		else
+			return 0 # Not installed -> install
+		fi
 	fi
 	# Do reinstall/upgrade/downgrade if the versions are different
 	opkg compare-versions "$2" = "$CUR_VERS"
