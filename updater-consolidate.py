@@ -55,8 +55,13 @@ revision = sys.argv[1]
 device = sys.argv[2]
 lists = sys.argv[3:]
 
-if not os.path.exists(PACKAGES_FILE):
-    logger.info('No list of previously installed packages found, setting one up')
+def store_packages(installed):
+    # Write to a temporary file and rename - it is the safer way, with the filesystem we have to live on...
+    with open(PACKAGES_FILE + '.tmp', 'w') as output:
+	output.writelines(map(lambda p: p + '\n', installed))
+    os.rename(PACKAGES_FILE + '.tmp', PACKAGES_FILE)
+
+def construct_packages(lists):
     # Get packages installed from all these lists, combine them together
     # (but without the ones that are scheduled for removal)
     installed = set()
@@ -67,8 +72,11 @@ if not os.path.exists(PACKAGES_FILE):
 			(name, flags) = (parts[0], parts[2])
 			if flags.find('R') == -1:
 				installed.add(name)
-    # Write to a temporary file and rename - it is the safer way, with the filesystem we have to live on...
-    with open(PACKAGES_FILE + '.tmp', 'w') as output:
-	output.writelines(map(lambda p: p + '\n', installed))
-    os.rename(PACKAGES_FILE + '.tmp', PACKAGES_FILE)
+    return installed
+
+if not os.path.exists(PACKAGES_FILE):
+    logger.info('No list of previously installed packages found, setting one up')
+    installed = construct_packages(lists)
+
+    store_packages(installed)
     sys.exit(0)
