@@ -48,12 +48,10 @@ def die(message):
     logger.error(message)
     sys.exit(1)
 
-if len(sys.argv) < 4:
-	die("Not enough parameters. Needs revision, device ID and at least one package list")
+if len(sys.argv) < 2:
+	die("Not enough parameters. Needs at least one package list")
 
-revision = sys.argv[1]
-device = sys.argv[2]
-lists = sys.argv[3:]
+lists = sys.argv[1:]
 
 def store_packages(installed):
     # Write to a temporary file and rename - it is the safer way, with the filesystem we have to live on...
