@@ -55,6 +55,16 @@ get_list_main() {
 	fi
 }
 
+get_list_user() {
+	SPECIFIC="$BASE_URL/lists/$1-$ID"
+	GENERIC="$BASE_URL/lists/$1-generic"
+	if try_download "$SPECIFIC" "$2" || try_download "$GENERIC" "$2" ; then
+		: # This is OK
+	else
+		die "Could not download additional user list $1"
+	fi
+}
+
 should_install() {
 	if has_flag "$3" R ; then
 		# Don't install if there's an uninstall flag
