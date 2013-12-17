@@ -61,6 +61,10 @@ def store_packages(installed):
 	output.writelines(map(lambda p: p + '\n', installed))
     os.rename(PACKAGES_FILE + '.tmp', PACKAGES_FILE)
 
+def load_packages():
+    with open(PACKAGES_FILE) as packages:
+	    return set(map(lambda l: l.strip(), packages))
+
 def construct_packages(lists):
     # Get packages installed from all these lists, combine them together
     # (but without the ones that are scheduled for removal)
@@ -79,4 +83,9 @@ if not os.path.exists(PACKAGES_FILE):
     installed = construct_packages(lists)
 
     store_packages(installed)
-    sys.exit(0)
+else:
+    current = construct_packages(lists)
+    previous = load_packages()
+    # Find extra installed packages - the ones not required any more
+    for extra in previous - current:
+	    print(extra)
