@@ -27,15 +27,6 @@
 
 . "$LIB_DIR/updater-utils.sh"
 
-# My own ID
-ID="$(atsha204cmd serial-number || guess_id)"
-# We take the hardware revision as "distribution"
-REVISION="$(atsha204cmd hw-rev || guess_revision)"
-# Where the things live
-BASE_URL="https://api.turris.cz/updater-repo/$REVISION"
-GENERIG_LIST_URL="$BASE_URL/lists/generic"
-SPECIFIC_LIST_URL="$BASE_URL/lists/$ID"
-PACKAGE_URL="$BASE_URL/packages"
 TMP_DIR='/tmp/update'
 PKG_DIR="$TMP_DIR/packages"
 CIPHER='aes-256-cbc'
@@ -51,9 +42,9 @@ get_list_main() {
 	if url_exists "$SPECIFIC_LIST_URL" ; then
 		download "$SPECIFIC_LIST_URL" "$1"
 		verify "$SPECIFIC_LIST_URL"
-	elif url_exists "$GENERIG_LIST_URL" ; then
-		download "$GENERIG_LIST_URL" "$1"
-		verify "$GENERIG_LIST_URL"
+	elif url_exists "$GENERIC_LIST_URL" ; then
+		download "$GENERIC_LIST_URL" "$1"
+		verify "$GENERIC_LIST_URL"
 	else
 		die "Could not download the list of packages"
 	fi

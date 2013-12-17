@@ -36,6 +36,16 @@ set -xe
 LIB_DIR="$(dirname "$0")"
 . "$LIB_DIR/updater-worker.sh"
 
+# My own ID
+ID="$(atsha204cmd serial-number || guess_id)"
+# We take the hardware revision as "distribution"
+REVISION="$(atsha204cmd hw-rev || guess_revision)"
+# Where the things live
+BASE_URL="https://api.turris.cz/updater-repo/$REVISION"
+GENERIC_LIST_URL="$BASE_URL/lists/generic"
+SPECIFIC_LIST_URL="$BASE_URL/lists/$ID"
+PACKAGE_URL="$BASE_URL/packages"
+
 PID_FILE="$STATE_DIR/pid"
 LOCK_DIR="$STATE_DIR/lock"
 BACKGROUND=false
