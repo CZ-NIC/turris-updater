@@ -41,10 +41,10 @@ PLAN_FILE="$STATE_DIR/plan"
 get_list_main() {
 	if url_exists "$SPECIFIC_LIST_URL" ; then
 		download "$SPECIFIC_LIST_URL" "$1"
-		verify "$SPECIFIC_LIST_URL"
+		verify "$SPECIFIC_LIST_URL" "$1"
 	elif url_exists "$GENERIC_LIST_URL" ; then
 		download "$GENERIC_LIST_URL" "$1"
-		verify "$GENERIC_LIST_URL"
+		verify "$GENERIC_LIST_URL" "$1"
 	else
 		die "Could not download the list of packages"
 	fi

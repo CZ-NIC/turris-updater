@@ -86,7 +86,7 @@ sha_hash() {
 
 verify() {
 	download "$1".sig signature
-	COMPUTED="$(sha_hash /tmp/update/list)"
+	COMPUTED="$(sha_hash /tmp/update/"$2")"
 	FOUND=false
 	for KEY in /usr/share/updater/keys/*.pem ; do
 		EXPECTED="$(openssl rsautl -verify -inkey "$KEY" -keyform PEM -pubin -in /tmp/update/signature || echo "BAD")"
