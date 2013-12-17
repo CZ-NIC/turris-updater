@@ -89,3 +89,5 @@ else:
     # Find extra installed packages - the ones not required any more
     for extra in previous - current:
 	subprocess.check_call([remove_script, extra])
+    # After we removed all extra packages, store the current state
+    store_packages(current)
