@@ -32,6 +32,7 @@ import os
 import os.path
 import logging
 import logging.handlers
+import subprocess
 
 # Log both to stderr and to syslog.
 logger = logging.getLogger('updater')
@@ -52,6 +53,7 @@ if len(sys.argv) < 2:
 	die("Not enough parameters. Needs at least one package list")
 
 lists = sys.argv[1:]
+remove_script = os.path.join(os.path.dirname(sys.argv[0]), 'updater-remove-pkg.sh')
 
 def store_packages(installed):
     # Write to a temporary file and rename - it is the safer way, with the filesystem we have to live on...
@@ -86,4 +88,4 @@ else:
     previous = load_packages()
     # Find extra installed packages - the ones not required any more
     for extra in previous - current:
-	    print(extra)
+	subprocess.check_call([remove_script, extra])
