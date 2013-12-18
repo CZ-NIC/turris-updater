@@ -143,17 +143,22 @@ if $HAVE_WORK ; then
 fi
 
 mkdir -p "$TMP_DIR/user_lists"
+USER_LIST_FILES=""
 for USER_LIST in $(uci get updater.pkglists.lists) ; do
 	echo 'get list' >"$STATE_FILE"
 	get_list_user "$USER_LIST" "user_lists/$USER_LIST"
+	USER_LIST_FILES="$USER_LIST_FILES $TMP_DIR/user_lists/$USER_LIST"
 	echo 'examine' >"$STATE_FILE"
+	rm -f "$PLAN_FILE"
 	prepare_plan "user_lists/$USER_LIST"
 	run_plan "$PLAN_FILE"
 done
 
+pwd
+
 # Run the consolidator, but only in case it is installed - it is possible for it to not exist on the device
 if [ -x "$LIB_DIR/updater-consolidate.py" ] ; then
-	"$LIB_DIR/updater-consolidate.py" "$TMP_DIR/list"
+	"$LIB_DIR/updater-consolidate.py" "$TMP_DIR/list" $USER_LIST_FILES # Really don't quote this variable, it should be split into parameters
 else
 	echo 'Missing consolidator' | logger -t updater -p daemon.warn
 fi

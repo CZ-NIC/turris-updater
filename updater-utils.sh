@@ -116,6 +116,7 @@ has_flag() {
 
 # Estimate if there's enough space to install given list of packages. This is not exact, as the file system is compressed and there might be iregularities due to small files. But this should be on the safe side. We check this manually because we want to check size for multiple packages at once and opkg is terrible when it comes to low disk space.
 size_check() {
+	DIR="$(pwd)"
 	rm -rf "$TMP_DIR/size"
 	mkdir "$TMP_DIR/size"
 	while [ "$1" ] ; do
@@ -133,4 +134,5 @@ size_check() {
 	NEEDED="$((NEEDED + 512))"
 	rm -rf "$TMP_DIR/size" "$TMP_DIR/pkg_unpack"
 	test "$FREE" -ge "$NEEDED"
+	cd "$DIR"
 }
