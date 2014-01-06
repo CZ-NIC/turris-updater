@@ -32,29 +32,9 @@
 
 set -xe
 
-guess_id() {
-	echo 'Using unknown-id as a last-resort attempt to recover from broken atsha204cmd' | logger -t updater -p daemon.warning
-	echo 'unknown-id'
-}
-
-guess_revision() {
-	echo 'Trying to guess revision as a last-resort attempt to recover from broken atsha204cmd' | logger -t updater -p daemon.warning
-	REPO=$(grep 'cznic.*api\.turris\.cz' /etc/opkg.conf | sed -e 's#.*/\([^/]*\)/packages.*#\1#')
-	case "$REPO" in
-		ar71xx)
-			echo 00000000
-			;;
-		mpc85xx)
-			echo 00000002
-			;;
-		turris*)
-			echo 00000003
-			;;
-		*)
-			echo 'unknown-revision'
-			;;
-	esac
-}
+# Load the libraries
+LIB_DIR="$(dirname "$0")"
+. "$LIB_DIR/updater-worker.sh"
 
 # My own ID
 ID="$(atsha204cmd serial-number || guess_id)"
@@ -62,22 +42,16 @@ ID="$(atsha204cmd serial-number || guess_id)"
 REVISION="$(atsha204cmd hw-rev || guess_revision)"
 # Where the things live
 BASE_URL="https://api.turris.cz/updater-repo/$REVISION"
-GENERIG_LIST_URL="$BASE_URL/lists/generic"
+GENERIC_LIST_URL="$BASE_URL/lists/generic"
 SPECIFIC_LIST_URL="$BASE_URL/lists/$ID"
 PACKAGE_URL="$BASE_URL/packages"
-TMP_DIR='/tmp/update'
-CIPHER='aes-256-cbc'
-COOLDOWN='3'
-CERT='/etc/ssl/updater.pem'
-STATE_DIR='/tmp/update-state'
+
 PID_FILE="$STATE_DIR/pid"
 LOCK_DIR="$STATE_DIR/lock"
-STATE_FILE="$STATE_DIR/state"
-LOG_FILE="$STATE_DIR/log"
-PLAN_FILE="$STATE_DIR/plan"
-PID="$$"
-EXIT_CODE="1"
 BACKGROUND=false
+EXIT_CODE="1"
+
+BASE_PLAN_FILE='/usr/share/updater/plan'
 
 if [ "$1" = "-b" ] ; then
 	BACKGROUND=true
@@ -88,7 +62,7 @@ if [ "$1" = '-r' ] ; then
 	echo "$2" | logger -t updater -p daemon.info
 	shift 2
 else
-	updater-wipe.sh # Remove forgotten stuff, if any
+	"$LIB_DIR"/updater-wipe.sh # Remove forgotten stuff, if any
 
 	# Create the state directory, set state, etc.
 	mkdir -p "$STATE_DIR"
@@ -120,7 +94,7 @@ if $BACKGROUND ; then
 	exit
 fi
 
-trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR"; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
+trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR" /usr/share/updater/packages /usr/share/updater/plan; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
 
 # Don't load the server all at once. With NTP-synchronized time, and
 # thousand clients, it would make spikes on the CPU graph and that's not
@@ -137,208 +111,57 @@ else
 	shift
 fi
 
-my_curl() {
-	curl --compress --cacert "$CERT" "$@"
-}
-
 mkdir -p "$TMP_DIR"
 
-# Utility functions
-die() {
-	echo 'error' >"$STATE_FILE"
-	echo "$@" >"$STATE_DIR/last_error"
-	echo "$@" >&2
-	echo "$@" | logger -t updater -p daemon.err
-	# For some reason, busybox sh doesn't know how to exit. Use this instead.
-	kill -SIGABRT "$PID"
-}
-
-url_exists() {
-	RESULT=$(my_curl --head "$1" | head -n1)
-	if echo "$RESULT" | grep -q 200 ; then
-		return 0
-	elif echo "$RESULT" | grep -q 404 ; then
-		return 1
-	else
-		die "Error examining $1: $RESULT"
-	fi
-}
-
-download() {
-	TARGET="$TMP_DIR/$2"
-	my_curl "$1" -o "$TARGET" || die "Failed to download $1"
-}
-
-sha_hash() {
-	openssl dgst -sha256 "$1" | sed -e 's/.* //'
-}
-
-verify() {
-	download "$1".sig signature
-	COMPUTED="$(sha_hash /tmp/update/list)"
-	FOUND=false
-	for KEY in /usr/share/updater/keys/*.pem ; do
-		EXPECTED="$(openssl rsautl -verify -inkey "$KEY" -keyform PEM -pubin -in /tmp/update/signature || echo "BAD")"
-		if [ "$COMPUTED" = "$EXPECTED" ] ; then
-			FOUND=true
-		fi
-	done
-	if ! "$FOUND" ; then
-		die "List signature invalid"
-	fi
-}
-
 echo 'get list' >"$STATE_FILE"
+get_list_main list
 
-my_opkg() {
-	set +e
-	opkg "$@" >"$TMP_DIR"/opkg 2>&1
-	RESULT="$?"
-	set -e
-	if [ "$RESULT" != 0 ] ; then
-		cat "$TMP_DIR"/opkg | logger -t updater -p daemon.info
+HAVE_WORK=false
+echo 'examine' >"$STATE_FILE"
+echo 'PKG_DIR=/usr/share/updater/packages' >"$PLAN_FILE"
+prepare_plan list
+
+if $HAVE_WORK ; then
+	# Make sure the whole plan can go through
+	if ! size_check "$PKG_DIR"/* ; then
+		die "Not enough space to install whole base plan"
 	fi
-	return "$RESULT"
-}
 
-# Download the list of packages
-get_list() {
-	if url_exists "$SPECIFIC_LIST_URL" ; then
-		download "$SPECIFIC_LIST_URL" list
-		verify "$SPECIFIC_LIST_URL"
-	elif url_exists "$GENERIG_LIST_URL" ; then
-		download "$GENERIG_LIST_URL" list
-		verify "$GENERIG_LIST_URL"
-	else
-		die "Could not download the list of packages"
-	fi
-}
-
-get_list
-
-# Good, we have the list of packages now. Decide and install.
-
-has_flag() {
-	echo "$1" | grep -q "$2"
-}
-
-should_install() {
-	if has_flag "$3" R ; then
-		# Don't install if there's an uninstall flag
-		return 1
-	fi
-	if has_flag "$3" F ; then
-		# (re) install every time
-		return 0
-	fi
-	CUR_VERS=$(opkg status "$1" | grep '^Version: ' | head -n 1 | cut -f 2 -d ' ')
-	if [ -z "$CUR_VERS" ] ; then
-		return 0 # Not installed -> install
-	fi
-	# Do reinstall/upgrade/downgrade if the versions are different
-	opkg compare-versions "$2" = "$CUR_VERS"
-	# Yes, it returns 1 if they are the same and 0 otherwise
-	return $?
-}
-
-should_uninstall() {
-	# It shuld be uninstalled if it is installed now and there's the 'R' flag
-	# The complicated two-grep construct is because opkg info sometimes reports
-	# multiple versions of a package. We then consider all Status: lines and it is
-	# installed if at least one doesn't contain not-installed (we don't grep for
-	# "installed" because not-installed also contains it.
-	opkg info "$1" | grep '^Status:' | grep -qv 'not-installed' && has_flag "$2" R
-}
-
-get_pass() {
-	# Each md5sum produces half of the challenge (16bytes).
-	# Use one on the package name and one on the version to generate static challenge.
-	# Not changing the challenge is OK, as the password is never transmitted over
-	# the wire and local user can get access to what is unpacked anyway.
-	PART1="$(echo -n "$1" | md5sum | cut -f1 -d' ')"
-	PART2="$(echo -n "$2" | md5sum | cut -f1 -d' ')"
-	echo "$PART1" "$PART2" | atsha204cmd challenge-response
-}
-
-get_package() {
-	if has_flag "$3" E ; then
-		# Encrypted
-		URL="$PACKAGE_URL/$1-$2-$ID.ipk"
-		download "$URL" package.encrypted.ipk
-		get_pass "$1" "$2" | openssl "$CIPHER" -d -in "$TMP_DIR/package.encrypted.ipk" -out "$TMP_DIR/package.ipk" -pass stdin || die "Could not decrypt private package $1-$2-$ID"
-		# We don't check the hash with encrypted packages.
-		# For one, being able to generate valid encrypted package means the other side knows the shared secret.
-		# But also, it is expected every client would have different one and there'd be different hash then.
-	else
-		URL="$PACKAGE_URL/$1-$2.ipk"
-		# Unencrypted
-		download "$URL" package.ipk
-		HASH="$(sha_hash /tmp/update/package.ipk)"
-		if [ "$4" != "$HASH" ] ; then
-			die "Hash for $1 does not match"
-		fi
-	fi
-}
-
-do_remove() {
-	PACKAGE="$1"
-	echo 'remove' >"$STATE_FILE"
-	echo "R $PACKAGE" >>"$LOG_FILE"
-	echo "Removing package $PACKAGE" | logger -t updater -p daemon.info
-	my_opkg remove "$PACKAGE" || die "Failed to remove $PACKAGE"
-	if has_flag "$2" C ; then
-		# Let the system settle little bit before continuing
-		# Like reconnecting things that changed.
-		echo 'cooldown' >"$STATE_FILE"
-		sleep "$COOLDOWN"
-	fi
-	echo 'examine' >"$STATE_FILE"
-}
-
-do_install() {
-	PACKAGE="$1"
-	VERSION="$2"
-	echo 'install' >"$STATE_FILE"
-	echo "I $PACKAGE $VERSION" >>"$LOG_FILE"
-	echo "Installing/upgrading $PACKAGE version $VERSION" | logger -t updater -p daemon.info
-	# Don't do deps and such, just follow the script. The conf disables checking signatures, in case the opkg packages are there.
-	my_opkg --force-downgrade --nodeps --conf /dev/null install "$TMP_DIR/$PACKAGE.ipk" || die "Failed to install $PACKAGE"
-	if has_flag "$3" C ; then
-		# Let the system settle little bit before continuing
-		# Like reconnecting things that changed.
-		echo 'cooldown' >"$STATE_FILE"
-		sleep "$COOLDOWN"
-	fi
-	if has_flag "$FLAGS" U ; then
+	# Overwrite the restart function
+	do_restart() {
 		echo 'Update restart requested, complying' | logger -t updater -p daemon.info
 		exec "$0" -r "Restarted" -n "$@"
-	fi
+	}
+
+	# Back up the packages to permanent storage, so we can resume on next restart if the power is unplugged
+	mv "$PKG_DIR" /usr/share/updater/packages
+	mv "$PLAN_FILE" "$BASE_PLAN_FILE"
+	sync
+
+	# Run the plan from the permanent storage
+	run_plan "$BASE_PLAN_FILE"
+fi
+
+mkdir -p "$TMP_DIR/user_lists"
+USER_LIST_FILES=""
+for USER_LIST in $(uci get updater.pkglists.lists) ; do
+	echo 'get list' >"$STATE_FILE"
+	get_list_user "$USER_LIST" "user_lists/$USER_LIST"
+	USER_LIST_FILES="$USER_LIST_FILES $TMP_DIR/user_lists/$USER_LIST"
 	echo 'examine' >"$STATE_FILE"
-}
+	rm -f "$PLAN_FILE"
+	prepare_plan "user_lists/$USER_LIST"
+	run_plan "$PLAN_FILE"
+done
 
-echo 'examine' >"$STATE_FILE"
-cat /dev/null >"$PLAN_FILE"
+pwd
 
-IFS='	'
-# The EXTRA is unused. It is just placeholder to eat whatever extra columns there might be in future.
-while read PACKAGE VERSION FLAGS HASH EXTRA ; do
-	if should_uninstall "$PACKAGE" "$FLAGS" ; then
-		echo "do_remove '$PACKAGE' '$FLAGS'" >>"$PLAN_FILE"
-	elif should_install "$PACKAGE" "$VERSION"  "$FLAGS" ; then
-		FILE="$TMP_DIR/$PACKAGE.ipk"
-		get_package "$PACKAGE" "$VERSION" "$FLAGS" "$HASH"
-		mv "$TMP_DIR/package.ipk" "$FILE"
-		echo "do_install '$PACKAGE' '$VERSION' '$FLAGS'" >>"$PLAN_FILE"
-		if has_flag "$FLAGS" U ; then
-			# If we do an updater restart, we don't want to download further packages.
-			# We would throw them out anyway, since we would start updater again and
-			# downloaded them again.
-			break;
-		fi
-	fi
-done <"$TMP_DIR/list"
-
-. "$PLAN_FILE"
+# Run the consolidator, but only in case it is installed - it is possible for it to not exist on the device
+if [ -x "$LIB_DIR/updater-consolidate.py" ] ; then
+	"$LIB_DIR/updater-consolidate.py" "$TMP_DIR/list" $USER_LIST_FILES # Really don't quote this variable, it should be split into parameters
+else
+	echo 'Missing consolidator' | logger -t updater -p daemon.warn
+fi
 
 echo 'done' >"$STATE_FILE"
 echo 'Updater finished' | logger -t updater -p daemon.info

@@ -48,6 +48,13 @@ F::
   Force re-installation even if it is in current version.
 C::
   Do a cooldown sleep after installing or removing this package.
+U::
+  Request a restart of updater. After installing the package, start updater
+  from the beginning.
+I::
+  Update the package only if already installed. Do not install if not installed
+  yet. Used for upgrading packages that need exact version if they are installed,
+  but not crucial for working of the device, like kernel modules.
 <number>::
   Packages with lower number are considered sooner when planning the order.
   Packages without number are left as last.
