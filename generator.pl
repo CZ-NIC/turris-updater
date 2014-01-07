@@ -129,10 +129,15 @@ for my $pname (sort { prio $a <=> prio $b or $desired_order{$a} <=> $desired_ord
 		print "$pname\t-\t$desired{$pname}\n";
 	} elsif ($desired{$pname} =~ /X/) {
 		# It is not a name, but a regular expression. Use all matching ones.
+		my @matched;
 		for my $available (keys %packages) {
 			next unless $available =~ /$pname/;
 			$desired{$available} = $desired{$pname};
-			provide $packages{$available};
+			push @matched, $available;
+		}
+		# Go through the packages after the flags are set for them, so the dependencies don't bring in something sooner without the flags.
+		for my $matched (@matched) {
+			provide $packages{$matched};
 		}
 	} else {
 		provide($packages{$pname} // die "Package $pname doesn't exist\n");
