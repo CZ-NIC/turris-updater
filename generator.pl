@@ -127,6 +127,13 @@ mkdir 'packages';
 for my $pname (sort { prio $a <=> prio $b or $desired_order{$a} <=> $desired_order{$b} } @desired_names) {
 	if ($desired{$pname} =~ /R/) {
 		print "$pname\t-\t$desired{$pname}\n";
+	} elsif ($desired{$pname} =~ /X/) {
+		# It is not a name, but a regular expression. Use all matching ones.
+		for my $available (keys %packages) {
+			next unless $available =~ /$pname/;
+			$desired{$available} = $desired{$pname};
+			provide $packages{$available};
+		}
 	} else {
 		provide($packages{$pname} // die "Package $pname doesn't exist\n");
 	}

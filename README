@@ -55,6 +55,9 @@ I::
   Update the package only if already installed. Do not install if not installed
   yet. Used for upgrading packages that need exact version if they are installed,
   but not crucial for working of the device, like kernel modules.
+X::
+  The name is not a name of package directly, but a regular expression. All packages
+  matching it will be included with the same flags.
 <number>::
   Packages with lower number are considered sooner when planning the order.
   Packages without number are left as last.
