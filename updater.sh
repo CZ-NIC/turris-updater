@@ -154,6 +154,8 @@ for USER_LIST in $(uci get updater.pkglists.lists) ; do
 	run_plan "$PLAN_FILE"
 done
 
+my_opkg --conf /dev/null configure || die "Configure of stray packages failed"
+
 pwd
 
 # Run the consolidator, but only in case it is installed - it is possible for it to not exist on the device
