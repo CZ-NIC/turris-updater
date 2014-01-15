@@ -87,7 +87,10 @@ else:
     current = construct_packages(lists)
     previous = load_packages()
     # Find extra installed packages - the ones not required any more
-    for extra in previous - current:
-	subprocess.check_call([remove_script, extra])
+    to_remove = previous - current
+    if to_remove:
+	    logger.debug('To remove: ' + str(to_remove))
+	    for extra in to_remove:
+		subprocess.check_call([remove_script, extra])
     # After we removed all extra packages, store the current state
     store_packages(current)
