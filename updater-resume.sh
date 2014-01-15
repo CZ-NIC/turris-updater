@@ -1,6 +1,6 @@
 #!/bin/busybox sh
 
-# Copyright (c) 2013, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
+# Copyright (c) 2013-2014, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -36,10 +36,10 @@ if [ '!' -f "$BASE_PLAN_FILE" ] ; then
 	exit 0
 fi
 
-echo "Resuming updater after reboot" | logger -t updater -p daemon.warn
-
 LIB_DIR="$(dirname "$0")"
 . "$LIB_DIR/updater-worker.sh"
+
+echo "Resuming updater after reboot" | my_logger -p daemon.warn
 
 trap 'rm -rf "$TMP_DIR" /usr/share/updater/packages /usr/share/updater/plan; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
 
@@ -48,7 +48,7 @@ mkdir -p "$STATE_DIR"
 
 run_plan "$BASE_PLAN_FILE"
 echo 'done' >"$STATE_FILE"
-echo 'Updater finished' | logger -t updater -p daemon.info
+echo 'Updater finished' | my_logger -p daemon.info
 
 # Run the complete updater now, as we installed what was planned, to finish other phases
 "$LIB_DIR"/updater.sh -n

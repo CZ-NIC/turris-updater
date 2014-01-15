@@ -1,6 +1,6 @@
 #!/bin/busybox sh
 
-# Copyright (c) 2013, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
+# Copyright (c) 2013-2014, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -59,7 +59,7 @@ if [ "$1" = "-b" ] ; then
 fi
 
 if [ "$1" = '-r' ] ; then
-	echo "$2" | logger -t updater -p daemon.info
+	echo "$2" | my_logger -p daemon.info
 	shift 2
 else
 	"$LIB_DIR"/updater-wipe.sh # Remove forgotten stuff, if any
@@ -68,7 +68,7 @@ else
 	mkdir -p "$STATE_DIR"
 	if ! mkdir "$LOCK_DIR" ; then
 		echo "Already running" >&2
-		echo "Already running" | logger -t updater -p daemon.warning
+		echo "Already running" | my_logger -p daemon.warning
 		if [ "$1" = '-n' ] ; then
 			# We were asked to run updater now. There's another one running, possibly sleeping. Make it stop.
 			touch "$LOCK_DIR/dont_sleep"
@@ -129,7 +129,7 @@ if $HAVE_WORK ; then
 
 	# Overwrite the restart function
 	do_restart() {
-		echo 'Update restart requested, complying' | logger -t updater -p daemon.info
+		echo 'Update restart requested, complying' | my_logger -p daemon.info
 		exec "$0" -r "Restarted" -n "$@"
 	}
 
@@ -142,6 +142,7 @@ if $HAVE_WORK ; then
 	run_plan "$BASE_PLAN_FILE"
 fi
 
+PROGRAM='updater-user'
 mkdir -p "$TMP_DIR/user_lists"
 USER_LIST_FILES=""
 for USER_LIST in $(uci get updater.pkglists.lists) ; do
@@ -153,6 +154,7 @@ for USER_LIST in $(uci get updater.pkglists.lists) ; do
 	prepare_plan "user_lists/$USER_LIST"
 	run_plan "$PLAN_FILE"
 done
+PROGRAM='updater'
 
 my_opkg --conf /dev/null configure || die "Configure of stray packages failed"
 
@@ -162,10 +164,10 @@ pwd
 if [ -x "$LIB_DIR/updater-consolidate.py" ] ; then
 	"$LIB_DIR/updater-consolidate.py" "$TMP_DIR/list" $USER_LIST_FILES # Really don't quote this variable, it should be split into parameters
 else
-	echo 'Missing consolidator' | logger -t updater -p daemon.warn
+	echo 'Missing consolidator' | my_logger -p daemon.warn
 fi
 
 echo 'done' >"$STATE_FILE"
-echo 'Updater finished' | logger -t updater -p daemon.info
+echo 'Updater finished' | my_logger -p daemon.info
 
 EXIT_CODE="0"

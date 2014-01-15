@@ -1,4 +1,4 @@
-# Copyright (c) 2013, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
+# Copyright (c) 2013-2014, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -131,7 +131,7 @@ do_remove() {
 	PACKAGE="$1"
 	echo 'remove' >"$STATE_FILE"
 	echo "R $PACKAGE" >>"$LOG_FILE"
-	echo "Removing package $PACKAGE" | logger -t updater -p daemon.info
+	echo "Removing package $PACKAGE" | my_logger -p daemon.info
 	my_opkg --force-depends remove "$PACKAGE" || die "Failed to remove $PACKAGE"
 	if has_flag "$2" C ; then
 		# Let the system settle little bit before continuing
@@ -143,7 +143,7 @@ do_remove() {
 }
 
 do_restart() {
-	echo 'Update restart requested on abnormal run, terminating instead' | logger -t updater -p daemon.warn
+	echo 'Update restart requested on abnormal run, terminating instead' | my_logger -p daemon.warn
 	exit 0
 }
 
@@ -157,7 +157,7 @@ do_install() {
 		# Check the package exists. It may have been already installed and removed
 		echo 'install' >"$STATE_FILE"
 		echo "I $PACKAGE $VERSION" >>"$LOG_FILE"
-		echo "Installing/upgrading $PACKAGE version $VERSION" | logger -t updater -p daemon.info
+		echo "Installing/upgrading $PACKAGE version $VERSION" | my_logger -p daemon.info
 		# Don't do deps and such, just follow the script. The conf disables checking signatures, in case the opkg packages are there.
 		my_opkg --force-downgrade --nodeps --conf /dev/null --offline-root / install "$PKG_DIR/$PACKAGE.ipk" || die "Failed to install $PACKAGE"
 		my_opkg --conf /dev/null configure "$PACKAGE" || die "Failed to configure $PACKAGE"

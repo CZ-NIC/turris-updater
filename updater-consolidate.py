@@ -1,6 +1,6 @@
 #!/usr/bin/python2.7
 
-# Copyright (c) 2013, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
+# Copyright (c) 2013-2014, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@ import logging.handlers
 import subprocess
 
 # Log both to stderr and to syslog.
-logger = logging.getLogger('updater')
+logger = logging.getLogger('updater-consolidator')
 logger.addHandler(logging.StreamHandler(sys.stderr))
 syslog = logging.handlers.SysLogHandler(address='/dev/log')
 syslog.setFormatter(logging.Formatter('%(name)s %(message)s'))

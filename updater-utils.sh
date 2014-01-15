@@ -1,4 +1,4 @@
-# Copyright (c) 2013, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
+# Copyright (c) 2013-2014, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -26,14 +26,19 @@
 # A library of utility functions used by the updater
 
 PID="$$"
+PROGRAM='updater'
+
+my_logger() {
+	logger -t "$PROGRAM" "$@"
+}
 
 guess_id() {
-	echo 'Using unknown-id as a last-resort attempt to recover from broken atsha204cmd' | logger -t updater -p daemon.warning
+	echo 'Using unknown-id as a last-resort attempt to recover from broken atsha204cmd' | my_logger -p daemon.warning
 	echo 'unknown-id'
 }
 
 guess_revision() {
-	echo 'Trying to guess revision as a last-resort attempt to recover from broken atsha204cmd' | logger -t updater -p daemon.warning
+	echo 'Trying to guess revision as a last-resort attempt to recover from broken atsha204cmd' | my_logger -p daemon.warning
 	REPO=$(grep 'cznic.*api\.turris\.cz' /etc/opkg.conf | sed -e 's#.*/\([^/]*\)/packages.*#\1#')
 	case "$REPO" in
 		ar71xx)
@@ -59,7 +64,7 @@ die() {
 	echo 'error' >"$STATE_FILE"
 	echo "$@" >"$STATE_DIR/last_error"
 	echo "$@" >&2
-	echo "$@" | logger -t updater -p daemon.err
+	echo "$@" | my_logger -p daemon.err
 	# For some reason, busybox sh doesn't know how to exit. Use this instead.
 	kill -SIGABRT "$PID"
 }
@@ -105,7 +110,7 @@ my_opkg() {
 	RESULT="$?"
 	set -e
 	if [ "$RESULT" != 0 ] ; then
-		cat "$TMP_DIR"/opkg | logger -t updater -p daemon.info
+		cat "$TMP_DIR"/opkg | my_logger -p daemon.info
 	fi
 	return "$RESULT"
 }
