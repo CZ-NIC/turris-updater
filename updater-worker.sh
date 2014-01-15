@@ -132,7 +132,7 @@ do_remove() {
 	echo 'remove' >"$STATE_FILE"
 	echo "R $PACKAGE" >>"$LOG_FILE"
 	echo "Removing package $PACKAGE" | logger -t updater -p daemon.info
-	my_opkg remove "$PACKAGE" || die "Failed to remove $PACKAGE"
+	my_opkg --force-depends remove "$PACKAGE" || die "Failed to remove $PACKAGE"
 	if has_flag "$2" C ; then
 		# Let the system settle little bit before continuing
 		# Like reconnecting things that changed.
