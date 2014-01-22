@@ -134,6 +134,7 @@ if $HAVE_WORK ; then
 	}
 
 	# Back up the packages to permanent storage, so we can resume on next restart if the power is unplugged
+	rm -rf /usr/share/updater/packages # Remove leftovers
 	mv "$PKG_DIR" /usr/share/updater/packages
 	mv "$PLAN_FILE" "$BASE_PLAN_FILE"
 	sync
