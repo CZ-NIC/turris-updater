@@ -163,7 +163,7 @@ pwd
 
 # Run the consolidator, but only in case it is installed - it is possible for it to not exist on the device
 if [ -x "$LIB_DIR/updater-consolidate.py" ] ; then
-	"$LIB_DIR/updater-consolidate.py" "$TMP_DIR/list" $USER_LIST_FILES # Really don't quote this variable, it should be split into parameters
+	"$LIB_DIR/updater-consolidate.py" "$TMP_DIR/list" $USER_LIST_FILES || die "Consolidator failed" # Really don't quote this variable, it should be split into parameters
 else
 	echo 'Missing consolidator' | my_logger -p daemon.warn
 fi
