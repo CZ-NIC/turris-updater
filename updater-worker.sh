@@ -74,7 +74,7 @@ should_install() {
 		# (re) install every time
 		return 0
 	fi
-	CUR_VERS=$(opkg status "$1" | grep '^Version: ' | head -n 1 | cut -f 2 -d ' ')
+	CUR_VERS=$(grep -F "^$1 - " "$TMP_DIR/list-installed" | sed -e 's/.* //')
 	if [ -z "$CUR_VERS" ] ; then
 		if has_flag "$3" I ; then
 			return 1 # Not installed and asked to update only if already installed.
@@ -89,12 +89,8 @@ should_install() {
 }
 
 should_uninstall() {
-	# It shuld be uninstalled if it is installed now and there's the 'R' flag
-	# The complicated two-grep construct is because opkg info sometimes reports
-	# multiple versions of a package. We then consider all Status: lines and it is
-	# installed if at least one doesn't contain not-installed (we don't grep for
-	# "installed" because not-installed also contains it.
-	opkg info "$1" | grep '^Status:' | grep -qv 'not-installed' && has_flag "$2" R
+	# It should be uninstalled if it is installed now and there's the 'R' flag
+	grep -qF "^$1 - " "$TMP_DIR/list-installed" && has_flag "$2" R
 }
 
 get_pass() {
@@ -181,6 +177,12 @@ prepare_plan() {
 	OLD_IFS="$IFS"
 	IFS='	'
 	mkdir -p "$PKG_DIR"
+	# Get snapshot of what is installed right now. Prepend each package name with
+	# ^ as an anchor, we want to use fixed-strings grep so package name is not
+	# interpreted as regexp. But we want to distinguish packages that have the same
+	# suffix, therefore we anchor the left end by extra ^ (which should never be part
+	# of package name) and with the ' - ' at the right end.
+	opkg list-installed | sed -e 's/^/^/g' >"$TMP_DIR/list-installed"
 	# The EXTRA is unused. It is just placeholder to eat whatever extra columns there might be in future.
 	while read PACKAGE VERSION FLAGS HASH EXTRA ; do
 		if should_uninstall "$PACKAGE" "$FLAGS" ; then
