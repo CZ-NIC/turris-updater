@@ -140,6 +140,7 @@ do_remove() {
 		sleep "$COOLDOWN"
 	fi
 	echo 'examine' >"$STATE_FILE"
+	echo "$(date '+%F %T %Z'): removed $PACKAGE" >>/usr/share/updater/updater-log
 }
 
 do_restart() {
@@ -172,6 +173,7 @@ do_install() {
 		fi
 		rm "$PKG_DIR/$PACKAGE.ipk"
 		echo 'examine' >"$STATE_FILE"
+		echo "$(date '+%F %T %Z'): installed $PACKAGE-$VERSION" >>/usr/share/updater/updater-log
 	fi
 }
 
