@@ -39,6 +39,8 @@ my $list;
 
 my @lists;
 
+my %categories;
+
 sub leave() {
 	return unless $indir;
 	open my $fixer_p, '|-', $fixer, $key or die "Couldn't start fixer: $!";
@@ -46,6 +48,12 @@ sub leave() {
 	close $fixer_p or die "Fixer failed: $!";
 	@lists = ();
 	chdir '..' or die "Couldn't go up: $!";
+}
+
+sub alias($) {
+	my ($name) = @_;
+	symlink "$reponame", "lists/$name" or die "Couldn't create alias: $!";
+	symlink "$reponame.sig", "lists/$name.sig" or die "Couldn't create sig alias: $!";
 }
 
 while (<STDIN>) {
@@ -68,10 +76,26 @@ while (<STDIN>) {
 		}
 		push @lists, "lists/$1";
 	} elsif (/^alias\s+(.*?)\s*$/) {
-		symlink "$reponame", "lists/$1" or die "Couldn't create alias: $!";
-		symlink "$reponame.sig", "lists/$1.sig" or die "Couldn't create sig alias: $!";
+		alias $1;
+	} elsif (/^branch\s+(.*?)\s*$/) {
+		alias $_ for @{$categories{$1}};
 	} elsif (/^list\s+(.*?)\s*$/) {
 		$list = $1;
+	} elsif (/^categories\s+(.*?)\s*$/) {
+		open my $category_file, '<', $1 or die "Couldn't read category list $1: $!\n";
+		my $category;
+		while (<$category_file>) {
+			chomp;
+			s/#.*//;
+			next unless /\S/;
+			if (/^\s*(\S+)\s*:$/) {
+				$category = $1;
+			} else {
+				/(\S+)/;
+				push @{$categories{$category}}, $1;
+			}
+		}
+		close $category_file;
 	} else {
 		die "Unknown command: $_";
 	}
