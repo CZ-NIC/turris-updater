@@ -50,10 +50,20 @@ sub leave() {
 	chdir '..' or die "Couldn't go up: $!";
 }
 
+sub alias_user($) {
+	my ($name) = @_;
+	for my $list (<lists/$reponame.user/*>) {
+		my ($filename) = ($list =~ /.*\/(.*?)$/);
+		symlink "$list", "lists/$filename-$name";
+		symlink "$list.sig", "lists/$filename-$name.sig";
+	}
+}
+
 sub alias($) {
 	my ($name) = @_;
 	symlink "$reponame", "lists/$name" or die "Couldn't create alias: $!";
 	symlink "$reponame.sig", "lists/$name.sig" or die "Couldn't create sig alias: $!";
+	alias_user $name;
 }
 
 while (<STDIN>) {
@@ -76,6 +86,7 @@ while (<STDIN>) {
 			die "Failed to run generator";
 		}
 		push @lists, "lists/$1", <lists/$1.user/*>;
+		alias_user 'generic' if $1 eq 'generic';
 	} elsif (/^alias\s+(.*?)\s*$/) {
 		alias $1;
 	} elsif (/^branch\s+(.*?)\s*$/) {
