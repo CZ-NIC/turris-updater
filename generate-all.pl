@@ -54,8 +54,8 @@ sub alias_user($) {
 	my ($name) = @_;
 	for my $list (<lists/$reponame.user/*>) {
 		my ($filename) = ($list =~ /.*\/(.*?)$/);
-		symlink "$list", "lists/$filename-$name";
-		symlink "$list.sig", "lists/$filename-$name.sig";
+		symlink "$list", "$filename-$name";
+		symlink "$list.sig", "$filename-$name.sig";
 	}
 }
 
