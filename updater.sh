@@ -152,6 +152,7 @@ for USER_LIST in $(uci get updater.pkglists.lists) ; do
 	USER_LIST_FILES="$USER_LIST_FILES $TMP_DIR/user_lists/$USER_LIST"
 	echo 'examine' >"$STATE_FILE"
 	rm -f "$PLAN_FILE"
+	touch "$PLAN_FILE"
 	prepare_plan "user_lists/$USER_LIST"
 	run_plan "$PLAN_FILE"
 done
