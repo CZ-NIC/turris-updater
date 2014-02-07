@@ -33,10 +33,14 @@ use Data::Dumper;
 use Getopt::Long;
 
 # Where to get the packages and their list
-my $path;
+my $path, @omit;
 
 GetOptions
-	'path=s' => \$path or die "Bad params";
+	'path=s' => \$path,
+	'omit=s' => \@omit
+or die "Bad params";
+
+my %omit = map { $_ => 1 } @omit;
 
 # Download and decompress the list of opkg packages.
 
@@ -113,6 +117,7 @@ sub provide($) {
 	# The package itself
 	my $filename = "$name-$version.ipk";
 	copy("$path/$package->{desc}->{Filename}", "packages/$filename") or die "Could not copy $name ($path/$package->{desc}->{Filename}";
+	return if $omit{$package};
 	print "$name\t$version\t$flags\n";
 	warn "Package $name should be encrypted, but that's not supported yet ‒ you need to encrypt manually\n" if $desired{$name} =~ /E/;
 }
