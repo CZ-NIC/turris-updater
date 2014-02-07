@@ -75,7 +75,7 @@ while (<STDIN>) {
 		if (system("'$generator' '--path' '$2' --list-dir '$list_dir/' '--output-dir' 'lists/$1.user' <'$list_dir/$list' >'lists/$1'")) {
 			die "Failed to run generator";
 		}
-		push @lists, "lists/$1";
+		push @lists, "lists/$1", <lists/$1.user/*>;
 	} elsif (/^alias\s+(.*?)\s*$/) {
 		alias $1;
 	} elsif (/^branch\s+(.*?)\s*$/) {
