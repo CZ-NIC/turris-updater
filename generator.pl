@@ -133,6 +133,8 @@ sub prio($) {
 
 mkdir 'packages';
 
+my @lists;
+
 for my $pname (sort { prio $a <=> prio $b or $desired_order{$a} <=> $desired_order{$b} } @desired_names) {
 	if ($desired{$pname} =~ /R/) {
 		print "$pname\t-\t$desired{$pname}\n";
@@ -148,6 +150,8 @@ for my $pname (sort { prio $a <=> prio $b or $desired_order{$a} <=> $desired_ord
 		for my $matched (@matched) {
 			provide $packages{$matched};
 		}
+	} elsif ($desired{$pname} =~ /L/) {
+		push @lists, $pname;
 	} else {
 		provide($packages{$pname} // die "Package $pname doesn't exist\n");
 	}

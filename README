@@ -58,6 +58,11 @@ I::
 X::
   The name is not a name of package directly, but a regular expression. All packages
   matching it will be included with the same flags.
+L::
+  The name is not a package, but a list to generate in addition to the current one.
+  The list will be read from the `<package>` file and written to
+  name without any suffix (eg. the `<package>` is stripped after first dot).
+  Packages in the current list will be omited from the additional one.
 <number>::
   Packages with lower number are considered sooner when planning the order.
   Packages without number are left as last.
