@@ -71,8 +71,8 @@ while (<STDIN>) {
 		$reponame = $1;
 		die "No list specified yet" unless $list;
 		print "Running generator on $2 for $1\n";
-		mkdir "$1.user";
-		if (system("'$generator' '--path' '$2' --list-dir '$list_dir/' '--output-dir' '$1.user' <'$list_dir/$list' >'lists/$1'")) {
+		mkdir "lists/$1.user";
+		if (system("'$generator' '--path' '$2' --list-dir '$list_dir/' '--output-dir' 'lists/$1.user' <'$list_dir/$list' >'lists/$1'")) {
 			die "Failed to run generator";
 		}
 		push @lists, "lists/$1";
