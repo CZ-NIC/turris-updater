@@ -30,9 +30,13 @@ use utf8;
 use Scalar::Util qw(weaken);
 use File::Copy qw(copy);
 use Data::Dumper;
+use Getopt::Long;
 
 # Where to get the packages and their list
-my $path = $ARGV[0] or die "Expected the URL of the repository as my first argument\n";
+my $path;
+
+GetOptions
+	'path=s' => \$path or die "Bad params";
 
 # Download and decompress the list of opkg packages.
 

@@ -71,7 +71,7 @@ while (<STDIN>) {
 		$reponame = $1;
 		die "No list specified yet" unless $list;
 		print "Running generator on $2 for $1\n";
-		if (system("'$generator' '$2' <'$list_dir/$list' >'lists/$1'")) {
+		if (system("'$generator' '--path' '$2' <'$list_dir/$list' >'lists/$1'")) {
 			die "Failed to run generator";
 		}
 		push @lists, "lists/$1";
