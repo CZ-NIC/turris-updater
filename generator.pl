@@ -33,7 +33,7 @@ use Data::Dumper;
 use Getopt::Long;
 
 # Where to get the packages and their list
-my $path, @omit;
+my ($path, @omit);
 
 GetOptions
 	'path=s' => \$path,
