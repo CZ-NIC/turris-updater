@@ -33,10 +33,12 @@ use Data::Dumper;
 use Getopt::Long;
 
 # Where to get the packages and their list
-my ($path, @omit);
+my ($path, $list_dir, $output_dir, @omit);
 
 GetOptions
 	'path=s' => \$path,
+	'list-dir=s' => \$list_dir,
+	'output-dir=s' => \$output_dir,
 	'omit=s' => \@omit
 or die "Bad params";
 
@@ -95,6 +97,7 @@ my @desired_names = map { my ($name) = split /\s+/, $_; $name; } @desired;
 my ($order, %desired_order) = (1);
 
 $desired_order{$_} = $order ++ for @desired_names;
+my @output;
 
 sub provide($) {
 	my ($package) = @_;
@@ -117,7 +120,8 @@ sub provide($) {
 	# The package itself
 	my $filename = "$name-$version.ipk";
 	copy("$path/$package->{desc}->{Filename}", "packages/$filename") or die "Could not copy $name ($path/$package->{desc}->{Filename}";
-	return if $omit{$package};
+	push @output, $name unless $desired{$name} =~ /I/;
+	return if $omit{$name};
 	print "$name\t$version\t$flags\n";
 	warn "Package $name should be encrypted, but that's not supported yet ‒ you need to encrypt manually\n" if $desired{$name} =~ /E/;
 }
@@ -154,5 +158,14 @@ for my $pname (sort { prio $a <=> prio $b or $desired_order{$a} <=> $desired_ord
 		push @lists, $pname;
 	} else {
 		provide($packages{$pname} // die "Package $pname doesn't exist\n");
+	}
+}
+
+my $omits = join ' ', map "'--omit' '$_'", @output;
+
+for my $list (@lists) {
+	my ($list_nodot) = ($list =~ /^([^.]+)/);
+	if (system("'$0' '--path' '$path $omits <'$list_dir$list' >$output_dir/$list_nodot")) {
+		die "Failed to run sub-generator for $list\n";
 	}
 }
