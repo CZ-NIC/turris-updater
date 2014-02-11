@@ -156,10 +156,10 @@ execute_list() {
 
 # The rest of the base packages that are not considered critical.
 mkdir -p "$TMP_DIR/user_lists"
+USER_LIST_FILES=""
 execute_list "core"
 
 PROGRAM='updater-user'
-USER_LIST_FILES=""
 for USER_LIST in $(uci get updater.pkglists.lists) ; do
 	execute_list "$USER_LIST"
 done
