@@ -82,6 +82,7 @@ url_exists() {
 
 download() {
 	TARGET="$TMP_DIR/$2"
+	touch "$TARGET" # In case the file is empty on the server ‒ in such case, curl would not create it, but we need the empty file
 	my_curl "$1" -o "$TARGET" || die "Failed to download $1"
 }
 
