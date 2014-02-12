@@ -143,18 +143,25 @@ if $HAVE_WORK ; then
 	run_plan "$BASE_PLAN_FILE"
 fi
 
-PROGRAM='updater-user'
-mkdir -p "$TMP_DIR/user_lists"
-USER_LIST_FILES=""
-for USER_LIST in $(uci get updater.pkglists.lists) ; do
+execute_list() {
 	echo 'get list' >"$STATE_FILE"
-	get_list_user "$USER_LIST" "user_lists/$USER_LIST"
-	USER_LIST_FILES="$USER_LIST_FILES $TMP_DIR/user_lists/$USER_LIST"
+	get_list_user "$1" "user_lists/$1"
+	USER_LIST_FILES="$USER_LIST_FILES $TMP_DIR/user_lists/$1"
 	echo 'examine' >"$STATE_FILE"
 	rm -f "$PLAN_FILE"
 	touch "$PLAN_FILE"
-	prepare_plan "user_lists/$USER_LIST"
+	prepare_plan "user_lists/$1"
 	run_plan "$PLAN_FILE"
+}
+
+# The rest of the base packages that are not considered critical.
+mkdir -p "$TMP_DIR/user_lists"
+USER_LIST_FILES=""
+execute_list "core"
+
+PROGRAM='updater-user'
+for USER_LIST in $(uci get updater.pkglists.lists) ; do
+	execute_list "$USER_LIST"
 done
 PROGRAM='updater'
 
