@@ -87,7 +87,7 @@ while (<STDIN>) {
 			die "Failed to run generator";
 		}
 		push @lists, "lists/$1", <lists/$1.user/*>;
-		alias_user 'generic' if $1 eq 'generic';
+		alias_user $1;
 	} elsif (/^alias\s+(.*?)\s*$/) {
 		alias $1;
 	} elsif (/^branch\s+(.*?)\s*$/) {
