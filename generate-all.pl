@@ -89,16 +89,16 @@ while (<STDIN>) {
 		my @delete;
 		if (-e "$path/root/usr/lib/opkg/status") {
 			my ($fh, $fn) = File::Temp->new(UNLINK => 0);
+			open my $pkglist, '<', $input or die "Could not open input $input: $!\n";
+			print $fh $_ while (<$pkglist>);
+			close $pkglist;
 			open my $pkglist, '<', "$path/root/usr/lib/opkg/status" or die "Could not open list of base packages in the image: $!";
 			while (<$pkglist>) {
 				chomp;
 				if (/^Package: (.*)/) {
-					print $fh $_, "\n";
+					print $fh "$_	100\n";
 				}
 			}
-			close $pkglist;
-			open my $pkglist, '<', $input or die "Could not open input $input: $!\n";
-			print $fh $_ while (<$pkglist>);
 			close $pkglist;
 			close $fh;
 			$input = $fn;
