@@ -91,13 +91,18 @@ while (<STDIN>) {
 			my $fh = File::Temp->new(UNLINK => 0);
 			my $fn = $fh->filename;
 			open my $pkglist, '<', $input or die "Could not open input $input: $!\n";
-			print $fh $_ while (<$pkglist>);
-			close $pkglist;
-			open my $pkglist, '<', "$path/root/usr/lib/opkg/status" or die "Could not open list of base packages in the image: $!";
 			while (<$pkglist>) {
-				chomp;
-				if (/^Package: (.*)/) {
-					print $fh "$_	100\n";
+				if (/^# << Merge root packages >>/) {
+					open my $pkglist, '<', "$path/root/usr/lib/opkg/status" or die "Could not open list of base packages in the image: $!";
+					while (<$pkglist>) {
+						chomp;
+						if (/^Package: (.*)/) {
+							print $fh "$1\n";
+						}
+					}
+					close $pkglist;
+				} else {
+					print $fh $_;
 				}
 			}
 			close $pkglist;
