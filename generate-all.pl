@@ -88,7 +88,8 @@ while (<STDIN>) {
 		my $input = "$list_dir/$list";
 		my @delete;
 		if (-e "$path/root/usr/lib/opkg/status") {
-			my ($fh, $fn) = File::Temp->new(UNLINK => 0);
+			my $fh = File::Temp->new(UNLINK => 0);
+			my $fn = $fh->filename;
 			open my $pkglist, '<', $input or die "Could not open input $input: $!\n";
 			print $fh $_ while (<$pkglist>);
 			close $pkglist;
