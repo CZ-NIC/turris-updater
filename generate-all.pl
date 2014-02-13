@@ -103,6 +103,8 @@ while (<STDIN>) {
 			close $fh;
 			$input = $fn;
 			push @delete, $fn;
+		} else {
+			warn "Missing root FS $path/root/usr/lib/opkg/status\n";
 		}
 		if (system("'$generator' '--path' '$path/packages' --list-dir '$list_dir/' '--output-dir' 'lists/$reponame.user' <'$list_dir/$list' >'lists/$reponame'")) {
 			die "Failed to run generator";
