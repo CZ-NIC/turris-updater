@@ -27,6 +27,7 @@
 
 use common::sense;
 use File::Path;
+use File::Temp;
 use Cwd 'abs_path';
 
 my $indir;
@@ -80,14 +81,35 @@ while (<STDIN>) {
 		mkdir 'lists' or die "Couldn't create lists: $!";
 	} elsif (/^repo\s+(\w+)\s+(.*?)\s*$/) {
 		$reponame = $1;
+		my $path = $2;
 		die "No list specified yet" unless $list;
-		print "Running generator on $2 for $1\n";
-		mkdir "lists/$1.user";
-		if (system("'$generator' '--path' '$2/packages' --list-dir '$list_dir/' '--output-dir' 'lists/$1.user' <'$list_dir/$list' >'lists/$1'")) {
+		print "Running generator on $path for $reponame\n";
+		mkdir "lists/$reponame.user";
+		my $input = "$list_dir/$list";
+		my @delete;
+		if (-e "$path/root/usr/lib/opkg/status") {
+			my ($fh, $fn) = File::Temp->new(UNLINK => 0);
+			open my $pkglist, '<', "$path/root/usr/lib/opkg/status" or die "Could not open list of base packages in the image: $!";
+			while (<$pkglist>) {
+				chomp;
+				if (/^Package: (.*)/) {
+					print $fh $_, "\n";
+				}
+			}
+			close $pkglist;
+			open my $pkglist, '<', $input or die "Could not open input $input: $!\n";
+			print $fh $_ while (<$pkglist>);
+			close $pkglist;
+			close $fh;
+			$input = $fn;
+			push @delete, $fn;
+		}
+		if (system("'$generator' '--path' '$path/packages' --list-dir '$list_dir/' '--output-dir' 'lists/$reponame.user' <'$list_dir/$list' >'lists/$reponame'")) {
 			die "Failed to run generator";
 		}
-		push @lists, "lists/$1", <lists/$1.user/*>;
-		alias_user $1;
+		unlink @delete;
+		push @lists, "lists/$reponame", <lists/$reponame.user/*>;
+		alias_user $reponame;
 	} elsif (/^alias\s+(.*?)\s*$/) {
 		alias $1;
 	} elsif (/^branch\s+(.*?)\s*$/) {
