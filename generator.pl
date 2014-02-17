@@ -101,13 +101,13 @@ my @output;
 
 sub provide($) {
 	my ($package) = @_;
-	warn "Provide $package\n";
+	my $name = $package->{desc}->{Package};
+	my $flags = $desired{$name} // '.';
+	warn "Provide $name ($package->{provided}, $flags)\n";
 	# Recursion sanity checking & termination
 	return if $package->{provided};
 
 	# Parameters
-	my $name = $package->{desc}->{Package};
-	my $flags = $desired{$name} // '.';
 	die "Dependency $name required to be uninstalled\n" if $flags =~ /R/;
 	my $version = $package->{desc}->{Version};
 
