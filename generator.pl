@@ -101,6 +101,7 @@ my @output;
 
 sub provide($) {
 	my ($package) = @_;
+	warn "Provide $package\n";
 	# Recursion sanity checking & termination
 	return if $package->{provided};
 
