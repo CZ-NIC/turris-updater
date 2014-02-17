@@ -140,7 +140,7 @@ do_remove() {
 }
 
 do_restart() {
-	echo 'Update restart requested on abnormal run, terminating instead' | my_logger -p daemon.warn
+	echo 'Updater restart requested on abnormal run, terminating instead' | my_logger -p daemon.warn
 	exit 0
 }
 

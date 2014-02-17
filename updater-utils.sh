@@ -107,9 +107,23 @@ verify() {
 
 my_opkg() {
 	set +e
-	opkg "$@" >"$TMP_DIR"/opkg 2>&1
+	opkg "$@" >"$TMP_DIR"/opkg 2>&1 &
+	PID="$!"
+	(
+		sleep 600
+		echo "Killing opkg after 10 minutes (stuck?)" | my_logger -p daemon.error
+		kill "$PID"
+		sleep 5
+		kill -9 "$PID"
+		# Wait to be killed by the parrent
+		sleep 60
+	) &
+	WATCHER="$!"
+	wait "$PID"
 	RESULT="$?"
 	set -e
+	kill "$WATCHER"
+	wait "$WATCHER"
 	if [ "$RESULT" != 0 ] ; then
 		cat "$TMP_DIR"/opkg | my_logger -p daemon.info
 	fi
