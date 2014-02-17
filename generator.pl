@@ -29,7 +29,6 @@ use common::sense;
 use utf8;
 use Scalar::Util qw(weaken);
 use File::Copy qw(copy);
-use Data::Dumper;
 use Getopt::Long;
 
 # Where to get the packages and their list
@@ -96,8 +95,6 @@ my %desired = map { my ($name, $flags) = split /\s+/, $_, 2; ($name, $flags); } 
 my @desired_names = map { my ($name) = split /\s+/, $_; $name; } @desired;
 my ($order, %desired_order) = (1);
 
-print STDERR Dumper \%desired, \%desired_order, \@desired_names;
-
 $desired_order{$_} = $order ++ for @desired_names;
 my @output;
 
@@ -105,7 +102,6 @@ sub provide($) {
 	my ($package) = @_;
 	my $name = $package->{desc}->{Package};
 	my $flags = $desired{$name} // '.';
-	warn "Provide $name ($package->{provided}, $flags)\n";
 	# Recursion sanity checking & termination
 	return if $package->{provided};
 
