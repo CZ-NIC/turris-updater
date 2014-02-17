@@ -106,6 +106,11 @@ verify() {
 }
 
 my_opkg() {
+	# Wrapper around runnig opkg. It checks if it suceeds and if not, stores its output
+	# to the log and terminates the updater. Also, there's a 10-minute timeout ‒ if it
+	# locks up, it must not be locked up forever, we would not be able to install a fix
+	# The timeout starts opkg in background, it starts a watcher that'd kill it after the
+	# 10 minutes and waits for opkg to finish. If it finishes, it kills the watcher.
 	set +e
 	opkg "$@" >"$TMP_DIR"/opkg 2>&1 &
 	PID="$!"
