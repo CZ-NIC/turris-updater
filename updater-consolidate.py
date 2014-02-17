@@ -74,7 +74,7 @@ def construct_packages(lists):
 		for package in packages:
 			parts = package.split()
 			(name, flags) = (parts[0], parts[2])
-			if flags.find('R') == -1:
+			if flags.find('R') == -1 and flags.find('I') == -1:
 				installed.add(name)
     return installed
 
