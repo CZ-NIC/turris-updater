@@ -96,6 +96,8 @@ my %desired = map { my ($name, $flags) = split /\s+/, $_, 2; ($name, $flags); } 
 my @desired_names = map { my ($name) = split /\s+/, $_; $name; } @desired;
 my ($order, %desired_order) = (1);
 
+print Dumper \%desired, \%desired_order, \@desired_names;
+
 $desired_order{$_} = $order ++ for @desired_names;
 my @output;
 
