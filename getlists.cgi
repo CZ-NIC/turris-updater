@@ -105,6 +105,6 @@ print "Content-Type: application/octet-stream\n";
 print "Status: 200 OK\n";
 print "\n";
 $ENV{PATH} = '/bin/:/usr/bin/';
-system '/bin/tar', 'cJ', 'status', @files and die "Failed to run tar\n";
+system '/bin/tar', 'cj', 'status', @files and die "Failed to run tar\n";
 
 chdir '/'; # Escape from the directory, so perl can delete it
