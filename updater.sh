@@ -42,6 +42,7 @@ ID="$(atsha204cmd serial-number || guess_id)"
 REVISION="$(atsha204cmd hw-rev || guess_revision)"
 # Where the things live
 BASE_URL="https://api.turris.cz/updater-repo/$REVISION"
+LIST_REQ="https://api.turris.cz/getlists.cgi"
 GENERIC_LIST_URL="$BASE_URL/lists/generic"
 SPECIFIC_LIST_URL="$BASE_URL/lists/$ID"
 PACKAGE_URL="$BASE_URL/packages"
@@ -114,7 +115,8 @@ fi
 mkdir -p "$TMP_DIR"
 
 echo 'get list' >"$STATE_FILE"
-get_list_main list
+get_list_pack base core $(uci get updater.pkglists.lists)
+get_list base list
 
 HAVE_WORK=false
 echo 'examine' >"$STATE_FILE"
@@ -145,7 +147,7 @@ fi
 
 execute_list() {
 	echo 'get list' >"$STATE_FILE"
-	get_list_user "$1" "user_lists/$1"
+	get_list "$1" "user_lists/$1"
 	USER_LIST_FILES="$USER_LIST_FILES $TMP_DIR/user_lists/$1"
 	echo 'examine' >"$STATE_FILE"
 	rm -f "$PLAN_FILE"

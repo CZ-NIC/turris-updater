@@ -91,16 +91,16 @@ sha_hash() {
 }
 
 verify() {
-	download "$1".sig signature
-	COMPUTED="$(sha_hash /tmp/update/"$2")"
+	COMPUTED="$(sha_hash /tmp/updater-lists/"$1")"
 	FOUND=false
 	for KEY in /usr/share/updater/keys/*.pem ; do
-		EXPECTED="$(openssl rsautl -verify -inkey "$KEY" -keyform PEM -pubin -in /tmp/update/signature || echo "BAD")"
+		EXPECTED="$(openssl rsautl -verify -inkey "$KEY" -keyform PEM -pubin -in /tmp/updater-lists/"$1".sig || echo "BAD")"
 		if [ "$COMPUTED" = "$EXPECTED" ] ; then
 			FOUND=true
 		fi
 	done
 	if ! "$FOUND" ; then
+		rm "/tmp/updater-lists/$1" # Delete it, so we download it anew next time
 		die "List signature invalid"
 	fi
 }

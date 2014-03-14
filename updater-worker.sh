@@ -37,32 +37,35 @@ STATE_FILE="$STATE_DIR/state"
 LOG_FILE="$STATE_DIR/log"
 PLAN_FILE="$STATE_DIR/plan"
 
-try_download() {
-	if url_exists "$1" ; then
-		download "$1" "$2"
-		verify "$1" "$2"
-	else
-		return 1
+get_list() {
+	if grep ' MISSING$' "/tmp/updater-lists/status" | grep -qF "$1 " ; then
+		die "Missing list $1"
 	fi
+	verify "$1"
+	cp "/tmp/updater-lists/$1" "$TMP_DIR/$2"
 }
 
-# Download the list of packages
-get_list_main() {
-	if try_download "$SPECIFIC_LIST_URL" "$1" || try_download "$GENERIC_LIST_URL" "$1" ; then
-		: # This is OK
-	else
-		die "Could not download the list of packages"
-	fi
-}
-
-get_list_user() {
-	SPECIFIC="$BASE_URL/lists/$1-$ID"
-	GENERIC="$BASE_URL/lists/$1-generic"
-	if try_download "$SPECIFIC" "$2" || try_download "$GENERIC" "$2" ; then
-		: # This is OK
-	else
-		die "Could not download additional user list $1"
-	fi
+get_list_pack() {
+	(
+		echo "$REVISION"
+		if [ "$ID" != "unknown-id" ] ; then
+			SERIAL="$(echo "$ID" | sed -e 's/........//')"
+		else
+			SERIAL="$ID"
+		fi
+		echo "$SERIAL"
+		mkdir -p "/tmp/updater-lists"
+		while [ "$1" ] ; do
+			if [ -f "/tmp/updater-lists/$1" ] ; then
+				HASH="$(md5sum "/tmp/updater-lists/$1" | cut -d\  -f 1)"
+			else
+				HASH='-'
+			fi
+			echo "$1 $HASH"
+			shift
+		done
+	) | my_curl -T - "$LIST_REQ" -X POST -f >"$TMP_DIR/lists.tar.bz2" || die "Could not download list pack"
+	bunzip2 -c <"$TMP_DIR/lists.tar.bz2" | (cd "/tmp/updater-lists" ; tar x)
 }
 
 should_install() {
