@@ -77,7 +77,7 @@ open my $sfile, '>', "$dir/status" or die "Could not write status file\n";
 my @files;
 while (<>) {
 	chomp;
-	my ($name, $hash) = /^([-_.a-z0-9]+)\s+([a-f0-9]{32}|-)$/ or die "418 I'm a very confused teapot ☹", "Bad request line '$_'\n";
+	my ($name, $hash) = /^([-_a-z0-9]+)\s+([a-f0-9]{32}|-)$/ or die "418 I'm a very confused teapot ☹", "Bad request line '$_'\n";
 	my $candidate = candidate $name;
 	if (defined $candidate) {
 		my $md5ctx = Digest::MD5->new;
