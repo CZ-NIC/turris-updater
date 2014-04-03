@@ -178,6 +178,11 @@ else
 	echo 'Missing consolidator' | my_logger -p daemon.warn
 fi
 
+# Try running notifier. We don't fail if it does, for one it is not
+# critical for updater, for another, it may be not available.
+
+notifier || echo 'Notifier failed' | my_logger -p daemon.error
+
 echo 'done' >"$STATE_FILE"
 echo 'Updater finished' | my_logger -p daemon.info
 
