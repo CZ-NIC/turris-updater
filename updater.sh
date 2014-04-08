@@ -196,9 +196,9 @@ PID="$!"
 WATCHER="$!"
 wait "$PID"
 RESULT="$?"
-set -e
 kill "$WATCHER"
 wait "$WATCHER"
+set -e
 if [ "$RESULT" != 0 ] ; then
 	cat "$TMP_DIR"/opkg | my_logger -p daemon.info
 	echo "Notifier failed" | my_logger -p daemon.error
