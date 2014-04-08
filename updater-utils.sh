@@ -105,18 +105,23 @@ verify() {
 	fi
 }
 
-my_opkg() {
-	# Wrapper around runnig opkg. It checks if it suceeds and if not, stores its output
-	# to the log and terminates the updater. Also, there's a 10-minute timeout ‒ if it
-	# locks up, it must not be locked up forever, we would not be able to install a fix
-	# The timeout starts opkg in background, it starts a watcher that'd kill it after the
-	# 10 minutes and waits for opkg to finish. If it finishes, it kills the watcher.
+timeout() {
+	# Wrapper around running program. It checks if it suceeds and if not, stores its output
+	# to the log and terminates the updater. Also, there's a timeout
+	# (passed as the first parameter) ‒ if it locks up, it must not be locked up forever, we
+	# we would not be able to install a fix.
+	# The timeout starts it in background. Also, a watcher process is started that'd kill
+	# it after the timeout and waits for it to finish. If the program finishes, it kills
+	# the watcher.
+	TIME="$1"
+	PROGRAM="$2"
+	shift 2
 	set +e
-	opkg "$@" >"$TMP_DIR"/opkg 2>&1 &
+	"$PROGRAM" "$@" >"$TMP_DIR"/t-output 2>&1 &
 	PID="$!"
 	(
-		sleep 600
-		echo "Killing opkg after 10 minutes (stuck?)" | my_logger -p daemon.error
+		sleep "$TIME"
+		echo "Killing $PROGRAM after $TIME seconds (stuck?)" | my_logger -p daemon.error
 		kill "$PID"
 		sleep 5
 		kill -9 "$PID"
@@ -130,9 +135,13 @@ my_opkg() {
 	wait "$WATCHER"
 	set -e
 	if [ "$RESULT" != 0 ] ; then
-		cat "$TMP_DIR"/opkg | my_logger -p daemon.info
+		my_logger -p daemon.info <"$TMP_DIR"/t-output
 	fi
 	return "$RESULT"
+}
+
+my_opkg() {
+	timeout 10 opkg "$@" || return 1
 }
 
 has_flag() {

@@ -181,28 +181,7 @@ fi
 # Try running notifier. We don't fail if it does, for one it is not
 # critical for updater, for another, it may be not available.
 
-set +e
-notifier >"$TMP_DIR"/notifier 2>&1 &
-PID="$!"
-(
-	sleep 120
-	echo "Killing notifier after 2 minutes (stuck?)" | my_logger -p daemon.error
-	kill "$PID"
-	sleep 5
-	kill -9 "$PID"
-	# Wait to be killed by the parrent
-	sleep 60
-) &
-WATCHER="$!"
-wait "$PID"
-RESULT="$?"
-kill "$WATCHER"
-wait "$WATCHER"
-set -e
-if [ "$RESULT" != 0 ] ; then
-	cat "$TMP_DIR"/opkg | my_logger -p daemon.info
-	echo "Notifier failed" | my_logger -p daemon.error
-fi
+timeout 120 notifier | echo 'Notifier failed' | my_logger -p daemon.error
 
 echo 'done' >"$STATE_FILE"
 echo 'Updater finished' | my_logger -p daemon.info
