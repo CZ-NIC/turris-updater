@@ -57,7 +57,7 @@ guess_revision() {
 }
 
 my_curl() {
-	curl --compress --cacert "$CERT" "$@"
+	curl --compress --cacert "$CERT" --crlfile "$CRL" "$@"
 }
 
 die() {
