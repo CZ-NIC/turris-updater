@@ -32,6 +32,7 @@ PKG_DIR="$TMP_DIR/packages"
 CIPHER='aes-256-cbc'
 COOLDOWN='3'
 CERT='/etc/ssl/updater.pem'
+CRL='/etc/ssl/crl.pem'
 STATE_DIR='/tmp/update-state'
 STATE_FILE="$STATE_DIR/state"
 LOG_FILE="$STATE_DIR/log"
