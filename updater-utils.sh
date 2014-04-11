@@ -28,6 +28,9 @@
 PID="$$"
 PROGRAM='updater'
 
+# Download the certificate revocation list for curl
+get-api-crl
+
 my_logger() {
 	logger -t "$PROGRAM" "$@"
 }
