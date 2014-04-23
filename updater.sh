@@ -32,6 +32,8 @@
 
 set -xe
 
+ping -c1 -w10 api.turris.cz || true # Start up resolution inside turris.cz. It seems unbound sometimes takes a long time, caching part of the path may help.
+
 # Load the libraries
 LIB_DIR="$(dirname "$0")"
 . "$LIB_DIR/updater-worker.sh"
