@@ -84,7 +84,11 @@ while (my ($name, $package) = each %packages) {
 		# FIXME: Some version handling instead of ignoring them (#2704)
 		$dep =~ s/\s*\(.*\)\s*//;
 		warn "Looking for dep $dep\n";
-		my $dpackage = $packages{$dep} // ( warn "Dependency $dep of $name is missing\n", next );
+		my $dpackage = $packages{$dep};
+		unless($dpackage) {
+			warn "Dependency $dep of $name is missing\n"
+			next;
+		}
 		warn "Found $dpackage/$dpackage->{desc}->{Package}\n";
 		$dpackage->{revdep}->{$name} = $package;
 		weaken $dpackage->{revdep}->{$name};
