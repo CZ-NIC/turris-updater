@@ -85,7 +85,7 @@ while (my ($name, $package) = each %packages) {
 		$dep =~ s/\s*\(.*\)\s*//;
 		warn "Looking for dep $dep\n";
 		my $dpackage = $packages{$dep} // ( warn "Dependency $dep of $name is missing\n", next );
-		warn "Found $package/$package->{desc}->{Package}\n";
+		warn "Found $dpackage/$dpackage->{desc}->{Package}\n";
 		$dpackage->{revdep}->{$name} = $package;
 		weaken $dpackage->{revdep}->{$name};
 		$package->{dep}->{$dep} = $dpackage;
