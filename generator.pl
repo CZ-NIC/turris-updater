@@ -103,8 +103,8 @@ sub provide($) {
 	my $name = $package->{desc}->{Package};
 	my $flags = $desired{$name} // '.';
 	# Recursion sanity checking & termination
-	warn "Package $package is already provided\n", return if $package->{provided};
-	warn "Providing $package\n";
+	warn "Package $name is already provided\n", return if $package->{provided};
+	warn "Providing $name\n";
 
 	# Parameters
 	die "Dependency $name required to be uninstalled\n" if $flags =~ /R/;
@@ -114,6 +114,7 @@ sub provide($) {
 
 	# Recursive calls to dependencies
 	$package->{visited} = 1;
+	warn join(", ", map $_->{desc}->{Package}, values %{$package->{dep}}) if %{$package->{dep}};
 	&provide($_) foreach values %{$package->{dep}};
 	$package->{provided} = 1;
 
