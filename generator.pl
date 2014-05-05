@@ -43,8 +43,6 @@ or die "Bad params";
 
 my %omit = map { $_ => 1 } @omit;
 
-warn "Omit: " . join ", ", keys %omit;
-
 # Download and decompress the list of opkg packages.
 
 # The use of shell here is technically insecure, but the input is ours,
@@ -78,18 +76,15 @@ my %packages = map { $_->{Package} => { desc => $_ } } @packages;
 # Link the packages by dependencies and reverse dependencies
 
 while (my ($name, $package) = each %packages) {
-	warn "Deps for $name: $package->{desc}->{Depends}\n";
 	my @deps = split /,\s*/, $package->{desc}->{Depends};
 	for my $dep (@deps) {
 		# FIXME: Some version handling instead of ignoring them (#2704)
 		$dep =~ s/\s*\(.*\)\s*//;
-		warn "Looking for dep $dep\n";
 		my $dpackage = $packages{$dep};
 		unless($dpackage) {
 			warn "Dependency $dep of $name is missing\n";
 			next;
 		}
-		warn "Found $dpackage/$dpackage->{desc}->{Package}\n";
 		$dpackage->{revdep}->{$name} = $package;
 		weaken $dpackage->{revdep}->{$name};
 		$package->{dep}->{$dep} = $dpackage;
@@ -112,8 +107,7 @@ sub provide($) {
 	my $name = $package->{desc}->{Package};
 	my $flags = $desired{$name} // '.';
 	# Recursion sanity checking & termination
-	warn "Package $name is already provided\n", return if $package->{provided};
-	warn "Providing $name\n";
+	return if $package->{provided};
 
 	# Parameters
 	die "Dependency $name required to be uninstalled\n" if $flags =~ /R/;
@@ -123,7 +117,6 @@ sub provide($) {
 
 	# Recursive calls to dependencies
 	$package->{visited} = 1;
-	warn join(", ", map $_->{desc}->{Package}, values %{$package->{dep}}) if %{$package->{dep}};
 	&provide($_) foreach values %{$package->{dep}};
 	$package->{provided} = 1;
 
