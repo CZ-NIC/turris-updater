@@ -103,7 +103,8 @@ sub provide($) {
 	my $name = $package->{desc}->{Package};
 	my $flags = $desired{$name} // '.';
 	# Recursion sanity checking & termination
-	return if $package->{provided};
+	warn "Package $package is already provided\n", return if $package->{provided};
+	warn "Providing $package\n";
 
 	# Parameters
 	die "Dependency $name required to be uninstalled\n" if $flags =~ /R/;
