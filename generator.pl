@@ -43,6 +43,8 @@ or die "Bad params";
 
 my %omit = map { $_ => 1 } @omit;
 
+warn "Omit: " . join ", ", keys %omit;
+
 # Download and decompress the list of opkg packages.
 
 # The use of shell here is technically insecure, but the input is ours,
@@ -76,6 +78,7 @@ my %packages = map { $_->{Package} => { desc => $_ } } @packages;
 # Link the packages by dependencies and reverse dependencies
 
 while (my ($name, $package) = each %packages) {
+	warn "Deps for $name: $package->{desc}->{Depends}\n";
 	my @deps = split /,\s*/, $package->{desc}->{Depends};
 	for my $dep (@deps) {
 		# FIXME: Some version handling instead of ignoring them (#2704)
