@@ -79,7 +79,7 @@ while (<STDIN>) {
 		chdir $1 or die "Can't enter $1: $!";
 		$indir = 1;
 		mkdir 'lists' or die "Couldn't create lists: $!";
-	} elsif (/^repo\s+(\w+)\s+(.*?)\s*$/) {
+	} elsif (/^repo\s+(\S+)\s+(.*?)\s*$/) {
 		$reponame = $1;
 		my $path = $2;
 		die "No list specified yet" unless $list;
