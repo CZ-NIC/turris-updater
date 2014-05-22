@@ -144,7 +144,7 @@ timeout() {
 }
 
 my_opkg() {
-	timeout 10 opkg "$@" || return 1
+	timeout 600 opkg "$@" || return 1
 }
 
 has_flag() {
