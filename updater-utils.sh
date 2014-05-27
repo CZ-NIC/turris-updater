@@ -117,14 +117,14 @@ timeout() {
 	# it after the timeout and waits for it to finish. If the program finishes, it kills
 	# the watcher.
 	TIME="$1"
-	PROGRAM="$2"
+	PROG="$2"
 	shift 2
 	set +e
-	"$PROGRAM" "$@" >"$TMP_DIR"/t-output 2>&1 &
+	"$PROG" "$@" >"$TMP_DIR"/t-output 2>&1 &
 	PID="$!"
 	(
 		sleep "$TIME"
-		echo "Killing $PROGRAM after $TIME seconds (stuck?)" | my_logger -p daemon.error
+		echo "Killing $PROG after $TIME seconds (stuck?)" | my_logger -p daemon.error
 		kill "$PID"
 		sleep 5
 		kill -9 "$PID"
