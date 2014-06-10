@@ -1,2 +1,0 @@
-MAILTO=""
-3     *       *       *       *       root	/usr/bin/updater.sh >/dev/null 2>&1 &
