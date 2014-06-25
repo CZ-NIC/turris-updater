@@ -63,8 +63,8 @@ sub alias_user($) {
 
 sub alias($) {
 	my ($name) = @_;
-	symlink "$reponame", "lists/$name" or die "Couldn't create alias: $!";
-	symlink "$reponame.sig", "lists/$name.sig" or die "Couldn't create sig alias: $!";
+	symlink "$reponame", "lists/$name" or die "Couldn't create alias $name: $!";
+	symlink "$reponame.sig", "lists/$name.sig" or die "Couldn't create sig alias $name.sig: $!";
 	alias_user $name;
 }
 
