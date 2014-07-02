@@ -168,7 +168,7 @@ do_install() {
 			echo 'cooldown' >"$STATE_FILE"
 			sleep "$COOLDOWN"
 		fi
-		if has_flag "$FLAGS" U ; then
+		if has_flag "$3" U ; then
 			do_restart
 		fi
 		rm "$PKG_DIR/$PACKAGE.ipk"
