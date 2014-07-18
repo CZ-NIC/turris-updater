@@ -63,6 +63,8 @@ L::
   The list will be read from the `<package>` file and written to
   name without any suffix (eg. the `<package>` is stripped after first dot).
   Packages in the current list will be omited from the additional one.
+B::
+  This package requires reboot-installed updates. See below.
 <number>::
   Packages with lower number are considered sooner when planning the order.
   Packages without number are left as last.
@@ -73,6 +75,15 @@ Dependencies
 Dependencies are not considered on the device. The list is processed from top
 to bottom, one line at a time. If one package depends on another, it should be
 listed in the list above the another.
+
+Reboot-installed updates
+------------------------
+
+In case the list of packages that need to be updated contains some with the `B`
+flag, the packages are just downloaded and prepared and a reboot is scheduled.
+After the reboot, the updates are installed and another reboot is done. This is
+to accomodate critical services that can't be restarted while the system is
+running (like `procd`).
 
 Example
 -------
