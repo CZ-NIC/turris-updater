@@ -102,7 +102,9 @@ if $BACKGROUND ; then
 	exit
 fi
 
-trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR" /usr/share/updater/packages /usr/share/updater/plan; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
+STABLE_PACKAGES="/usr/share/updater/packages"
+STABLE_PLAN="/usr/share/updater/plan"
+trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR" $STABLE_PACKAGES $STABLE_PLAN; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
 
 # Don't load the server all at once. With NTP-synchronized time, and
 # thousand clients, it would make spikes on the CPU graph and that's not
@@ -156,6 +158,8 @@ if $HAVE_WORK ; then
 		timeout 120 create_notification -s restart "Updaty, které nelze nainstalovat za běhu, jsou připraveny pro instalaci při restartu."
 		timeout 120 notifier || echo 'Notifier failed' | my_logger -p daemon.error
 		# Leave the rest be
+		STABLE_PACKAGES=
+		STABLE_PLAN=
 		EXIT_CODE="0"
 		exit
 	fi
