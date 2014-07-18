@@ -85,6 +85,8 @@ After the reboot, the updates are installed and another reboot is done. This is
 to accomodate critical services that can't be restarted while the system is
 running (like `procd`).
 
+This works only in the primary list, not in the additional ones.
+
 Example
 -------
 

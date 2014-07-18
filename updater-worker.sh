@@ -198,6 +198,10 @@ prepare_plan() {
 			get_package "$PACKAGE" "$VERSION" "$FLAGS" "$HASH"
 			mv "$TMP_DIR/package.ipk" "$FILE"
 			echo "do_install '$PACKAGE' '$VERSION' '$FLAGS'" >>"$PLAN_FILE"
+			if has_flag "$FLAGS" B ; then
+				# Request offline updates. The rest is handled in upper level.
+				NEED_OFFLINE_UPDATES=true
+			fi
 			if has_flag "$FLAGS" U ; then
 				# If we do an updater restart, we don't want to download further packages.
 				# We would throw them out anyway, since we would start updater again and

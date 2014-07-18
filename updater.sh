@@ -121,6 +121,7 @@ get_list_pack base core $(uci get updater.pkglists.lists)
 get_list base list
 
 HAVE_WORK=false
+NEED_OFFLINE_UPDATES=false
 echo 'examine' >"$STATE_FILE"
 echo 'PKG_DIR=/usr/share/updater/packages' >"$PLAN_FILE"
 prepare_plan list
@@ -142,6 +143,17 @@ if $HAVE_WORK ; then
 	mv "$PKG_DIR" /usr/share/updater/packages
 	mv "$PLAN_FILE" "$BASE_PLAN_FILE"
 	sync
+
+	if $NEED_OFFLINE_UPDATES ; then
+		# Mark the need for offline updates
+		touch '/tmp/offline-update-ready'
+		# Schedule the reboot and notify user
+		timeout 120 create_notification -s restart "Updaty, které nelze nainstalovat za běhu, jsou připraveny pro instalaci při restartu."
+		timeout 120 notifier || echo 'Notifier failed' | my_logger -p daemon.error
+		# Leave the rest be
+		EXIT_CODE="0"
+		exit
+	fi
 
 	# Run the plan from the permanent storage
 	run_plan "$BASE_PLAN_FILE"
