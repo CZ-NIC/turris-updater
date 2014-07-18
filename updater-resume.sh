@@ -46,9 +46,25 @@ trap 'rm -rf "$TMP_DIR" /usr/share/updater/packages /usr/share/updater/plan; exi
 mkdir -p "$TMP_DIR"
 mkdir -p "$STATE_DIR"
 
+RESTART_REQUESTED=false
 run_plan "$BASE_PLAN_FILE"
 echo 'done' >"$STATE_FILE"
 echo 'Updater finished' | my_logger -p daemon.info
+
+if $RESTART_REQUESTED ; then
+	# This was a scheduled offline update.
+
+	# Leave an empty plan in-place. This way we'll run the complete updater after reboot.
+	touch "$BASE_PLAN_FILE"
+	# Send the logs from update before we lose them by reboot
+	logsend.sh -n
+	/sbin/reboot
+	EXIT_CODE=0
+	exit
+fi
+
+# We may need to wait for network connection now. Two minutes is hopefuly enough.
+sleep 120
 
 # Run the complete updater now, as we installed what was planned, to finish other phases
 "$LIB_DIR"/updater.sh -n
