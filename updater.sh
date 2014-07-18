@@ -56,6 +56,11 @@ EXIT_CODE="1"
 
 BASE_PLAN_FILE='/usr/share/updater/plan'
 
+if [ -e '/tmp/offline-update-ready' ] ; then
+	echo "Offline update pending, not doing anything else now" | my_logger -p daemon.warning
+	exit
+fi
+
 if [ "$1" = "-b" ] ; then
 	BACKGROUND=true
 	shift
