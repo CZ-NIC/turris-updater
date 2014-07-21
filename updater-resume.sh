@@ -41,7 +41,7 @@ LIB_DIR="$(dirname "$0")"
 
 echo "Resuming updater after reboot" | my_logger -p daemon.warn
 
-trap 'rm -rf "$TMP_DIR" /usr/share/updater/packages /usr/share/updater/plan; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
+trap 'rm -rf "$TMP_DIR" /usr/share/updater/packages $BASE_PLAN_FILE; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
 
 mkdir -p "$TMP_DIR"
 mkdir -p "$STATE_DIR"
@@ -55,8 +55,11 @@ if $RESTART_REQUESTED ; then
 	# This was a scheduled offline update.
 
 	# Leave an empty plan in-place. This way we'll run the complete updater after reboot.
+	rm -f "$BASE_PLAN_FILE"
 	touch "$BASE_PLAN_FILE"
+	BASE_PLAN_FILE=
 	# Send the logs from update before we lose them by reboot
+	timeout 120 notifier || echo 'Notifier failed' | my_logger -p daemon.error
 	logsend.sh -n
 	/sbin/reboot
 	EXIT_CODE=0
