@@ -220,3 +220,10 @@ run_plan() {
 	. "$1"
 	rm "$1"
 }
+
+gen_notifies() {
+	if [ -s "$LOG_FILE" ] ; then
+		timeout 120 create_notification -s update "$(sed -e 's/^I \(.*\) \(.*\)/ • Nainstalovaná verze \2 balíku \1/;s/^R \(.*\)/ • Odstraněn balík \1/' "$LOG_FILE")"
+	fi
+	timeout 120 notifier || echo 'Notifier failed' | my_logger -p daemon.error
+}

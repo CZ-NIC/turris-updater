@@ -51,6 +51,8 @@ run_plan "$BASE_PLAN_FILE"
 echo 'done' >"$STATE_FILE"
 echo 'Updater finished' | my_logger -p daemon.info
 
+gen_notifies
+
 if $RESTART_REQUESTED ; then
 	# This was a scheduled offline update.
 
@@ -59,7 +61,6 @@ if $RESTART_REQUESTED ; then
 	touch "$BASE_PLAN_FILE"
 	BASE_PLAN_FILE=
 	# Send the logs from update before we lose them by reboot
-	timeout 120 notifier || echo 'Notifier failed' | my_logger -p daemon.error
 	logsend.sh -n
 	/sbin/reboot
 	EXIT_CODE=0
