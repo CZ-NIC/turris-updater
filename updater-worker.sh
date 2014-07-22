@@ -48,7 +48,7 @@ get_list() {
 
 get_list_pack() {
 	(
-		echo "$REVISION"
+		echo "$GENERATION$REVISION"
 		if [ "$ID" != "unknown-id" ] ; then
 			SERIAL="$(echo "$ID" | sed -e 's/........//')"
 		else

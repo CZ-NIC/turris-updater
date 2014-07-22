@@ -44,8 +44,9 @@ sub error($$) {
 # Move to the place where lists live
 my $serie = <>;
 chomp $serie;
-($serie) = $serie =~ /^([a-f0-9]{8}|unknown-revision)$/i or error "404 Not Found", "Bad serie '$serie'\n";
+($serie) = $serie =~ /^((\d+\/)?[a-f0-9]{8}|unknown-revision)$/i or error "404 Not Found", "Bad serie '$serie'\n";
 chdir "updater-repo/$serie/lists" or die "Couldn't set directory '$serie/lists': $!\n";
+$serie =~ s#.*/##;
 
 # Who is asking for data? It'll influence choice of the files
 my $id = <>;
