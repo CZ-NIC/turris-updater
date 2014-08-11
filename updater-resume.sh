@@ -45,11 +45,10 @@ trap 'rm -rf "$TMP_DIR" /usr/share/updater/packages $BASE_PLAN_FILE; exit "$EXIT
 
 mkdir -p "$TMP_DIR"
 mkdir -p "$STATE_DIR"
+echo 'startup' >"$STATE_FILE"
 
 RESTART_REQUESTED=false
 run_plan "$BASE_PLAN_FILE"
-echo 'done' >"$STATE_FILE"
-echo 'Updater finished' | my_logger -p daemon.info
 
 gen_notifies
 
@@ -66,6 +65,9 @@ if $RESTART_REQUESTED ; then
 	EXIT_CODE=0
 	exit
 fi
+
+echo 'done' >"$STATE_FILE"
+echo 'Updater finished' | my_logger -p daemon.info
 
 # We may need to wait for network connection now. Two minutes is hopefuly enough.
 sleep 120
