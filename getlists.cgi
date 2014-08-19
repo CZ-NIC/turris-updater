@@ -36,7 +36,7 @@ use Digest::MD5;
 
 sub error($$) {
 	my ($code, $text) = @_;
-	print "Status: $code\n";
+	print "Status: $code\n\n";
 	print STDERR $text;
 	exit;
 }
