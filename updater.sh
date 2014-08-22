@@ -43,7 +43,7 @@ ID="$(atsha204cmd serial-number || guess_id)"
 # We take the hardware revision as "distribution"
 REVISION="$(atsha204cmd hw-rev || guess_revision)"
 # Where the things live
-GENERATION=$(sed -e 's/\..*/\//' /etc/turris-version || echo 0)
+GENERATION=$(sed -e 's/\..*/\//' /etc/turris-version || echo 0/)
 BASE_URL="https://api.turris.cz/updater-repo/$GENERATION$REVISION"
 LIST_REQ="https://api.turris.cz/getlists.cgi"
 GENERIC_LIST_URL="$BASE_URL/lists/generic"
