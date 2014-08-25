@@ -121,15 +121,22 @@ timeout() {
 	shift 2
 	set +e
 	"$PROG" "$@" >"$TMP_DIR"/t-output 2>&1 &
-	PID="$!"
+	export PID="$!"
 	(
-		sleep "$TIME"
-		echo "Killing $PROG after $TIME seconds (stuck?)" | my_logger -p daemon.error
+		trap 'kill $SLEEP ; exit' TERM INT QUIT ABRT
+		sleep "$TIME" &
+		SLEEP=$!
+		wait $SLEEP
+		echo "Killing $PROG/$PID after $TIME seconds (stuck?)" | my_logger -p daemon.error
 		kill "$PID"
-		sleep 5
+		sleep 5 &
+		SLEEP=$!
+		wait $SLEEP
 		kill -9 "$PID"
 		# Wait to be killed by the parrent
-		sleep 60
+		sleep 60 &
+		SLEEP=$!
+		wait $SLEEP
 	) &
 	WATCHER="$!"
 	wait "$PID"
