@@ -69,28 +69,35 @@ def construct_packages(lists):
     # Get packages installed from all these lists, combine them together
     # (but without the ones that are scheduled for removal)
     installed = set()
+    ignored = set()
     for plist in lists:
 	    with open(plist) as packages:
 		for package in packages:
 			parts = package.split()
 			(name, flags) = (parts[0], parts[2])
-			if flags.find('R') == -1 and flags.find('I') == -1:
+			if flags.find('G') != -1:
+				ignored.add(name)
+			elif flags.find('R') == -1 and flags.find('I') == -1:
 				installed.add(name)
-    return installed
+    return (installed, ignored)
 
 if not os.path.exists(PACKAGES_FILE):
     logger.info('No list of previously installed packages found, setting one up')
-    installed = construct_packages(lists)
+    (installed, ignored) = construct_packages(lists)
 
     store_packages(installed)
 else:
-    current = construct_packages(lists)
+    (current, ignored) = construct_packages(lists)
     previous = load_packages()
     # Find extra installed packages - the ones not required any more
-    to_remove = previous - current
+    to_remove = previous - current - ignored
     if to_remove:
 	    logger.debug('To remove: ' + str(to_remove))
 	    for extra in to_remove:
 		subprocess.check_call([remove_script, extra])
     # After we removed all extra packages, store the current state
+    # Don't lose ignored packages if they were "installed" before
+    for package in ignored:
+	    if package in previous:
+		    current.add(package)
     store_packages(current)

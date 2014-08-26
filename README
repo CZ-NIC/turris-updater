@@ -65,6 +65,8 @@ L::
   Packages in the current list will be omited from the additional one.
 B::
   This package requires reboot-installed updates. See below.
+G::
+  Ignore the package. That is, don't install or update it, but don't remove it either.
 <number>::
   Packages with lower number are considered sooner when planning the order.
   Packages without number are left as last.

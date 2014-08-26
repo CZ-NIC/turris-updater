@@ -74,6 +74,10 @@ should_install() {
 		# Don't install if there's an uninstall flag
 		return 1
 	fi
+	if has_flag "$3" G ; then
+		# Ignore this package
+		return 1;
+	fi
 	if has_flag "$3" F ; then
 		# (re) install every time
 		return 0
@@ -93,6 +97,10 @@ should_install() {
 }
 
 should_uninstall() {
+	if has_flag "$2" G ; then
+		# Ignore package
+		return 1
+	fi
 	# It should be uninstalled if it is installed now and there's the 'R' flag
 	grep -qF "^$1 - " "$TMP_DIR/list-installed" && has_flag "$2" R
 }
