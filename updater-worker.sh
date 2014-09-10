@@ -35,7 +35,7 @@ CERT='/etc/ssl/updater.pem'
 CRL='/etc/ssl/crl.pem'
 STATE_DIR='/tmp/update-state'
 STATE_FILE="$STATE_DIR/state"
-LOG_FILE="$STATE_DIR/log"
+LOG_FILE="$STATE_DIR/log2"
 PLAN_FILE="$STATE_DIR/plan"
 
 get_list() {
