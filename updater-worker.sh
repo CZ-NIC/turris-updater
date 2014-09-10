@@ -116,6 +116,7 @@ get_pass() {
 }
 
 get_package() {
+	echo "D $1 $2" >>"$LOG_FILE"
 	if has_flag "$3" E ; then
 		# Encrypted
 		URL="$PACKAGE_URL/$1-$2-$ID.ipk"
