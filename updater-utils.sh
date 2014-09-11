@@ -141,7 +141,11 @@ timeout() {
 	WATCHER="$!"
 	wait "$PID"
 	RESULT="$?"
-	kill "$WATCHER"
+	CNT=0
+	while [ "$CNT" -lt 5 ] && ! kill "$WATCHER" ; do
+		sleep 1
+		CNT=$((CNT+1))
+	done
 	wait "$WATCHER"
 	set -e
 	if [ "$RESULT" != 0 ] ; then
