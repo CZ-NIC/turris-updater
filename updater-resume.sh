@@ -70,9 +70,7 @@ echo 'done' >"$STATE_FILE"
 echo 'Updater finished' | my_logger -p daemon.info
 
 # We may need to wait for network connection now. Two minutes is hopefuly enough.
-sleep 120
-
 # Run the complete updater now, as we installed what was planned, to finish other phases
-"$LIB_DIR"/updater.sh -n
+( sleep 120 ; "$LIB_DIR"/updater.sh -n ) &
 
 EXIT_CODE=0
