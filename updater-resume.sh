@@ -66,11 +66,16 @@ if $RESTART_REQUESTED ; then
 	exit
 fi
 
-echo 'done' >"$STATE_FILE"
-echo 'Updater finished' | my_logger -p daemon.info
+echo 'initial sleep' >"$STATE_FILE"
+echo 'Resumed updater sleeping' | my_logger -p daemon.info
 
-# We may need to wait for network connection now. Two minutes is hopefuly enough.
+# We may need to wait for network connection now.
 # Run the complete updater now, as we installed what was planned, to finish other phases
-( sleep 120 ; "$LIB_DIR"/updater.sh -n ) &
+(
+	while ! ping -c1 turris.cz >/dev/null 2>&1 ; do
+		sleep 1
+	done
+	"$LIB_DIR"/updater.sh -n
+) &
 
 EXIT_CODE=0
