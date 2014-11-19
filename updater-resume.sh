@@ -75,7 +75,7 @@ echo 'Resumed updater sleeping' | my_logger -p daemon.info
 	while ! ping -c1 turris.cz >/dev/null 2>&1 ; do
 		sleep 1
 	done
-	"$LIB_DIR"/updater.sh -n
+	"$LIB_DIR"/updater.sh -n >/dev/null 2>&1
 ) &
 
 EXIT_CODE=0
