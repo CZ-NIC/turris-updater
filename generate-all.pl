@@ -112,7 +112,7 @@ while (<STDIN>) {
 		}
 		unlink @delete;
 		push @lists, "lists/$reponame", <lists/$reponame.user/*>;
-		alias $reponame;
+		alias_user $reponame;
 	} elsif (/^alias\s+(.*?)\s*$/) {
 		alias $1;
 	} elsif (/^branch\s+(.*?)\s*$/) {
