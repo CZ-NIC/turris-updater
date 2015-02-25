@@ -39,13 +39,14 @@ LIB_DIR="$(dirname "$0")"
 . "$LIB_DIR/updater-worker.sh"
 
 # My own ID
-ID="$(atsha204cmd serial-number || guess_id)"
+ID="$(uci get -q updater.override.branch || atsha204cmd serial-number || guess_id)"
 # We take the hardware revision as "distribution"
-REVISION="$(atsha204cmd hw-rev || guess_revision)"
+REVISION="$(uci get -q updater.override.revision || atsha204cmd hw-rev || guess_revision)"
 # Where the things live
-GENERATION=$(sed -e 's/\..*/\//' /etc/turris-version || echo 0/)
-BASE_URL="https://api.turris.cz/updater-repo/$GENERATION$REVISION"
-LIST_REQ="https://api.turris.cz/getlists.cgi"
+GENERATION=$(uci get -q updater.override.generation || sed -e 's/\..*/\//' /etc/turris-version || echo 0/)
+BASE_URL=$(uci get -q updater.override.base_url || echo "https://api.turris.cz/updater-repo/")
+BASE_URL="$BASE_URL$GENERATION$REVISION"
+LIST_REQ=$(uci get -q updater.override.list_req_url || echo "https://api.turris.cz/getlists.cgi")
 GENERIC_LIST_URL="$BASE_URL/lists/generic"
 SPECIFIC_LIST_URL="$BASE_URL/lists/$ID"
 PACKAGE_URL="$BASE_URL/packages"
