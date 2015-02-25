@@ -55,20 +55,25 @@ my $id = <>;
 chomp $id;
 my ($i) = $id =~ /^([a-z0-9z]+)$/i or error "404 Not Found", "Bad ID '$id'\n";
 $id = $i;
+my $fallback;
+if ($id =~ /^[a-f0-9]{8}$/i) {
+	$id = $serie . $id;
+	$fallback = 1;
+}
 
 my $dir = tempdir CLEANUP => 1;
 
 # Choose the right file or undef if it doesn't exist
 sub candidate($) {
 	my ($name) = @_;
-	my $specific = "$name-$serie$id";
+	my $specific = "$name-$id";
 	my $generic = "$name-generic";
 	# Correction for the base „nameless“ file
 	$specific =~ s/^base-//;
 	$generic =~ s/^base-//;
 	if (-f $specific) {
 		return $specific;
-	} elsif (-f $generic) {
+	} elsif ($fallback and -f $generic) {
 		return $generic;
 	} else {
 		return undef;
