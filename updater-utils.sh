@@ -35,13 +35,17 @@ my_logger() {
 	logger -t "$PROGRAM" "$@"
 }
 
+FAILSAFE_MODE=false
+
 guess_id() {
+	FAILSAFE_MODE=true
 	echo 'Using unknown-id as a last-resort attempt to recover from broken atsha204cmd' | my_logger -p daemon.warning
 	echo 'unknown-id'
 }
 
 guess_revision() {
 	echo 'Trying to guess revision as a last-resort attempt to recover from broken atsha204cmd' | my_logger -p daemon.warning
+	FAILSAFE_MODE=true
 	REPO=$(grep 'cznic.*api\.turris\.cz' /etc/opkg.conf | sed -e 's#.*/\([^/]*\)/packages.*#\1#')
 	case "$REPO" in
 		ar71xx)

@@ -171,6 +171,10 @@ if $HAVE_WORK ; then
 	run_plan "$BASE_PLAN_FILE"
 fi
 
+if $FAILSAFE_MODE ; then
+	die "Aborting further update work due to atsha204 failsafe mode"
+fi
+
 execute_list() {
 	echo 'get list' >"$STATE_FILE"
 	get_list "$1" "user_lists/$1"
