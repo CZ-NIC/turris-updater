@@ -106,6 +106,34 @@ dependencies and removes nuci.
   ucollect	14	E
   nuci	-	R
 
+Overriding things for testing
+-----------------------------
+
+The `updater.sh` script autodetects several things when it starts. It is
+possible to override some of them for testing purposes. It is not expected to
+be used by ordinary users.
+
+If you want to override anything, set corresponding uci option. If the option
+is not set, the default (autodetection) is used. The config section is not even
+present in the default config.
+
+ * `updater.override.branch`: The branch used is selected according to the atsha
+   serial number. The setting for which serial is in which branch is on the server.
+   This allows to override the server configuration and force given branch, like
+   `testing` or `rc`. Also, it is possible to set this to a serial number to fake
+   another device.
+ * `updater.override.revision`: The hardware revision used. This is the first half
+   of the serial number (like `00000005`). It is little use currently, as all
+   the existing revisions contain the same packages.
+ * `updater.override.generation`: The firmware generation. The autodetection takes
+   the major version of `turris-version` and appends a slash (eg. `2/`). If setting
+   this, don't forget the slash.
+ * `updater.override.base_url`: The url where the packages are downloaded from.
+   The default is `https://api.turris.cz/updater-repo/`.
+ * `updater.override.list_req_url`: The url where request for package list is sent to
+   (including the revision, generation and ID).  This CGI script then returns bundle
+   of package lists.
+
 The generator script
 ====================
 
