@@ -53,7 +53,7 @@ $serie =~ s#.*/##;
 # Who is asking for data? It'll influence choice of the files
 my $id = <>;
 chomp $id;
-my ($i) = $id =~ /^([a-z0-9z]+)$/i or error "404 Not Found", "Bad ID '$id'\n";
+my ($i) = $id =~ /^([a-z0-9-]+)$/i or error "404 Not Found", "Bad ID '$id'\n";
 $id = $i;
 my $fallback;
 if ($id =~ /^[a-f0-9]{8}$/i) {
