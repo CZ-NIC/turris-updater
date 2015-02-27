@@ -199,6 +199,8 @@ if (@lists) {
 		my ($name) = /^([^.]+)/;
 		if (exists $list_defs{$name}) {
 			"['$name'] = {\n" . (join ",\n", map { "    $_ = '$list_defs{$name}->{$_}'" } sort keys %{$list_defs{$name}}) . "\n}"
+		} else {
+			();
 		}
 	} sort @lists), "\n};";
 	close $list_file;
