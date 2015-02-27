@@ -32,16 +32,36 @@ use File::Copy qw(copy);
 use Getopt::Long;
 
 # Where to get the packages and their list
-my ($path, $list_dir, $output_dir, @omit);
+my ($path, $list_dir, $output_dir, @omit, $list_defs_file);
 
 GetOptions
 	'path=s' => \$path,
 	'list-dir=s' => \$list_dir,
 	'output-dir=s' => \$output_dir,
-	'omit=s' => \@omit
+	'omit=s' => \@omit,
+	'list-defs=s' => \$list_defs_file,
 or die "Bad params";
 
 my %omit = map { $_ => 1 } @omit;
+
+my %list_defs;
+
+{
+	open my $list_defs, '<:utf8', $list_defs_file or die "Couldn't read list definitions file $list_defs_file: $!\n";
+	local $/ = ""; # Split by paragraphs
+	while (my $def = <$list_defs>) {
+		chomp $def;
+		my @split = split /\n/, $def;
+		die "Wrong number of lines for list def (" . (scalar @split) . "): $def\n";
+		my ($id, $title_cs, $title_en, $desc_cs, $desc_en) = @split;
+		$list_defs{$id} = {
+			title_cs => $title_cs,
+			title_en => $title_en,
+			description_cs => $desc_cs,
+			description_en => $desc_en
+		};
+	}
+} # Close $list_defs by going out of scope
 
 # Download and decompress the list of opkg packages.
 
