@@ -192,3 +192,12 @@ for my $list (@lists) {
 		die "Failed to run sub-generator for $list\n";
 	}
 }
+
+if (@lists) {
+	open my $list_file, '>:utf8', "$output_dir/definitions" or die "Couldn't write definitions: $!\n";
+	print $list_file "lists = {", (join ",\n", map {
+		my $name = $_;
+		"['$name'] = {" . (join ",\n", map { "$_ = '$list_defs{$name}->{$_}'" } sort keys %{$list_defs{$name}}) . "}"
+	} sort @lists), "};";
+	close $list_file;
+}
