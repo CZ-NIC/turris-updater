@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright (c) 2013, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
+# Copyright (c) 2013-2015, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,8 @@ my $reponame;
 my ($generator, $fixer, $list_dir, $key) = map { abs_path $_ } @ARGV[0..3];
 
 my $list;
+
+my $list_defs;
 
 my @lists;
 
@@ -107,7 +109,7 @@ while (<STDIN>) {
 		} else {
 			warn "Missing root FS $path/root/usr/lib/opkg/status\n";
 		}
-		if (system("'$generator' '--path' '$path/packages' --list-dir '$list_dir/' '--output-dir' 'lists/$reponame.user' <'$input' >'lists/$reponame'")) {
+		if (system("'$generator' '--path' '$path/packages' --list-dir '$list_dir/' '--output-dir' 'lists/$reponame.user' '--list-defs' '$list_defs' <'$input' >'lists/$reponame'")) {
 			die "Failed to run generator";
 		}
 		unlink @delete;
@@ -119,6 +121,8 @@ while (<STDIN>) {
 		alias $_ for @{$categories{$1}};
 	} elsif (/^list\s+(.*?)\s*$/) {
 		$list = $1;
+	} elsif (/^list-def\s+(.*?)\s*$/) {
+		$list_defs = $1;
 	} elsif (/^categories\s+(.*?)\s*$/) {
 		open my $category_file, '<', $1 or die "Couldn't read category list $1: $!\n";
 		my $category;
