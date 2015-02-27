@@ -46,7 +46,7 @@ my %omit = map { $_ => 1 } @omit;
 
 my %list_defs;
 
-{
+if ($list_defs_file) {
 	open my $list_defs, '<:utf8', $list_defs_file or die "Couldn't read list definitions file $list_defs_file: $!\n";
 	local $/ = ""; # Split by paragraphs
 	while (my $def = <$list_defs>) {
@@ -188,7 +188,7 @@ my $omits = join ' ', map "'--omit' '$_'", @output;
 
 for my $list (@lists) {
 	my ($list_nodot) = ($list =~ /^([^.]+)/);
-	if (system("'$0' '--path' '$path' $omits --list-defs '$list_defs_file' <'$list_dir$list' >'$output_dir/$list_nodot'")) {
+	if (system("'$0' '--path' '$path' $omits <'$list_dir$list' >'$output_dir/$list_nodot'")) {
 		die "Failed to run sub-generator for $list\n";
 	}
 }
