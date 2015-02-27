@@ -34,7 +34,7 @@ for my $list (<STDIN>) {
 	chomp $list;
 	my $hex;
 	print STDERR $list, "\n";
-	if ($list ne 'definitions') {
+	if ($list !~ /^(.*\/|)definitions$/) {
 		open my $list_file, '<', $list or die "Could not read $list: $!\n";
 		my @packages = map { chomp; [split /\t/, $_] } (<$list_file>);
 		close $list_file;
