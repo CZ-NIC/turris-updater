@@ -52,7 +52,7 @@ my %list_defs;
 	while (my $def = <$list_defs>) {
 		chomp $def;
 		my @split = split /\n/, $def;
-		die "Wrong number of lines for list def (" . (scalar @split) . "): $def\n";
+		die "Wrong number of lines for list def (" . (scalar @split) . "): $def\n" unless @split == 5;
 		my ($id, $title_cs, $title_en, $desc_cs, $desc_en) = @split;
 		$list_defs{$id} = {
 			title_cs => $title_cs,
