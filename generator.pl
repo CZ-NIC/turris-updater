@@ -197,7 +197,9 @@ if (@lists) {
 	open my $list_file, '>:utf8', "$output_dir/definitions" or die "Couldn't write definitions: $!\n";
 	print $list_file "lists = {\n", (join ",\n", map {
 		my ($name) = /^([^.]+)/;
-		"['$name'] = {\n" . (join ",\n", map { "    $_ = '$list_defs{$name}->{$_}'" } sort keys %{$list_defs{$name}}) . "\n}"
+		if (exists $list_defs{$name}) {
+			"['$name'] = {\n" . (join ",\n", map { "    $_ = '$list_defs{$name}->{$_}'" } sort keys %{$list_defs{$name}}) . "\n}"
+		}
 	} sort @lists), "\n};";
 	close $list_file;
 }
