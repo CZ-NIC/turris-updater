@@ -188,7 +188,7 @@ my $omits = join ' ', map "'--omit' '$_'", @output;
 
 for my $list (@lists) {
 	my ($list_nodot) = ($list =~ /^([^.]+)/);
-	if (system("'$0' '--path' '$path' $omits <'$list_dir$list' >'$output_dir/$list_nodot'")) {
+	if (system("'$0' '--path' '$path' $omits --list-defs '$list_defs_file' <'$list_dir$list' >'$output_dir/$list_nodot'")) {
 		die "Failed to run sub-generator for $list\n";
 	}
 }
