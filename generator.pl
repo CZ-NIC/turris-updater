@@ -195,9 +195,9 @@ for my $list (@lists) {
 
 if (@lists) {
 	open my $list_file, '>:utf8', "$output_dir/definitions" or die "Couldn't write definitions: $!\n";
-	print $list_file "lists = {", (join ",\n", map {
+	print $list_file "lists = {\n", (join ",\n", map {
 		my $name = $_;
-		"['$name'] = {" . (join ",\n", map { "$_ = '$list_defs{$name}->{$_}'" } sort keys %{$list_defs{$name}}) . "}"
-	} sort @lists), "};";
+		"['$name'] = {\n" . (join ",\n", map { "    $_ = '$list_defs{$name}->{$_}'" } sort keys %{$list_defs{$name}}) . "\n}"
+	} sort @lists), "\n};";
 	close $list_file;
 }
