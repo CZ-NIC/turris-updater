@@ -126,7 +126,7 @@ fi
 mkdir -p "$TMP_DIR"
 
 echo 'get list' >"$STATE_FILE"
-get_list_pack base core $(uci get updater.pkglists.lists)
+get_list_pack base core $(uci get updater.pkglists.lists) definitions
 get_list base list
 
 HAVE_WORK=false
@@ -208,11 +208,17 @@ else
 	echo 'Missing consolidator' | my_logger -p daemon.warn
 fi
 
+gen_notifies
+
+get_list definitions definitions
+if ! cmp -s "$TMP_DIR/definitions" /usr/share/updater/definitions ; then
+	echo 'Updating user list definitions' | my_logger -p daemon.info
+	cp "$TMP_DIR/definitions" /usr/share/updater/definitions
+fi
+
 # Try running notifier. We don't fail if it does, for one it is not
 # critical for updater, for another, it may be not available.
 PROGRAM='notifier'
-
-gen_notifies
 
 echo 'done' >"$STATE_FILE"
 echo 'Updater finished' | my_logger -p daemon.info
