@@ -105,6 +105,8 @@ sub check_unpack_queue() {
 	&handle_pkg(@$params);
 }
 
+my %files;
+
 sub handle_pkg($$$) {
 	my ($name, $body, $cv) = @_;
 	my $output;
@@ -119,8 +121,11 @@ sub handle_pkg($$$) {
 			warn "Failed to unpack $name: $ecode\n";
 			$err = 1;
 		} else {
-			# TODO Parse
 			dbg "Unpacked $name\n";
+			for my $f (split /\0/, $output) {
+				next unless $f; # Skip ghost empty file at the end
+				$files{$f}->{$name}->{current} = 1;
+			}
 			$packages{$name}->{unparsed} = $output;
 		}
 		$cv->send;
@@ -156,6 +161,10 @@ for my $list (@list_contents) {
 		my ($name, $version, $flags, $hash) = split;
 		# We don't consider packages that are to be removed
 		next if $flags =~ /R/;
+		if (exists $packages{$name}) {
+			dbg "Package $name already present, skipping\n";
+			next;
+		}
 		$packages{$name} = {
 			file => "$name-$version.ipk",
 			hash => $hash
@@ -167,4 +176,11 @@ for my $list (@list_contents) {
 while (@condvars) {
 	my $cv = shift @condvars;
 	$cv->recv;
+}
+
+for my $f (sort keys %files) {
+	if (keys %{$files{$f}} != 1) {
+		print "Local file collision on file '$f':\n";
+		print map "• $_\n", sort keys %{$files{$f}};
+	}
 }
