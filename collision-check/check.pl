@@ -85,13 +85,30 @@ my %packages;
 my @condvars;
 my $unpack_cmd = dirname($0) . "/pkg-unpack";
 dbg "Using $unpack_cmd as the unpacking command\n";
+my $unpack_limit = 8; # How many unpacks may run in the background
+my @unpack_queue;
 
 my $workdir = tempdir(CLEANUP => 1);
 dbg "Using $workdir as working directory\n";
 
+sub check_unpack_queue() {
+	unless (@unpack_queue) {
+		dbg "Nothing in the unpack queue\n";
+		return;
+	}
+	unless ($unpack_limit) {
+		dbg "No free unpack slots\n";
+		return;
+	}
+	$unpack_limit --;
+	my $params = shift @unpack_queue;
+	&handle_pkg(@$params);
+}
+
 sub handle_pkg($$$) {
 	my ($name, $body, $cv) = @_;
 	my $output;
+	dbg "Unpacking $name\n";
 	my $finished = run_cmd [$unpack_cmd, "$workdir/$name"],
 		'>' => \$output,
 		'<' => \$body,
@@ -107,6 +124,8 @@ sub handle_pkg($$$) {
 			$packages{$name}->{unparsed} = $output;
 		}
 		$cv->send;
+		$unpack_limit ++;
+		check_unpack_queue();
 	});
 }
 
@@ -120,7 +139,8 @@ sub get_pkg($) {
 		my ($body, $hdrs) = @_;
 		if ($body) {
 			dbg "Downloaded package $name, going to unpack\n";
-			handle_pkg($name, $body, $cv);
+			push @unpack_queue, [$name, $body, $cv];
+			check_unpack_queue;
 		} else {
 			warn "Failed to download $name: $hdrs->{Status} $hdrs->{Reason}\n";
 			$err = 1;
@@ -148,5 +168,3 @@ while (@condvars) {
 	my $cv = shift @condvars;
 	$cv->recv;
 }
-
-print Dumper \%packages;
