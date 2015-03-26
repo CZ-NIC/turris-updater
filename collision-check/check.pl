@@ -30,7 +30,9 @@ use utf8;
 use Getopt::Long;
 use AnyEvent;
 use AnyEvent::HTTP;
+use AnyEvent::Util qw(run_cmd);
 use File::Temp qw(tempdir);
+use File::Basename qw(dirname);
 use Data::Dumper;
 
 my ($history_file, $debug, $base_url, @lists);
@@ -81,9 +83,31 @@ my @list_contents;
 
 my %packages;
 my @condvars;
+my $unpack_cmd = dirname($0) . "/pkg-unpack";
+dbg "Using $unpack_cmd as the unpacking command\n";
 
-sub handle_pkg($$) {
+my $workdir = tempdir(CLEANUP => 1);
+dbg "Using $workdir as working directory\n";
 
+sub handle_pkg($$$) {
+	my ($name, $body, $cv) = @_;
+	my $output;
+	my $finished = run_cmd [$unpack_cmd, "$workdir/$name"],
+		'>' => \$output,
+		'<' => \$body,
+		close_all => 1;
+	$finished->cb(sub {
+		my $ecode = shift->recv;
+		if ($ecode) {
+			warn "Failed to unpack $name: $ecode\n";
+			$err = 1;
+		} else {
+			# TODO Parse
+			dbg "Unpacked $name\n";
+			$packages{$name}->{unparsed} = $output;
+		}
+		$cv->send;
+	});
 }
 
 sub get_pkg($) {
@@ -95,18 +119,15 @@ sub get_pkg($) {
 	http_get $url, tls_ctx => "high", sub {
 		my ($body, $hdrs) = @_;
 		if ($body) {
-			dbg "Downloaded package $name\n";
-			handle_pkg($name, $body);
+			dbg "Downloaded package $name, going to unpack\n";
+			handle_pkg($name, $body, $cv);
 		} else {
 			warn "Failed to download $name: $hdrs->{Status} $hdrs->{Reason}\n";
 			$err = 1;
+			$cv->send;
 		}
-		$cv->send;
 	};
 }
-
-my $workdir = tempdir(CLEANUP => 1);
-dbg "Using $workdir as working directory\n";
 
 for my $list (@list_contents) {
 	open my $input, '<:utf8', \$list or die "Error reading list: $!\n";
@@ -123,5 +144,9 @@ for my $list (@list_contents) {
 	}
 }
 
-$_->recv for @condvars;
-@condvars = ();
+while (@condvars) {
+	my $cv = shift @condvars;
+	$cv->recv;
+}
+
+print Dumper \%packages;
