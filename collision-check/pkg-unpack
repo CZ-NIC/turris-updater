@@ -1,0 +1,13 @@
+#!/bin/sh
+
+set -e
+
+mkdir "$1"
+cd "$1"
+gunzip -c | tar x
+mkdir root
+cd root
+tar xf ../data.tar.gz
+find -type f -print0
+cd ../..
+rm -rf "$1"
