@@ -36,7 +36,7 @@ use File::Basename qw(dirname);
 use Storable qw(lock_store lock_retrieve);
 use Clone qw(clone);
 
-my ($history_file, $debug, $base_url, @lists, $initial, $store);
+my ($history_file, $debug, $base_url, @lists, $initial, $store, $report_all);
 
 GetOptions
 	'history=s' => \$history_file,
@@ -44,7 +44,8 @@ GetOptions
 	'url=s' => \$base_url,
 	'list=s' => \@lists,
 	initial => \$initial,
-	'store=s' => \$store
+	'store=s' => \$store,
+	'report-all' => \$report_all
 or die "Bad params\n";
 
 die "No history file specified, use --history\n" unless $history_file;
@@ -195,15 +196,21 @@ while (@condvars) {
 	$cv->recv;
 }
 
+my $reported;
+
 for my $f (sort keys %$files) {
 	my @packages = keys %{$files->{$f}};
 	if (@packages != 1) {
-		print "Collision on file '$f':\n";
+		my $report = "Collision on file '$f':\n";
 		for my $package (sort @packages) {
-			print "• $package (" . (join ', ', sort keys %{$files->{$f}->{$package}}) . ")\n";
+			$report .= "• $package (" . (join ', ', sort keys %{$files->{$f}->{$package}}) . ")\n";
 		}
+		$reported->{$report} = 1;
+		print $report if $report_all or not exists $history->{reported}->{$report};
 	}
 }
+
+$history->{reported} = $reported;
 
 if (not defined lock_store $history, $history_file) {
 	die "Couldn't store history to $history_file: $!\n";
