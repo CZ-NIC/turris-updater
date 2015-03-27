@@ -33,20 +33,38 @@ use AnyEvent::HTTP;
 use AnyEvent::Util qw(run_cmd);
 use File::Temp qw(tempdir);
 use File::Basename qw(dirname);
-use Data::Dumper;
+use Storable qw(lock_store lock_retrieve);
+use Clone qw(clone);
 
-my ($history_file, $debug, $base_url, @lists);
+my ($history_file, $debug, $base_url, @lists, $initial, $store);
 
 GetOptions
 	'history=s' => \$history_file,
 	debug => \$debug,
 	'url=s' => \$base_url,
-	'list=s' => \@lists
+	'list=s' => \@lists,
+	initial => \$initial,
+	'store=s' => \$store
 or die "Bad params\n";
 
 die "No history file specified, use --history\n" unless $history_file;
 die "No base URL specified, use --url\n" unless $base_url;
 die "No package lists specified, use --list (possibly multiple times)\n" unless @lists;
+
+my $history;
+my $files;
+if (!$initial) {
+	$history = lock_retrieve $history_file;
+	die "Couldn't read history file $history_file: $!\n" unless $history;
+	$files = clone $history->{files};
+	if ($store) {
+		for my $file_owners (values %{$history->{files}}) {
+			for my $package (values %$file_owners) {
+				delete $package->{$store};
+			}
+		}
+	}
+}
 
 sub dbg(@) {
 	print STDERR "DBG: ", @_ if $debug;
@@ -105,8 +123,6 @@ sub check_unpack_queue() {
 	&handle_pkg(@$params);
 }
 
-my %files;
-
 sub handle_pkg($$$) {
 	my ($name, $body, $cv) = @_;
 	my $output;
@@ -124,7 +140,8 @@ sub handle_pkg($$$) {
 			dbg "Unpacked $name\n";
 			for my $f (split /\0/, $output) {
 				next unless $f; # Skip ghost empty file at the end
-				$files{$f}->{$name}->{current} = 1;
+				$files->{$f}->{$name}->{current} = 1;
+				$history->{files}->{$f}->{$name}->{$store} = 1 if $store;
 			}
 			$packages{$name}->{unparsed} = $output;
 		}
@@ -178,9 +195,13 @@ while (@condvars) {
 	$cv->recv;
 }
 
-for my $f (sort keys %files) {
-	if (keys %{$files{$f}} != 1) {
+for my $f (sort keys %$files) {
+	if (keys %{$files->{$f}} != 1) {
 		print "Local file collision on file '$f':\n";
-		print map "• $_\n", sort keys %{$files{$f}};
+		print map "• $_\n", sort keys %{$files->{$f}};
 	}
+}
+
+if (not defined lock_store $history, $history_file) {
+	die "Couldn't store history to $history_file: $!\n";
 }
