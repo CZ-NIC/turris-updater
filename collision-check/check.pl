@@ -47,7 +47,7 @@ GetOptions
 	'store=s' => \$store,
 	'report-all' => \$report_all,
 	fail => \$fail,
-	definitions => \@definitions
+	'definitions=s' => \@definitions
 or die "Bad params\n";
 
 die "No history file specified, use --history\n" unless $history_file;
@@ -187,7 +187,37 @@ sub get_list($) {
 	};
 }
 
+sub handle_definition($$) {
+	my ($def, $suffix) = @_;
+	for my $line (split /\n/, $def) {
+		if ($line =~ /\['(.*)'\] = \{/) {
+			dbg "Found reference to list $1\n";
+			get_list "$1$suffix";
+		}
+	}
+}
+
+sub get_definition($) {
+	my ($name) = @_;
+	my ($suffix) = ($name =~ /(-.*)/);
+	my $url = "$base_url/lists/$name";
+	dbg "Downloading definition $name from '$url'\n";
+	my $cv = AnyEvent->condvar;
+	http_get $url, tls_ctx => "high", sub {
+		my ($body, $hdrs) = @_;
+		if (defined $body and $hdrs->{Status} == 200) {
+			dbg "Downloaded definition $name\n";
+			handle_definition($body, $suffix);
+		} else {
+			warn "Failed to download definition $name: $hdrs->{Status} $hdrs->{Reason}\n";
+			$err = 1;
+		}
+		$cv->send;
+	};
+}
+
 dbg "Going to download lists\n";
+get_definition $_ for @definitions;
 get_list $_ for @lists;
 
 dbg "Waiting for downloads and unpacks to finish\n";
