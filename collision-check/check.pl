@@ -84,7 +84,7 @@ my @list_contents;
 		push @condvars, $cv;
 		http_get $url, tls_ctx => "high", sub {
 			my ($body, $hdrs) = @_;
-			if ($body) {
+			if (defined $body and $hdrs->{Status} == 200) {
 				dbg "Downloaded list $l\n";
 				push @list_contents, $body;
 			} else {
@@ -159,7 +159,7 @@ sub get_pkg($) {
 	push @condvars, $cv;
 	http_get $url, tls_ctx => "high", sub {
 		my ($body, $hdrs) = @_;
-		if ($body) {
+		if (defined $body and $hdrs->{Status} == 200) {
 			dbg "Downloaded package $name, going to unpack\n";
 			push @unpack_queue, [$name, $body, $cv];
 			check_unpack_queue;
