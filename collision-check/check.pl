@@ -196,9 +196,12 @@ while (@condvars) {
 }
 
 for my $f (sort keys %$files) {
-	if (keys %{$files->{$f}} != 1) {
-		print "Local file collision on file '$f':\n";
-		print map "• $_\n", sort keys %{$files->{$f}};
+	my @packages = keys %{$files->{$f}};
+	if (@packages != 1) {
+		print "Collision on file '$f':\n";
+		for my $package (sort @packages) {
+			print "• $package (" . (join ', ', sort keys %{$files->{$f}->{$package}}) . ")\n";
+		}
 	}
 }
 
