@@ -36,26 +36,32 @@ use File::Basename qw(dirname);
 use Storable qw(lock_store lock_retrieve);
 use Clone qw(clone);
 
-my ($history_file, $debug, $base_url, @lists, $initial, $store, $report_all, $fail);
+my ($history_file, $verbose, $base_url, @lists, $initial, $store, $report_all, $fail, @definitions);
 
 GetOptions
 	'history=s' => \$history_file,
-	debug => \$debug,
+	verbose => \$verbose,
 	'url=s' => \$base_url,
 	'list=s' => \@lists,
 	initial => \$initial,
 	'store=s' => \$store,
 	'report-all' => \$report_all,
-	fail => \$fail
+	fail => \$fail,
+	definitions => \@definitions
 or die "Bad params\n";
 
 die "No history file specified, use --history\n" unless $history_file;
 die "No base URL specified, use --url\n" unless $base_url;
 die "No package lists specified, use --list (possibly multiple times)\n" unless @lists;
 
+sub dbg(@) {
+	print STDERR "DBG: ", @_ if $verbose;
+}
+
 my $history;
 my $files;
 if (!$initial) {
+	dbg "Reading history $history_file\n";
 	$history = lock_retrieve $history_file;
 	die "Couldn't read history file $history_file: $!\n" unless $history;
 	$files = clone $history->{files};
@@ -68,38 +74,7 @@ if (!$initial) {
 	}
 }
 
-sub dbg(@) {
-	print STDERR "DBG: ", @_ if $debug;
-}
-
 my $err = 0;
-
-my @list_contents;
-{
-	dbg "Going to download lists\n";
-	my @condvars;
-
-	for my $l (@lists) {
-		my $url = "$base_url/lists/$l";
-		dbg "Downloading list $l from '$url'\n";
-		my $cv = AnyEvent->condvar;
-		push @condvars, $cv;
-		http_get $url, tls_ctx => "high", sub {
-			my ($body, $hdrs) = @_;
-			if (defined $body and $hdrs->{Status} == 200) {
-				dbg "Downloaded list $l\n";
-				push @list_contents, $body;
-			} else {
-				warn "Failed to download $l: $hdrs->{Status} $hdrs->{Reason}\n";
-				$err = 1;
-			}
-			$cv->send;
-		};
-	}
-	dbg "Waiting for downloads to finish\n";
-	$_->recv for @condvars;
-	dbg "Downloads done\n";
-}
 
 my %packages;
 my @condvars;
@@ -173,7 +148,8 @@ sub get_pkg($) {
 	};
 }
 
-for my $list (@list_contents) {
+sub handle_list($) {
+	my ($list) = @_;
 	open my $input, '<:utf8', \$list or die "Error reading list: $!\n";
 	while (<$input>) {
 		chomp;
@@ -192,10 +168,35 @@ for my $list (@list_contents) {
 	}
 }
 
+sub get_list($) {
+	my ($name) = @_;
+	my $url = "$base_url/lists/$name";
+	dbg "Downloading list $name from '$url'\n";
+	my $cv = AnyEvent->condvar;
+	push @condvars, $cv;
+	http_get $url, tls_ctx => "high", sub {
+		my ($body, $hdrs) = @_;
+		if (defined $body and $hdrs->{Status} == 200) {
+			dbg "Downloaded list $name\n";
+			handle_list($body);
+		} else {
+			warn "Failed to download $name: $hdrs->{Status} $hdrs->{Reason}\n";
+			$err = 1;
+		}
+		$cv->send;
+	};
+}
+
+dbg "Going to download lists\n";
+get_list $_ for @lists;
+
+dbg "Waiting for downloads and unpacks to finish\n";
 while (@condvars) {
 	my $cv = shift @condvars;
 	$cv->recv;
 }
+
+dbg "Waiting done\n";
 
 my $reported;
 
@@ -216,6 +217,7 @@ for my $f (sort keys %$files) {
 
 $history->{reported} = $reported;
 
+dbg "Writing history $history_file\n";
 if (not defined lock_store $history, $history_file) {
 	die "Couldn't store history to $history_file: $!\n";
 }
