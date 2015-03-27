@@ -36,7 +36,7 @@ use File::Basename qw(dirname);
 use Storable qw(lock_store lock_retrieve);
 use Clone qw(clone);
 
-my ($history_file, $debug, $base_url, @lists, $initial, $store, $report_all);
+my ($history_file, $debug, $base_url, @lists, $initial, $store, $report_all, $fail);
 
 GetOptions
 	'history=s' => \$history_file,
@@ -45,7 +45,8 @@ GetOptions
 	'list=s' => \@lists,
 	initial => \$initial,
 	'store=s' => \$store,
-	'report-all' => \$report_all
+	'report-all' => \$report_all,
+	fail => \$fail
 or die "Bad params\n";
 
 die "No history file specified, use --history\n" unless $history_file;
@@ -71,7 +72,7 @@ sub dbg(@) {
 	print STDERR "DBG: ", @_ if $debug;
 }
 
-my $err;
+my $err = 0;
 
 my @list_contents;
 {
@@ -206,7 +207,10 @@ for my $f (sort keys %$files) {
 			$report .= "• $package (" . (join ', ', sort keys %{$files->{$f}->{$package}}) . ")\n";
 		}
 		$reported->{$report} = 1;
-		print $report if $report_all or not exists $history->{reported}->{$report};
+		if ($report_all or not exists $history->{reported}->{$report}) {
+			print $report;
+			$err = 2 if $fail;
+		}
 	}
 }
 
@@ -215,3 +219,5 @@ $history->{reported} = $reported;
 if (not defined lock_store $history, $history_file) {
 	die "Couldn't store history to $history_file: $!\n";
 }
+
+exit $err;
