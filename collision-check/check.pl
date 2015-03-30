@@ -25,6 +25,49 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# This script watches an updater repository and detects file collisions between
+# packages. The collisions are detected both inside the same build and between
+# historical and current build.
+#
+# Run it after each build and point it to:
+# • The base URL of the repository
+# • Some install lists (to deduce the list of packages to check)
+# • Optionally the definitions of user lists (so all the lists don't need to be
+#   listed manually)
+#
+# It produces lists of files that belong to more than one package. It only
+# produces outputs not produced in the previous run (therefore, if file collision
+# is not solved, it becomes silent again).
+#
+# Optionally, it can mark the existence of any file collisions by exit code.
+
+# The script internally heavilly utilizes the AnyEvent library. This allows
+# downloading in parallel, while already unpacking the downloaded packages
+# in the background, in multiple parallel instances. This, however, results in
+# the script being somewhat upside down. First, download of the specified lists
+# and definitions is scheduled. Once each of them arrive, it is parsed and
+# download of all the packages listed there is scheduled. Again, once each
+# package is downloaded, it is enqueued for unpacking. If there are still
+# empty slots, an external unpacking script is run, which returns list of
+# files contained inside the package. The file names are then stored in
+# the data structures.
+#
+# As each scheduling action takes the callback what should happen once the
+# task finishes, the first actions to happen are more to the end of the script.
+#
+# Each of the downloads produce a conditional variable ‒ something anyevent can
+# wait for to finish. After the initial downloading schedule, a cycle waits
+# for all the conditional variables to be satisfied. This ensures everything
+# will have been downloaded by that time, and an analysis of extracted data may
+# proceed. The analysis is done in the usual procedural way.
+#
+# The history file is perl's Storable serialization of a hash. The hash has two
+# elements:
+# • „files“ is reference to hash, containing all the known files. Each file then
+#   links to another hash, where keys are names of packages. Each package contains
+#   yet another hash, which represents set of versions it contained the file in.
+# • „reports“, which is set of reported collisions (as exact printed text).
+
 use common::sense;
 use utf8;
 use Getopt::Long;
@@ -39,15 +82,18 @@ use Clone qw(clone);
 my ($history_file, $verbose, $base_url, @lists, $initial, $store, $report_all, $fail, @definitions);
 
 GetOptions
-	'history=s' => \$history_file,
-	verbose => \$verbose,
-	'url=s' => \$base_url,
-	'list=s' => \@lists,
-	initial => \$initial,
-	'store=s' => \$store,
-	'report-all' => \$report_all,
-	fail => \$fail,
-	'definitions=s' => \@definitions
+	verbose => \$verbose,		# Be verbose and produce lot of debug info about what is being done
+
+	'history=s' => \$history_file,	# File to store history between runs
+	'store=s' => \$store,		# Store snapshot of current files under given name
+
+	initial => \$initial,		# The history file doesn't exist yet, this is the first run
+	'url=s' => \$base_url,		# The basic URL of the repository (should contain lists/ and packages/ subdirectories)
+	'list=s' => \@lists,		# Package lists, may be provided multiple times
+
+	'report-all' => \$report_all,	# Report all found collisions, even the ones reported in previous run
+	fail => \$fail,			# Fail with exit code 2 if anything is reported
+
 or die "Bad params\n";
 
 die "No history file specified, use --history\n" unless $history_file;
@@ -86,6 +132,8 @@ my @unpack_queue;
 my $workdir = tempdir(CLEANUP => 1);
 dbg "Using $workdir as working directory\n";
 
+# Try to run another unpack, provided there's package to unpack and
+# we have an empty slot.
 sub check_unpack_queue() {
 	unless (@unpack_queue) {
 		dbg "Nothing in the unpack queue\n";
@@ -100,6 +148,7 @@ sub check_unpack_queue() {
 	&handle_pkg(@$params);
 }
 
+# Package arrived.
 sub handle_pkg($$$) {
 	my ($name, $body, $cv) = @_;
 	my $output;
@@ -128,6 +177,7 @@ sub handle_pkg($$$) {
 	});
 }
 
+# Schedule a package to download.
 sub get_pkg($) {
 	my ($name) = @_;
 	my $url = "$base_url/packages/$packages{$name}->{file}";
@@ -148,6 +198,7 @@ sub get_pkg($) {
 	};
 }
 
+# A list arrived, parse it.
 sub handle_list($) {
 	my ($list) = @_;
 	open my $input, '<:utf8', \$list or die "Error reading list: $!\n";
@@ -168,6 +219,7 @@ sub handle_list($) {
 	}
 }
 
+# Schedule downloading a list
 sub get_list($) {
 	my ($name) = @_;
 	my $url = "$base_url/lists/$name";
@@ -187,6 +239,7 @@ sub get_list($) {
 	};
 }
 
+# A definition of lists arrived. Parse it and schedule the lists to download.
 sub handle_definition($$) {
 	my ($def, $suffix) = @_;
 	for my $line (split /\n/, $def) {
@@ -197,6 +250,7 @@ sub handle_definition($$) {
 	}
 }
 
+# Schedule download of a definition.
 sub get_definition($) {
 	my ($name) = @_;
 	my ($suffix) = ($name =~ /(-.*)/);
@@ -220,6 +274,7 @@ dbg "Going to download lists\n";
 get_definition $_ for @definitions;
 get_list $_ for @lists;
 
+# Wait for all background tasks to finish.
 dbg "Waiting for downloads and unpacks to finish\n";
 while (@condvars) {
 	my $cv = shift @condvars;
@@ -230,6 +285,7 @@ dbg "Waiting done\n";
 
 my $reported;
 
+# Go through all the files and look for the ones that are in more than one package.
 for my $f (sort keys %$files) {
 	my @packages = keys %{$files->{$f}};
 	if (@packages != 1) {
