@@ -90,9 +90,11 @@ GetOptions
 	initial => \$initial,		# The history file doesn't exist yet, this is the first run
 	'url=s' => \$base_url,		# The basic URL of the repository (should contain lists/ and packages/ subdirectories)
 	'list=s' => \@lists,		# Package lists, may be provided multiple times
+	'definitions=s' => \@definitions,# The package list definitions, to produce more lists
+
 
 	'report-all' => \$report_all,	# Report all found collisions, even the ones reported in previous run
-	fail => \$fail,			# Fail with exit code 2 if anything is reported
+	fail => \$fail			# Fail with exit code 2 if anything is reported
 
 or die "Bad params\n";
 
