@@ -208,17 +208,19 @@ else
 	echo 'Missing consolidator' | my_logger -p daemon.warn
 fi
 
+
+# Try running notifier. We don't fail if it does, for one it is not
+# critical for updater, for another, it may be not available.
+PROGRAM='notifier'
 gen_notifies
+
+PROGRAM='updater'
 
 get_list definitions definitions
 if ! cmp -s "$TMP_DIR/definitions" /usr/share/updater/definitions ; then
 	echo 'Updating user list definitions' | my_logger -p daemon.info
 	cp "$TMP_DIR/definitions" /usr/share/updater/definitions
 fi
-
-# Try running notifier. We don't fail if it does, for one it is not
-# critical for updater, for another, it may be not available.
-PROGRAM='notifier'
 
 echo 'done' >"$STATE_FILE"
 echo 'Updater finished' | my_logger -p daemon.info
