@@ -159,6 +159,7 @@ timeout() {
 }
 
 my_opkg() {
+	cd /
 	timeout 600 opkg "$@" || return 1
 }
 
