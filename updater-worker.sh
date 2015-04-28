@@ -170,6 +170,7 @@ do_install() {
 		echo "Installing/upgrading $PACKAGE version $VERSION" | my_logger -p daemon.info
 		# Don't do deps and such, just follow the script. The conf disables checking signatures, in case the opkg packages are there.
 		my_opkg --force-downgrade --nodeps --conf /dev/null --offline-root / install "$PKG_DIR/$PACKAGE.ipk" || die "Failed to install $PACKAGE"
+		my_opkg --conf /dev/null flag unpacked "$PACKAGE" || die "Failed to flag $PACKAGE"
 		my_opkg --conf /dev/null configure "$PACKAGE" || die "Failed to configure $PACKAGE"
 		if has_flag "$3" B ; then
 			RESTART_REQUESTED=true
