@@ -4,6 +4,7 @@ use utf8;
 use Getopt::Long;
 use AnyEvent;
 use AnyEvent::HTTP;
+use AnyEvent::Util;
 
 my (@lists, @definitions, @branches, $verbose, $url);
 
@@ -21,6 +22,12 @@ sub dbg(@) {
 	print STDERR "DBG: ", @_ if $verbose;
 }
 
+my $unpack_cmd = dirname($0) . "/pkg-unpack";
+dbg "Using $unpack_cmd as the unpacking command\n";
+my $unpack_limit = 8;
+my $workdir = tempdir(CLEANUP => 1);
+dbg "Using $workdir as working directory\n";
+
 my @condvars;
 
 sub new_cv() {
@@ -29,10 +36,43 @@ sub new_cv() {
 	return $cv;
 }
 
-my %packages;
+my (%packages, @queue);
+
+sub check_queue() {
+	if (@queue && $unpack_limit) {
+		$unpack_limit --;
+		my $t = pop @queue;
+		my $output;
+		dbg "Going to unpack $t->{name}\n";
+		my $finished = run_cmd [$unpack_cmd, "$workdir/$t->{name}"],
+		'>' => \$output,
+		'<' => \$t->{data},
+		close_all => 1;
+		$finished->cb(sub {
+			my $ecode = shift->recv;
+			if ($ecode) {
+				warn "Failed to unpack $t->{name}: $ecode\n";
+				$err = 1;
+			} else {
+				dbg "Unpacked $t->{name}\n";
+				$packages{$t->{name}}->{output} = $output;
+			}
+			$t->{cv}->send;
+			$unpack_limit ++;
+			&check_queue();
+		});
+	}
+}
 
 sub handle_package($$) {
 	my ($name, $data) = @_;
+	my $cv = new_cv;
+	push @queue, {
+		name => $name,
+		data => $data,
+		cv => $cv
+	};
+	check_queue;
 }
 
 sub task($$&) {
