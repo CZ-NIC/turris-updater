@@ -4,7 +4,10 @@ use utf8;
 use Getopt::Long;
 use AnyEvent;
 use AnyEvent::HTTP;
-use AnyEvent::Util;
+use AnyEvent::Util qw(run_cmd);
+use File::Basename qw(dirname);
+use File::Temp qw(tempdir);
+use Data::Dumper;
 
 my (@lists, @definitions, @branches, $verbose, $url);
 
@@ -38,6 +41,24 @@ sub new_cv() {
 
 my (%packages, @queue);
 
+sub process_output($) {
+	my ($name) = @_;
+	open my $output, '<:utf8', \$packages{$name}->{output} or die "Couldn't map output for $name to pseudo-file: $!\n";
+	my (%configs, %hashes);
+	while (<$output>) {
+		chomp;
+		if (/^-(.*)$/) {
+			$configs{$1} = 1;
+		} elsif (/^([a-f0-9]{32}) \*\.(.*)$/) {
+			$hashes{$2} = $1;
+		} else {
+			warn "Unmatched line in output of $name: $_\n";
+		}
+	}
+	delete @hashes{keys %configs};
+	$packages{$name}->{files} = \%hashes;
+}
+
 sub check_queue() {
 	if (@queue && $unpack_limit) {
 		$unpack_limit --;
@@ -56,6 +77,7 @@ sub check_queue() {
 			} else {
 				dbg "Unpacked $t->{name}\n";
 				$packages{$t->{name}}->{output} = $output;
+				process_output $t->{name};
 			}
 			$t->{cv}->send;
 			$unpack_limit ++;
@@ -146,5 +168,9 @@ for my $branch (@branches) {
 while (my $cv = pop @condvars) {
 	$cv->recv;
 }
+
+open my $dump, '>:utf8', 'dump' or die "Couldn't output dump: $!\n";
+print $dump Dumper \%packages;
+close $dump;
 
 exit $err;
