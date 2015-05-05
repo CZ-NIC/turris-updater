@@ -14,6 +14,6 @@ cd ..
 mkdir data
 cd data
 gzip -dc <../data.tar.gz | tar x
-find -type f -not -path './etc/uci-defaults/*' -print0 | xargs -0 md5sum -b | (grep -v -e '-$' || true)
+find -type f -not -path './etc/uci-defaults/*' -and -not -path './tmp/*' -print0 | xargs -0 md5sum -b | (grep -v -e '-$' || true)
 cd "$ORIG"
 rm -rf "$DIR"
