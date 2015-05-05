@@ -28,7 +28,7 @@ sub dbg(@) {
 
 my $unpack_cmd = dirname($0) . "/pkg-unpack";
 dbg "Using $unpack_cmd as the unpacking command\n";
-my $unpack_limit = 8;
+my $unpack_limit = 12;
 my $workdir = tempdir(CLEANUP => 1);
 dbg "Using $workdir as working directory\n";
 
