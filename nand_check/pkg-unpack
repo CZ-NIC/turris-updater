@@ -1,0 +1,19 @@
+#!/bin/sh
+set -e
+DIR="$1"
+
+ORIG="$(pwd)"
+mkdir -p "$DIR"
+cd "$DIR"
+gzip -dc | tar x
+mkdir control
+cd control
+gzip -dc <../control.tar.gz | tar x
+(cat conffiles 2>/dev/null || true) | sed -e 's/^/-/'
+cd ..
+mkdir data
+cd data
+gzip -dc <../data.tar.gz | tar x
+find -type f -print0 | xargs -0 md5sum -b
+cd "$ORIG"
+rm -rf "$DIR"
