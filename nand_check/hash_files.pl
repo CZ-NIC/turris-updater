@@ -7,16 +7,17 @@ use AnyEvent::HTTP;
 use AnyEvent::Util qw(run_cmd);
 use File::Basename qw(dirname);
 use File::Temp qw(tempdir);
-use Data::Dumper;
+use JSON qw();
 
-my (@lists, @definitions, @branches, $verbose, $url);
+my (@lists, @definitions, @branches, $verbose, $url, $output_file);
 
 GetOptions
 	verbose => \$verbose,
 	'list=s' => \@lists,
 	'definition=s' => \@definitions,
 	'branch=s' => \@branches,
-	'url=s' => \$url
+	'url=s' => \$url,
+	'output=s' => \$output_file
 or die "Bad params\n";
 
 my $err = 0;
@@ -169,8 +170,12 @@ while (my $cv = pop @condvars) {
 	$cv->recv;
 }
 
-open my $dump, '>:utf8', 'dump' or die "Couldn't output dump: $!\n";
-print $dump Dumper \%packages;
-close $dump;
+my %prepared;
+@prepared{keys %packages} = map $_->{files}, values %packages;
+delete @prepared{grep { !%{$prepared{$_}} } keys %prepared};
+
+open my $out, '>:utf8', $output_file or die "Couldn't output to file $output_file $!\n";
+print $out JSON->new->allow_nonref->pretty->encode(\%prepared);
+close $out;
 
 exit $err;
