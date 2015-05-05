@@ -1,6 +1,7 @@
 #!/bin/sh
 
 set -ex
+rm -rf hashes.new
 mkdir -p hashes.new
 for version in 2 ; do
 	for serie in 00000003 00000005 00000006 00000007 00000008 00000009 ; do
