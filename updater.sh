@@ -45,6 +45,7 @@ REVISION="$(uci get -q updater.override.revision || atsha204cmd hw-rev || guess_
 # Where the things live
 GENERATION=$(uci get -q updater.override.generation || sed -e 's/\..*/\//' /etc/turris-version || echo 0/)
 BASE_URL=$(uci get -q updater.override.base_url || echo "https://api.turris.cz/updater-repo/")
+HASH_URL=$(uci get -q updater.override.hash_url || echo "https://api.turris.cz/hashes/")
 BASE_URL="$BASE_URL$GENERATION$REVISION"
 LIST_REQ=$(uci get -q updater.override.list_req_url || echo "https://api.turris.cz/getlists.cgi")
 GENERIC_LIST_URL="$BASE_URL/lists/generic"
@@ -106,7 +107,7 @@ fi
 
 STABLE_PACKAGES="/usr/share/updater/packages"
 STABLE_PLAN="/usr/share/updater/plan"
-trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR" $STABLE_PACKAGES $STABLE_PLAN; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
+#trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR" $STABLE_PACKAGES $STABLE_PLAN; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
 
 # Don't load the server all at once. With NTP-synchronized time, and
 # thousand clients, it would make spikes on the CPU graph and that's not
@@ -199,8 +200,6 @@ PROGRAM='updater'
 
 my_opkg --conf /dev/null configure || die "Configure of stray packages failed"
 
-pwd
-
 # Run the consolidator, but only in case it is installed - it is possible for it to not exist on the device
 if [ -x "$LIB_DIR/updater-consolidate.py" ] ; then
 	"$LIB_DIR/updater-consolidate.py" "$TMP_DIR/list" $USER_LIST_FILES || die "Consolidator failed" # Really don't quote this variable, it should be split into parameters
@@ -208,6 +207,19 @@ else
 	echo 'Missing consolidator' | my_logger -p daemon.warn
 fi
 
+# If there's note we would like to check the hashes, do so. But only if the hash checker is installed.
+if [ -f /tmp/updater-check-hashes ] ; then
+	if [ -x "$LIB_DIR/check-hashes.py" ] ; then
+		echo "Running a hash check" | my_logger -p daemon.info
+		GEN="$(echo "$GENERATION" | sed -e 's/\//./')"
+		my_curl "$HASH_URL$GEN$REVISION.json.bz2" | bzip2 -dc >"$TMP_DIR/hashes.json" || ( echo "Failed to download hash list" | my_logger -p daemon.error ; false )
+		"$LIB_DIR/check-hashes.py" || ( echo "Failed to run the hash checker" | my_logger -p daemon.error; false )
+		. "$TMP_DIR/hash.reinstall"
+		rm /tmp/updater-check-hashes
+	else
+		echo "Missing hash checker" | my_logger -p daemon.warn
+	fi
+fi
 
 # Try running notifier. We don't fail if it does, for one it is not
 # critical for updater, for another, it may be not available.

@@ -18,8 +18,12 @@ logger.debug('Checking hashes')
 
 versions = dict(map(lambda line: line.split(' - '), subprocess.check_output(['opkg', 'list-installed']).splitlines()))
 packages = open('/usr/share/updater/installed-packages').read().splitlines()
-files = json.loads(open('/tmp/hashes.json').read())
-broken = set()
+files = json.loads(open('/tmp/update/hashes.json').read())
+def pkg_info_extract(line):
+	words = line.split('\t')
+	return words[0], words[1:]
+pkg_info = dict(map(pkg_info_extract, open('/tmp/update/all_lists').read().splitlines()))
+broken = {}
 
 for pkg in packages:
 	ver = versions[pkg]
@@ -37,5 +41,18 @@ for pkg in packages:
 				h = m.hexdigest()
 			if h != hashes[f]:
 				logger.warning("Hash for file %s of %s does not match, got %s, expected %s", f, name, h, hashes[f])
+				broken[pkg] = ver
 		except IOError:
 			logger.warning("Couldn't read file %s of %s", f, name)
+			broken[pkg] = ver
+
+with open('/tmp/update/hash.reinstall', 'w') as o:
+	for pkg in broken:
+		info = pkg_info[pkg]
+		assert(info[0] == broken[pkg]) # The version matches
+		flags = info[1]
+		for bidden in ['U', 'I', 'B']:
+			flags = flags.replace(bidden, '')
+		o.write("get_package '" + pkg + "' '" + broken[pkg] + "' '" + flags + "' '" + info[2] + "'\n");
+		o.write('mv "$TMP_DIR/package.ipk" "$PKG_DIR"/\'' + pkg + "'.ipk\n")
+		o.write("do_install '" + pkg + "' '" + broken[pkg] + "' '" + flags + "'\n")

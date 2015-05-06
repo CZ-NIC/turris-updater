@@ -133,6 +133,7 @@ present in the default config.
  * `updater.override.list_req_url`: The url where request for package list is sent to
    (including the revision, generation and ID).  This CGI script then returns bundle
    of package lists.
+ * `updater.override.hash_url`: The directory where hash descriptions live.
 
 The generator script
 ====================

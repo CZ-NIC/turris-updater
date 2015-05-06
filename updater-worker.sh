@@ -187,6 +187,7 @@ do_install() {
 		rm "$PKG_DIR/$PACKAGE.ipk"
 		echo 'examine' >"$STATE_FILE"
 		echo "$(date '+%F %T %Z'): installed $PACKAGE-$VERSION" >>/usr/share/updater/updater-log
+		touch /tmp/updater-check-hashes
 	fi
 }
 
@@ -224,6 +225,7 @@ prepare_plan() {
 		fi
 	done <"$TMP_DIR/$1"
 	IFS="$OLD_IFS"
+	cat "$TMP_DIR/$1" >>"$TMP_DIR/all_lists"
 }
 
 run_plan() {
