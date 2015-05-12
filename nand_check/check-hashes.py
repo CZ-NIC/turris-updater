@@ -24,6 +24,7 @@ def pkg_info_extract(line):
 	return words[0], words[1:]
 pkg_info = dict(map(pkg_info_extract, open('/tmp/update/all_lists').read().splitlines()))
 broken = {}
+broken_files = set()
 
 for pkg in packages:
 	ver = versions[pkg]
@@ -41,12 +42,19 @@ for pkg in packages:
 				h = m.hexdigest()
 			if h != hashes[f]:
 				logger.warning("Hash for file %s of %s does not match, got %s, expected %s", f, name, h, hashes[f])
+				broken_files.add(f)
 				broken[pkg] = ver
 		except IOError:
 			logger.warning("Couldn't read file %s of %s", f, name)
 			broken[pkg] = ver
 
+if not broken:
+	sys.exit()
+
 with open('/tmp/update/hash.reinstall', 'w') as o:
+	o.write("mkdir -p /tmp/broken-files\n")
+	for f in broken_files:
+		o.write("cp '" + f + "' /tmp/broken-files\n")
 	for pkg in broken:
 		info = pkg_info[pkg]
 		assert(info[0] == broken[pkg]) # The version matches
