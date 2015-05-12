@@ -208,7 +208,7 @@ else
 fi
 
 # If there's note we would like to check the hashes, do so. But only if the hash checker is installed.
-if [ -f /tmp/updater-check-hashes ] ; then
+if [ -f /tmp/updater-check-hashes -a -n "$HASH_URL" ] ; then
 	if [ -x "$LIB_DIR/check-hashes.py" ] ; then
 		echo "Running a hash check" | my_logger -p daemon.info
 		GEN="$(echo "$GENERATION" | sed -e 's/\//./')"
