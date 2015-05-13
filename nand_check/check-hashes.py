@@ -47,6 +47,8 @@ for pkg in packages:
 		except IOError:
 			logger.warning("Couldn't read file %s of %s", f, name)
 			broken[pkg] = ver
+		except UnicodeEncodeError:
+			logger.warning("Broken unicode in file name %s of %s", f, name)
 
 if not broken:
 	sys.exit()
