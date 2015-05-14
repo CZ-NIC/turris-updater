@@ -37,7 +37,7 @@ def get_hashes(name, pkg, version):
 			logger.warning('No info about package %s, assuming being empty', name)
 			return {}
 		logger.info('Hash for %s not stored, using the server version', name)
-		with open(fname) as f:
+		with open(fname, 'w') as f:
 			f.write(json.dumps(result))
 		return result
 
