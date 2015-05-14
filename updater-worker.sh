@@ -150,7 +150,7 @@ do_remove() {
 	fi
 	echo 'examine' >"$STATE_FILE"
 	echo "$(date '+%F %T %Z'): removed $PACKAGE" >>/usr/share/updater/updater-log
-	rm /usr/share/updater/hashes/"$PACKAGE"---*.json
+	rm -f /usr/share/updater/hashes/"$PACKAGE"---*.json
 }
 
 do_restart() {
@@ -189,7 +189,7 @@ do_install() {
 		echo 'examine' >"$STATE_FILE"
 		echo "$(date '+%F %T %Z'): installed $PACKAGE-$VERSION" >>/usr/share/updater/updater-log
 		touch /tmp/updater-check-hashes
-		rm /usr/share/updater/hashes/"$PACKAGE---$VERSION".json
+		rm -f /usr/share/updater/hashes/"$PACKAGE---$VERSION".json
 	fi
 }
 
