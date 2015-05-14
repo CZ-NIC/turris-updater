@@ -26,14 +26,25 @@ pkg_info = dict(map(pkg_info_extract, open('/tmp/update/all_lists').read().split
 broken = {}
 broken_files = set()
 
+def get_hashes(name, pkg, version):
+	fname = '/usr/share/updater/hashes/' + pkg + '---' + version + '.json'
+	try:
+		return json.loads(open(fname).read())
+	except IOError:
+		try:
+			result = files[name]
+		except KeyError:
+			logger.warning('No info about package %s, assuming being empty', name)
+			return {}
+		logger.info('Hash for %s not stored, using the server version', name)
+		with open(fname) as f:
+			f.write(json.dumps(result))
+		return result
+
 for pkg in packages:
 	ver = versions[pkg]
 	name = pkg + '-' + ver
-	try:
-		hashes = files[name]
-	except KeyError:
-		logger.warning('No info about package %s, assuming being empty', name)
-		continue
+	hashes = get_hashes(name, pkg, ver)
 	for f in hashes:
 		try:
 			with open(f) as i:
