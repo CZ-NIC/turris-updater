@@ -189,7 +189,7 @@ do_install() {
 		echo 'examine' >"$STATE_FILE"
 		echo "$(date '+%F %T %Z'): installed $PACKAGE-$VERSION" >>/usr/share/updater/updater-log
 		touch /tmp/updater-check-hashes
-		rm -f /usr/share/updater/hashes/"$PACKAGE---$VERSION".json
+		rm -f /usr/share/updater/hashes/"$PACKAGE---"*.json
 	fi
 }
 
