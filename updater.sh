@@ -213,7 +213,9 @@ if [ -f /tmp/updater-check-hashes -a "$HASH_URL" != "-" ] ; then
 		echo "Running a hash check" | my_logger -p daemon.info
 		GEN="$(echo "$GENERATION" | sed -e 's/\//./')"
 		my_curl "$HASH_URL$GEN$REVISION.json.bz2" | bzip2 -dc >"$TMP_DIR/hashes.json" || ( echo "Failed to download hash list" | my_logger -p daemon.error ; false )
+		rm -f "$TMP_DIR/hash.reinstall"
 		"$LIB_DIR/check-hashes.py" || ( echo "Failed to run the hash checker" | my_logger -p daemon.error; false )
+		touch "$TMP_DIR/hash.reinstall"
 		. "$TMP_DIR/hash.reinstall"
 		rm /tmp/updater-check-hashes
 	else
