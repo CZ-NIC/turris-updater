@@ -107,7 +107,7 @@ fi
 
 STABLE_PACKAGES="/usr/share/updater/packages"
 STABLE_PLAN="/usr/share/updater/plan"
-#trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR" $STABLE_PACKAGES $STABLE_PLAN; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
+trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR" $STABLE_PACKAGES $STABLE_PLAN; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
 
 # Don't load the server all at once. With NTP-synchronized time, and
 # thousand clients, it would make spikes on the CPU graph and that's not
