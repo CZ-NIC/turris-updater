@@ -1,6 +1,6 @@
 #!/bin/busybox sh
 
-# Copyright (c) 2013-2014, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
+# Copyright (c) 2013-2015, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -53,7 +53,6 @@ SPECIFIC_LIST_URL="$BASE_URL/lists/$ID"
 PACKAGE_URL="$BASE_URL/packages"
 
 PID_FILE="$STATE_DIR/pid"
-LOCK_DIR="$STATE_DIR/lock"
 BACKGROUND=false
 EXIT_CODE="1"
 

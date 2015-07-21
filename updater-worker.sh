@@ -1,4 +1,4 @@
-# Copyright (c) 2013-2014, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
+# Copyright (c) 2013-2015, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,7 @@ STATE_DIR='/tmp/update-state'
 STATE_FILE="$STATE_DIR/state"
 LOG_FILE="$STATE_DIR/log2"
 PLAN_FILE="$STATE_DIR/plan"
+LOCK_DIR="$STATE_DIR/lock"
 
 get_list() {
 	if grep ' MISSING$' "/tmp/updater-lists/status" | grep -qF "$1 " ; then
