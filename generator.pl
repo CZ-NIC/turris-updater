@@ -63,33 +63,37 @@ if ($list_defs_file) {
 	}
 } # Close $list_defs by going out of scope
 
-# Download and decompress the list of opkg packages.
-
-# The use of shell here is technically insecure, but the input is ours,
-# so it should be OK. Still, it would be nice to do it properly sometime.
-my $list_path = "$path/Packages";
-open my $descriptions, '<', $list_path or die "Could not open package list in $list_path: $!\n";
 my @packages;
-{
-	# The package descriptions are separated by one empty line, so pretend an empty line is EOF and read all „lines“
-	local $/ = "\n\n";
-	@packages = <$descriptions>;
+
+sub read_packages($) {
+	my ($subdir) = @_;
+	my $list_path = "$path/$subdir/Packages";
+	open my $descriptions, '<', $list_path or die "Could not open package list in $list_path: $!\n";
+	my @packages_local;
+	{
+		# The package descriptions are separated by one empty line, so pretend an empty line is EOF and read all „lines“
+		local $/ = "\n\n";
+		@packages_local = <$descriptions>;
+	}
+	close $descriptions;
+	push @packages, map { { data => $_, subdir => $subdir } } @packages_local;
 }
-close $descriptions;
 
 # Parse the packages.
+read_packages undef;
 
 # Drop the newlines at the end.
-s/\n\n$// foreach @packages;
+$_->{data} =~ s/\n\n$// foreach @packages;
 
 # The fields are separated by new lines. However, if the next line starts with whitespace, it is continuation of the previous.
 # So, split to the fields. Then, split each field to the name and value and then create a hash from the key-value pairs.
 @packages = map +{
+	src_dir => $_->{subdir},
 	map {
 		my @fields = split /:\s*/, $_, 2;
 		s/^\s+//gm foreach @fields; # Drop the start-of-line whitespaces
 		@fields;
-	} split /\n(?!\s)/ }, @packages;
+	} split /\n(?!\s)/, $_->{data} }, @packages;
 
 # Index the packages by their name and create data structures for them.
 my %packages = map { $_->{Package} => { desc => $_ } } @packages;
