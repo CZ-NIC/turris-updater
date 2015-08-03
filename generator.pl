@@ -68,7 +68,7 @@ my @packages;
 sub read_packages($) {
 	my ($subdir) = @_;
 	my $list_path = "$path/$subdir/Packages";
-	open my $descriptions, '<', $list_path or die "Could not open package list in $list_path: $!\n";
+	open my $descriptions, '<', $list_path or return undef;
 	my @packages_local;
 	{
 		# The package descriptions are separated by one empty line, so pretend an empty line is EOF and read all „lines“
@@ -77,10 +77,20 @@ sub read_packages($) {
 	}
 	close $descriptions;
 	push @packages, map { { data => $_, subdir => $subdir } } @packages_local;
+	return 1;
 }
 
 # Parse the packages.
-read_packages undef;
+if (not read_packages undef) {
+	my @subdirs = <$path/*>;
+	for my $sd (@subdirs) {
+		if (-d $sd) {
+			$sd =~ s#/$##;
+			$sd =~ s#.*/##;
+			read_packages $sd or die "Couldn't read $path/$sd/Packages: $!\n";
+		}
+	}
+}
 
 # Drop the newlines at the end.
 $_->{data} =~ s/\n\n$// foreach @packages;
@@ -146,7 +156,7 @@ sub provide($) {
 
 	# The package itself
 	my $filename = "$name-$version.ipk";
-	copy("$path/$package->{desc}->{Filename}", "packages/$filename") or die "Could not copy $name ($path/$package->{desc}->{Filename}";
+	copy("$path/$package->{desc}->{src_dir}/$package->{desc}->{Filename}", "packages/$filename") or die "Could not copy $name ($path/$package->{desc}->{src_dir}/$package->{desc}->{Filename}";
 	push @output, $name unless $desired{$name} =~ /I/;
 	return if $omit{$name};
 	print "$name\t$version\t$flags\n";
