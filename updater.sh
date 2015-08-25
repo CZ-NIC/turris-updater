@@ -157,7 +157,7 @@ if $HAVE_WORK ; then
 		# Mark the need for offline updates
 		touch '/tmp/offline-update-ready'
 		# Schedule the reboot and notify user
-		timeout 120 create_notification -s restart "Updaty, které nelze nainstalovat za běhu, jsou připraveny pro instalaci při restartu. Tento restart pravděpodobně bude trvat delší dobu."
+		timeout 120 create_notification -s restart "Updaty, které nelze nainstalovat za běhu, jsou připraveny pro instalaci při restartu. Tento restart pravděpodobně bude trvat delší dobu." "Some of the downloaded updates need a restart to apply. This restart may take longer than usual."
 		timeout 120 notifier || echo 'Notifier failed' | my_logger -p daemon.error
 		echo done >"$STATE_FILE"
 		# Leave the rest be
