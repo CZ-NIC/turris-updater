@@ -14,6 +14,14 @@ cd ..
 mkdir data
 cd data
 gzip -dc <../data.tar.gz | tar x
-find -type f -not -path './etc/uci-defaults/*' -and -not -path './tmp/*' -and -not -path ./etc/unbound/root.key -and -not -path './etc/rainbow.magic' -and -not -path './etc/services' -and -not -path './etc/config/ucitrack' -print0 | xargs -0 md5sum -b | (grep -v -e '-$' || true)
+find -type l >../links
+IFS='	'
+if [ -s ../links ] ; then
+	xargs -d'\n' readlink <../links | paste - ../links | grep '^/' | while read PATH LINK ; do
+		/bin/rm "$LINK"
+		/bin/ln -sf ."$PATH" "$LINK"
+	done
+fi
+find -L -type f -not -path './etc/uci-defaults/*' -and -not -path './tmp/*' -and -not -path ./etc/unbound/root.key -and -not -path './etc/rainbow.magic' -and -not -path './etc/services' -and -not -path './etc/config/ucitrack' -print0 | xargs -0 md5sum -b | (grep -v -e '-$' || true)
 cd "$ORIG"
 rm -rf "$DIR"
