@@ -3,9 +3,14 @@
 set -ex
 rm -rf hashes.new
 mkdir -p hashes.new
-for version in 1 2 ; do
-	for serie in 00000003 00000005 00000006 00000007 00000008 00000009 ; do
+SERIES="00000003 00000005 00000006 00000007 00000008 00000009"
+GENERATIONS='1 2'
+for serie in $SERIES ; do
+	nice ./hash_files.pl -u https://api.turris.cz/updater-repo/0/$serie -o hashes.new/0.$serie.json -l core -d definitions -b generic
+	for version in $GENERATIONS ; do
 		nice ./hash_files.pl -u https://api.turris.cz/updater-repo/$version/$serie -o hashes.new/$version.$serie.json -l core -d definitions -b generic -b master -b nightly -b nospy -b rc -b stable -b testing
 	done
+	./merge.pl hashes.new/*.$serie.json >hashes.new/c.$serie.json
 done
+
 nice bzip2 -9 hashes.new/*.json

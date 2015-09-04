@@ -198,7 +198,6 @@ while (my $cv = pop @condvars) {
 
 my %prepared;
 @prepared{keys %packages} = map $_->{files}, values %packages;
-delete @prepared{grep { !%{$prepared{$_}} } keys %prepared};
 
 open my $out, '>:utf8', $output_file or die "Couldn't output to file $output_file $!\n";
 print $out JSON->new->allow_nonref->pretty->encode(\%prepared);
