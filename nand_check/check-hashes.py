@@ -54,37 +54,52 @@ broken_files = set()
 def get_hashes(name, pkg, version):
 	fname = '/usr/share/updater/hashes/' + pkg + '---' + version + '.json'
 	try:
-		return json.loads(open(fname).read())
+		return [json.loads(open(fname).read())], True, fname
 	except IOError:
 		try:
 			result = files[name]
 		except KeyError:
 			logger.warning('No info about package %s, assuming being empty', name)
-			return {}
+			return {}, False, fname
 		logger.info('Hash for %s not stored, using the server version', name)
-		with open(fname, 'w') as f:
-			f.write(json.dumps(result))
-		return result
+		return result, False, fname
 
 for pkg in packages:
 	ver = versions[pkg]
 	name = pkg + '-' + ver
-	hashes = get_hashes(name, pkg, ver)
-	for f in hashes:
-		try:
-			with open(f) as i:
-				m = hashlib.md5()
-				m.update(i.read())
-				h = m.hexdigest()
-			if h != hashes[f]:
-				logger.warning("Hash for file %s of %s does not match, got %s, expected %s", f, name, h, hashes[f])
+	hash_options, saved, fname = get_hashes(name, pkg, ver)
+	broken_candidate = None
+	for hashes in hash_options:
+		broken_files = {}
+		for f in hashes:
+			try:
+				with open(f) as i:
+					m = hashlib.md5()
+					m.update(i.read())
+					h = m.hexdigest()
+				if h != hashes[f]:
+					broken_files[f] = {'reason': 'Hash', 'got': h, 'expected': hashes[f]}
+			except IOError:
+				broken_files[f] = {'reason': 'Missing'}
+			except UnicodeEncodeError:
+				logger.warning("Broken unicode in file name %s of %s", f, name)
+		if not broken_files:
+			if not saved:
+				with open(fname, 'w') as f:
+					f.write(json.dumps(hashes))
+			break # We found a candidate for good hashes, next package please
+		else:
+			boken_candidate = broken_files
+	if broken_candidate:
+		for f in broken_candidate:
+			info = broken_candidate[f]
+			if info['reason'] == 'Hash':
+				logger.warning("Hash for file %s of %s does not match, got %s, expected %s", f, name, info['got'], info['expected'])
 				broken_files.add(f)
 				broken[pkg] = ver
-		except IOError:
-			logger.warning("Couldn't read file %s of %s", f, name)
-			broken[pkg] = ver
-		except UnicodeEncodeError:
-			logger.warning("Broken unicode in file name %s of %s", f, name)
+			else:
+				logger.warning("Couldn't read file %s of %s", f, name)
+				broken[pkg] = ver
 
 if not broken:
 	sys.exit()
