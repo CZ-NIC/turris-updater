@@ -70,7 +70,7 @@ for pkg in packages:
 	hash_options, saved, fname = get_hashes(name, pkg, ver)
 	broken_candidate = None
 	for hashes in hash_options:
-		broken_files = {}
+		bad_files = {}
 		for f in hashes:
 			try:
 				with open(f) as i:
@@ -78,18 +78,18 @@ for pkg in packages:
 					m.update(i.read())
 					h = m.hexdigest()
 				if h != hashes[f]:
-					broken_files[f] = {'reason': 'Hash', 'got': h, 'expected': hashes[f]}
+					bad_files[f] = {'reason': 'Hash', 'got': h, 'expected': hashes[f]}
 			except IOError:
-				broken_files[f] = {'reason': 'Missing'}
+				bad_files[f] = {'reason': 'Missing'}
 			except UnicodeEncodeError:
 				logger.warning("Broken unicode in file name %s of %s", f, name)
-		if not broken_files:
+		if not bad_files:
 			if not saved:
 				with open(fname, 'w') as f:
 					f.write(json.dumps(hashes))
 			break # We found a candidate for good hashes, next package please
 		else:
-			boken_candidate = broken_files
+			broken_candidate = bad_files
 	if broken_candidate:
 		for f in broken_candidate:
 			info = broken_candidate[f]
