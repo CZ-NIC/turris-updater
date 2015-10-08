@@ -84,6 +84,7 @@ for pkg in packages:
 			except UnicodeEncodeError:
 				logger.warning("Broken unicode in file name %s of %s", f, name)
 		if not bad_files:
+			broken_candidate = None
 			if not saved:
 				with open(fname, 'w') as f:
 					f.write(json.dumps(hashes))
