@@ -217,7 +217,8 @@ if [ -f /tmp/updater-check-hashes -a "$HASH_URL" != "-" ] ; then
 		. "$TMP_DIR/hash.reinstall"
 		rm /tmp/updater-check-hashes
 	else
-		echo "Missing hash checker" | my_logger -p daemon.warn
+		echo "Hash checker not installed" | my_logger -p daemon.info
+		rm /tmp/updater-check-hashes
 	fi
 fi
 
