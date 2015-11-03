@@ -98,12 +98,23 @@ should_install() {
 }
 
 should_uninstall() {
-	if has_flag "$2" G ; then
+	if has_flag "$3" G ; then
 		# Ignore package
 		return 1
 	fi
+	# TODO: create new flag
+	if has_flag "$3" XXX; then
+		CUR_VERS=$(grep -F "^$1 - " "$TMP_DIR/list-installed" | sed -e 's/.* //')
+		if [ -z "$CUR_VERS" ] ; then
+			return 1 # Not installed and asked to remove
+		fi
+		# Remove if the versions are different
+		opkg compare-versions "$2" = "$CUR_VERS"
+		# Yes, it returns 1 if they are the same and 0 otherwise
+		return $?
+	fi
 	# It should be uninstalled if it is installed now and there's the 'R' flag
-	grep -qF "^$1 - " "$TMP_DIR/list-installed" && has_flag "$2" R
+	grep -qF "^$1 - " "$TMP_DIR/list-installed" && has_flag "$3" R
 }
 
 get_pass() {
@@ -206,7 +217,7 @@ prepare_plan() {
 	opkg list-installed | sed -e 's/^/^/g' >"$TMP_DIR/list-installed"
 	# The EXTRA is unused. It is just placeholder to eat whatever extra columns there might be in future.
 	while read PACKAGE VERSION FLAGS HASH EXTRA ; do
-		if should_uninstall "$PACKAGE" "$FLAGS" ; then
+		if should_uninstall "$PACKAGE" "$VERSION" "$FLAGS" ; then
 			HAVE_WORK=true
 			echo "do_remove '$PACKAGE' '$FLAGS'" >>"$PLAN_FILE"
 		elif should_install "$PACKAGE" "$VERSION"  "$FLAGS" ; then
