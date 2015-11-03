@@ -149,15 +149,16 @@ sub provide($) {
 
 	die "Circular dependency in package $name" if $package->{visited};
 
-	# Recursive calls to dependencies
-	$package->{visited} = 1;
-	&provide($_) foreach values %{$package->{dep}};
-	$package->{provided} = 1;
+	if ($flags !~ /P/) { # Passthrough → Don't worry about deps and don't create the package
+		# Recursive calls to dependencies
+		$package->{visited} = 1;
+		&provide($_) foreach values %{$package->{dep}};
+		$package->{provided} = 1;
 
-	# The package itself
-	my $filename = "$name-$version.ipk";
-	copy("$path/$package->{desc}->{src_dir}/$package->{desc}->{Filename}", "packages/$filename") or die "Could not copy $name ($path/$package->{desc}->{src_dir}/$package->{desc}->{Filename}";
-	push @output, $name unless $desired{$name} =~ /I/;
+		my $filename = "$name-$version.ipk";
+		copy("$path/$package->{desc}->{src_dir}/$package->{desc}->{Filename}", "packages/$filename") or die "Could not copy $name ($path/$package->{desc}->{src_dir}/$package->{desc}->{Filename}";
+		push @output, $name unless $desired{$name} =~ /I/;
+	}
 	return if $omit{$name};
 	print "$name\t$version\t$flags\n";
 	warn "Package $name should be encrypted, but that's not supported yet ‒ you need to encrypt manually\n" if $desired{$name} =~ /E/;
