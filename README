@@ -67,6 +67,11 @@ B::
   This package requires reboot-installed updates. See below.
 G::
   Ignore the package. That is, don't install or update it, but don't remove it either.
+D::
+  Deprecate old versions. Remove the package if it has different version than
+  the one listed.
+P::
+  Passthrough flag for the generator. Ignored in the client.
 <number>::
   Packages with lower number are considered sooner when planning the order.
   Packages without number are left as last.

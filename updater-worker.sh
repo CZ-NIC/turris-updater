@@ -102,8 +102,7 @@ should_uninstall() {
 		# Ignore package
 		return 1
 	fi
-	# TODO: create new flag
-	if has_flag "$3" XXX; then
+	if has_flag "$3" D; then
 		CUR_VERS=$(grep -F "^$1 - " "$TMP_DIR/list-installed" | sed -e 's/.* //')
 		if [ -z "$CUR_VERS" ] ; then
 			return 1 # Not installed and asked to remove
