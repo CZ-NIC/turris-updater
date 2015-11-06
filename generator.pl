@@ -129,19 +129,25 @@ while (my ($name, $package) = each %packages) {
 my @desired = <STDIN>;
 chomp @desired;
 @desired = grep { not /^\s*#/ } @desired;
-my %desired = map { my ($name, $flags) = split /\s+/, $_, 2; ($name, $flags); } @desired;
-my @desired_names = map { my ($name) = split /\s+/, $_; $name; } @desired;
+my $pnum = 1;
+my (%desired, @desired_names);
+for my $line (@desired) {
+	my ($name, $flags) = split /\s+/, $line, 2;
+	$name = "__PASSTHROUGH__" . ($pnum ++) . "__$name" if $flags =~ /P/;
+	$desired{$name} = $flags;
+	push @desired_names, $name;
+}
 my ($order, %desired_order) = (1);
 
 $desired_order{$_} = $order ++ for @desired_names;
 my @output;
 
-sub provide($) {
-	my ($package) = @_;
-	my $name = $package->{desc}->{Package};
-	my $flags = $desired{$name} // '.';
+sub provide($;$$) {
+	my $package = shift;
+	my ($name, $flags) = (@_, $package->{desc}->{Package}, $desired{$package->{desc}->{Package}});
+	$flags //= '.';
 	# Recursion sanity checking & termination
-	return if $package->{provided};
+	return if $package->{provided} and $flags !~ /P/;
 
 	# Parameters
 	die "Dependency $name required to be uninstalled\n" if $flags =~ /R/;
@@ -178,24 +184,28 @@ mkdir 'packages';
 my @lists;
 
 for my $pname (sort { prio $a <=> prio $b or $desired_order{$a} <=> $desired_order{$b} } @desired_names) {
-	if ($desired{$pname} =~ /R/) {
-		print "$pname\t-\t$desired{$pname}\n";
-	} elsif ($desired{$pname} =~ /X/) {
+	my $flags = $desired{$pname};
+	my $name = $pname;
+	$name =~ s/^__PASSTHROUGH__\d+__//;
+	if ($flags =~ /R/) {
+		print "$name\t-\t$flags\n";
+	} elsif ($flags =~ /X/) {
 		# It is not a name, but a regular expression. Use all matching ones.
 		my @matched;
 		for my $available (keys %packages) {
-			next unless $available =~ /$pname/;
-			$desired{$available} = $desired{$pname};
+			next unless $available =~ /$name/;
+			$desired{$available} = $flags;
 			push @matched, $available;
 		}
 		# Go through the packages after the flags are set for them, so the dependencies don't bring in something sooner without the flags.
 		for my $matched (@matched) {
 			provide $packages{$matched};
 		}
-	} elsif ($desired{$pname} =~ /L/) {
-		push @lists, $pname;
+	} elsif ($flags =~ /L/) {
+		push @lists, $name;
 	} else {
-		provide($packages{$pname} // die "Package $pname doesn't exist\n");
+		die "Package $name doesn't exist\n" unless exists $packages{$name};
+		provide $packages{$name}, $name, $flags;
 	}
 }
 
