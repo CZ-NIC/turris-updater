@@ -1,6 +1,6 @@
 #!/bin/busybox sh
 
-# Copyright (c) 2013-2014, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
+# Copyright (c) 2013-2015, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,11 @@ LIB_DIR="$(dirname "$0")"
 . "$LIB_DIR/updater-worker.sh"
 
 echo "Resuming updater after reboot" | my_logger -p daemon.warn
+
+if [ -d "$LOCK_DIR" ] ; then
+	echo "Lockdir already exists. Is it possible the updater-resume.sh got started after booting up and ordinary updater is already running?" | my_logger -p daemon.warn
+	exit 0
+fi
 
 trap 'rm -rf "$TMP_DIR" /usr/share/updater/packages $BASE_PLAN_FILE; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
 
