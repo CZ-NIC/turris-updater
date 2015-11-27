@@ -1,1 +1,1 @@
-DOCS += design/requirements
+DOCS += $(addprefix design/,requirements ideas)

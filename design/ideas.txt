@@ -1,0 +1,142 @@
+Random design ideas
+===================
+
+This document contains few design ideas. These are mostly a brain dump
+of work in progress. They are not set in stone and they are not in any
+specific order. This is simply an external memory and once the design
+is decided, something more readable shall be created.
+
+Programming language
+--------------------
+
+The updater should run on OpenWRT system. There's some low-level work
+and a lot of high-level work. Combination of C and a scripting
+language looks appropriate. Integrating with lua is easy and lua is
+well-supported on OpenWRT.
+
+There are further advantages of lua, see below.
+
+Compilation
+-----------
+
+If at all possible, it would be great if the updater was statically
+linked and all the needed lua scripts (or at least some critical ones)
+were embedded inside. Embedding, or possibility of embedding, other
+files may be reasonable extension. This way we get much more resilient
+to library updates. It could also be possible to install a completely
+empty system, by just providing the updater binary, basic
+configuration and the core packages in one binary, in a ramdisk. Or
+just running it as init O:-).
+
+Something to consider: Is there something like compression for
+binaries, so they get unpacked into RAM on start?
+
+Depgraph computation
+--------------------
+
+This seems to be needed on the router itself. Current pre-computation
+on the server is both cumbersome (we need to re-arrange the
+repository), insufficient to solve some problems with flexible enough
+configuration and it can't use 3rd-party packages.
+
+Backend
+-------
+
+In case the on-disk format of opkg is reasonably easy to decode, it
+may be easiest to just replace opkg completely and get rid of it. The
+updater would simply provide an opkg alias with some compat layer, so
+other scripts (luci, etc) continue working.
+
+This would allow for the transactions, coping with the reboots better,
+etc.
+
+Configuration language
+----------------------
+
+It might be easiest to provide the configuration as lua scripts (with
+some restrictions for allowed functions ‒ lua allows sandboxes). We
+could easily express lists of packages with additional information,
+include conditions, allow for examining the user-provided config in
+/etc/config/updater (if it is kept), expressing more complex
+structures (repositories need some description, additional information
+of packages might be complex and even contain embedded functions as
+hooks).
+
+Also, we wouldn't need to implement our own parser for the config
+files.
+
+It is questionable if to allow running shell scripts shall be allowed
+from this kind of language and if so, under which circumstances. Do we
+allow it, but include the script in email report? Do we allow it from
+local configs only?
+
+While running as ``updater require package`` is more comfortable than
+appending it to a config file, it may be solved by having a config
+file that is managed by the program.
+
+Flags & storage
+---------------
+
+The lua scripts probably won't have access to filesystem. But it may
+be needed to store some information and read it on the next run. This
+may need to be both global and per-package storage. Also, consider
+some namespacing.
+
+Resources
+---------
+
+The updater will need several resources (configurations, packages,
+their hashes and descriptions, certificates). It should be possible to
+acquire them from different locations ‒ embedded, local files, network
+or some kind of compressed bundles (these being resources too).  Using
+uri schemes seems like the way to go. There would have to be some
+layer providing these resources.
+
+Journal & transactions
+----------------------
+
+To ensure recovery from interruptions, we may need some kind of
+journal. That wouldn't necessarily flush after each package, or
+whatever other action. But we would need to keep enough additional
+information to be able to replay the work that wasn't yet considered
+flushed. So, this might be the way to update:
+
+  * Download packages
+  * Unpack them into some temporary location (all of them)
+  * Flush the FS
+  * Mark the journal „Going to move packages into place“
+  * Flush the journal
+  * Copy the files in place
+  * Flush them
+  * Remove unneeded files
+  * Mark the journal „Going to run config scripts“
+  * Run the scripts
+  * Remove the temporary files from the location.
+  * Mark the journal as „Done“ and flush.
+
+If it is interrupted, there should be enough information to redo
+whatever might have happened since the last known mark.
+
+Abstraction layers
+------------------
+
+We need to split the functionality in layers.
+
+Some core in the C language would provide the transactions, talking
+with the OS, downloading stuff (possibly in parallel or keeping the
+connection open, as possible future optimisation). Cryptographic
+operations should also go here.
+
+Another layer might implement the package backend logic, like
+computing the depgraphs, using the core functionality to unpack the
+packages, calling scripts. Also, understanding the repository format
+should happen here. This is likely going to happen in Lua.
+
+The other layer would be the configuration, in some kind of restricted
+Lua language. It would bootstrap from single core config file that
+would include several other config files. Some core ones, some user
+ones. These would in turn reference the online ones. The configs would
+also contain descriptions of repositories. These configs would
+describe what should happen and after they are processed, the previous
+layer would compute the plan and perform it, calling any hooks from
+the config files on the go.
