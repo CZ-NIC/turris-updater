@@ -1,2 +1,143 @@
 Requirements
 ============
+
+Here's a list of the things the new updater needs or should support.
+The how of doing so is in a different documents, but there may be some
+hints about it here.
+
+Migration
+---------
+
+It must be possible to migrate from the previous system to the new
+updater without breaking the system. The original configuration, list
+of installed packages, etc, must be preserved.
+
+User configuration flexibility
+------------------------------
+
+The user should be able to express wishes about the working of the
+updater. This includes at least:
+
+ * Require a user list to be installed, as currently.
+ * Require a package to be installed.
+ * Revoke the requirement wishes from above.
+ * Keep a package on current or specific version.
+ * Block package from being installed.
+
+Server-side configuration
+-------------------------
+
+As with the user, the same set of commands must be allowed from the
+server.
+
+There needs to be some kind of priority system to resolve conflicts
+between the user and server configuration. We need to be able to
+specify that user may override the server on some packages but not
+with others.
+
+Vanilla repositories
+--------------------
+
+The updater should be able to work with vanilla repositories that are
+produced by the OpenWRT build root. The configuration instructions
+must be provided by a separate channel.
+
+Multiple repositories
+---------------------
+
+We need to be able to support multiple repositories, including
+third-party repositories. The repositories need some priorities in
+case of package colliding. It should be possible to force a package
+from a given repository in case of collision and override the
+priorities on per-package basis.
+
+Multiple repositories also support multiple compiled branches used in
+parallel.
+
+Security
+--------
+
+Both the configurations and repositories need to be secured somehow.
+This is likely to be some kind of cryptographic signing. The keys and
+required checks need to be configurable on per-source basis ‒ some
+repositories are deploy ones, with higher level of security, some are
+testing ones with lower level, some might live on trusted LAN at the
+user's side. And some might even be local files.
+
+It must support off-site signing somehow as well, for the extra-secure
+repositories.
+
+Dependencies
+------------
+
+We need flexible dependency system. It must be able to depend on
+packages from any repository, from the same repository, it must be
+possible to specify versions. We also need some kind of conditional
+dependencies (like any-of, or at-most-one-of), negative dependencies
+(when two packages fight).
+
+From the above requirements, it seems the depgraph needs to be
+computed on the router.
+
+Attention-less updates
+----------------------
+
+It needs to be able to solve the usual problems without the need of
+user solving anything.
+
+Early-warnings
+--------------
+
+It should be possible to configure the system to give an early warning
+about what will be done and give the user some time to react. The time
+should be zero by default and configurable, but there should be some
+kind of limit for given update (eg. critical security updates could
+mandate to be installed in shorter time).
+
+Resilience against interruptions & FS problems
+----------------------------------------------
+
+We need to not screw the system completely in case the system is
+rebooted during an update. We also need to ensure the updates are
+synced properly, including the metadata, so the system doesn't get
+broken in case the FS is not commited or something.
+
+Also, the updater itself should be able to survive a nuclear war
+against its own files, libraries, etc (possibly by statically linking
+it, having it backed up in two places).
+
+An option to mark a package extra critical may be needed to enable
+some special handling.
+
+Install transactions
+--------------------
+
+Install all the packages in single step to ensure nothing breaks
+because of changed versions (like libopenssl and openssl-utils, which
+need to be of the same version all the time, otherwise nothing works).
+
+Handle special update requirements
+----------------------------------
+
+Sometimes, an update requires some special handling in addition to
+installing packages. It may be installing the packages in some
+specific order (though the transactions might mitigate this need), the
+router may need to be rebooted between two updates or some action like
+changing uboot parameters at specific time might be needed.
+
+Maybe some kind of additional pre-install, post-install,
+version-conditioned hooks and order requirements added into the
+configuration/upgrade plan might work.
+
+ABI changes, reverse „dependencies“, …
+--------------------------------------
+
+We may have a need to re-install all packages depending on a library
+because of ABI change or something. We need to be specify this.
+
+Configuration migrations
+------------------------
+
+Sometimes, we need to change an option, or add a new one, to an
+existing configuration. Currently, this requires user attention, since
+opkg doesn't overwrite config files if they are modified.
