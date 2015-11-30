@@ -12,6 +12,11 @@ It must be possible to migrate from the previous system to the new
 updater without breaking the system. The original configuration, list
 of installed packages, etc, must be preserved.
 
+Make sure everything that worked before works now, even stuff that
+calls opkg or updater.sh. This may be accomplished by some wrapper
+scripts that pretend to be the previous version but call the new thing
+under the hood.
+
 User configuration flexibility
 ------------------------------
 
