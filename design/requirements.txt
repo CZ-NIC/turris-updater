@@ -146,3 +146,10 @@ Configuration migrations
 Sometimes, we need to change an option, or add a new one, to an
 existing configuration. Currently, this requires user attention, since
 opkg doesn't overwrite config files if they are modified.
+
+Hook support
+------------
+
+It would be cool to have ability to easily extend the functionality
+somehow. The idea is, for example, to snapshot a btrfs volume before
+installing the updates.
