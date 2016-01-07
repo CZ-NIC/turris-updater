@@ -147,6 +147,20 @@ Sometimes, we need to change an option, or add a new one, to an
 existing configuration. Currently, this requires user attention, since
 opkg doesn't overwrite config files if they are modified.
 
+Reinstall commands
+------------------
+
+Sometimes, it is needed to reinstall a package. Have an ability to
+perform some task (like reinstalling a package) once, but not each
+time, after it is published.
+
+Individual parts of configuration
+---------------------------------
+
+Make it possible to amend the commands or required package lists on
+per-router basis from the server side (eg. solutions for specific
+problems happening at user's ISP or something like that).
+
 Hook support
 ------------
 

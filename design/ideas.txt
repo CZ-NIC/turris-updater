@@ -70,7 +70,7 @@ from this kind of language and if so, under which circumstances. Do we
 allow it, but include the script in email report? Do we allow it from
 local configs only?
 
-While running as ``updater require package`` is more comfortable than
+While running as +updater require package+ is more comfortable than
 appending it to a config file, it may be solved by having a config
 file that is managed by the program.
 
@@ -81,6 +81,9 @@ The lua scripts probably won't have access to filesystem. But it may
 be needed to store some information and read it on the next run. This
 may need to be both global and per-package storage. Also, consider
 some namespacing.
+
+This may help implementing commands like ``reinstall the package
+once''.
 
 Resources
 ---------
