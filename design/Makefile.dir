@@ -1,1 +1,1 @@
-DOCS += $(addprefix design/,requirements ideas)
+DOCS += $(addprefix design/,requirements ideas opkg)
