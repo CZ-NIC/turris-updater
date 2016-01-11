@@ -1,1 +1,5 @@
-DOCS += $(addprefix design/,requirements ideas)
+DESIGN_DOCS := \
+	requirements \
+	ideas \
+	language
+DOCS += $(addprefix design/,$(DESIGN_DOCS))

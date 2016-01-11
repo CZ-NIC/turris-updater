@@ -1,0 +1,64 @@
+The updater language
+====================
+
+This document is about the language describing specific update
+scenarios.
+
+The language is, strictly speaking, ordinary Lua (currently the
+supported version of Lua on OpenWRT is 5.1, but there should be very
+little difference in what we use). Just the set of functions available
+is limited to the functions listed here.
+
+Security levels
+---------------
+
+There are different security levels of the scripts used.  The security
+level may further limit the set of commands and the abilities of given
+commands. This is to ensure the server may never send malicious
+commands covertly (it still can send version of package that contains
+the malicious code, but that's impossible to prevent with
+an auto-updater, but it would at least have to notify about the
+package being installed).
+
+Security levels are:
+
+Full::
+  The Lua code is not run in any sandbox at all. All functions here
+  work without any limits. Also, all Lua libraries are available
+  without any limitation and further Lua code can be required
+  (including compiled `.so` modules). This is what the internals of the
+  updater would be built in.
+Local::
+  It is possible to reference local files and directories as further
+  configuration scripts. It is possible to read UCI configuration and
+  execute arbitrary shell commands.
+Remote::
+  The functions may reference only other remote resources, not local
+  ones. Reading UCI config is not possible.
+Restricted::
+  It is possible to further restrict the entities referenced to a
+  string match (eg. ensure that it comes from a given server). Access
+  to flag storage is restricted only to flags belonging to the current
+  script and scripts it references.
+
+No function allows raising the security level when referencing another
+script.
+
+Each script runs with its own environment ‒ they don't see each
+other's variables.
+
+Order of execution
+------------------
+
+The scripts are executed in the order they are referenced, in DFS
+order. A referenced script is first fully executed (with its
+sub-scripts) before the current script continues. In that sense, it
+works similar to any other scripting language `include` command.
+
+However, the execution of the script does not include installation of
+packages. That happens after all the scripts terminated. The scripts
+simply describe in what situation the OS should be.
+
+It is possible to hook some functions in between (after, before)
+installation of packages, or even between installation and
+configuration.
