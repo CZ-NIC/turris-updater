@@ -1,5 +1,7 @@
 DESIGN_DOCS := \
 	requirements \
 	ideas \
-	language
+	language \
+	morpher
+
 DOCS += $(addprefix design/,$(DESIGN_DOCS))

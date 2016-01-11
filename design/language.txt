@@ -62,3 +62,22 @@ simply describe in what situation the OS should be.
 It is possible to hook some functions in between (after, before)
 installation of packages, or even between installation and
 configuration.
+
+Available commands
+------------------
+
+Most of the commands can be called in parenthesis mode, eg:
+
+  Command("string", "string", {param = 1})
+
+Or in a parentheses-less mode:
+
+  Command "string" "string" {param = 1}
+
+This is done by a trick with metatables returns a delayed morpher
+object. It should be mostly invisible most of the time, though. The
+result may be used as a handle to the created object and manipulate it
+further.
+
+Also, most of the commands start with a capital letter, since they act
+as constructors.
