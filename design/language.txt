@@ -337,3 +337,12 @@ content::
   This is an alternative for the package being available from a
   repository. This lists an URL where the package lives.
 TODO: Verification of the package, if the content is available.
+
+TODO
+----
+* Dependency descriptions
+* Hook language
+* Special URLs
+* Verification
+* Commands for flags
+* Commands for examining the current installed state
