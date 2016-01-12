@@ -338,11 +338,101 @@ content::
   repository. This lists an URL where the package lives.
 TODO: Verification of the package, if the content is available.
 
+StoreFlags
+~~~~~~~~~~
+
+  StoreFlags "flagname" "flagname"
+
+A script may request to store some of its flags right away, no matter
+how the updater terminates. It first stores its flags and then calls
+the `StoreFlags` command with the names of the flags to store. The
+rest of the flags are stored as usual.
+
+Variables
+---------
+
+There are several global variables. These are set anew for each script
+run, so one script can't damage them for another. Modifying them has
+no effect on the updater's behaviour, unless specifically mentioned.
+Note that some of the tables might be generated on demand by
+meta-table events, making it impossible to list keys.
+
+serial
+~~~~~~
+
+The variable contains the serial number of the device. It may be `nil`
+in case it is not supported on the given device.
+
+architectures
+~~~~~~~~~~~~~
+
+Allowed package architectures (in a table).
+
+model
+~~~~~
+
+Content of `/tmp/sysinfo/model`. Might be nil on non-OpenWRT systems.
+
+board_name
+~~~~~~~~~~
+
+Content of `/tmp/sysinfo/board_name`. Might be nil on non-OpenWRT
+systems.
+
+turris_version
+~~~~~~~~~~~~~~
+
+Content of `/etc/turris-version`. Might be nil on non-Turris systems.
+
+installed
+~~~~~~~~~
+
+This is a table of installed packages. The keys are package names and
+values are tables with following keys:
+
+version::
+  The installed version.
+files::
+  Files belonging to the package (a table).
+configs::
+  Configuration files belonging to the package (a table).
+repository::
+  Name of the repository it has been installed from. It may be missing
+  in case it is a package provided outside of a repository. Note that
+  the name corresponds to the time the package has been installed and
+  that repository may be unavailable now or the name represent a
+  different repository.
+install-time::
+  Unix timestamp specifying when the package has been installed, in
+  UTC.
+
+The top-level table is instantiated (not generated through
+meta-tables), therefore it is possible to get the list of installed
+packages.
+
+flags
+~~~~~
+
+A table with flags defined by the scripts. Flags are preserved between
+the updater runs, so a script may leave notes for its future self.
+
+The table is indexed by the name of the script, either relative or
+absolute. Referencing self as an empty string works. The table is
+generated on the fly, therefore the script may not find out what other
+scripts ever run.
+
+The subtable is wholly instantiated, therefore the script can list the
+keys it left itself from previous run.
+
+Flags may be only strings.
+
+Any modification to the own flags table is stored on successful
+updater termination or when the script explicitly request it.
+Modifications to other scripts' flags tables are not stored.
+
 TODO
 ----
 * Dependency descriptions
 * Hook language
 * Special URLs
 * Verification
-* Commands for flags
-* Commands for examining the current installed state
