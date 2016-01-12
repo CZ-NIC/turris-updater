@@ -9,6 +9,9 @@ supported version of Lua on OpenWRT is 5.1, but there should be very
 little difference in what we use). Just the set of functions available
 is limited to the functions listed here.
 
+Note that using conditions and loops is fully supported and sometimes
+desirable.
+
 Security levels
 ---------------
 
@@ -63,6 +66,28 @@ It is possible to hook some functions in between (after, before)
 installation of packages, or even between installation and
 configuration.
 
+Script names
+------------
+
+Each script has a name. The names form a tree structure and are used
+to namespace various kinds of information, most importantly flag
+storage.
+
+Having two scripts of the same full name is an error. The name of the
+script may be the same if it is referenced from different scripts.
+
+The names are separated by a slash. The top-level built in script has
+an empty name, but it doesn't store any information, only references
+other scripts.
+
+A script may reference other scripts by the names. An empty string
+means itself. Names starting with slash are absolute ‒ they start from
+the top-level script. Other names are relative and refer to
+sub-scripts.
+
+This is similar to filesystem paths. However, the `.` and `..` names
+are not supported here.
+
 Available commands
 ------------------
 
@@ -81,3 +106,234 @@ further.
 
 Also, most of the commands start with a capital letter, since they act
 as constructors.
+
+Script
+~~~~~~
+
+  script = Script "script-name" "url" { extra }
+
+This command runs another script. The name is the local part of the
+script name.
+
+The url provides the location of the script.
+
+The last parameter is a table with extra information. It allows
+fine-tuning the verification of URL and the way the script runs. The
+current extra parameters are following.
+
+security::
+  Security level on which the script runs. It shall contain one of the
+  above values. The name is case insensitive. It is not possible to
+  raise the level, such attempt is reported as an error. If not
+  specified, the level is deduced from the URL. If the URL is remote,
+  it doesn't go above `remote`, otherwise it doesn't go above `local`.
+restrict::
+  If the level is `restricted`, this is the match for URLs that may be
+  referenced. If the level is `restricted` and this is not specified,
+  a match for the protocol and hostname is constructed. It has no
+  effect with higher security levels.
+TODO::
+  Verification of the content of the script ‒ think about some key &
+  stuff. Also, share it with the repository command.
+
+Repository
+~~~~~~~~~~
+
+  repository = Repository "repository-name" "url" { extra }
+
+This command introduces another repository of packages. The name may
+be used as a reference from other commands and is used in error
+messages. However, every place where the name may be used, the result
+of the command may be used instead. It is legal to have multiple
+repositories with the same name, but referencing it by name may
+produce any of them. Referencing by the result is reliable.
+
+The URL is expected to contain an OpenWRT repository in the format
+produced by the buildroot.
+
+Extra parameters are:
+
+subdirs::
+  If the URL contains multiple subdirectories, each one being a valid
+  repository, you may list the subdirectories here (as a lua table of
+  strings). The repository will unify all the subdirectory contents
+  together to form one huge repository. In case of collision of
+  packages between the subdirectories, the first one containing a
+  given package wins (in the order listed here). If this option is not
+  listed, the repository acts in normal way (the URL directly
+  containing the packages).
+index::
+  Overrides the URL at which the repository index lives and uses the
+  main URL as the place where packages are downloaded from. Both
+  gzipped and plain versions may be in the given URL. If the option is
+  not listed, it is expected to be in `Packages.gz`. Overriding the
+  URL is not compatible with the subdirs option.
+ignore::
+  Ignore certain errors. This is a lua table with strings, each
+  specifying a category of errors to ignore. If there's an error
+  ignored, the repository acts as being empty. Otherwise, such error
+  would cause the updater to stop.
+  missing;;
+    This error happens if the repository is not found. This can mean,
+    for example, that the `https` URL where the index
+    (`https://example.org/repository/Packages.gz`) returns 404.
+    However, a missing package from the repository is not this kind of
+    error (and cannot be ignored, because it is discovered late after
+    planning what to install).
+  integrity;;
+    This is when the integrity verification/signature check fails.
+    This may be caused by manipulation with the content, or by missing
+    a key on our side.
+  syntax;;
+    It happens when the repository index can not be parsed because of
+    syntax errors.
+priority::
+  In case of a package being available in multiple directories, the
+  package is taken from the repository with highest priority. In case
+  of equality, the one introduced first wins. The default when the
+  option is not specified is 50. The number must be an integer between
+  0 and 100.
+TODO::
+  Verification, same as with Script.
+
+Uninstall
+~~~~~~~~~
+
+  Uninstall "package" "package" { extra } "package" "package" { extra }
+
+This command takes multiple package names. It ensures none of the
+packages is installed.
+
+Note that this is not needed most of the time, since unneeded packages
+are removed automatically.
+
+Extra options modify the packages preceding them, but only up to the
+previous extra options block. Therefore, the first two packages in the
+example are modified by the first extra options block, the third and
+fourth by the second block.
+
+priority::
+  In case of colliding requirements (the same package is required by
+  an ``Install`` command or as a dependency of something), the
+  requirement with the higher priority wins. In case of a draw, an
+  error is reported. The priority defaults to 50 and must be between 0
+  and 100.
+
+Install
+~~~~~~~
+
+  Install "package" "package" { extra } "package" "package" { extra }
+
+This command is the opposite of `Uninstall`. It requires that a
+package be present in the system.
+
+The resolving of extra options acts the same as with `Uninstall`.
+
+Available extra options:
+
+priority::
+  Acts the same as with `Uninstall`.
+version::
+  Limits the considered versions. This may be a single string or a
+  table with multiple strings. If there are multiple, each is
+  considered a condition and all must pass for a version to be
+  accepted. Using of operators `<`, `<=`, `>`, `>=` is possible. Also,
+  if the version is prefixed with `~`, it acts as a lua string match
+  pattern against the version. So this would accept versions between 3
+  and 7 and ignore the `.0` ones: `{ ">=3.0", "<=7.0", "~^%d+%.[1-9]%d*" }`.
+  The default is no condition, therefore all versions available pass.
+  From the versions that match and satisfy all dependency
+  requirements, the one with highest version is chosen. In case when
+  no available version matches, the currently installed version is
+  also considered as a fallback.
+repository::
+  Usually, all repositories are searched according to their
+  priorities. If you specify this option as a lua table, only the
+  repositories listed here are searched, in the order in the table
+  (ignoring the global priority).
+reinstall::
+  When set to any value, the package is re-installed even if the
+  chosen version is already installed.
+critical::
+  If set to any value, the package and all its dependencies are
+  considered critical. The updater will try harder to have it in a
+  consistent state or be able to at least fix it without access to
+  network. Other packages may stop working if the update is
+  interrupted at the wrong time (for example by a power outage), but
+  would be fixed by another finished updater run.
+
+Note that a package may be required to be installed or uninstalled
+multiple times (for example by multiple scripts). All such
+requirements are tried to be met (eg. by unifying the version options,
+etc).
+
+Package
+~~~~~~~
+
+  package = Package "name" { extra }
+
+This command allows amending a package from a repository. It allows
+for adding dependencies (even negative or alternative dependencies).
+It allows for specifying hooks ‒ functions that are run at specific
+times. It also allows creation of virtual packages ‒ a package that
+doesn't really exist, but can have hooks and dependencies and
+participates in the dependency computation.
+
+A package may be amended multiple times. Each time the options are
+merged into the package options.
+
+The result may be used instead of a package name in the dependencies
+of other packages and in `Install` and `Uninstall` commands.
+
+Also, the name parameter is optional. If it is omitted (either
+specified as nil or just left out), an unique name is generated. This
+is useful only for virtual packages.
+
+The options are:
+
+virtual::
+  If set to any value, the package is virtual. If a real package of
+  the same name exists, an error is reported.
+deps::
+  Additional dependencies for the package. This may be either a string
+  (it is then parsed in the same way as dependencies from the package
+  index), or a table. The table contains one dependency in each
+  element. TODO: Negative and alternative dependencies.
+after-*::
+before-*::
+  A hook to be run after or before a step. The value may be a single
+  function or a table of functions. All the functions (from the table
+  or merged from multiple `Package` commands) are run, in unspecified
+  order. TODO: List the steps and what commands may be used inside the
+  functions.
+reboot::
+  A reboot is needed when installing the package. The reboot is
+  scheduled according to the value.
+  delayed;;
+    The package needs a reboot for the new version to take effect, but
+    the old version works, so it may be delayed for arbitrary amount
+    of time.
+  finished;;
+    The reboot needs to be done once the update is finished. It is
+    because the old version no longer works as expected. The whole
+    update may be delayed because the need of this update, so the
+    update happens at a time convenient to the user.
+  immediate;;
+    The reboot needs to be done just after the package is set up. This
+    may be needed when the old version would prevent the rest of the
+    update from happening.
+replan::
+  The package has an effect on the updater itself. Therefore,
+  interrupt the update after this package is set up and perform the
+  planning again.
+abi_change::
+  The package changed its ABI (or some other interface) and some other
+  packages need to be reinstalled. If this is set to `true` and the
+  package is installed or updated, all packages that depend on it are
+  reinstalled. If it is set to a table, it lists packages that need to
+  be reinstalled. When merging `true` to a table, `true` is considered
+  to be the list of packages depending on this one.
+content::
+  This is an alternative for the package being available from a
+  repository. This lists an URL where the package lives.
+TODO: Verification of the package, if the content is available.
