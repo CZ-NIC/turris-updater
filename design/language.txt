@@ -88,6 +88,36 @@ sub-scripts.
 This is similar to filesystem paths. However, the `.` and `..` names
 are not supported here.
 
+URIs
+----
+
+Sometimes, an entity needs to be referenced somehow. Such entity may
+live in the local filesystem or be on an external server.
+
+These are the types of URIs supported:
+
+* `file://`
+* `http://`
+* `https://`
+* `data:`
+* `internal:`
+
+The remote ones (`http` and `https`) may need verification of the
+integrity of its content. The other are considered secure and don't
+need any kind of verification.
+
+The `data:` is slightly limited compared to what the standard (RFC
+2397) allows. The media type and charset are irrelevant to the
+updater and are therefore not supported.
+
+The `internal:` URI is a non-standard scheme. The updater may contain
+compiled-in resources (embedded files). Each such resource has a
+unique name. The `internal:` scheme accesses these embedded files. The
+colon is directly followed by the name.
+
+Scripts with access level of `remote` or lower are not allowed to use
+the `file://` and `internal:` schemes.
+
 Available commands
 ------------------
 
@@ -110,25 +140,25 @@ as constructors.
 Script
 ~~~~~~
 
-  script = Script "script-name" "url" { extra }
+  script = Script "script-name" "uri" { extra }
 
 This command runs another script. The name is the local part of the
 script name.
 
-The url provides the location of the script.
+The uri provides the location of the script.
 
 The last parameter is a table with extra information. It allows
-fine-tuning the verification of URL and the way the script runs. The
+fine-tuning the verification of URI and the way the script runs. The
 current extra parameters are following.
 
 security::
   Security level on which the script runs. It shall contain one of the
   above values. The name is case insensitive. It is not possible to
   raise the level, such attempt is reported as an error. If not
-  specified, the level is deduced from the URL. If the URL is remote,
+  specified, the level is deduced from the URI. If the URI is remote,
   it doesn't go above `remote`, otherwise it doesn't go above `local`.
 restrict::
-  If the level is `restricted`, this is the match for URLs that may be
+  If the level is `restricted`, this is the match for URIs that may be
   referenced. If the level is `restricted` and this is not specified,
   a match for the protocol and hostname is constructed. It has no
   effect with higher security levels.
@@ -139,7 +169,7 @@ TODO::
 Repository
 ~~~~~~~~~~
 
-  repository = Repository "repository-name" "url" { extra }
+  repository = Repository "repository-name" "uri" { extra }
 
 This command introduces another repository of packages. The name may
 be used as a reference from other commands and is used in error
@@ -148,26 +178,26 @@ of the command may be used instead. It is legal to have multiple
 repositories with the same name, but referencing it by name may
 produce any of them. Referencing by the result is reliable.
 
-The URL is expected to contain an OpenWRT repository in the format
+The URI is expected to contain an OpenWRT repository in the format
 produced by the buildroot.
 
 Extra parameters are:
 
 subdirs::
-  If the URL contains multiple subdirectories, each one being a valid
+  If the URI contains multiple subdirectories, each one being a valid
   repository, you may list the subdirectories here (as a lua table of
   strings). The repository will unify all the subdirectory contents
   together to form one huge repository. In case of collision of
   packages between the subdirectories, the first one containing a
   given package wins (in the order listed here). If this option is not
-  listed, the repository acts in normal way (the URL directly
+  listed, the repository acts in normal way (the URI directly
   containing the packages).
 index::
-  Overrides the URL at which the repository index lives and uses the
-  main URL as the place where packages are downloaded from. Both
-  gzipped and plain versions may be in the given URL. If the option is
+  Overrides the URI at which the repository index lives and uses the
+  main URI as the place where packages are downloaded from. Both
+  gzipped and plain versions may be in the given URI. If the option is
   not listed, it is expected to be in `Packages.gz`. Overriding the
-  URL is not compatible with the subdirs option.
+  URI is not compatible with the subdirs option.
 ignore::
   Ignore certain errors. This is a lua table with strings, each
   specifying a category of errors to ignore. If there's an error
@@ -175,7 +205,7 @@ ignore::
   would cause the updater to stop.
   missing;;
     This error happens if the repository is not found. This can mean,
-    for example, that the `https` URL where the index
+    for example, that the `https` URI where the index
     (`https://example.org/repository/Packages.gz`) returns 404.
     However, a missing package from the repository is not this kind of
     error (and cannot be ignored, because it is discovered late after
@@ -335,7 +365,7 @@ abi_change::
   to be the list of packages depending on this one.
 content::
   This is an alternative for the package being available from a
-  repository. This lists an URL where the package lives.
+  repository. This lists an URI where the package lives.
 TODO: Verification of the package, if the content is available.
 
 StoreFlags
@@ -434,5 +464,4 @@ TODO
 ----
 * Dependency descriptions
 * Hook language
-* Special URLs
 * Verification
