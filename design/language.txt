@@ -118,6 +118,55 @@ colon is directly followed by the name.
 Scripts with access level of `remote` or lower are not allowed to use
 the `file://` and `internal:` schemes.
 
+Verification
+------------
+
+It is desirable to verify that the scripts and repository indices
+weren't tampered with. It isn't needed to verify the packages (unless
+they are stand-alone without repository), because the repository index
+contains hashes of the packages.
+
+There are two things we may verify. The server certificate (with the
+`https` schema) and the file signature.
+
+Each command that takes an URI as a parameter can have following extra
+options:
+
+verification::
+  This specifies how the resource is verified. Possible values are
+  (case insensitive):
+  none;;
+    Doesn't do any verification. This is the default for `file://`,
+    `data://` and `internal://` URIs.
+  cert;;
+    Verify the server's SSL certificate.
+  sig;;
+    Verify file signature. This is the default for `http://` URIs.
+  both;;
+    Do both `cert` and `sig` verification. This is the default for
+    `https://` URIs.
+sig::
+  URI where the signature of the resource lives. This one is not
+  verified. If it isn't specified, it is constructed by adding `.sig`
+  to the end of the verified URI. The option has effect only with
+  `sig` and `both` verification.
+pubkey::
+  An URI or table of URIs with trusted public signature keys. These
+  are not verified (therefore it is recommended to come from a already
+  verified source ‒ like `data:` URI or `file://` URI). If it is not
+  specified, it is inherited from the verification of the script
+  running the command. While it has no direct effect if the option is
+  specified on another verification than `sig` or `both`, it
+  influences the inheritance.
+ca::
+  An URI or table of URIs with trusted SSL certificate authorities, in
+  PEM format. Similar notes as with `pubkey` apply.
+
+The file signature is verified using the `usign` utility.
+
+Note that while a `remote` or `restricted` script may not specify
+local (`file://` and `internal:`) URIs, it may inherit them.
+
 Available commands
 ------------------
 
@@ -162,9 +211,11 @@ restrict::
   referenced. If the level is `restricted` and this is not specified,
   a match for the protocol and hostname is constructed. It has no
   effect with higher security levels.
-TODO::
-  Verification of the content of the script ‒ think about some key &
-  stuff. Also, share it with the repository command.
+verification::
+sig::
+pubkey::
+ca::
+  Options to verify the script integrity.
 
 Repository
 ~~~~~~~~~~
@@ -223,8 +274,11 @@ priority::
   of equality, the one introduced first wins. The default when the
   option is not specified is 50. The number must be an integer between
   0 and 100.
-TODO::
-  Verification, same as with Script.
+verification::
+sig::
+pubkey::
+ca::
+  Options to verify the index integrity.
 
 Uninstall
 ~~~~~~~~~
@@ -366,7 +420,13 @@ abi_change::
 content::
   This is an alternative for the package being available from a
   repository. This lists an URI where the package lives.
-TODO: Verification of the package, if the content is available.
+verification::
+sig::
+pubkey::
+ca::
+  Options to verify the package integrity, if the content option is
+  specified. These are ignored in virtual packages and packages from a
+  repository.
 
 StoreFlags
 ~~~~~~~~~~
@@ -464,4 +524,3 @@ TODO
 ----
 * Dependency descriptions
 * Hook language
-* Verification
