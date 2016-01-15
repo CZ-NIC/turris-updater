@@ -636,7 +636,30 @@ Rerun
 Run the updater once more. The when has a similar meaning as with
 `Reboot`. However, it won't resume installation after executing `now`.
 
-TODO
-----
-* Uci access
-* Allowed libraries
+Available libraries and standard functions
+------------------------------------------
+
+In addition to the functions listed above, following functions and
+libraries are made available. They are available in the security level
+listed and in all higher levels.
+
+Restricted::
+  * `table` library.
+  * `string` library.
+  * `math` library.
+  * `assert`.
+  * `error`.
+  * `ipairs`.
+  * `next`.
+  * `pairs`.
+  * `pcall`.
+  * `select`.
+  * `tonumber`.
+  * `tostring`.
+  * `type`.
+  * `unpack`.
+  * `xpcall`.
+Local::
+  * `uci` library.
+Full::
+  * The whole lua library.
