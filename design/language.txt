@@ -603,6 +603,7 @@ Modifications to other scripts' flags tables are not stored.
 
 Hooks
 -----
+
 As the hooks are run after all the dependencies have been resolved and
 plan has been made, it is no longer possible to call the `Repositor`,
 `Package`, `Install` and `Uninstall` commands. These commands may be
@@ -635,6 +636,12 @@ Rerun
 
 Run the updater once more. The when has a similar meaning as with
 `Reboot`. However, it won't resume installation after executing `now`.
+
+The only parameter of the hook is a package object. It is a table that
+has all the meaningful options from the `Package` and `Install`
+commands and the ones from `installed` variable. However, with options
+listing multiple possibilities, only the one chosen is kept. Also,
+additional `name` option is included.
 
 Available libraries and standard functions
 ------------------------------------------
