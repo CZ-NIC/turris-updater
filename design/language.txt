@@ -167,6 +167,40 @@ The file signature is verified using the `usign` utility.
 Note that while a `remote` or `restricted` script may not specify
 local (`file://` and `internal:`) URIs, it may inherit them.
 
+Dependency description
+----------------------
+
+Package dependencies are very important part of package maintenance.
+Therefore, it is possible to describe them in the updater.
+
+A dependency might be one of:
+
+string::
+  The string is parsed the same way as from the OpenWRT packages.
+  Dependencies are separated by commas, each ``word'' meaning a single
+  dependency.  The dependencies can also use versions with relational
+  operators.  The version with the operator is in parentheses after
+  the name of the package (eg `kernel (=version-number)`, `openssl
+  (>=1.0.0)`). As an extension, the operator `~` may be used to denote
+  a lua string pattern match on the version. All dependencies and
+  version restrictions must be met.
+package handle::
+  A concrete package, represented by the result of the `Package`
+  command may be used directly.
+table::
+  The table shall contain multiple sub-dependencies. Each one must be
+  met. The sub-dependency may be of any type (string, other table,
+  package handle, `Or()`, `Not()`).
+`Not(string)`::
+  This denotes that a single package described by the string must not
+  be present on the system. This may be used if two packages ``fight''
+  over the same file, or when they provide colliding services (both
+  are DNS servers, for example).
+`Or(dep, dep, ...)`::
+  Each `dep` argument is a dependency of any type. The whole `Or()` is
+  fulfilled when at least one of the argument is fulfilled. When
+  multiple options are possible, the leftmost of them is preferred.
+
 Available commands
 ------------------
 
@@ -379,10 +413,9 @@ virtual::
   If set to any value, the package is virtual. If a real package of
   the same name exists, an error is reported.
 deps::
-  Additional dependencies for the package. This may be either a string
-  (it is then parsed in the same way as dependencies from the package
-  index), or a table. The table contains one dependency in each
-  element. TODO: Negative and alternative dependencies.
+  Additional dependencies for the package. The dependencies are merged
+  together as if all the sources were put into a table (eg. all of
+  them must be fulfilled). There's no way to remove dependencies.
 after-*::
 before-*::
   A hook to be run after or before a step. The value may be a single
