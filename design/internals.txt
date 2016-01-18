@@ -129,3 +129,24 @@ Planner
 ~~~~~~~
 
 This part resolves the dependencies and produces a plan of action.
+
+Parts by language
+-----------------
+
+Likely, the updater would be combination of C and lua code. Almost all
+of the glue code is likely to be in lua. From the components above,
+many are likely to end up in C:
+
+* The event loop
+* The process manager
+* The URI manage.
+* The journal.
+
+Lua seems better for:
+
+* State manager
+* Sandbox
+
+The logger might turn easier in either of the languages. The planner
+will start in lua, but it is possible there'll be some
+performance-critical parts needing the power of C.
