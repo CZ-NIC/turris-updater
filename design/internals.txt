@@ -67,4 +67,65 @@ Save of status
 
 The flags and status of installed packages are stored.
 
+Components
+----------
 
+These are the pieces that form the updater. This does not list all the
+small things, like package objects, there's not much sense in
+designing them yet.
+
+Also, there's going to be a lot of glue in between tying it together.
+There's nothing much to be said about it in a high-level design
+document.
+
+Event loop
+~~~~~~~~~~
+
+Some parts of the program need to wait for multiple events. This'll do
+the waiting in some generic way. We may need to be able to wait for a
+set of events to complete and then finish the event loop.
+
+Process manager
+~~~~~~~~~~~~~~~
+
+It allows running other processes and pass input and output with them.
+
+URI manager
+~~~~~~~~~~~
+
+This part is able to obtain the data for an URI. It also can do
+validation of the content.
+
+The downloading may work in a parallel way, downloading multiple URIs
+at once.
+
+State manager
+~~~~~~~~~~~~~
+
+This allows reading and writing of the flags and package state data.
+It is likely going to be just a set of functions.
+
+Logger
+~~~~~~
+
+A place where log messages are sorted and output to several possible
+locations.
+
+Journal
+~~~~~~~
+
+The journal is some persistent data structure allowing for recovery in
+case of power outage or something. It needs to be careful about writes
+and flushes to the file. Also, it may need to handle broken end of the
+journal file.
+
+Sandbox
+~~~~~~~
+
+This part prepares execution environments for the configuration
+scripts.
+
+Planner
+~~~~~~~
+
+This part resolves the dependencies and produces a plan of action.
