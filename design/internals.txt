@@ -1,0 +1,70 @@
+Updater internals
+=================
+
+This document describes how the updater would work under the hood.
+
+Execution phases
+----------------
+
+There are distinct phases of the execution, each one having a
+different task.
+
+Reading of the current state
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Information about what is already installed, about stored flags, etc.
+are loaded.
+
+Parsing of the lua scripts
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The main lua configuration script is loaded and run. From it, further
+lua scripts are obtained and executed.
+
+All the repositories and intentions to install packages are described.
+
+Downloading the repository indices
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The repository index files are downloaded or obtained from disk and
+parsed, providing list of packages each.
+
+Planning
+~~~~~~~~
+
+The intentions what shall be installed is put together with the
+repository indices. All the dependencies are resolved, which produces
+list of packages to install or remove.
+
+Optionally, if the configurantion requires it, user is notified and
+further action is postponed. In such case, the plan is stored for
+future use.
+
+Downloading
+~~~~~~~~~~~
+
+The needed packages are downloaded.
+
+Unpacking
+~~~~~~~~~
+
+Packages are unpacked to a temporary location. This may be in
+permanent storage (because of the transactions), but it is not the
+live system yet.
+
+Merging
+~~~~~~~
+
+Once the files are all ready and synced, they start to be moved into
+the right place. This is interspersed with running pre-* and post-*
+scripts and hooks.
+
+At the end of this phase, any extra files from previous or uninstalled
+packages are removed.
+
+Save of status
+~~~~~~~~~~~~~~
+
+The flags and status of installed packages are stored.
+
+
