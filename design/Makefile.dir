@@ -3,6 +3,7 @@ DESIGN_DOCS := \
 	ideas \
 	language \
 	morpher \
-	internals
+	internals \
+	battleplan
 
 DOCS += $(addprefix design/,$(DESIGN_DOCS))
