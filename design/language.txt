@@ -2,15 +2,20 @@ The updater language
 ====================
 
 This document is about the language describing specific update
-scenarios.
+scenarios. It is the core configuration language of the updater
+itself, listing which packages should be installed, where they come
+from and any special quirks needed for specific situations. Other ways
+of configuring are possible (like command line requests to install
+some packages, or listing things in UCI file), but these are usually
+implemented in this language.
 
 The language is, strictly speaking, ordinary Lua (currently the
 supported version of Lua on OpenWRT is 5.1, but there should be very
 little difference in what we use). Just the set of functions available
 is limited to the functions listed here.
 
-Note that using conditions and loops is fully supported and sometimes
-desirable.
+Note that using conditions, loops and variables is fully supported
+and sometimes desirable.
 
 Security levels
 ---------------
