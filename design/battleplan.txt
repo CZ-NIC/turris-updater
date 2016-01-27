@@ -93,13 +93,9 @@ be done later.
   a lua script from a file or string).
 * Parse the current package state.
 * The event loop:
-  - Define the interface and callback structures.
-  - The basic loop, with nothing being done, just checking it should
-    still run.
-  - Watch file descriptors for read, write, errors.
-  - Watch timeouts.
-  - Handle signals.
-  - Handle terminated children.
+  - Integrate libevent
+  - Handle terminated children (libevent has only generic „Signal
+    happened).
   - Some kind of „wait“ mode of running the loop ‒ list needed events,
     provide a function to wait for them. Consider running this from
     within a callback of the running loop.
