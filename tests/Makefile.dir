@@ -1,0 +1,37 @@
+
+.PHONY: check-compile check-clean test valgrind check
+
+check-compile:
+	cd $(S)/tests/check && cmake .
+	+make -C $(S)/tests/check
+
+clean: check-clean
+check-clean:
+	+make -C $(S)/tests/check clean
+
+C_TESTS := arguments
+
+BINARIES += $(patsubst %,tests/%,$(TESTS))
+
+define DO_C_TEST
+BINARIES_NOTARGET += tests/$(1)
+$(1)_MODULES += $(1)
+$(1)_SYSTEM_LIBS += check m rt
+$(1)_LOCAL_LIBS += updater
+$(S)/bin/$(1): EXTRA_LIBDIRS := $(S)/tests/check/src/
+$(S)/bin/$(1): EXTRA_INCLUDES := $(S)/tests/check/src/ $(S)/tests/check/
+$(S)/bin/$(1): check-compile
+
+test: test-$(1)
+valgrind: valgrind-$(1)
+.PHONY: test-$(1) valgrind-$(1)
+test-$(1): $(S)/bin/$(1)
+	$(S)/bin/$(1)
+
+valgrind-$(1): $(S)/bin/$(1)
+	valgrind $(S)/bin/$(1)
+endef
+
+$(eval $(foreach TEST,$(C_TESTS),$(call DO_C_TEST,$(TEST))))
+
+check: test valgrind
