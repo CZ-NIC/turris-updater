@@ -19,6 +19,56 @@
 
 #include "arguments.h"
 
+#include <unistd.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <stdbool.h>
+#include <stdio.h>
+
+static void result_extend(size_t *count, struct cmd_op **result, enum cmd_op_type type, const char *param) {
+	*result = realloc(*result, ++ (*count) * sizeof **result);
+	(*result)[*count - 1] = (struct cmd_op) {
+		.type = type,
+		.parameter = param
+	};
+}
+
+static struct cmd_op *provide_help(struct cmd_op *result) {
+	result = realloc(result, 2 * sizeof *result);
+	result[0] = (struct cmd_op) { .type = COT_HELP };
+	result[1] = (struct cmd_op) { .type = COT_CRASH };
+	return result;
+}
+
 struct cmd_op *cmd_args_parse(int argc, char *argv[]) {
-	// TODO
+	// Reset, start scanning from the start.
+	optind = 1;
+	size_t res_count = 0;
+	struct cmd_op *result = NULL;
+	bool exclusive_cmd = false;
+	int c;
+	while ((c = getopt(argc, argv, "hbja:r:")) != -1) {
+		switch (c) {
+			case 'h':
+				exclusive_cmd = true;
+				result_extend(&res_count, &result, COT_HELP, NULL);
+				break;
+			default:
+				return provide_help(result);
+		}
+	}
+	if (argv[optind] != NULL) {
+		fprintf(stderr, "I don't know what to do with %s\n", argv[optind]);
+		return provide_help(result);
+	}
+	if (!res_count) {
+		fprintf(stderr, "Tell me what to do!\n");
+		return provide_help(result);
+	}
+	if (exclusive_cmd && res_count != 1) {
+		fprintf(stderr, "Incompatible commands\n");
+		return provide_help(result);
+	}
+	result_extend(&res_count, &result, COT_EXIT, NULL);
+	return result;
 }

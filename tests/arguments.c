@@ -112,6 +112,9 @@ START_TEST(cmd_args_parse_test) {
 			ck_abort_msg("Extra parameter at position %zu on %s test", i, c->name);
 		if (expected->parameter)
 			ck_assert_msg(strcmp(expected->parameter, op->parameter) == 0, "Parameters at position %zu on %s test don't match: %s vs. %s", i, c->name, expected->parameter, op->parameter);
+		i ++;
+		op ++;
+		expected ++;
 	} while (!terminated);
 	free(ops);
 }
