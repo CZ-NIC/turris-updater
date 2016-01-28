@@ -16,7 +16,7 @@ BINARIES += $(patsubst %,tests/%,$(TESTS))
 
 define DO_C_TEST
 BINARIES_NOTARGET += tests/$(1)
-$(1)_MODULES += $(1)
+$(1)_MODULES += $(1) ctest
 $$(patsubst %,$(O)/.objs/tests/%.o,$$($(1)_MODULES)): check-compile
 $(1)_SYSTEM_LIBS += check m rt
 $(1)_LOCAL_LIBS += updater

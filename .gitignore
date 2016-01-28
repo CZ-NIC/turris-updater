@@ -10,6 +10,7 @@
 /src/opkg-trans/opkg-trans
 # Stuff dump core all over the place.
 core
+vgcore.*
 # Test stuff
 tests/check-compiled
 tests/arguments
