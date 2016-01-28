@@ -33,11 +33,22 @@ struct arg_case {
 // Bad arguments passed, give help and give up
 static struct cmd_op bad_args_ops[] = { { .type = COT_HELP }, { .type = COT_CRASH } };
 static struct cmd_op help_ops[] = { { .type = COT_HELP }, { .type = COT_EXIT } };
+static struct cmd_op journal_ops[] = { { .type = COT_JOURNAL_RESUME }, { .type = COT_EXIT } };
+static struct cmd_op abort_ops[] = { { .type = COT_JOURNAL_ABORT }, { .type = COT_EXIT } };
 static char *no_args[] = { NULL };
 static char *invalid_flag[] = { "-X", NULL };
 static char *free_arg[] = { "argument", NULL };
 static char *help_arg[] = { "-h", NULL };
 static char *help_arg_extra[] = { "-h", "invalid_argument", NULL };
+static char *trans_journal[] = { "-j", NULL };
+static char *trans_journal_extra[] = { "-j", "journal!", NULL };
+static char *trans_abort[] = { "-b", NULL };
+static char *trans_abort_extra[] = { "-b", "journal!", NULL };
+static char *multi_flags_1[] = { "-j", "-h", NULL };
+static char *multi_flags_2[] = { "-j", "-a", "pkg.ipk", NULL };
+static char *multi_flags_3[] = { "-h", "-j", NULL };
+static char *multi_flags_4[] = { "-j", "-b", NULL };
+static char *multi_flags_5[] = { "-b", "-a", "pkg.ipk", NULL };
 
 static struct arg_case cases[] = {
 	{
@@ -79,7 +90,45 @@ static struct arg_case cases[] = {
 		.name = "Help with extra argument",
 		.args = help_arg_extra,
 		.expected_ops = bad_args_ops
-	}
+	},
+	{
+		/*
+		 * Journal resume requested.
+		 */
+		.name = "Journal resume",
+		.args = trans_journal,
+		.expected_ops = journal_ops
+	},
+	{
+		/*
+		 * Journal resume requested, but with an additional parameter.
+		 */
+		.name = "Journal resume with a parameter",
+		.args = trans_journal_extra,
+		.expected_ops = bad_args_ops
+	},
+	{
+		/*
+		 * Journal abort requested.
+		 */
+		.name = "Journal abort",
+		.args = trans_abort,
+		.expected_ops = abort_ops
+	},
+	{
+		/*
+		 * Journal abort requested, but with an additional parameter.
+		 */
+		.name = "Journal abort with a parameter",
+		.args = trans_abort_extra,
+		.expected_ops = bad_args_ops
+	},
+#define MULTI(NUM) { .name = "Multiple incompatible flags #" #NUM, .args = multi_flags_##NUM, .expected_ops = bad_args_ops }
+	MULTI(1),
+	MULTI(2),
+	MULTI(3),
+	MULTI(4),
+	MULTI(5)
 };
 
 START_TEST(cmd_args_parse_test) {
@@ -94,7 +143,9 @@ START_TEST(cmd_args_parse_test) {
 		args[i] = c->args[i - 1];
 	args[count] = NULL;
 	// Call the tested function
+	mark_point();
 	struct cmd_op *ops = cmd_args_parse(count, args);
+	mark_point();
 	// They are already parsed, no longer needed
 	free(args);
 	// Check the result is the same as expected

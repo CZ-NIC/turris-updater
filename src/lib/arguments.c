@@ -53,6 +53,14 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[]) {
 				exclusive_cmd = true;
 				result_extend(&res_count, &result, COT_HELP, NULL);
 				break;
+			case 'j':
+				exclusive_cmd = true;
+				result_extend(&res_count, &result, COT_JOURNAL_RESUME, NULL);
+				break;
+			case 'b':
+				exclusive_cmd = true;
+				result_extend(&res_count, &result, COT_JOURNAL_ABORT, NULL);
+				break;
 			default:
 				return provide_help(result);
 		}
