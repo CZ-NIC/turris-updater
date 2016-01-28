@@ -1,8 +1,12 @@
+# Directories with some compilation products
 /docs/
 /bin/
 /lib/
 /.deps/
 /.objs/
+# The desired results
 *.html
 *.so
 /src/opkg-trans/opkg-trans
+# Stuff dump core all over the place.
+core
