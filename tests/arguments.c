@@ -32,7 +32,12 @@ struct arg_case {
 
 // Bad arguments passed, give help and give up
 static struct cmd_op bad_args_ops[] = { { .type = COT_HELP }, { .type = COT_CRASH } };
+static struct cmd_op help_ops[] = { { .type = COT_HELP }, { .type = COT_EXIT } };
 static char *no_args[] = { NULL };
+static char *invalid_flag[] = { "-X", NULL };
+static char *free_arg[] = { "argument", NULL };
+static char *help_arg[] = { "-h", NULL };
+static char *help_arg_extra[] = { "-h", "invalid_argument", NULL };
 
 static struct arg_case cases[] = {
 	{
@@ -41,6 +46,38 @@ static struct arg_case cases[] = {
 		 */
 		.name = "No args",
 		.args = no_args,
+		.expected_ops = bad_args_ops
+	},
+	{
+		/*
+		 * Invalid flag → give help and exit.
+		 */
+		.name = "Invalid flag",
+		.args = invalid_flag,
+		.expected_ops = bad_args_ops
+	},
+	{
+		/*
+		 * Free-standing argument (without a flag) is invalid → give help and exit.
+		 */
+		.name = "Free-standing argument",
+		.args = free_arg,
+		.expected_ops = bad_args_ops
+	},
+	{
+		/*
+		 * Asked for help → provide it and exit sucessfully.
+		 */
+		.name = "Help",
+		.args = help_arg,
+		.expected_ops = help_ops
+	},
+	{
+		/*
+		 * Extra argument after asking for help → invalid.
+		 */
+		.name = "Help with extra argument",
+		.args = help_arg_extra,
 		.expected_ops = bad_args_ops
 	}
 };
@@ -68,13 +105,13 @@ START_TEST(cmd_args_parse_test) {
 	do {
 		if (expected->type == COT_EXIT || expected->type == COT_CRASH)
 			terminated = true;
-		ck_assert_msg(expected->type == op->type, "Types at position %zu does not match: %d vs %d", i, (int) expected->type, (int) op->type);
+		ck_assert_msg(expected->type == op->type, "Types at position %zu does not match on %s test: %d vs %d", i, c->name, (int) expected->type, (int) op->type);
 		if (expected->parameter && !op->parameter)
-			ck_abort_msg("Missing parameter at position %zu", i);
+			ck_abort_msg("Missing parameter at position %zu on %s test", i, c->name);
 		if (!expected->parameter && op->parameter)
-			ck_abort_msg("Extra parameter at position %zu", i);
+			ck_abort_msg("Extra parameter at position %zu on %s test", i, c->name);
 		if (expected->parameter)
-			ck_assert_str_eq(expected->parameter, op->parameter);
+			ck_assert_msg(strcmp(expected->parameter, op->parameter) == 0, "Parameters at position %zu on %s test don't match: %s vs. %s", i, c->name, expected->parameter, op->parameter);
 	} while (!terminated);
 	free(ops);
 }
