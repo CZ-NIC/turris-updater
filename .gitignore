@@ -10,4 +10,6 @@
 /src/opkg-trans/opkg-trans
 # Stuff dump core all over the place.
 core
+# Test stuff
+tests/check-compiled
 tests/arguments
