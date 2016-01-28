@@ -1,2 +1,8 @@
-docs/
+/docs/
+/bin/
+/lib/
+/.deps/
+/.objs/
 *.html
+*.so
+/src/opkg-trans/opkg-trans
