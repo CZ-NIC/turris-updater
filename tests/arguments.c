@@ -35,6 +35,16 @@ static struct cmd_op bad_args_ops[] = { { .type = COT_HELP }, { .type = COT_CRAS
 static struct cmd_op help_ops[] = { { .type = COT_HELP }, { .type = COT_EXIT } };
 static struct cmd_op journal_ops[] = { { .type = COT_JOURNAL_RESUME }, { .type = COT_EXIT } };
 static struct cmd_op abort_ops[] = { { .type = COT_JOURNAL_ABORT }, { .type = COT_EXIT } };
+static struct cmd_op install_ops[] = { { .type = COT_INSTALL, .parameter = "package.ipk" }, { .type = COT_EXIT } };
+static struct cmd_op remove_ops[] = { { .type = COT_REMOVE, .parameter = "package" }, { .type = COT_EXIT } };
+static struct cmd_op complex_install_ops[] = {
+	{ .type = COT_REMOVE, .parameter = "pkg-1" },
+	{ .type = COT_INSTALL, .parameter = "pkg-2.ipk" },
+	{ .type = COT_REMOVE, .parameter = "pkg-3" },
+	{ .type = COT_REMOVE, .parameter = "pkg-4" },
+	{ .type = COT_INSTALL, .parameter = "pkg-5.ipk" },
+	{ .type = COT_EXIT }
+};
 static char *no_args[] = { NULL };
 static char *invalid_flag[] = { "-X", NULL };
 static char *free_arg[] = { "argument", NULL };
@@ -49,6 +59,11 @@ static char *multi_flags_2[] = { "-j", "-a", "pkg.ipk", NULL };
 static char *multi_flags_3[] = { "-h", "-j", NULL };
 static char *multi_flags_4[] = { "-j", "-b", NULL };
 static char *multi_flags_5[] = { "-b", "-a", "pkg.ipk", NULL };
+static char *install_pkg[] = { "-a", "package.ipk", NULL };
+static char *remove_pkg[] = { "-r", "package", NULL };
+static char *complex_install_remove[] = { "-r", "pkg-1", "-a", "pkg-2.ipk", "-r", "pkg-3", "-r", "pkg-4", "-a", "pkg-5.ipk", NULL };
+static char *install_no_param[] = { "-a", NULL };
+static char *remove_no_param[] = { "-r", NULL };
 
 static struct arg_case cases[] = {
 	{
@@ -128,7 +143,47 @@ static struct arg_case cases[] = {
 	MULTI(2),
 	MULTI(3),
 	MULTI(4),
-	MULTI(5)
+	MULTI(5),
+	{
+		/*
+		 * Install a package.
+		 */
+		.name = "Install",
+		.args = install_pkg,
+		.expected_ops = install_ops
+	},
+	{
+		/*
+		 * Remove a package.
+		 */
+		.name = "Remove",
+		.args = remove_pkg,
+		.expected_ops = remove_ops
+	},
+	{
+		/*
+		 * Remove and install bunch of stuff.
+		 */
+		.name = "Complex install/remove",
+		.args = complex_install_remove,
+		.expected_ops = complex_install_ops
+	},
+	{
+		/*
+		 * Install, but not telling what → error.
+		 */
+		.name = "Install without package param",
+		.args = install_no_param,
+		.expected_ops = bad_args_ops
+	},
+	{
+		/*
+		 * Remove, but not telling what → error.
+		 */
+		.name = "Remove without package param",
+		.args = remove_no_param,
+		.expected_ops = bad_args_ops
+	}
 };
 
 START_TEST(cmd_args_parse_test) {
