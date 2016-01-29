@@ -2,3 +2,10 @@ BINARIES += src/opkg-trans/opkg-trans
 
 opkg-trans_MODULES := main
 opkg-trans_LOCAL_LIBS := updater
+
+valgrind: valgrind-opkg-trans
+
+.PHONY: valgrind valgrind-opkg-trans
+
+valgrind-opkg-trans: $(O)/src/opkg-trans/opkg-trans
+	$(VALGRIND) $< -h

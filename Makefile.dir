@@ -1,3 +1,4 @@
+VALGRIND:=valgrind --leak-check=full --show-leak-kinds=all --track-fds=yes --error-exitcode=1
 include $(S)/build/Makefile.top
 
 include $(S)/design/Makefile.dir
