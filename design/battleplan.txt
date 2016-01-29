@@ -69,7 +69,7 @@ descriptions might be missing as well.
 
 This however contains compatibility wrappers to provide opkg and
 updater.sh interface, so it can be used as a drop-in replacement of
-both opkg and old updater.
+both opkg and the old updater.
 
 Full support of the requirements and language
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
