@@ -3,6 +3,7 @@ DESIGN_DOCS := \
 	ideas \
 	opkg \
 	language \
-	morpher
+	morpher \
+	internals
 
 DOCS += $(addprefix design/,$(DESIGN_DOCS))
