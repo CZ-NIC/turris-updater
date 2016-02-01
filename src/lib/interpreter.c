@@ -35,6 +35,7 @@ struct interpreter *interpreter_create(void) {
 	*result = (struct interpreter) {
 		.state = luaL_newstate()
 	};
+	luaL_openlibs(result->state);
 	return result;
 }
 
