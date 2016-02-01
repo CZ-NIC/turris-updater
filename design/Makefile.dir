@@ -4,6 +4,7 @@ DESIGN_DOCS := \
 	opkg \
 	language \
 	morpher \
-	internals
+	internals \
+	testing
 
 DOCS += $(addprefix design/,$(DESIGN_DOCS))
