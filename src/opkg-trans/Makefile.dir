@@ -1,6 +1,13 @@
 BINARIES += src/opkg-trans/opkg-trans
 
-opkg-trans_MODULES := main
+# TODO: Alternatively compile the thing!
+OPKG_AUTOLOAD := $(abspath $(wildcard $(S)/src/opkg-trans/autoload/*.lua))
+$(O)/.gen/src/opkg-trans/lautoload.embedlist: $(S)/src/lib/gen_embed.sh $(S)/src/lib/embed_types.h $(OPKG_AUTOLOAD)
+	$(M) GEN $@
+	$(Q)mkdir -p $(dir $@)
+	$(Q)$< .lua autoload $(S)/src/lib/embed_types.h $(OPKG_AUTOLOAD) >$@
+
+opkg-trans_MODULES := main lautoload.embed
 opkg-trans_LOCAL_LIBS := updater
 
 valgrind: valgrind-opkg-trans
