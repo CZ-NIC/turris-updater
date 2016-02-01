@@ -1,0 +1,73 @@
+Delayed morphers
+================
+
+It is possible to create Lua functions that may be called with or
+without parentheses. However, this needs a small trick, especially
+when the functions have multiple parameters or even variable number of
+parameters.
+
+When calling the function with parentheses, it happens as a single
+call:
+
+  Command("string", "string", {param = 1})
+
+When calling without parameters (and also without commas), the call is
+actually multiple calls, each with a single added parameters. So these
+two things are equivalent:
+
+  Command "string" "string" {param = 1}
+  Command("string")("string")({param = 1})
+
+Therefore, to make this work, every call must store the parameter
+somewhere and then return something that can be called. That something
+is a table with metatable. The table contains the parameters and
+appends it there. The metatable specifies that it can be called.
+
+After all the parameters are collected, the real function may be
+called. For this to work, one active morpher must be kept in a global
+variable.
+
+ * When another function is started. The old one is first executed and
+   the result is morphed into the real result.
+ * When an end of script is reached.
+ * When the morpher is used. We can use meta-tables to hook into the
+   events, like stringyfying the result, or indexing it. It would
+   first morph into the real result and then perform the operation on
+   the morphed object.
+
+The morphing is calling the real function and replacing the insides of
+the morpher object with insides of the result. Also, the metatable
+needs to be switched. This however works only on single table results.
+
+The morpher functions can be generated from the real function,
+therefore this machinery needs to be written just once.
+
+The morphers should act similarly as if the functions were called
+directly, except that some error conditions and side effects may
+happen later on.
+
+Some of these tricks may be demonstrated on the following code (until
+the real code is written):
+
+
+	#!/usr/bin/lua
+
+	local m = {
+		__call = function(table, text)
+			print "Meta"
+			return x(text)
+		end,
+		__tostring = function(table)
+			print "Morph"
+			return tostring(setmetatable(table, nil))
+		end
+	}
+
+	function x(text)
+		print "Called"
+		print(text)
+		return setmetatable({ t = text }, m)
+	end
+
+	local y = x"hello" "y" {} ()
+	print(y)

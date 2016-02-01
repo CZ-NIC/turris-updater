@@ -1,1 +1,8 @@
-DOCS += $(addprefix design/,requirements ideas opkg)
+DESIGN_DOCS := \
+	requirements \
+	ideas \
+	opkg \
+	language \
+	morpher
+
+DOCS += $(addprefix design/,$(DESIGN_DOCS))
