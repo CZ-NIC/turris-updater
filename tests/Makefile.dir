@@ -11,7 +11,9 @@ clean: check-clean
 check-clean:
 	rm -rf $(O)/tests/check-compiled
 
-C_TESTS := arguments
+C_TESTS := \
+	arguments \
+	interpreter
 
 define DO_C_TEST
 
