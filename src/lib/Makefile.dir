@@ -1,0 +1,4 @@
+LIBRARIES += src/lib/libupdater
+
+libupdater_MODULES := \
+	arguments
