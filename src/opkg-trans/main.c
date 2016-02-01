@@ -18,6 +18,7 @@
  */
 
 #include "../lib/arguments.h"
+#include "../lib/interpreter.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -37,6 +38,7 @@ const char *help =
 int main(int argc, char *argv[]) {
 	struct cmd_op *ops = cmd_args_parse(argc, argv);
 	struct cmd_op *op = ops;
+	struct interpreter *interpreter = interpreter_create();
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
 			case COT_HELP:
@@ -53,5 +55,6 @@ int main(int argc, char *argv[]) {
 		}
 	enum cmd_op_type exit_type = op->type;
 	free(ops);
+	interpreter_destroy(interpreter);
 	return exit_type == COT_EXIT ? 0 : 1;
 }
