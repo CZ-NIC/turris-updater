@@ -71,4 +71,3 @@ the real code is written):
 
 	local y = x"hello" "y" {} ()
 	print(y)
-	print(y)
