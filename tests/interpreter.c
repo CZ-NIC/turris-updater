@@ -20,6 +20,8 @@
 #include "ctest.h"
 #include "../src/lib/interpreter.h"
 
+#include <stdbool.h>
+
 struct loading_case {
 	// Just a name of the test
 	const char *name;
@@ -27,6 +29,8 @@ struct loading_case {
 	const char **inputs;
 	// Number of the chunk it should throw error on (single one per test). last+1 = all OK
 	size_t fail_on;
+	// Perform auto-load of basic lua system?
+	bool autoload;
 };
 
 const char *ok[] = { "local x = 1;", NULL };
@@ -36,18 +40,22 @@ const char *runtime[] = { "error('Hey, error');", NULL };
 const char *shared_context[] = { "function xyz() return 1 ; end", "if xyz() ~= 1 then error('does not match'); end", NULL };
 const char *survival[] = { "invalid_func();", "local x = 1;", NULL };
 const char *library[] = { "next({});", "getfenv();", "string.find('x', 'y');", "math.abs(-1);", "os.clock();", "debug.getregistry()", NULL };
+const char *autoloaded[] = { "testing.values();", NULL };
 
 struct loading_case loading_cases[] = {
-	{ "OK", ok, 1 },
-	{ "Syntax error", syntax, 0 },
-	{ "Invalid function", invalid_func, 0 },
-	{ "Runtime error", runtime, 0 },
+	{ "OK", ok, 1, false },
+	{ "Syntax error", syntax, 0, false },
+	{ "Invalid function", invalid_func, 0, false },
+	{ "Runtime error", runtime, 0, false },
 	// Check that function created in the first chunk can be used in the second one (no error here)
-	{ "Shared context", shared_context, 2 },
+	{ "Shared context", shared_context, 2, false },
 	// Error in the fist call, but not in the second ‒ the interpreter survives
-	{ "Survival", survival, 0 },
+	{ "Survival", survival, 0, false },
 	// Check a selection of library functions is loaded
-	{ "Library functions", library, 6 }
+	{ "Library functions", library, 6, false },
+	// Check the auto-loaded lua is available (but only when we autoload)
+	{ "Not autoloaded", autoloaded, 1, true },
+	{ "Not autoloaded", autoloaded, 0, false }
 };
 
 START_TEST(loading) {
@@ -64,6 +72,8 @@ START_TEST(loading) {
 	 */
 	struct loading_case *c = &loading_cases[_i / 2];
 	struct interpreter *interpreter = interpreter_create();
+	if (c->autoload)
+		interpreter_autoload(interpreter);
 	mark_point();
 	for (size_t i = 0; c->inputs[i]; i ++) {
 		const char *result = interpreter_include(interpreter, c->inputs[i], _i % 2 ? strlen(c->inputs[i]) : 0, "Chunk");
