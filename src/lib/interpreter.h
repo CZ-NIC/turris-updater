@@ -39,6 +39,14 @@ struct interpreter *interpreter_create(void) __attribute__((malloc));
  * Src is just a name used in error messages.
  */
 const char *interpreter_include(struct interpreter *interpreter, const char *code, size_t length, const char *src) __attribute__((nonnull));
+
+/*
+ * Run all the chunks in the autoload directory (or, actually, embedded
+ * in the autoload array, but that one is generated from there.
+ *
+ * Returns error if any happens, NULL if everything is OK.
+ */
+const char *interpreter_autoload(struct interpreter *interpreter) __attribute__((nonnull));
 /*
  * Destroy an interpreter and return its memory.
  */

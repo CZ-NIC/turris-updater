@@ -19,13 +19,10 @@
 
 #include "../lib/arguments.h"
 #include "../lib/interpreter.h"
-#include "../lib/embed_types.h"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
-
-extern struct file_index_element autoload[];
 
 const char *help =
 "opkg-trans -j			Recover from a crash/reboot from a journal.\n"
@@ -44,12 +41,10 @@ int main(int argc, char *argv[]) {
 	struct cmd_op *op = ops;
 	// Prepare the interpreter and load it with the embedded lua scripts
 	struct interpreter *interpreter = interpreter_create();
-	for (struct file_index_element *el = autoload; el->name; el ++) {
-		const char *err = interpreter_include(interpreter, (const char *) el->data, el->size, el->name);
-		if (err) {
-			fputs(err, stderr);
-			return 1;
-		}
+	const char *error = interpreter_autoload(interpreter);
+	if (error) {
+		fputs(error, stderr);
+		return 1;
 	}
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {

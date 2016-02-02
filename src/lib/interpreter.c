@@ -18,6 +18,7 @@
  */
 
 #include "interpreter.h"
+#include "embed_types.h"
 
 #include <lua.h>
 #include <lualib.h>
@@ -25,6 +26,9 @@
 #include <assert.h>
 #include <string.h>
 #include <stdbool.h>
+
+// From the embed file, lua things that are auto-loaded
+extern struct file_index_element autoload[];
 
 struct interpreter {
 	lua_State *state;
@@ -74,6 +78,15 @@ const char *interpreter_include(struct interpreter *interpreter, const char *cod
 		return lua_tostring(interpreter->state, -1);
 	else
 		return NULL;
+}
+
+const char *interpreter_autoload(struct interpreter *interpreter) {
+	for (struct file_index_element *el = autoload; el->name; el ++) {
+		const char *err = interpreter_include(interpreter, (const char *) el->data, el->size, el->name);
+		if (err)
+			return err;
+	}
+	return NULL;
 }
 
 void interpreter_destroy(struct interpreter *interpreter) {
