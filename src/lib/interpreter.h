@@ -47,6 +47,36 @@ const char *interpreter_include(struct interpreter *interpreter, const char *cod
  * Returns error if any happens, NULL if everything is OK.
  */
 const char *interpreter_autoload(struct interpreter *interpreter) __attribute__((nonnull));
+
+/*
+ * The following functions can be used to conveniently call a function in lua.
+ * The first one calls a function provided by its name. Dot and colon notation
+ * is allowed (eg. math.abs is allowed, global_string:find as well), with
+ * multiple levels of dots.
+ *
+ * The function returns an error message on error and NULL when OK. The result_count
+ * is set on successful call to the number of results the function returned. The
+ * result_count may be set to NULL (in which case nothing is set).
+ *
+ * You can use the interpreter_collect_results to retrieve the results of the function.
+ * It returns -1 if everything went well or an index of the first value that had a wrong
+ * type.
+ *
+ * Both of these functions pass the parameters and results through their variadic
+ * arguments (passed as values in the case of call and as pointers in the collect_results
+ * case). Each letter of the spec specifies one passed type and usually one parameter:
+ * - b: bool
+ * - n: nil (no parameter)
+ * - i: int
+ * - s: string (null-terminated)
+ * - S: binary string (with extra parameter ‒ size_t ‒ length)
+ * - f: double
+ *
+ * We use the „usual“ C types (eg. int, not lua_Integer). These functions may not be
+ * used in case of more complex data types.
+ */
+const char *interpreter_call(struct interpreter *interpreter, const char *function, size_t *result_count, const char *param_spec, ...);
+int interpreter_collect_results(struct interpreter *interpreter, const char *spec, ...);
 /*
  * Destroy an interpreter and return its memory.
  */

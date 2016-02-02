@@ -89,6 +89,14 @@ const char *interpreter_autoload(struct interpreter *interpreter) {
 	return NULL;
 }
 
+const char *interpreter_call(struct interpreter *interpreter, const char *function, size_t *result_count, const char *param_spec, ...) {
+	return NULL;
+}
+
+int interpreter_collect_results(struct interpreter *interpreter, const char *spec, ...) {
+	return 0;
+}
+
 void interpreter_destroy(struct interpreter *interpreter) {
 	assert(interpreter->state);
 	lua_close(interpreter->state);

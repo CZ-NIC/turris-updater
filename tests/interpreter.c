@@ -21,6 +21,7 @@
 #include "../src/lib/interpreter.h"
 
 #include <stdbool.h>
+#include <stdint.h>
 
 struct loading_case {
 	// Just a name of the test
@@ -87,11 +88,112 @@ START_TEST(loading) {
 }
 END_TEST
 
+#define START_INTERPRETER_TEST(NAME) \
+	START_TEST(NAME) { \
+		struct interpreter *interpreter = interpreter_create(); \
+		interpreter_autoload(interpreter); \
+		mark_point();
+
+#define END_INTERPRETER_TEST \
+		mark_point(); \
+		interpreter_destroy(interpreter); \
+	} \
+	END_TEST
+
+START_INTERPRETER_TEST(call_error)
+	/*
+	 * Check we can call a function and an error would be
+	 * propagated.
+	 */
+	const char *error = interpreter_call(interpreter, "error", NULL, "s", "Test error");
+	ck_assert_msg(error, "Didn't get an error");
+	ck_assert_msg(strstr(error, "Test error"), "Error %s doesn't contain Test error", error);
+END_INTERPRETER_TEST
+
+START_INTERPRETER_TEST(call_noparams)
+	/*
+	 * Test we may call a function and extract its results.
+	 * This one has no parameters.
+	 *
+	 * The function is „return 42, "hello"“
+	 */
+	size_t results;
+	const char *error = interpreter_call(interpreter, "testing.values", &results, "");
+	ck_assert_msg(!error, "Failed to run function: %s", error);
+	ck_assert_uint_eq(2, results);
+	int i1, i2;
+	const char *s;
+	size_t l;
+	// The first one can't convert result #1, because it is string, not int
+	ck_assert_int_eq(1, interpreter_collect_results(interpreter, "ii", &i1, &i2));
+	// The first one is already set.
+	ck_assert_int_eq(42, i1);
+	// The second one converts correctly (and the data aren't damaged)
+	ck_assert_int_eq(-1, interpreter_collect_results(interpreter, "is", &i1, &s));
+	ck_assert_int_eq(42, i1);
+	ck_assert_str_eq("hello", s);
+	// We can extract the second as binary string as well.
+	ck_assert_int_eq(-1, interpreter_collect_results(interpreter, "iS", &i1, &s, &l));
+	ck_assert_str_eq("hello", s);
+	ck_assert_uint_eq(5, l);
+	// We aren't allowed to request more params, not even nils
+	ck_assert_int_eq(2, interpreter_collect_results(interpreter, "iSn", &i1, &s, &l));
+	i1 = 0;
+	// But we are allowed to request less
+	ck_assert_int_eq(-1, interpreter_collect_results(interpreter, "i", &i1));
+END_INTERPRETER_TEST
+
+START_INTERPRETER_TEST(call_method)
+	/*
+	 * Test we can call a method. Check the self is set correctly.
+	 */
+	size_t results;
+	const char *error = interpreter_call(interpreter, "testing:method", &results, "");
+	ck_assert_msg(!error, "Failed to run function: %s", error);
+	ck_assert_uint_eq(2, results);
+	const char *s;
+	ck_assert_int_eq(-1, interpreter_collect_results(interpreter, "s", &s));
+	ck_assert_str_eq("table", s);
+	mark_point();
+	// Call once more, but as a function, not method. The self shall be unset and therefore nil.
+	error = interpreter_call(interpreter, "testing.method", &results, "");
+	ck_assert_msg(!error, "Failed to run function: %s", error);
+	ck_assert_uint_eq(2, results);
+	ck_assert_int_eq(-1, interpreter_collect_results(interpreter, "s", &s));
+	ck_assert_str_eq("nil", s);
+END_INTERPRETER_TEST
+
+START_INTERPRETER_TEST(call_echo)
+	/*
+	 * Test we can pass some types of parameters and get the results back.
+	 */
+	size_t results;
+	const char *error = interpreter_call(interpreter, "testing.subtable.echo", &results, "ibsnf", 42, true, "hello", 3.1415L);
+	ck_assert_msg(!error, "Failed to run function: %s", error);
+	ck_assert_uint_eq(5, results);
+	int i;
+	bool b;
+	const char *s;
+	size_t l;
+	double f;
+	// Mix the binary and null-terminated string ‒ that is allowed
+	ck_assert_int_eq(-1, interpreter_collect_results(interpreter, "ibSnf", &i, &b, &s, &l, &f));
+	ck_assert_int_eq(42, i);
+	ck_assert(b);
+	ck_assert_str_eq(s, "hello");
+	ck_assert_uint_eq(5, l);
+	ck_assert_msg(3.1414 < f < 3.1416, "Wrong double got through: %lf", f);
+END_INTERPRETER_TEST
+
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Lua interpreter");
 	TCase *interpreter = tcase_create("loading");
 	// Run the tests ‒ each test case takes 2*i and 2*i + 1 indices
 	tcase_add_loop_test(interpreter, loading, 0, 2 * sizeof loading_cases / sizeof *loading_cases);
+	tcase_add_test(interpreter, call_error);
+	tcase_add_test(interpreter, call_noparams);
+	tcase_add_test(interpreter, call_method);
+	tcase_add_test(interpreter, call_echo);
 	suite_add_tcase(result, interpreter);
 	return result;
 }
