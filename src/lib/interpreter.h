@@ -36,9 +36,10 @@ struct interpreter *interpreter_create(void) __attribute__((malloc));
  * the length of the code block. If zero, it is taken as a
  * null-terminated string.
  *
- * Src is just a name used in error messages.
+ * The result of the chunk is stored under name into the global
+ * table.
  */
-const char *interpreter_include(struct interpreter *interpreter, const char *code, size_t length, const char *src) __attribute__((nonnull));
+const char *interpreter_include(struct interpreter *interpreter, const char *code, size_t length, const char *name) __attribute__((nonnull));
 
 /*
  * Run all the chunks in the autoload directory (or, actually, embedded

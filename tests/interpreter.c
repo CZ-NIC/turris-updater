@@ -74,7 +74,7 @@ START_TEST(loading) {
 	struct loading_case *c = &loading_cases[_i / 2];
 	struct interpreter *interpreter = interpreter_create();
 	if (c->autoload)
-		interpreter_autoload(interpreter);
+		ck_assert_msg(!interpreter_autoload(interpreter), "Error autoloading");
 	mark_point();
 	for (size_t i = 0; c->inputs[i]; i ++) {
 		const char *result = interpreter_include(interpreter, c->inputs[i], _i % 2 ? strlen(c->inputs[i]) : 0, "Chunk");
@@ -91,7 +91,7 @@ END_TEST
 #define START_INTERPRETER_TEST(NAME) \
 	START_TEST(NAME) { \
 		struct interpreter *interpreter = interpreter_create(); \
-		interpreter_autoload(interpreter); \
+		ck_assert_msg(!interpreter_autoload(interpreter), "Error autoloading"); \
 		mark_point();
 
 #define END_INTERPRETER_TEST \

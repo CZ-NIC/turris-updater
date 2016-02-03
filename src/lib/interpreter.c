@@ -62,10 +62,57 @@ const char *reader(lua_State *L __attribute__((unused)), void *data_raw, size_t 
 	}
 }
 
+static int err_handler(lua_State *L) {
+	/*
+	 * Call stacktraceplus.stacktrace(msg). But in a safe way,
+	 * if it doesn't work, just return msg. This may happen
+	 * before the stacktraceplus library is loaded.
+	 */
+	int top = lua_gettop(L);
+	/*
+	 * Make sure we have enough space for:
+	 * • stacktraceplus
+	 * • stacktrace function
+	 * • its parameter
+	 * • another copy of the error message.
+	 *
+	 * The manual isn't clear if the old stack is reused for
+	 * the error handler, or a new one is provided. So just
+	 * expect the worst.
+	 */
+	if (!lua_checkstack(L, 4))
+		return 1; // Reuse the provided param as a result
+	lua_getfield(L, LUA_GLOBALSINDEX, "stacktraceplus");
+	if (!lua_istable(L, -1))
+		goto FAIL;
+	lua_getfield(L, -1, "stacktrace");
+	if (!lua_isfunction(L, -1))
+		goto FAIL;
+	lua_pushvalue(L, top);
+	int result = lua_pcall(L, 1, 1, 0);
+	if (result)
+		goto FAIL;
+	// The result is on the top. Just return it.
+	return 1;
+FAIL:	// In case we fail to provide the error message
+	// Copy the original message
+	lua_pushvalue(L, top);
+	return 1;
+}
+
+static int push_err_handler(lua_State *L) {
+	luaL_checkstack(L, 1, "Not enough space to push error handler");
+	lua_pushcfunction(L, err_handler);
+	return lua_gettop(L);
+}
+
 const char *interpreter_include(struct interpreter *interpreter, const char *code, size_t length, const char *src) {
+	assert(interpreter->state);
+	// We don't know how dirty stack we get here
+	luaL_checkstack(interpreter->state, 2, "Can't create space for interpreter_include");
 	if (!length) // It is a null-terminated string, compute its length
 		length = strlen(code);
-	assert(interpreter->state);
+	push_err_handler(interpreter->state);
 	int result = lua_load(interpreter->state, reader, &(struct reader_data) {
 		.chunk = code,
 		.length = length
@@ -73,17 +120,28 @@ const char *interpreter_include(struct interpreter *interpreter, const char *cod
 	if (result)
 		// There's been an error. Extract it (top of the stack).
 		return lua_tostring(interpreter->state, -1);
-	// TODO: Better error function with a backtrace?
-	result = lua_pcall(interpreter->state, 0, 0, 0);
+	/*
+	 * The stack:
+	 * • … (unknown stuff from before)
+	 * • The error handler (-2)
+	 * • The chunk to call (-1)
+	 */
+	result = lua_pcall(interpreter->state, 0, 1, -2);
+	// Remove the error handler
+	lua_remove(interpreter->state, -2);
 	if (result)
 		return lua_tostring(interpreter->state, -1);
-	else
-		return NULL;
+	// Store the result (pops it from the stack)
+	lua_setfield(interpreter->state, LUA_GLOBALSINDEX, src);
+	return NULL;
 }
 
 const char *interpreter_autoload(struct interpreter *interpreter) {
 	for (struct file_index_element *el = autoload; el->name; el ++) {
-		const char *err = interpreter_include(interpreter, (const char *) el->data, el->size, el->name);
+		const char *underscore = rindex(el->name, '_');
+		// Use the part after the last underscore as the name
+		const char *name = underscore ? underscore + 1 : el->name;
+		const char *err = interpreter_include(interpreter, (const char *) el->data, el->size, name);
 		if (err)
 			return err;
 	}
@@ -114,6 +172,7 @@ const char *interpreter_call(struct interpreter *interpreter, const char *functi
 	lua_State *L = interpreter->state;
 	// Clear the stack
 	lua_pop(L, lua_gettop(L));
+	int handler = push_err_handler(L);
 	/*
 	 * Make sure the index 1 always contains the
 	 * table we want to look up in. We start at the global
@@ -172,8 +231,8 @@ const char *interpreter_call(struct interpreter *interpreter, const char *functi
 		}
 	}
 	va_end(args);
-	// TODO: Better error function with a backtrace?
-	int result = lua_pcall(L, nparams, LUA_MULTRET, 0);
+	int result = lua_pcall(L, nparams, LUA_MULTRET, handler);
+	lua_remove(L, handler);
 	if (result)
 		// There's an error on top of the stack
 		return lua_tostring(interpreter->state, -1);
