@@ -1,4 +1,6 @@
 LIBRARIES += src/lib/libupdater
 
 libupdater_MODULES := \
-	arguments
+	arguments \
+	events
+libupdater_PKG_CONFIGS := libevent
