@@ -119,7 +119,7 @@ START_INTERPRETER_TEST(call_noparams)
 	 */
 	size_t results;
 	const char *error = interpreter_call(interpreter, "testing.values", &results, "");
-	ck_assert_msg(!error, "Failed to run function: %s", error);
+	ck_assert_msg(!error, "Failed to run the function: %s", error);
 	ck_assert_uint_eq(2, results);
 	int i1, i2;
 	const char *s;
@@ -149,7 +149,7 @@ START_INTERPRETER_TEST(call_method)
 	 */
 	size_t results;
 	const char *error = interpreter_call(interpreter, "testing:method", &results, "");
-	ck_assert_msg(!error, "Failed to run function: %s", error);
+	ck_assert_msg(!error, "Failed to run the function: %s", error);
 	ck_assert_uint_eq(2, results);
 	const char *s;
 	ck_assert_int_eq(-1, interpreter_collect_results(interpreter, "s", &s));
@@ -169,7 +169,7 @@ START_INTERPRETER_TEST(call_echo)
 	 */
 	size_t results;
 	const char *error = interpreter_call(interpreter, "testing.subtable.echo", &results, "ibsnf", 42, true, "hello", 3.1415L);
-	ck_assert_msg(!error, "Failed to run function: %s", error);
+	ck_assert_msg(!error, "Failed to run ithe function: %s", error);
 	ck_assert_uint_eq(5, results);
 	int i;
 	bool b;

@@ -74,6 +74,14 @@ const char *interpreter_autoload(struct interpreter *interpreter) __attribute__(
  *
  * We use the „usual“ C types (eg. int, not lua_Integer). These functions may not be
  * used in case of more complex data types.
+ *
+ * Note that these functions don't look into the environment, but into the global
+ * table. The idea is that we may want to call something internally from C function
+ * called from a sandbox and we should be able to do so. The C code is trusted,
+ * so it is not a security risk.
+ *
+ * The call function clears the lua stack. The _collect_results leaves it intact,
+ * therefore it may be called multiple times on the same result.
  */
 const char *interpreter_call(struct interpreter *interpreter, const char *function, size_t *result_count, const char *param_spec, ...);
 int interpreter_collect_results(struct interpreter *interpreter, const char *spec, ...);

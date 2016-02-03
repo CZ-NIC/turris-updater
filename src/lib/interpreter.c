@@ -89,7 +89,61 @@ const char *interpreter_autoload(struct interpreter *interpreter) {
 	return NULL;
 }
 
+static void lookup(lua_State *L, char **name, char **end) {
+	/*
+	 * Look-up a value in the table on the top of the stack
+	 * and move in the string being parsed. Also remove the
+	 * old table.
+	 */
+	// Terminate the string (replace the separator)
+	**end = '\0';
+	// Do the lookup
+	lua_getfield(L, -1, *name);
+	// Move in the string
+	*name = *end + 1;
+	// And get rid of the old one
+	lua_remove(L, -2);
+}
+
 const char *interpreter_call(struct interpreter *interpreter, const char *function, size_t *result_count, const char *param_spec, ...) {
+	// Get a read-write version of the function string.
+	size_t flen = strlen(function);
+	char *f = alloca(flen + 1);
+	strcpy(f, function);
+	lua_State *L = interpreter->state;
+	// Clear the stack
+	lua_pop(L, lua_gettop(L));
+	/*
+	 * Make sure the index 1 always contains the
+	 * table we want to look up in. We start at the global
+	 * scope.
+	 */
+	lua_pushvalue(L, LUA_GLOBALSINDEX);
+	char *pos;
+	while ((pos = strchr(f, '.'))) {
+		// Look up the new table in the current one, moving the position
+		lookup(L, &f, &pos);
+	}
+	size_t nparams = 0;
+	if ((pos = strchr(f, ':'))) {
+		// It is a method. Look up the table first
+		lookup(L, &f, &pos);
+		// Look up the function in the table
+		lua_getfield(L, -1, f);
+		// set „self“ to the table we looked up in
+		lua_pushvalue(L, -2);
+		nparams = 1;
+	} else
+		lua_getfield(L, -1, f);
+	// Drop the table we looked up the function inside
+	lua_remove(L, -2 - nparams);
+	// TODO: Put the params there
+	// TODO: Better error function with a backtrace?
+	int result = lua_pcall(L, nparams, LUA_MULTRET, 0);
+	if (result)
+		// There's an error on top of the stack
+		return lua_tostring(interpreter->state, -1);
+	*result_count = lua_gettop(L);
 	return NULL;
 }
 
