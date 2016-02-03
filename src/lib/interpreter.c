@@ -26,6 +26,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdarg.h>
 
 // From the embed file, lua things that are auto-loaded
 extern struct file_index_element autoload[];
@@ -137,7 +138,38 @@ const char *interpreter_call(struct interpreter *interpreter, const char *functi
 		lua_getfield(L, -1, f);
 	// Drop the table we looked up the function inside
 	lua_remove(L, -2 - nparams);
-	// TODO: Put the params there
+	// Reserve space for the parameters. One letter in param_spec is one param.
+	size_t spec_len = strlen(param_spec);
+	luaL_checkstack(L, spec_len, "Couldn't grow the LUA stack for parameters");
+	nparams += spec_len;
+	va_list args;
+	va_start(args, param_spec);
+	for (; *param_spec; param_spec ++) {
+		switch (*param_spec) {
+#define CASE(TYPE, SIGN, FUN) \
+			case SIGN: { \
+				TYPE x = va_arg(args, TYPE); \
+				lua_push##FUN(L, x); \
+				break; \
+			}
+			// Represent bool as int, because of C type promotions
+			CASE(int, 'b', boolean);
+			case 'n': // No param here
+				lua_pushnil(L);
+				break;
+			CASE(int, 'i', integer);
+			CASE(const char *, 's', string);
+			case 'S': { // binary string, it has 2 parameters
+				const char *s = va_arg(args, const char *);
+				size_t len = va_arg(args, size_t);
+				lua_pushlstring(L, s, len);
+				break;
+			}
+			CASE(double, 'f', number);
+#undef CASE
+		}
+	}
+	va_end(args);
 	// TODO: Better error function with a backtrace?
 	int result = lua_pcall(L, nparams, LUA_MULTRET, 0);
 	if (result)

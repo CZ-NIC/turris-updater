@@ -150,7 +150,7 @@ START_INTERPRETER_TEST(call_method)
 	size_t results;
 	const char *error = interpreter_call(interpreter, "testing:method", &results, "");
 	ck_assert_msg(!error, "Failed to run the function: %s", error);
-	ck_assert_uint_eq(2, results);
+	ck_assert_uint_eq(1, results);
 	const char *s;
 	ck_assert_int_eq(-1, interpreter_collect_results(interpreter, "s", &s));
 	ck_assert_str_eq("table", s);
@@ -158,7 +158,7 @@ START_INTERPRETER_TEST(call_method)
 	// Call once more, but as a function, not method. The self shall be unset and therefore nil.
 	error = interpreter_call(interpreter, "testing.method", &results, "");
 	ck_assert_msg(!error, "Failed to run function: %s", error);
-	ck_assert_uint_eq(2, results);
+	ck_assert_uint_eq(1, results);
 	ck_assert_int_eq(-1, interpreter_collect_results(interpreter, "s", &s));
 	ck_assert_str_eq("nil", s);
 END_INTERPRETER_TEST
@@ -169,7 +169,7 @@ START_INTERPRETER_TEST(call_echo)
 	 */
 	size_t results;
 	const char *error = interpreter_call(interpreter, "testing.subtable.echo", &results, "ibsnf", 42, true, "hello", 3.1415L);
-	ck_assert_msg(!error, "Failed to run ithe function: %s", error);
+	ck_assert_msg(!error, "Failed to run the function: %s", error);
 	ck_assert_uint_eq(5, results);
 	int i;
 	bool b;
@@ -182,7 +182,7 @@ START_INTERPRETER_TEST(call_echo)
 	ck_assert(b);
 	ck_assert_str_eq(s, "hello");
 	ck_assert_uint_eq(5, l);
-	ck_assert_msg(3.1414 < f < 3.1416, "Wrong double got through: %lf", f);
+	ck_assert_msg(3.1414 < f && f < 3.1416, "Wrong double got through: %lf", f);
 END_INTERPRETER_TEST
 
 Suite *gen_test_suite(void) {
