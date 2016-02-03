@@ -168,7 +168,7 @@ START_INTERPRETER_TEST(call_echo)
 	 * Test we can pass some types of parameters and get the results back.
 	 */
 	size_t results;
-	const char *error = interpreter_call(interpreter, "testing.subtable.echo", &results, "ibsnf", 42, true, "hello", 3.1415L);
+	const char *error = interpreter_call(interpreter, "testing.subtable.echo", &results, "ibsnf", 42, true, "hello", 3.1415);
 	ck_assert_msg(!error, "Failed to run the function: %s", error);
 	ck_assert_uint_eq(5, results);
 	int i;
@@ -183,6 +183,9 @@ START_INTERPRETER_TEST(call_echo)
 	ck_assert_str_eq(s, "hello");
 	ck_assert_uint_eq(5, l);
 	ck_assert_msg(3.1414 < f && f < 3.1416, "Wrong double got through: %lf", f);
+	// Check we can skip parameters when reading
+	ck_assert_int_eq(-1, interpreter_collect_results(interpreter, "--s", &s));
+	ck_assert_str_eq(s, "hello");
 END_INTERPRETER_TEST
 
 Suite *gen_test_suite(void) {

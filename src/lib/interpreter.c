@@ -166,6 +166,8 @@ const char *interpreter_call(struct interpreter *interpreter, const char *functi
 				break;
 			}
 			CASE(double, 'f', number);
+			default:
+				assert(0);
 #undef CASE
 		}
 	}
@@ -180,7 +182,63 @@ const char *interpreter_call(struct interpreter *interpreter, const char *functi
 }
 
 int interpreter_collect_results(struct interpreter *interpreter, const char *spec, ...) {
-	return 0;
+	lua_State *L = interpreter->state;
+	size_t top = lua_gettop(L);
+	size_t pos = 0;
+	va_list args;
+	va_start(args, spec);
+	for (; *spec; spec ++) {
+		if (pos >= top)
+			return pos;
+		switch (*spec) {
+			case 'b': {
+				bool *b = va_arg(args, bool *);
+				*b = lua_toboolean(L, pos + 1);
+				break;
+			}
+			case 'i':
+				if (lua_isnumber(L, pos + 1)) {
+					int *i = va_arg(args, int *);
+					*i = lua_tointeger(L, pos + 1);
+				} else
+					return pos;
+				break;
+			case 'n':
+				if (!lua_isnil(L, pos + 1))
+					return pos;
+				// Fall through to skipping the the '-' case
+			case '-':
+				// Just skipping the position
+				break;
+			case 's':
+				if (lua_isstring(L, pos + 1)) {
+					const char **s = va_arg(args, const char **);
+					*s = lua_tostring(L, pos + 1);
+				} else
+					return pos;
+				break;
+			case 'S':
+				if (lua_isstring(L, pos + 1)) {
+					const char **s = va_arg(args, const char **);
+					size_t *l = va_arg(args, size_t *);
+					*s = lua_tolstring(L, pos + 1, l);
+				} else
+					return pos;
+				break;
+			case 'f':
+				if (lua_isnumber(L, pos + 1)) {
+					double *d = va_arg(args, double *);
+					*d = lua_tonumber(L, pos + 1);
+				} else
+					return pos;
+				break;
+			default:
+				assert(0);
+		}
+		pos ++;
+	}
+	va_end(args);
+	return -1;
 }
 
 void interpreter_destroy(struct interpreter *interpreter) {

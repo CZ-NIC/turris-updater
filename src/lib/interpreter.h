@@ -66,7 +66,8 @@ const char *interpreter_autoload(struct interpreter *interpreter) __attribute__(
  * arguments (passed as values in the case of call and as pointers in the collect_results
  * case). Each letter of the spec specifies one passed type and usually one parameter:
  * - b: bool
- * - n: nil (no parameter)
+ * - n: nil (no parameter).
+ * - -: Skip parameter when reading
  * - i: int
  * - s: string (null-terminated)
  * - S: binary string (with extra parameter ‒ size_t ‒ length)
