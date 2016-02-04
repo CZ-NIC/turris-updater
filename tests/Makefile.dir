@@ -1,10 +1,11 @@
 
-.PHONY: check-compile check-clean test valgrind check
+.PHONY: check-clean test valgrind check
 
-check-compile:
+$(O)/tests/check-compiled/compiled:
 	mkdir -p $(O)/tests/check-compiled
 	cd $(O)/tests/check-compiled && cmake $(abspath $(S))/tests/check
 	+make -C $(O)/tests/check-compiled
+	touch $(O)/tests/check-compiled/compiled
 
 clean: check-clean
 check-clean:
@@ -12,29 +13,29 @@ check-clean:
 
 C_TESTS := \
 	arguments \
-	events
-
-BINARIES += $(patsubst %,tests/%,$(TESTS))
+	events \
+	interpreter
 
 define DO_C_TEST
 
-BINARIES_NOTARGET += tests/$(1)
-$(1)_MODULES += $(1) ctest
-$$(patsubst %,$(O)/.objs/tests/%.o,$$($(1)_MODULES)): check-compile
-$(1)_SYSTEM_LIBS += check m rt
-$(1)_LOCAL_LIBS += updater
-$(O)/bin/$(1): EXTRA_LIBDIRS := $(O)/tests/check-compiled/src/
-$(O)/bin/$(1): EXTRA_INCLUDES := $(O)/tests/check-compiled/src $(S)/tests/check/src/ $(S)/tests/check-compiled/
-$(O)/bin/$(1): check-compile
+BINARIES_NOTARGET += tests/ctest-$(1)
+ctest-$(1)_MODULES += $(1) ctest
+$$(patsubst %,$(O)/.objs/tests/%.o,$$(ctest-$(1)_MODULES)): $(O)/tests/check-compiled/compiled
+ctest-$(1)_SYSTEM_LIBS += check m rt
+ctest-$(1)_LOCAL_LIBS += updater
+$(O)/bin/ctest-$(1): EXTRA_LIBDIRS := $(O)/tests/check-compiled/src/
+$(O)/bin/ctest-$(1): EXTRA_INCLUDES := $(O)/tests/check-compiled/src $(S)/tests/check/src/ $(S)/tests/check-compiled/
+$(O)/bin/ctest-$(1): $(O)/tests/check-compiled/compiled
 
 test: test-$(1)
 valgrind: valgrind-$(1)
 .PHONY: test-$(1) valgrind-$(1)
-test-$(1): $(O)/bin/$(1)
-	$(O)/bin/$(1)
 
-valgrind-$(1): $(O)/bin/$(1)
-	CK_FORK=no $(VALGRIND) $(O)/bin/$(1)
+test-$(1): $(O)/bin/ctest-$(1)
+	$(O)/bin/ctest-$(1)
+
+valgrind-$(1): $(O)/bin/ctest-$(1)
+	CK_FORK=no $(VALGRIND) $(O)/bin/ctest-$(1)
 
 endef
 

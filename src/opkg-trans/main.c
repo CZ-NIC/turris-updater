@@ -19,6 +19,7 @@
 
 #include "../lib/arguments.h"
 #include "../lib/events.h"
+#include "../lib/interpreter.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -37,8 +38,16 @@ const char *help =
 
 int main(int argc, char *argv[]) {
 	struct events *events = events_new();
+	// Parse the arguments
 	struct cmd_op *ops = cmd_args_parse(argc, argv);
 	struct cmd_op *op = ops;
+	// Prepare the interpreter and load it with the embedded lua scripts
+	struct interpreter *interpreter = interpreter_create();
+	const char *error = interpreter_autoload(interpreter);
+	if (error) {
+		fputs(error, stderr);
+		return 1;
+	}
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
 			case COT_HELP:
@@ -55,6 +64,7 @@ int main(int argc, char *argv[]) {
 		}
 	enum cmd_op_type exit_type = op->type;
 	free(ops);
+	interpreter_destroy(interpreter);
 	events_destroy(events);
 	return exit_type == COT_EXIT ? 0 : 1;
 }

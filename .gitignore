@@ -4,6 +4,7 @@
 /lib/
 /.deps/
 /.objs/
+/.gen/
 # The desired results
 *.html
 *.so
