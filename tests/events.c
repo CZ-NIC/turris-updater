@@ -97,6 +97,7 @@ END_TEST
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Event loop");
 	TCase *children = tcase_create("children");
+	tcase_set_timeout(children, 10);
 	// There are often race conditions when dealing with forks, waits, signals ‒ run it many times
 	tcase_add_loop_test(children, child_wait, 0, 1024);
 	tcase_add_test(children, child_wait_cancel);
