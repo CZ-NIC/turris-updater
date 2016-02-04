@@ -32,10 +32,10 @@ valgrind: valgrind-$(1)
 .PHONY: test-$(1) valgrind-$(1)
 
 test-$(1): $(O)/bin/ctest-$(1)
-	$(O)/bin/ctest-$(1)
+	SUPPRESS_LOG=1 $(O)/bin/ctest-$(1)
 
 valgrind-$(1): $(O)/bin/ctest-$(1)
-	CK_FORK=no $(VALGRIND) $(O)/bin/ctest-$(1)
+	CK_FORK=no SUPPRESS_LOG=1 $(VALGRIND) $(O)/bin/ctest-$(1)
 
 endef
 

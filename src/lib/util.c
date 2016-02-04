@@ -21,23 +21,38 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
+
+bool updater_logging_enabled = true;
 
 struct level_info {
 	const char *prefix;
+	const char *name;
 };
 
-static struct level_info levels[] = {
-	[LL_DIE] = { "\x1b[31;1mDIE\x1b[0m" },
-	[LL_ERROR] = { "\x1b[31mERROR\x1b[0m" },
-	[LL_WARN] = { "\x1b[35mWARN\x1b[0m" },
-	[LL_DEBUG] = { "DEBUG" }
+static const struct level_info levels[] = {
+	[LL_DIE] = { "\x1b[31;1mDIE\x1b[0m", "DIE" },
+	[LL_ERROR] = { "\x1b[31mERROR\x1b[0m", "ERROR" },
+	[LL_WARN] = { "\x1b[35mWARN\x1b[0m", "WARN" },
+	[LL_DBG] = { "DEBUG", "DBG" },
+	[LL_UNKNOWN] = { "????", "UNKNOWN" }
 };
 
 void log_internal(enum log_level level, const char *file, size_t line, const char *func, const char *format, ...) {
+	if (!updater_logging_enabled)
+		return;
 	fprintf(stderr, "%s:%s:%zu (%s):\t", levels[level].prefix, file, line, func);
 	va_list args;
 	va_start(args, format);
 	vfprintf(stderr, format, args);
 	va_end(args);
 	fputc('\n', stderr);
+}
+
+enum log_level log_level_get(const char *level) {
+	for (size_t i = 0; i < sizeof levels / sizeof *levels; i ++) {
+		if (strcmp(level, levels[i].name) == 0)
+			return i;
+	}
+	return LL_UNKNOWN;
 }

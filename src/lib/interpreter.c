@@ -35,12 +35,52 @@ struct interpreter {
 	lua_State *state;
 };
 
+static int lua_log(lua_State *L) {
+	int nargs = lua_gettop(L);
+	if (nargs < 1)
+		return luaL_error(L, "Not enough arguments passed to log()");
+	enum log_level level = log_level_get(lua_tostring(L, 1));
+	size_t sum = 1;
+	size_t sizes[nargs - 1];
+	const char *strs[nargs - 1];
+	for (int i = 2; i <= nargs; i ++) {
+		strs[i - 2] = lua_tostring(L, i);
+		sizes[i - 2] = strlen(strs[i - 2]);
+		sum += sizes[i - 2];
+	}
+	char *message = alloca(sum);
+	size_t pos = 0;
+	for (size_t i = 0; i < (unsigned)nargs - 1; i ++) {
+		memcpy(message + pos, strs[i], sizes[i]);
+		pos += sizes[i];
+	}
+	message[pos] = '\0';
+	// TODO: It would be nice to know the line number and file from lua. But it's quite a lot of work now.
+	log_internal(level, "lua", 0, "???", "%s", message);
+	return 0;
+}
+
+struct injected_func {
+	int (*func)(lua_State *);
+	const char *name;
+};
+
+static const struct injected_func injected_funcs[] = {
+	{ lua_log, "log" }
+};
+
 struct interpreter *interpreter_create(void) {
 	struct interpreter *result = malloc(sizeof *result);
+	lua_State *L = luaL_newstate();
 	*result = (struct interpreter) {
-		.state = luaL_newstate()
+		.state = L
 	};
-	luaL_openlibs(result->state);
+	luaL_openlibs(L);
+	for (size_t i = 0; i < sizeof injected_funcs / sizeof *injected_funcs; i ++) {
+		DBG("Injecting function no %zu %s/%p", i, injected_funcs[i].name, injected_funcs[i].name);
+		lua_pushcfunction(L, injected_funcs[i].func);
+		lua_setglobal(L, injected_funcs[i].name);
+	}
 	return result;
 }
 
