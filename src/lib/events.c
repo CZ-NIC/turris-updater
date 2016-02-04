@@ -38,7 +38,7 @@ struct events {
 	struct event_base *base;
 	struct watched_child *children;
 	size_t child_count, child_alloc;
-	struct event *child_event;
+	struct event *child_event, *child_kick_event;
 };
 
 struct events *events_new(void) {
@@ -59,6 +59,8 @@ struct events *events_new(void) {
 void events_destroy(struct events *events) {
 	if (events->child_event)
 		event_free(events->child_event);
+	if (events->child_kick_event)
+		event_free(events->child_kick_event);
 	event_base_free(events->base);
 	free(events->children);
 	free(events);
@@ -129,13 +131,16 @@ struct wait_id watch_child(struct events *events, pid_t pid, child_callback_t ca
 		.callback = callback,
 		.data = data
 	};
-	// Make sure the signal-watching event is there
 	if (!events->child_event) {
-		events->child_event = evsignal_new(events->base, SIGCHLD, chld_event, events);
+		// Create the SIGCHLD events when needed
+		events->child_event = event_new(events->base, SIGCHLD, EV_SIGNAL | EV_PERSIST, chld_event, events);
 		event_add(events->child_event, NULL);
+		events->child_kick_event = event_new(events->base, -1, 0, chld_event, events);
 	}
-	// Make sure the event handler is run, even if we got the signal before the event got registered
-	event_active(events->child_event, EV_SIGNAL, 0);
+	// Ensure the callback is called even if the SIGCHLD came before the init above
+	// event_active doesn't seem to be called in our case (no idea why), so this trick with 0 timeout
+	struct timeval tv = {0, 0};
+	event_add(events->child_kick_event, &tv);
 	return child_id(pid);
 }
 

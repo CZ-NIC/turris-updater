@@ -42,36 +42,52 @@ static void child_died_callback(pid_t pid, void *data, int status, struct wait_i
 	info->id = id;
 }
 
-START_TEST(child_wait) {
-	struct events *events = events_new();
+static struct wait_id do_fork(struct events *events, struct child_info *info, int ecode) {
 	pid_t child = fork();
 	ck_assert_int_ne(-1, child);
 	mark_point();
 	if (child == 0) {
 		// Just terminate, nothing special.
-		exit(_i % 32);
+		exit(ecode);
 	}
-	struct child_info info = { .called = 0 };
+	memset(info, 0, sizeof *info);
 	mark_point();
-	struct wait_id id = watch_child(events, child, child_died_callback, &info);
+	struct wait_id id = watch_child(events, child, child_died_callback, info);
 	ck_assert(id.type == WT_CHILD);
 	ck_assert_int_eq(child, id.sub.pid);
 	mark_point();
 	// Not called yet, before we run anything in the loop
-	ck_assert_uint_eq(0, info.called);
-	// Must terminate sooner
-	alarm(10);
-	struct wait_id id_copy = id;
-	events_wait(events, 1, &id_copy);
+	ck_assert_uint_eq(0, info->called);
+	return id;
+}
+
+static void child_check(struct wait_id id, struct child_info info, int ecode) {
 	ck_assert(memcmp(&id, &info.id, sizeof id) == 0);
 	ck_assert_uint_eq(1, info.called);
 	ck_assert(WIFEXITED(info.status));
-	ck_assert_uint_eq(_i % 32, WEXITSTATUS(info.status));
-	ck_assert_int_eq(child, info.pid);
+	ck_assert_uint_eq(ecode, WEXITSTATUS(info.status));
+	ck_assert_int_eq(id.sub.pid, info.pid);
+}
+
+START_TEST(child_wait) {
+	struct events *events = events_new();
 	mark_point();
-	events_destroy(events);
+	const size_t cld_count = 4;
+	struct child_info children[cld_count];
+	struct wait_id ids[cld_count];
+	for (size_t i = 0; i < cld_count; i ++)
+		ids[i] = do_fork(events, &children[i], i);
+	struct wait_id id_copy[cld_count];
+	memcpy(id_copy, ids, cld_count * sizeof *ids);
+	// Must terminate sooner
+	alarm(10);
+	events_wait(events, cld_count, id_copy);
 	// Cancel alarm
 	alarm(0);
+	for (size_t i = 0; i < cld_count; i ++)
+		child_check(ids[i], children[i], i);
+	mark_point();
+	events_destroy(events);
 }
 END_TEST
 
@@ -98,8 +114,15 @@ Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Event loop");
 	TCase *children = tcase_create("children");
 	tcase_set_timeout(children, 10);
-	// There are often race conditions when dealing with forks, waits, signals ‒ run it many times
-	tcase_add_loop_test(children, child_wait, 0, 1024);
+	/*
+	 * There are often race conditions when dealing with forks, waits, signals ‒ run it many times
+	 * But limit the time in valgrind (environment variable passed from the makefile).
+	 */
+	size_t max = 1024;
+	const char *valgrind = getenv("IN_VALGRIND");
+	if (valgrind && strcmp("1", valgrind) == 0)
+		max = 10;
+	tcase_add_loop_test(children, child_wait, 0, max);
 	tcase_add_test(children, child_wait_cancel);
 	suite_add_tcase(result, children);
 	return result;
