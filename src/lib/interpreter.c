@@ -19,11 +19,11 @@
 
 #include "interpreter.h"
 #include "embed_types.h"
+#include "util.h"
 
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
-#include <assert.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdarg.h>
@@ -107,7 +107,7 @@ static int push_err_handler(lua_State *L) {
 }
 
 const char *interpreter_include(struct interpreter *interpreter, const char *code, size_t length, const char *src) {
-	assert(interpreter->state);
+	ASSERT(interpreter->state);
 	// We don't know how dirty stack we get here
 	luaL_checkstack(interpreter->state, 2, "Can't create space for interpreter_include");
 	if (!length) // It is a null-terminated string, compute its length
@@ -226,7 +226,7 @@ const char *interpreter_call(struct interpreter *interpreter, const char *functi
 			}
 			CASE(double, 'f', number);
 			default:
-				assert(0);
+				DIE("Unknown type specifier '%c' passed", *param_spec);
 #undef CASE
 		}
 	}
@@ -292,7 +292,7 @@ int interpreter_collect_results(struct interpreter *interpreter, const char *spe
 					return pos;
 				break;
 			default:
-				assert(0);
+				DIE("Invalid type specifier '%c' passed", *spec);
 		}
 		pos ++;
 	}
@@ -301,7 +301,7 @@ int interpreter_collect_results(struct interpreter *interpreter, const char *spe
 }
 
 void interpreter_destroy(struct interpreter *interpreter) {
-	assert(interpreter->state);
+	ASSERT(interpreter->state);
 	lua_close(interpreter->state);
 	interpreter->state = NULL;
 	free(interpreter);

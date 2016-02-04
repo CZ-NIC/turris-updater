@@ -18,15 +18,16 @@
  */
 
 #include "events.h"
+#include "util.h"
 
 #include <event2/event.h>
-#include <assert.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <errno.h>
 #include <stdbool.h>
+#include <string.h>
 
 struct watched_child {
 	pid_t pid;
@@ -51,7 +52,7 @@ struct events *events_new(void) {
 	*result = (struct events) {
 		.base = event_base_new_with_config(config)
 	};
-	assert(result->base);
+	ASSERT_MSG(result->base, "Failed to allocate the libevent event loop");
 	event_config_free(config);
 	return result;
 }
@@ -99,13 +100,12 @@ static void chld_event(evutil_socket_t socket __attribute__((unused)), short fla
 			if (errno == EINTR)
 				// Some stray signal shot waitpid. Try it again.
 				continue;
-			// TODO: Logging. But this should never actually happen.
-			abort();
+			DIE("Error waiting for child: %s", strerror(errno));
 		}
 		// OK, we have a process PID. Find it in the output.
 		struct watched_child *c = child_lookup(events, pid);
 		if (!c) {
-			// TODO: Logging…
+			WARN("Untracted child %d terminated", (int)pid);
 			continue;
 		}
 		// Call the callback
@@ -123,7 +123,7 @@ static void chld_event(evutil_socket_t socket __attribute__((unused)), short fla
 
 struct wait_id watch_child(struct events *events, pid_t pid, child_callback_t callback, void *data) {
 	// We must not watch the child multiple times
-	assert(!child_lookup(events, pid));
+	ASSERT_MSG(!child_lookup(events, pid), "Requested to watch child %d multiple times\n", pid);
 	// Create the record about the child
 	CHECK_FREE(children, child_count, child_alloc);
 	events->children[events->child_count ++] = (struct watched_child) {
@@ -166,8 +166,7 @@ void events_wait(struct events *events, size_t nid, struct wait_id *ids) {
 				// OK, let's examine if we want to continue
 				break;
 			case -1:
-				// TODO: Logging…
-				abort();
+				DIE("Error running event loop");
 		}
 		while (nid) {
 			// Try looking up the event
