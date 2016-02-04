@@ -63,7 +63,7 @@ typedef void (*child_callback_t)(pid_t pid, void *data, int status, struct wait_
  */
 struct wait_id watch_child(struct events *events, pid_t pid, child_callback_t callback, void *data) __attribute__((nonnull(1, 3)));
 // Disable an event set up before.
-void cancel_id(struct events *events, struct wait_id id);
+void watch_cancel(struct events *events, struct wait_id id);
 /*
  * Wait until none of the provided ids are active inside the events
  * structure (they get fired in case of one-offs, or canceled).

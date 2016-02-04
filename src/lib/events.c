@@ -139,7 +139,7 @@ struct wait_id watch_child(struct events *events, pid_t pid, child_callback_t ca
 	return child_id(pid);
 }
 
-void cancel_id(struct events *events, struct wait_id id) {
+void watch_cancel(struct events *events, struct wait_id id) {
 	switch (id.type) {
 		case WT_CHILD: {
 			struct watched_child *c = child_lookup(events, id.sub.pid);
