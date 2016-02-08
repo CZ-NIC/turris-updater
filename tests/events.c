@@ -110,6 +110,71 @@ START_TEST(child_wait_cancel) {
 }
 END_TEST
 
+struct command_info {
+	size_t called;
+	int status;
+	enum command_kill_status killed;
+	const char *out, *err;
+	struct wait_id id_expected;
+};
+
+static void command_terminated(struct wait_id id, void *data, int status, enum command_kill_status killed, const char *out, const char *err) {
+	struct command_info *info = data;
+	ck_assert(memcmp(&id, &info->id_expected, sizeof id) == 0);
+	info->called ++;
+	info->status = status;
+	info->killed = killed;
+	info->out = out;
+	info->err = err;
+}
+
+static void post_fork(void *data __attribute__((unused))) {
+	exit(2);
+}
+
+START_TEST(command_start_noio) {
+	struct events *events = events_new();
+	// Start both /bin/true, /bin/false and our own post-fork callback and check their exit status.
+	struct command_info infos[3];
+	memset(infos, 0, sizeof infos);
+	struct wait_id ids[3];
+	ids[0] = run_command(events, command_terminated, NULL, &infos[0], NULL, 1000, 5000, "/bin/true", NULL);
+	ids[1] = run_command(events, command_terminated, NULL, &infos[1], NULL, 1000, 5000, "/bin/false", NULL);
+	ids[2] = run_command(events, command_terminated, post_fork, &infos[2], NULL, 1000, 5000, "/bin/true", NULL);
+	for (size_t i = 0; i < 3; i ++) {
+		ck_assert_uint_eq(0, infos[i].called);
+		infos[i].id_expected = ids[i];
+	}
+	alarm(10);
+	struct wait_id ids_copy[3];
+	memcpy(ids_copy, ids, sizeof ids);
+	events_wait(events, 3, ids_copy);
+	alarm(0);
+	for (size_t i = 0; i < 3; i ++) {
+		ck_assert_uint_eq(1, infos[i].called);
+		ck_assert_uint_eq(CK_TERMINATED, infos[i].killed);
+		ck_assert_uint_eq(i, WEXITSTATUS(infos[i].status));
+	}
+	events_destroy(events);
+}
+END_TEST
+
+START_TEST(command_timeout) {
+	struct events *events = events_new();
+	struct command_info info = { .called = 0 };
+	struct wait_id id = run_command(events, command_terminated, NULL, &info, NULL, 100, 1000, "/bin/sh", "-c", "while true ; do sleep 1 ; done", NULL);
+	info.id_expected = id;
+	alarm(10);
+	events_wait(events, 1, &id);
+	alarm(0);
+	ck_assert_uint_eq(1, info.called);
+	ck_assert_uint_eq(CK_TERMED, info.killed);
+	ck_assert(WIFSIGNALED(info.status));
+	ck_assert_uint_eq(SIGTERM, WTERMSIG(info.status));
+	events_destroy(events);
+}
+END_TEST
+
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Event loop");
 	TCase *children = tcase_create("children");
@@ -125,5 +190,10 @@ Suite *gen_test_suite(void) {
 	tcase_add_loop_test(children, child_wait, 0, max);
 	tcase_add_test(children, child_wait_cancel);
 	suite_add_tcase(result, children);
+	TCase *commands = tcase_create("commands");
+	tcase_set_timeout(commands, 10);
+	tcase_add_loop_test(commands, command_start_noio, 0, 10);
+	tcase_add_test(commands, command_timeout);
+	suite_add_tcase(result, commands);
 	return result;
 }

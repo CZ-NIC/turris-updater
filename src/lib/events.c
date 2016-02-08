@@ -177,7 +177,8 @@ static void run_child(post_fork_callback_t post_fork, void *data, const char *co
 	ASSERT(dup2(in_pipe[0], 0) != -1 && close(in_pipe[0]) != -1);
 	ASSERT(dup2(out_pipe[1], 1) != -1 && close(out_pipe[1]) != -1);
 	ASSERT(dup2(err_pipe[1], 2) != -1 && close(err_pipe[1]) != -1);
-	post_fork(data);
+	if (post_fork)
+		post_fork(data);
 	/*
 	 * Add the command name to the parameters.
 	 * Also, copy them, because exec expects
