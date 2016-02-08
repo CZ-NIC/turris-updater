@@ -62,8 +62,55 @@ typedef void (*child_callback_t)(struct wait_id id, void *data, pid_t pid, int s
  * NOT have run between forking and the registration).
  */
 struct wait_id watch_child(struct events *events, child_callback_t callback, void *data, pid_t pid) __attribute__((nonnull(1, 2)));
+
+// How was the command killed?
+enum command_kill_status {
+	// The command terminated on its own
+	CK_TERMINATED,
+	// A timeout happened and we sent a SIGTERM
+	CK_TERMED,
+	// A timeout happened and we sent a SIGKILL
+	CK_KILLED,
+	// The command terminated with a signal not sent by us
+	CK_SIGNAL_OTHER
+};
+/*
+ * A callback called once the command terminated
+ * and all its needed output has been gathered.
+ *
+ * Status is whatever got from wait(). The out and err
+ * are gathered stdout and stderr of the command.
+ */
+typedef void (*command_callback_t)(struct wait_id id, void *data, int status, enum command_kill_status killed, const char *out, const char *err);
+/*
+ * Called after fork & redirection of stdio, but before
+ * exec. It may be used, for example, to modify environment.
+ * Don't manipulate the events structure in there.
+ */
+typedef void (*post_fork_callback_t)(void *data);
+/*
+ * Run an external command, pass it input, gather its output
+ * and after it terminated, run the callback with the outputs
+ * and exit status.
+ *
+ * The command should be with full path. Additional parameters
+ * may be passed and must be terminated with a NULL.
+ *
+ * The timeouts are in milliseconds. They specify when a SIGTERM
+ * or SIGKILL is sent to the command respectively. Specifying -1
+ * means no timeout.
+ *
+ * It is possible to watch_cancel() the process, but it is
+ * a rather rude thing to do ‒ all the inputs and outputs
+ * are closed and a SIGKILL is sent to the process.
+ */
+struct wait_id run_command(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, const char *input, int term_timeout, int kill_timeout, const char *command, ...) __attribute__((nonnull(1, 2, 8)));
+// Exactly the same as run_command, but with array for parameters.
+struct wait_id run_command_a(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, const char *input, int term_timeout, int kill_timeout, const char *command, const char **params) __attribute__((nonnull(1, 2, 8)));
+
 // Disable an event set up before.
 void watch_cancel(struct events *events, struct wait_id id);
+//
 /*
  * Wait until none of the provided ids are active inside the events
  * structure (they get fired in case of one-offs, or canceled).

@@ -28,6 +28,7 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdarg.h>
 
 struct watched_child {
 	pid_t pid;
@@ -184,4 +185,22 @@ void events_wait(struct events *events, size_t nid, struct wait_id *ids) {
 				ids[0] = ids[-- nid];
 		}
 	}
+}
+
+struct wait_id run_command(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, const char *input, int term_timeout, int kill_timeout, const char *command, ...) {
+	size_t param_count = 1; // For the NULL terminator
+	va_list args;
+	// Count how many parameters there are
+	va_start(args, command);
+	while (va_arg(args, const char *) != NULL)
+		param_count ++;
+	va_end(args);
+	// Prepare the array on stack and fill with the parameters
+	const char *params[param_count];
+	size_t i = 0;
+	va_start(args, command);
+	// Copies the terminating NULL as well.
+	while((params[i ++] = va_arg(args, const char *)) != NULL)
+		; // No body of the while. Everything is done in the conditional.
+	return run_command_a(events, callback, post_fork, data, input, term_timeout, kill_timeout, command, params);
 }
