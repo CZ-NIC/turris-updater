@@ -86,7 +86,7 @@ static struct wait_id child_id(pid_t pid) {
 	struct wait_id result;
 	memset(&result, 0, sizeof result);
 	result.type = WT_CHILD;
-	result.sub.pid = pid;
+	result.pid = pid;
 	return result;
 }
 
@@ -207,7 +207,8 @@ static struct wait_id command_id(struct watched_command *command) {
 	struct wait_id result;
 	memset(&result, 0, sizeof result);
 	result.type = WT_COMMAND;
-	result.sub.command = command;
+	result.pid = command->pid;
+	result.command = command;
 	return result;
 }
 
@@ -324,10 +325,13 @@ struct wait_id run_command_a(struct events *events, command_callback_t callback,
 	}
 }
 
-static struct watched_command *command_lookup(struct events *events, struct watched_command *command) {
-	// TODO: Check for reuse of the address
+static struct watched_command *command_lookup(struct events *events, struct watched_command *command, pid_t pid) {
+	/*
+	 * Check that such pointer is registered in the events structure
+	 * and if so, if it represents the same process as expected.
+	 */
 	for (size_t i = 0; i < events->command_count; i ++)
-		if (events->commands[i] == command)
+		if (events->commands[i] == command && command->pid == pid)
 			return command;
 	return NULL;
 }
@@ -335,13 +339,13 @@ static struct watched_command *command_lookup(struct events *events, struct watc
 void watch_cancel(struct events *events, struct wait_id id) {
 	switch (id.type) {
 		case WT_CHILD: {
-			struct watched_child *c = child_lookup(events, id.sub.pid);
+			struct watched_child *c = child_lookup(events, id.pid);
 			if (c)
 				child_pop(events, c);
 			break;
 		}
 		case WT_COMMAND: {
-			struct watched_command *c = command_lookup(events, id.sub.command);
+			struct watched_command *c = command_lookup(events, id.command, id.pid);
 			if (c)
 				command_free(c);
 			break;
@@ -367,10 +371,10 @@ void events_wait(struct events *events, size_t nid, struct wait_id *ids) {
 			bool found = false;
 			switch (ids->type) {
 				case WT_CHILD:
-					found = child_lookup(events, ids->sub.pid);
+					found = child_lookup(events, ids->pid);
 					break;
 				case WT_COMMAND:
-					found = command_lookup(events, ids->sub.command);
+					found = command_lookup(events, ids->command, ids->pid);
 					break;
 			}
 			if (found)

@@ -54,7 +54,7 @@ static struct wait_id do_fork(struct events *events, struct child_info *info, in
 	mark_point();
 	struct wait_id id = watch_child(events, child_died_callback, info, child);
 	ck_assert(id.type == WT_CHILD);
-	ck_assert_int_eq(child, id.sub.pid);
+	ck_assert_int_eq(child, id.pid);
 	mark_point();
 	// Not called yet, before we run anything in the loop
 	ck_assert_uint_eq(0, info->called);
@@ -66,7 +66,7 @@ static void child_check(struct wait_id id, struct child_info info, int ecode) {
 	ck_assert_uint_eq(1, info.called);
 	ck_assert(WIFEXITED(info.status));
 	ck_assert_uint_eq(ecode, WEXITSTATUS(info.status));
-	ck_assert_int_eq(id.sub.pid, info.pid);
+	ck_assert_int_eq(id.pid, info.pid);
 }
 
 START_TEST(child_wait) {

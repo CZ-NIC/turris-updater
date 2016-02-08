@@ -31,14 +31,20 @@ enum wait_type {
 	WT_CHILD,
 	WT_COMMAND
 };
-// A structure used as an ID for manipulation of events. Don't look inside.
+/*
+ * A structure used as an ID for manipulation of events. The user of this module
+ * should consider it an opaque structure (and compare it using memcmp).
+ *
+ * In case of WT_CHILD, the pid is used.
+ *
+ * In case of WT_COMMAND, both the pid and command are used. Using just command
+ * might be problematic, since the pointer might get re-used really soon.
+ * Chance of reusing of both pid and pointer is minimal.
+ */
 struct wait_id {
 	enum wait_type type;
-	union {
-		pid_t pid;
-		// TODO: Prevent reuse of the pointer?
-		struct watched_command *command;
-	} sub;
+	pid_t pid;
+	struct watched_command *command;
 };
 
 // Create a new events structure.
