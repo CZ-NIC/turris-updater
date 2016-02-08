@@ -25,15 +25,19 @@
 #include <unistd.h>
 
 struct events;
+struct watched_command *command;
 
 enum wait_type {
-	WT_CHILD
+	WT_CHILD,
+	WT_COMMAND
 };
 // A structure used as an ID for manipulation of events. Don't look inside.
 struct wait_id {
 	enum wait_type type;
 	union {
 		pid_t pid;
+		// TODO: Prevent reuse of the pointer?
+		struct watched_command *command;
 	} sub;
 };
 
@@ -94,7 +98,8 @@ typedef void (*post_fork_callback_t)(void *data);
  * and exit status.
  *
  * The command should be with full path. Additional parameters
- * may be passed and must be terminated with a NULL.
+ * may be passed and must be terminated with a NULL. The name
+ * of the command is _not_ included in params, unlike exec().
  *
  * The timeouts are in milliseconds. They specify when a SIGTERM
  * or SIGKILL is sent to the command respectively. Specifying -1

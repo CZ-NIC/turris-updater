@@ -36,11 +36,24 @@ struct watched_child {
 	void *data;
 };
 
+struct watched_command {
+	struct events *events;
+	command_callback_t callback;
+	void *data;
+	bool running;
+	struct wait_id child;
+	pid_t pid;
+	int status, signal_sent;
+	struct event *term_timeout, *kill_timeout;
+};
+
 struct events {
 	struct event_base *base;
 	struct watched_child *children;
 	size_t child_count, child_alloc;
 	struct event *child_event, *child_kick_event;
+	struct watched_command **commands;
+	size_t command_count, command_alloc;
 };
 
 struct events *events_new(void) {
@@ -58,16 +71,6 @@ struct events *events_new(void) {
 	return result;
 }
 
-void events_destroy(struct events *events) {
-	if (events->child_event)
-		event_free(events->child_event);
-	if (events->child_kick_event)
-		event_free(events->child_kick_event);
-	event_base_free(events->base);
-	free(events->children);
-	free(events);
-}
-
 static struct watched_child *child_lookup(struct events *events, pid_t pid) {
 	for (size_t i = 0; i < events->child_count; i ++)
 		if (events->children[i].pid == pid)
@@ -76,12 +79,15 @@ static struct watched_child *child_lookup(struct events *events, pid_t pid) {
 }
 
 static struct wait_id child_id(pid_t pid) {
-	return (struct wait_id) {
-		.type = WT_CHILD,
-		.sub = {
-			.pid = pid
-		}
-	};
+	/*
+	 * The structures in C may have intra-member areas. We make
+	 * sure this way these are always 0, so memcmp works.
+	 */
+	struct wait_id result;
+	memset(&result, 0, sizeof result);
+	result.type = WT_CHILD;
+	result.sub.pid = pid;
+	return result;
 }
 
 static void child_pop(struct events *events, struct watched_child *c) {
@@ -145,12 +151,199 @@ struct wait_id watch_child(struct events *events, child_callback_t callback, voi
 	return child_id(pid);
 }
 
+struct wait_id run_command(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, const char *input, int term_timeout, int kill_timeout, const char *command, ...) {
+	size_t param_count = 1; // For the NULL terminator
+	va_list args;
+	// Count how many parameters there are
+	va_start(args, command);
+	while (va_arg(args, const char *) != NULL)
+		param_count ++;
+	va_end(args);
+	// Prepare the array on stack and fill with the parameters
+	const char *params[param_count];
+	size_t i = 0;
+	va_start(args, command);
+	// Copies the terminating NULL as well.
+	while((params[i ++] = va_arg(args, const char *)) != NULL)
+		; // No body of the while. Everything is done in the conditional.
+	return run_command_a(events, callback, post_fork, data, input, term_timeout, kill_timeout, command, params);
+}
+
+static void run_child(post_fork_callback_t post_fork, void *data, const char *command, const char **params, int in_pipe[2], int out_pipe[2], int err_pipe[2]) {
+	// TODO: Close all other FDs
+	ASSERT(close(in_pipe[1]) != -1);
+	ASSERT(close(out_pipe[0]) != -1);
+	ASSERT(close(err_pipe[0]) != -1);
+	ASSERT(dup2(in_pipe[0], 0) != -1 && close(in_pipe[0]) != -1);
+	ASSERT(dup2(out_pipe[1], 1) != -1 && close(out_pipe[1]) != -1);
+	ASSERT(dup2(err_pipe[1], 2) != -1 && close(err_pipe[1]) != -1);
+	post_fork(data);
+	/*
+	 * Add the command name to the parameters.
+	 * Also, copy them, because exec expects
+	 * them to be non-const.
+	 *
+	 * We don't worry about free()ing them, since we are exec()ing
+	 * or DIE()ing.
+	 */
+	size_t param_count = 2; // The command name to add and a NULL
+	for (const char **p = params; *p; p ++)
+		param_count ++;
+	char *params_full[param_count];
+	size_t i = 1;
+	for (const char **p = params; *p; p ++)
+		params_full[i ++] = strdup(*p);
+	params_full[i] = NULL;
+	params_full[0] = strdup(command);
+	execv(command, params_full);
+	DIE("Failet do exec %s: %s", command, strerror(errno));
+}
+
+static struct wait_id command_id(struct watched_command *command) {
+	/*
+	 * The structures in C may have intra-member areas. We make
+	 * sure this way these are always 0, so memcmp works.
+	 */
+	struct wait_id result;
+	memset(&result, 0, sizeof result);
+	result.type = WT_COMMAND;
+	result.sub.command = command;
+	return result;
+}
+
+static void signal_send(struct watched_command *command, int signal) {
+	if (command->running) {
+		kill(command->pid, signal);
+		command->signal_sent = signal;
+	}
+}
+
+static void command_send_term(evutil_socket_t socket __attribute__((unused)), short flags __attribute__((unused)), void *data) {
+	signal_send(data, SIGTERM);
+}
+
+static void command_send_kill(evutil_socket_t socket __attribute__((unused)), short flags __attribute__((unused)), void *data) {
+	signal_send(data, SIGKILL);
+}
+
+static void command_free(struct watched_command *command) {
+	// Will send only if it is still running
+	signal_send(command, SIGKILL);
+	if (command->term_timeout)
+		event_free(command->term_timeout);
+	if (command->kill_timeout)
+		event_free(command->kill_timeout);
+	struct events *events = command->events;
+	// Replace the current command with the last one
+	for (size_t i = 0; i < events->command_count; i ++)
+		if (events->commands[i] == command) {
+			events->commands[i] = events->commands[-- events->command_count];
+			break;
+		}
+	free(command);
+}
+
+static void command_check_complete(struct watched_command *command) {
+	// TODO Check STDIO
+	if (command->running)
+		return;
+	enum command_kill_status ks;
+	// Call the callback
+	switch (command->signal_sent) {
+		case SIGTERM:
+			ks = CK_TERMED;
+			break;
+		case SIGKILL:
+			ks = CK_KILLED;
+			break;
+		default:
+			ks = WIFSIGNALED(command->status) ? CK_SIGNAL_OTHER : CK_TERMINATED;
+			break;
+	}
+	command->callback(command_id(command), command->data, command->status, ks, NULL, NULL);
+	command_free(command);
+}
+
+static void command_terminated_callback(struct wait_id id, void *data, pid_t pid, int status) {
+	struct watched_command *command = data;
+	ASSERT(command->pid == pid);
+	ASSERT(memcmp(&command->child, &id, sizeof id) == 0);
+	// It is no longer running.
+	command->status = status;
+	command->running = false;
+	// Check that outputs are gathered and if so, call the callback
+	command_check_complete(command);
+}
+
+static struct event *command_timeout_schedule(struct events *events, int timeout, event_callback_fn callback, struct watched_command *command) {
+	ASSERT(timeout && timeout >= -1);
+	if (timeout == -1)
+		return NULL;
+	struct event *result = evtimer_new(events->base, callback, command);
+	struct timeval tv = { timeout / 1000, (timeout % 1000) * 1000 };
+	evtimer_add(result, &tv);
+	return result;
+}
+
+static struct wait_id register_command(struct events *events, command_callback_t callback, void *data, const char *input, int term_timeout, int kill_timeout, int in_pipe[2], int out_pipe[2], int err_pipe[2], pid_t child) {
+	// Close the remote ends of the pipes
+	ASSERT(close(in_pipe[0]) != -1);
+	ASSERT(close(out_pipe[1]) != -1);
+	ASSERT(close(err_pipe[1]) != -1);
+	struct watched_command *command = malloc(sizeof *command);
+	*command = (struct watched_command) {
+		.events = events,
+		.callback = callback,
+		.data = data,
+		.running = true,
+		.child = watch_child(events, command_terminated_callback, command, child),
+		.pid = child,
+		.term_timeout = command_timeout_schedule(events, term_timeout, command_send_term, command),
+		.kill_timeout = command_timeout_schedule(events, kill_timeout, command_send_kill, command)
+	};
+	// TODO: STDIO
+	CHECK_FREE(commands, command_count, command_alloc);
+	events->commands[events->command_count ++] = command;
+	return command_id(command);
+}
+
+struct wait_id run_command_a(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, const char *input, int term_timeout, int kill_timeout, const char *command, const char **params) {
+	int in_pipe[2], out_pipe[2], err_pipe[2];
+	ASSERT_MSG(pipe(in_pipe) != -1, "Failed to create stdin pipe for %s: %s", command, strerror(errno));
+	ASSERT_MSG(pipe(out_pipe) != -1, "Failed to create stdout pipe for %s: %s", command, strerror(errno));
+	ASSERT_MSG(pipe(err_pipe) != -1, "Failed to create stderr pipe for %s: %s", command, strerror(errno));
+	pid_t child = fork();
+	switch (child) {
+		case -1:
+			DIE("Failed to fork command %s: %s", command, strerror(errno));
+		case 0:
+			run_child(post_fork, data, command, params, in_pipe, out_pipe, err_pipe);
+			DIE("run_child returned");
+		default:
+			return register_command(events, callback, data, input, term_timeout, kill_timeout, in_pipe, out_pipe, err_pipe, child);
+	}
+}
+
+static struct watched_command *command_lookup(struct events *events, struct watched_command *command) {
+	// TODO: Check for reuse of the address
+	for (size_t i = 0; i < events->command_count; i ++)
+		if (events->commands[i] == command)
+			return command;
+	return NULL;
+}
+
 void watch_cancel(struct events *events, struct wait_id id) {
 	switch (id.type) {
 		case WT_CHILD: {
 			struct watched_child *c = child_lookup(events, id.sub.pid);
 			if (c)
 				child_pop(events, c);
+			break;
+		}
+		case WT_COMMAND: {
+			struct watched_command *c = command_lookup(events, id.sub.command);
+			if (c)
+				command_free(c);
 			break;
 		}
 	}
@@ -176,6 +369,9 @@ void events_wait(struct events *events, size_t nid, struct wait_id *ids) {
 				case WT_CHILD:
 					found = child_lookup(events, ids->sub.pid);
 					break;
+				case WT_COMMAND:
+					found = command_lookup(events, ids->sub.command);
+					break;
 			}
 			if (found)
 				// There's at least one active event, just keep going
@@ -187,20 +383,15 @@ void events_wait(struct events *events, size_t nid, struct wait_id *ids) {
 	}
 }
 
-struct wait_id run_command(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, const char *input, int term_timeout, int kill_timeout, const char *command, ...) {
-	size_t param_count = 1; // For the NULL terminator
-	va_list args;
-	// Count how many parameters there are
-	va_start(args, command);
-	while (va_arg(args, const char *) != NULL)
-		param_count ++;
-	va_end(args);
-	// Prepare the array on stack and fill with the parameters
-	const char *params[param_count];
-	size_t i = 0;
-	va_start(args, command);
-	// Copies the terminating NULL as well.
-	while((params[i ++] = va_arg(args, const char *)) != NULL)
-		; // No body of the while. Everything is done in the conditional.
-	return run_command_a(events, callback, post_fork, data, input, term_timeout, kill_timeout, command, params);
+void events_destroy(struct events *events) {
+	if (events->child_event)
+		event_free(events->child_event);
+	if (events->child_kick_event)
+		event_free(events->child_kick_event);
+	while (events->command_count)
+		command_free(events->commands[0]);
+	event_base_free(events->base);
+	free(events->children);
+	free(events->commands);
+	free(events);
 }
