@@ -48,7 +48,7 @@ void events_destroy(struct events *events);
  * gets out of wait(). The id is whatever id was returned to the
  * registration function.
  */
-typedef void (*child_callback_t)(pid_t pid, void *data, int status, struct wait_id id);
+typedef void (*child_callback_t)(struct wait_id id, void *data, pid_t pid, int status);
 /*
  * Call me whenever a child terminates.
  * The parameters describe the events structure, the child, what to call
@@ -61,7 +61,7 @@ typedef void (*child_callback_t)(pid_t pid, void *data, int status, struct wait_
  * Make sure you register a child soon after forking it (eg. the event loop must
  * NOT have run between forking and the registration).
  */
-struct wait_id watch_child(struct events *events, pid_t pid, child_callback_t callback, void *data) __attribute__((nonnull(1, 3)));
+struct wait_id watch_child(struct events *events, child_callback_t callback, void *data, pid_t pid) __attribute__((nonnull(1, 2)));
 // Disable an event set up before.
 void watch_cancel(struct events *events, struct wait_id id);
 /*

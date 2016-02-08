@@ -109,7 +109,7 @@ static void chld_event(evutil_socket_t socket __attribute__((unused)), short fla
 			continue;
 		}
 		// Call the callback
-		c->callback(pid, c->data, status, child_id(pid));
+		c->callback(child_id(pid), c->data, pid, status);
 		child_pop(events, c);
 	}
 }
@@ -121,7 +121,7 @@ static void chld_event(evutil_socket_t socket __attribute__((unused)), short fla
 			events->ARRAY = realloc(events->ARRAY, (events->ALLOC = events->ALLOC * 2 + 10) * sizeof *events->ARRAY); \
 	} while (0)
 
-struct wait_id watch_child(struct events *events, pid_t pid, child_callback_t callback, void *data) {
+struct wait_id watch_child(struct events *events, child_callback_t callback, void *data, pid_t pid) {
 	// We must not watch the child multiple times
 	ASSERT_MSG(!child_lookup(events, pid), "Requested to watch child %d multiple times\n", pid);
 	// Create the record about the child

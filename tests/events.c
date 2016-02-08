@@ -34,7 +34,7 @@ struct child_info {
 	struct wait_id id;
 };
 
-static void child_died_callback(pid_t pid, void *data, int status, struct wait_id id) {
+static void child_died_callback(struct wait_id id, void *data, pid_t pid, int status) {
 	struct child_info *info = data;
 	info->called ++;
 	info->pid = pid;
@@ -52,7 +52,7 @@ static struct wait_id do_fork(struct events *events, struct child_info *info, in
 	}
 	memset(info, 0, sizeof *info);
 	mark_point();
-	struct wait_id id = watch_child(events, child, child_died_callback, info);
+	struct wait_id id = watch_child(events, child_died_callback, info, child);
 	ck_assert(id.type == WT_CHILD);
 	ck_assert_int_eq(child, id.sub.pid);
 	mark_point();
@@ -96,7 +96,7 @@ START_TEST(child_wait_cancel) {
 	// Watch a "fake" child. This one is init, so it never terminates, and it isn't our child,
 	// but that's OK for this test.
 	struct child_info info = { .called = 0 };
-	struct wait_id id = watch_child(events, 1, child_died_callback, &info);
+	struct wait_id id = watch_child(events, child_died_callback, &info, 1);
 	// Cancel the event
 	watch_cancel(events, id);
 	// Try waiting for it ‒ it should immediatelly terminate
