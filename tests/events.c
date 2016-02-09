@@ -114,18 +114,23 @@ struct command_info {
 	size_t called;
 	int status;
 	enum command_kill_status killed;
-	const char *out, *err;
+	char *out, *err;
 	struct wait_id id_expected;
 };
 
-static void command_terminated(struct wait_id id, void *data, int status, enum command_kill_status killed, const char *out, const char *err) {
+static void command_terminated(struct wait_id id, void *data, int status, enum command_kill_status killed, size_t out_size, const char *out, size_t err_size, const char *err) {
 	struct command_info *info = data;
 	ck_assert(memcmp(&id, &info->id_expected, sizeof id) == 0);
+	// We expect non-binary data here in the tests, so the strings won't have '\0' in the middle.
+	ck_assert(out);
+	ck_assert(err);
+	ck_assert_uint_eq(out_size, strlen(out));
+	ck_assert_uint_eq(err_size, strlen(err));
 	info->called ++;
 	info->status = status;
 	info->killed = killed;
-	info->out = out;
-	info->err = err;
+	info->out = strdup(out);
+	info->err = strdup(err);
 }
 
 static void post_fork(void *data __attribute__((unused))) {
@@ -138,22 +143,24 @@ START_TEST(command_start_noio) {
 	struct command_info infos[3];
 	memset(infos, 0, sizeof infos);
 	struct wait_id ids[3];
-	ids[0] = run_command(events, command_terminated, NULL, &infos[0], NULL, 1000, 5000, "/bin/true", NULL);
-	ids[1] = run_command(events, command_terminated, NULL, &infos[1], NULL, 1000, 5000, "/bin/false", NULL);
-	ids[2] = run_command(events, command_terminated, post_fork, &infos[2], NULL, 1000, 5000, "/bin/true", NULL);
+	ids[0] = run_command(events, command_terminated, NULL, &infos[0], 0, NULL, 1000, 5000, "/bin/true", NULL);
+	ids[1] = run_command(events, command_terminated, NULL, &infos[1], 0, NULL, 1000, 5000, "/bin/false", NULL);
+	ids[2] = run_command(events, command_terminated, post_fork, &infos[2], 0, NULL, 1000, 5000, "/bin/true", NULL);
 	for (size_t i = 0; i < 3; i ++) {
 		ck_assert_uint_eq(0, infos[i].called);
 		infos[i].id_expected = ids[i];
 	}
-	alarm(10);
 	struct wait_id ids_copy[3];
 	memcpy(ids_copy, ids, sizeof ids);
+	alarm(10);
 	events_wait(events, 3, ids_copy);
 	alarm(0);
 	for (size_t i = 0; i < 3; i ++) {
 		ck_assert_uint_eq(1, infos[i].called);
 		ck_assert_uint_eq(CK_TERMINATED, infos[i].killed);
 		ck_assert_uint_eq(i, WEXITSTATUS(infos[i].status));
+		free(infos[i].out);
+		free(infos[i].err);
 	}
 	events_destroy(events);
 }
@@ -162,7 +169,7 @@ END_TEST
 START_TEST(command_timeout) {
 	struct events *events = events_new();
 	struct command_info info = { .called = 0 };
-	struct wait_id id = run_command(events, command_terminated, NULL, &info, NULL, 100, 1000, "/bin/sh", "-c", "while true ; do sleep 1 ; done", NULL);
+	struct wait_id id = run_command(events, command_terminated, NULL, &info, 0, NULL, 100, 1000, "/bin/sh", "-c", "while true ; do sleep 1 ; done", NULL);
 	info.id_expected = id;
 	alarm(10);
 	events_wait(events, 1, &id);
@@ -171,6 +178,43 @@ START_TEST(command_timeout) {
 	ck_assert_uint_eq(CK_TERMED, info.killed);
 	ck_assert(WIFSIGNALED(info.status));
 	ck_assert_uint_eq(SIGTERM, WTERMSIG(info.status));
+	free(info.out);
+	free(info.err);
+	events_destroy(events);
+}
+END_TEST
+
+START_TEST(command_io) {
+	struct events *events = events_new();
+	// Start both /bin/echo, /bin/cat and a redirected /bin/cat to stderr.
+	struct command_info infos[3];
+	memset(infos, 0, sizeof infos);
+	struct wait_id ids[3];
+	ids[0] = run_command(events, command_terminated, NULL, &infos[0], 0, NULL, 1000, 5000, "/bin/echo", "test", NULL);
+	ids[1] = run_command(events, command_terminated, NULL, &infos[1], 0, "Test input", 1000, 5000, "/bin/cat", NULL);
+	ids[2] = run_command(events, command_terminated, NULL, &infos[2], 0, "Test input", 1000, 5000, "/bin/sh", "-c", "/bin/cat >&2", NULL);
+	for (size_t i = 0; i < 3; i ++) {
+		ck_assert_uint_eq(0, infos[i].called);
+		infos[i].id_expected = ids[i];
+	}
+	struct wait_id ids_copy[3];
+	memcpy(ids_copy, ids, sizeof ids);
+	alarm(10);
+	events_wait(events, 3, ids_copy);
+	alarm(0);
+	ck_assert_str_eq("test\n", infos[0].out);
+	ck_assert_str_eq("", infos[0].err);
+	ck_assert_str_eq("Test input", infos[1].out);
+	ck_assert_str_eq("", infos[1].err);
+	ck_assert_str_eq("", infos[2].out);
+	ck_assert_str_eq("Test input", infos[2].err);
+	for (size_t i = 0; i < 3; i ++) {
+		ck_assert_uint_eq(1, infos[i].called);
+		ck_assert_uint_eq(CK_TERMINATED, infos[i].killed);
+		ck_assert_uint_eq(0, WEXITSTATUS(infos[i].status));
+		free(infos[i].out);
+		free(infos[i].err);
+	}
 	events_destroy(events);
 }
 END_TEST
@@ -194,6 +238,7 @@ Suite *gen_test_suite(void) {
 	tcase_set_timeout(commands, 10);
 	tcase_add_loop_test(commands, command_start_noio, 0, 10);
 	tcase_add_test(commands, command_timeout);
+	tcase_add_loop_test(commands, command_io, 0, 10);
 	suite_add_tcase(result, commands);
 	return result;
 }

@@ -21,6 +21,8 @@
 #include "util.h"
 
 #include <event2/event.h>
+#include <event2/bufferevent.h>
+#include <event2/buffer.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/types.h>
@@ -45,6 +47,14 @@ struct watched_command {
 	pid_t pid;
 	int status, signal_sent;
 	struct event *term_timeout, *kill_timeout;
+	/*
+	 * Note that these are from the point of view of the executed command.
+	 * On our side, the input buffer writes and output and error buffers
+	 * read.
+	 */
+	char *output, *error;
+	size_t output_size, error_size;
+	struct bufferevent *output_buffer, *error_buffer, *input_buffer;
 };
 
 struct events {
@@ -151,7 +161,7 @@ struct wait_id watch_child(struct events *events, child_callback_t callback, voi
 	return child_id(pid);
 }
 
-struct wait_id run_command(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, const char *input, int term_timeout, int kill_timeout, const char *command, ...) {
+struct wait_id run_command(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, const char *command, ...) {
 	size_t param_count = 1; // For the NULL terminator
 	va_list args;
 	// Count how many parameters there are
@@ -166,7 +176,7 @@ struct wait_id run_command(struct events *events, command_callback_t callback, p
 	// Copies the terminating NULL as well.
 	while((params[i ++] = va_arg(args, const char *)) != NULL)
 		; // No body of the while. Everything is done in the conditional.
-	return run_command_a(events, callback, post_fork, data, input, term_timeout, kill_timeout, command, params);
+	return run_command_a(events, callback, post_fork, data, input_size, input, term_timeout, kill_timeout, command, params);
 }
 
 static void run_child(post_fork_callback_t post_fork, void *data, const char *command, const char **params, int in_pipe[2], int out_pipe[2], int err_pipe[2]) {
@@ -235,6 +245,14 @@ static void command_free(struct watched_command *command) {
 		event_free(command->term_timeout);
 	if (command->kill_timeout)
 		event_free(command->kill_timeout);
+	if (command->error_buffer)
+		bufferevent_free(command->error_buffer);
+	if (command->output_buffer)
+		bufferevent_free(command->output_buffer);
+	if (command->input_buffer)
+		bufferevent_free(command->input_buffer);
+	free(command->error);
+	free(command->output);
 	struct events *events = command->events;
 	// Replace the current command with the last one
 	for (size_t i = 0; i < events->command_count; i ++)
@@ -246,7 +264,11 @@ static void command_free(struct watched_command *command) {
 }
 
 static void command_check_complete(struct watched_command *command) {
-	// TODO Check STDIO
+	// We do NOT check the input buffer for completion
+	if (command->output_buffer)
+		return;
+	if (command->error_buffer)
+		return;
 	if (command->running)
 		return;
 	enum command_kill_status ks;
@@ -262,7 +284,7 @@ static void command_check_complete(struct watched_command *command) {
 			ks = WIFSIGNALED(command->status) ? CK_SIGNAL_OTHER : CK_TERMINATED;
 			break;
 	}
-	command->callback(command_id(command), command->data, command->status, ks, NULL, NULL);
+	command->callback(command_id(command), command->data, command->status, ks, command->output_size, command->output, command->error_size, command->error);
 	command_free(command);
 }
 
@@ -287,8 +309,61 @@ static struct event *command_timeout_schedule(struct events *events, int timeout
 	return result;
 }
 
-static struct wait_id register_command(struct events *events, command_callback_t callback, void *data, const char *input, int term_timeout, int kill_timeout, int in_pipe[2], int out_pipe[2], int err_pipe[2], pid_t child) {
-	// Close the remote ends of the pipes
+static void command_event(struct bufferevent *buffer, short events __attribute__((unused)), void *data) {
+	/*
+	 * Every possible event here is an end of the „connection“.
+	 * Therefore, find which buffer it is, extract its content (if it
+	 * is output of the command) and close it.
+	 */
+	struct watched_command *command = data;
+	struct bufferevent **buffer_var = NULL;
+	char **result = NULL;
+	size_t *result_size = NULL;
+	if (command->input_buffer == buffer)
+		buffer_var = &command->input_buffer;
+	else if (command->output_buffer == buffer) {
+		buffer_var = &command->output_buffer;
+		result = &command->output;
+		result_size = &command->output_size;
+	} else if (command->error_buffer) {
+		buffer_var = &command->error_buffer;
+		result = &command->error;
+		result_size = &command->error_size;
+	} else
+		DIE("Buffer not recognized");
+	if (result) {
+		// Extract the content of the buffer into an ordinary C string
+		*result_size = evbuffer_get_length(bufferevent_get_input(buffer));
+		*result = malloc(*result_size + 1);
+		(*result)[*result_size] = '\0';
+		// Read the whole bunch
+		ASSERT(*result_size == bufferevent_read(buffer, *result, *result_size));
+	}
+	bufferevent_free(buffer);
+	*buffer_var = NULL;
+	if (result)
+		// Is this the last one?
+		command_check_complete(command);
+}
+
+static void command_write(struct bufferevent *buffer, void *data) {
+	// Everything is written. Free the bufferevent & close the socket.
+	struct watched_command *command = data;
+	ASSERT(command->input_buffer == buffer);
+	bufferevent_free(buffer);
+	command->input_buffer = NULL;
+}
+
+static struct bufferevent *output_setup(struct event_base *base, int fd, struct watched_command *command) {
+	struct bufferevent *result = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+	bufferevent_setcb(result, NULL, NULL, command_event, command);
+	bufferevent_enable(result, EV_READ);
+	bufferevent_disable(result, EV_WRITE);
+	return result;
+}
+
+static struct wait_id register_command(struct events *events, command_callback_t callback, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, int in_pipe[2], int out_pipe[2], int err_pipe[2], pid_t child) {
+	// TODO: Close the remote ends of the pipes
 	ASSERT(close(in_pipe[0]) != -1);
 	ASSERT(close(out_pipe[1]) != -1);
 	ASSERT(close(err_pipe[1]) != -1);
@@ -301,15 +376,24 @@ static struct wait_id register_command(struct events *events, command_callback_t
 		.child = watch_child(events, command_terminated_callback, command, child),
 		.pid = child,
 		.term_timeout = command_timeout_schedule(events, term_timeout, command_send_term, command),
-		.kill_timeout = command_timeout_schedule(events, kill_timeout, command_send_kill, command)
+		.kill_timeout = command_timeout_schedule(events, kill_timeout, command_send_kill, command),
+		.output_buffer = output_setup(events->base, out_pipe[0], command),
+		.error_buffer = output_setup(events->base, err_pipe[0], command)
 	};
-	// TODO: STDIO
+	if (input && !input_size)
+		input_size = strlen(input);
+	if (input) {
+		command->input_buffer = bufferevent_socket_new(events->base, in_pipe[1], BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+		bufferevent_setcb(command->input_buffer, NULL, command_write, command_event, command);
+		bufferevent_write(command->input_buffer, input, input_size);
+	} else
+		ASSERT(close(in_pipe[1]) != -1);
 	CHECK_FREE(commands, command_count, command_alloc);
 	events->commands[events->command_count ++] = command;
 	return command_id(command);
 }
 
-struct wait_id run_command_a(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, const char *input, int term_timeout, int kill_timeout, const char *command, const char **params) {
+struct wait_id run_command_a(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, const char *command, const char **params) {
 	int in_pipe[2], out_pipe[2], err_pipe[2];
 	ASSERT_MSG(pipe(in_pipe) != -1, "Failed to create stdin pipe for %s: %s", command, strerror(errno));
 	ASSERT_MSG(pipe(out_pipe) != -1, "Failed to create stdout pipe for %s: %s", command, strerror(errno));
@@ -322,7 +406,7 @@ struct wait_id run_command_a(struct events *events, command_callback_t callback,
 			run_child(post_fork, data, command, params, in_pipe, out_pipe, err_pipe);
 			DIE("run_child returned");
 		default:
-			return register_command(events, callback, data, input, term_timeout, kill_timeout, in_pipe, out_pipe, err_pipe, child);
+			return register_command(events, callback, data, input_size, input, term_timeout, kill_timeout, in_pipe, out_pipe, err_pipe, child);
 	}
 }
 

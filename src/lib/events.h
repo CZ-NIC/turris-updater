@@ -90,8 +90,11 @@ enum command_kill_status {
  *
  * Status is whatever got from wait(). The out and err
  * are gathered stdout and stderr of the command.
+ *
+ * The output and error strings get 0-terminated, so you may use them as
+ * ordinary C strings as well as size-based binary buffers.
  */
-typedef void (*command_callback_t)(struct wait_id id, void *data, int status, enum command_kill_status killed, const char *out, const char *err);
+typedef void (*command_callback_t)(struct wait_id id, void *data, int status, enum command_kill_status killed, size_t out_size, const char *out, size_t err_size, const char *err);
 /*
  * Called after fork & redirection of stdio, but before
  * exec. It may be used, for example, to modify environment.
@@ -114,10 +117,13 @@ typedef void (*post_fork_callback_t)(void *data);
  * It is possible to watch_cancel() the process, but it is
  * a rather rude thing to do ‒ all the inputs and outputs
  * are closed and a SIGKILL is sent to the process.
+ *
+ * If the input is not NULL and input_size is 0, the input_size
+ * is automatically computed as strlen(input).
  */
-struct wait_id run_command(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, const char *input, int term_timeout, int kill_timeout, const char *command, ...) __attribute__((nonnull(1, 2, 8)));
+struct wait_id run_command(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, const char *command, ...) __attribute__((nonnull(1, 2, 9)));
 // Exactly the same as run_command, but with array for parameters.
-struct wait_id run_command_a(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, const char *input, int term_timeout, int kill_timeout, const char *command, const char **params) __attribute__((nonnull(1, 2, 8)));
+struct wait_id run_command_a(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, const char *command, const char **params) __attribute__((nonnull(1, 2, 9)));
 
 // Disable an event set up before.
 void watch_cancel(struct events *events, struct wait_id id);
