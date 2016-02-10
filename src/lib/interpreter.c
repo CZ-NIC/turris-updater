@@ -147,32 +147,71 @@ static int push_err_handler(lua_State *L) {
 }
 
 const char *interpreter_include(struct interpreter *interpreter, const char *code, size_t length, const char *src) {
-	ASSERT(interpreter->state);
+	lua_State *L = interpreter->state;
+	ASSERT(L);
 	// We don't know how dirty stack we get here
-	luaL_checkstack(interpreter->state, 2, "Can't create space for interpreter_include");
+	luaL_checkstack(L, 4, "Can't create space for interpreter_include");
 	if (!length) // It is a null-terminated string, compute its length
 		length = strlen(code);
-	push_err_handler(interpreter->state);
-	int result = lua_load(interpreter->state, reader, &(struct reader_data) {
+	push_err_handler(L);
+	int result = lua_load(L, reader, &(struct reader_data) {
 		.chunk = code,
 		.length = length
 	}, src);
 	if (result)
 		// There's been an error. Extract it (top of the stack).
-		return lua_tostring(interpreter->state, -1);
+		return lua_tostring(L, -1);
 	/*
 	 * The stack:
 	 * • … (unknown stuff from before)
 	 * • The error handler (-2)
 	 * • The chunk to call (-1)
 	 */
-	result = lua_pcall(interpreter->state, 0, 1, -2);
+	result = lua_pcall(L, 0, 1, -2);
 	// Remove the error handler
-	lua_remove(interpreter->state, -2);
+	lua_remove(L, -2);
 	if (result)
-		return lua_tostring(interpreter->state, -1);
-	// Store the result (pops it from the stack)
-	lua_setfield(interpreter->state, LUA_GLOBALSINDEX, src);
+		return lua_tostring(L, -1);
+	bool has_result = true;
+	if (lua_isnil(L, -1)) {
+		/*
+		 * In case the module returned nil, use true instead, to properly
+		 * imitate require in what is put into package.loaded.
+		 */
+		lua_pop(L, 1);
+		lua_pushboolean(L, 1);
+		has_result = false;
+	}
+	// Store it into package.loaded
+	lua_getfield(L, LUA_GLOBALSINDEX, "package");
+	lua_getfield(L, -1, "loaded");
+	/*
+	 * The stack:
+	 * • ̣… (unknown stuff from before)
+	 * • The result of load (-3)
+	 * • package (-2)
+	 * • package.loaded (-1)
+	 */
+	/*
+	 * Check if the table is already there and don't override it if so.
+	 * This is the case of module() in the loaded stuff.
+	 */
+	lua_getfield(L, -1, src);
+	bool is_table = lua_istable(L, -1);
+	lua_pop(L, 1);
+	if (!is_table) {
+		// Get a copy of the result on top
+		lua_pushvalue(L, -3);
+		// Move the top into the table
+		lua_setfield(L, -2, src);
+	}
+	// Drop the two tables from top of the stack, leave the result there
+	lua_pop(L, 2);
+	if (has_result)
+		// Store the result (pops it from the stack)
+		lua_setfield(L, LUA_GLOBALSINDEX, src);
+	else
+		lua_pop(L, 1);
 	return NULL;
 }
 
@@ -276,7 +315,8 @@ const char *interpreter_call(struct interpreter *interpreter, const char *functi
 	if (result)
 		// There's an error on top of the stack
 		return lua_tostring(interpreter->state, -1);
-	*result_count = lua_gettop(L);
+	if (result_count)
+		*result_count = lua_gettop(L);
 	return NULL;
 }
 

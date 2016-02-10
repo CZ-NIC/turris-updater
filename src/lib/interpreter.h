@@ -37,7 +37,10 @@ struct interpreter *interpreter_create(void) __attribute__((malloc));
  * null-terminated string.
  *
  * The result of the chunk is stored under name into the global
- * table.
+ * table. Also, package.loaded is set to this value (if not already set
+ * by the loaded lua code itself, for example by module()), so it acts
+ * similar to require(name). Furthermore, future require(name)
+ * will return this value.
  */
 const char *interpreter_include(struct interpreter *interpreter, const char *code, size_t length, const char *name) __attribute__((nonnull));
 

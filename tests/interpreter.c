@@ -43,6 +43,7 @@ const char *survival[] = { "invalid_func();", "local x = 1;", NULL };
 const char *library[] = { "next({});", "getfenv();", "string.find('x', 'y');", "math.abs(-1);", "os.clock();", "debug.getregistry()", NULL };
 const char *autoloaded[] = { "testing.values();", NULL };
 const char *logging[] = { "log('DEBUG', 'test')", "log('INVALID', 'test')", "ERROR('test')", NULL };
+const char *pre_require[] = { "local m = require 'testing'; testing.values();" };
 
 struct loading_case loading_cases[] = {
 	{ "OK", ok, 1, false },
@@ -60,7 +61,9 @@ struct loading_case loading_cases[] = {
 	{ "Not autoloaded", autoloaded, 0, false },
 	// Check that logging doesn't crash us
 	{ "Logging", logging, 3, true },
-	{ "Missing logging", logging, 2, false }
+	{ "Missing logging", logging, 2, false },
+	// Check the loading presets the package.loaded correctly, so further require works.
+	{ "pre_require", pre_require, 1, true }
 };
 
 START_TEST(loading) {
