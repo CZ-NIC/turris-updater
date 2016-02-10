@@ -16,6 +16,8 @@ C_TESTS := \
 	events \
 	interpreter
 
+LUA_TESTS := # No tests yet, but they'll come. The machinery has been tested with uncommited „empty“ test case.
+
 define DO_C_TEST
 
 BINARIES_NOTARGET += tests/ctest-$(1)
@@ -39,6 +41,22 @@ valgrind-$(1): $(O)/bin/ctest-$(1)
 
 endef
 
+define DO_LUA_TEST
+
+test: test-$(1)
+valgrind: valgrind-$(1)
+
+test-$(1): $(O)/bin/lulaunch $(S)/tests/$(1).lua
+	SUPPRESS_LOG=1 $(O)/bin/lulaunch $(S)/tests/$(1).lua
+
+valgrind-$(1): $(O)/bin/lulaunch $(S)/tests/$(1).lua
+	SUPPRESS_LOG=1 $(VALGRIND) $(O)/bin/lulaunch $(S)/tests/$(1).lua
+
+endef
+
 $(eval $(foreach TEST,$(C_TESTS),$(call DO_C_TEST,$(TEST))))
+$(eval $(foreach TEST,$(LUA_TESTS),$(call DO_LUA_TEST,$(TEST))))
 
 check: test valgrind
+
+include $(S)/tests/lunit-launch/Makefile.dir

@@ -17,22 +17,13 @@
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UPDATER_EMBED_TYPES_H
-#define UPDATER_EMBED_TYPES_H
+#include "embed_types.h"
 
-#include <stdint.h>
-#include <stdlib.h>
+#include <string.h>
 
-struct file_index_element {
-	const char *name;
-	const uint8_t *data;
-	size_t size;
-};
-
-/*
- * Find the first index element in the array that has the corresponding name.
- * Return NULL if there's none such.
- */
-const struct file_index_element *index_element_find(const struct file_index_element *elements, const char *name) __attribute__((nonnull));
-
-#endif
+const struct file_index_element *index_element_find(const struct file_index_element *elements, const char *name) {
+	for (const struct file_index_element *e = elements; e->name; e ++)
+		if (strcmp(e->name, name) == 0)
+			return e;
+	return NULL;
+}

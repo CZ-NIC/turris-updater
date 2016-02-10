@@ -1,0 +1,9 @@
+LUNIT_LOAD := $(abspath $(addprefix $(S)/tests/lunit-launch/,lunit/lunit.lua lunit/lunit-console.lua launch.lua))
+$(O)/.gen/tests/lunit-launch/lunit.embedlist: $(S)/src/lib/gen_embed.sh $(S)/src/lib/embed_types.h $(LUNIT_LOAD)
+	$(M) GEN $@
+	$(Q) mkdir -p $(dir $@)
+	$(Q)$< .lua lunit_modules $(S)/src/lib/embed_types.h $(LUNIT_LOAD) >$@
+
+BINARIES_NOTARGET += tests/lunit-launch/lulaunch
+lulaunch_MODULES := main lunit.embed
+lulaunch_LOCAL_LIBS := updater
