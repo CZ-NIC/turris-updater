@@ -248,7 +248,24 @@ static int lua_run_command(lua_State *L) {
 	struct wait_id id = run_command_a(events, command_terminated, command_postfork, data, input_size, input, term_timeout, kill_timeout, command, args);
 	struct wait_id *lid = lua_newuserdata(L, sizeof id);
 	*lid = id;
+	// Return 1 value ‒ the wait_id
 	return 1;
+}
+
+static int lua_events_wait(lua_State *L) {
+	// All the parameters here are the wait_id userdata. We need to put them into an array.
+	size_t event_count = lua_gettop(L);
+	struct wait_id ids[event_count];
+	for (size_t i = 1; i <= event_count; i ++) {
+		// TODO: Associate (an empty) meta-table with the user data and use it to check the type
+		luaL_checktype(L, i, LUA_TUSERDATA);
+		struct wait_id *id = lua_touserdata(L, i);
+		ids[i - 1] = *id;
+	}
+	struct events *events = extract_registry(L, "events");
+	events_wait(events, event_count, ids);
+	// Nothing returned
+	return 0;
 }
 
 struct injected_func {
@@ -259,7 +276,8 @@ struct injected_func {
 static const struct injected_func injected_funcs[] = {
 	{ lua_log, "log" },
 	// TODO: Document that thing
-	{ lua_run_command, "run_command" }
+	{ lua_run_command, "run_command" },
+	{ lua_events_wait, "events_wait" }
 };
 
 struct interpreter *interpreter_create(struct events *events) {
