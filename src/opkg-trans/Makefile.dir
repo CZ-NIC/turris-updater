@@ -7,5 +7,5 @@ valgrind: valgrind-opkg-trans
 
 .PHONY: valgrind valgrind-opkg-trans
 
-valgrind-opkg-trans: $(O)/src/opkg-trans/opkg-trans
+valgrind-opkg-trans: $(O)/bin/opkg-trans
 	$(VALGRIND) $< -h
