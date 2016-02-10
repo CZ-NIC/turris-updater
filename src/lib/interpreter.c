@@ -161,6 +161,9 @@ static void *extract_registry(lua_State *L, const char *name) {
 	return result;
 }
 
+// Name of the wait_id meta table
+#define WAIT_ID_META "WAIT_ID_META"
+
 static void command_terminated(struct wait_id id __attribute__((unused)), void *data, int status, enum command_kill_status killed, size_t out_size, const char *out, size_t err_size, const char *err) {
 	struct lua_command_data *lcd = data;
 	struct lua_State *L = lcd->L;
@@ -247,6 +250,9 @@ static int lua_run_command(lua_State *L) {
 		input = lua_tolstring(L, 3, &input_size);
 	struct wait_id id = run_command_a(events, command_terminated, command_postfork, data, input_size, input, term_timeout, kill_timeout, command, args);
 	struct wait_id *lid = lua_newuserdata(L, sizeof id);
+	// Set meta table. Empty one, but make sure we can recognize our data.
+	luaL_newmetatable(L, WAIT_ID_META);
+	lua_setmetatable(L, -2);
 	*lid = id;
 	// Return 1 value ‒ the wait_id
 	return 1;
@@ -256,12 +262,9 @@ static int lua_events_wait(lua_State *L) {
 	// All the parameters here are the wait_id userdata. We need to put them into an array.
 	size_t event_count = lua_gettop(L);
 	struct wait_id ids[event_count];
-	for (size_t i = 1; i <= event_count; i ++) {
-		// TODO: Associate (an empty) meta-table with the user data and use it to check the type
-		luaL_checktype(L, i, LUA_TUSERDATA);
-		struct wait_id *id = lua_touserdata(L, i);
-		ids[i - 1] = *id;
-	}
+	for (size_t i = 1; i <= event_count; i ++)
+		// Check each one is the wait_id we provided
+		memcpy(&ids[i - 1], luaL_checkudata(L, i, WAIT_ID_META), sizeof ids[i - 1]);
 	struct events *events = extract_registry(L, "events");
 	events_wait(events, event_count, ids);
 	// Nothing returned
@@ -278,6 +281,11 @@ static const struct injected_func injected_funcs[] = {
 	// TODO: Document that thing
 	{ lua_run_command, "run_command" },
 	{ lua_events_wait, "events_wait" }
+	/*
+	 * Note: watch_cancel is not provided, because it would be hell to
+	 * manage the dynamically allocated memory correctly and there doesn't
+	 * seem to be a need for them at this moment.
+	 */
 };
 
 struct interpreter *interpreter_create(struct events *events) {
