@@ -20,6 +20,7 @@
 #include "../../src/lib/interpreter.h"
 #include "../../src/lib/util.h"
 #include "../../src/lib/embed_types.h"
+#include "../../src/lib/events.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -43,7 +44,8 @@ void require(struct interpreter *interpreter, const char *name) {
 
 int main(int argc __attribute__((unused)), char *argv[]) {
 	// Get the interpreter
-	struct interpreter *interpreter = interpreter_create();
+	struct events *events = events_new();
+	struct interpreter *interpreter = interpreter_create(events);
 	const char *error = interpreter_autoload(interpreter);
 	ASSERT_MSG(!error, "%s", error);
 	// Load the lunit modules
@@ -66,6 +68,7 @@ int main(int argc __attribute__((unused)), char *argv[]) {
 		total_failures += failed;
 	}
 	interpreter_destroy(interpreter);
+	events_destroy(events);
 	printf("Total of %d errors and %d failures\n", total_errors, total_failures);
 	return (total_errors || total_failures) ? 1 : 0;
 }

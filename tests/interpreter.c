@@ -79,7 +79,7 @@ START_TEST(loading) {
 	 * having it auto-detected.
 	 */
 	struct loading_case *c = &loading_cases[_i / 2];
-	struct interpreter *interpreter = interpreter_create();
+	struct interpreter *interpreter = interpreter_create(NULL);
 	if (c->autoload)
 		ck_assert_msg(!interpreter_autoload(interpreter), "Error autoloading");
 	mark_point();
@@ -97,7 +97,7 @@ END_TEST
 
 #define START_INTERPRETER_TEST(NAME) \
 	START_TEST(NAME) { \
-		struct interpreter *interpreter = interpreter_create(); \
+		struct interpreter *interpreter = interpreter_create(NULL); \
 		ck_assert_msg(!interpreter_autoload(interpreter), "Error autoloading"); \
 		mark_point();
 
