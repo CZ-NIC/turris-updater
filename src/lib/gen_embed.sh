@@ -8,7 +8,7 @@ sed -e 's/^/|/' "$1"
 shift
 
 while [ "$1" ]; do
-	name="$(basename -s "$suffix" "$1")"
+	name="$(basename -s "$suffix" "$1" | tr -- '-' '_')"
 	echo "$name" "$1"
 	shift
 done
