@@ -16,7 +16,8 @@ C_TESTS := \
 	events \
 	interpreter
 
-LUA_TESTS := # No tests yet, but they'll come. The machinery has been tested with uncommited „empty“ test case.
+LUA_TESTS := \
+	backend
 
 define DO_C_TEST
 
