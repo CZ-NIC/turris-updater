@@ -42,6 +42,9 @@ void require(struct interpreter *interpreter, const char *name) {
 }
 
 int main(int argc __attribute__((unused)), char *argv[]) {
+	const char *suppress_log = getenv("SUPPRESS_LOG");
+	if (suppress_log && strcmp("1", suppress_log) == 0)
+		updater_logging_enabled = false;
 	// Get the interpreter
 	struct interpreter *interpreter = interpreter_create();
 	const char *error = interpreter_autoload(interpreter);
