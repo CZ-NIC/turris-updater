@@ -394,6 +394,7 @@ static struct wait_id register_command(struct events *events, command_callback_t
 }
 
 struct wait_id run_command_a(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, const char *command, const char **params) {
+	DBG("Running command %s", command);
 	int in_pipe[2], out_pipe[2], err_pipe[2];
 	ASSERT_MSG(pipe(in_pipe) != -1, "Failed to create stdin pipe for %s: %s", command, strerror(errno));
 	ASSERT_MSG(pipe(out_pipe) != -1, "Failed to create stdout pipe for %s: %s", command, strerror(errno));

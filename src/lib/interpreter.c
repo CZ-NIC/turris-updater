@@ -154,10 +154,11 @@ struct lua_command_data {
 
 // Extract pointer of userdata from the lua registry
 static void *extract_registry(lua_State *L, const char *name) {
-	lua_getfield(L, LUA_REGISTRYINDEX, name);
+	lua_getfield(L, LUA_REGISTRYINDEX, REGISTRY_NAME);
+	lua_getfield(L, -1, name);
 	ASSERT(lua_islightuserdata(L, -1));
 	void *result = lua_touserdata(L, -1);
-	lua_pop(L, 1);
+	lua_pop(L, 2);
 	return result;
 }
 
@@ -220,8 +221,20 @@ static void command_postfork(void *data) {
 	// We don't worry about freeing memory here. We're going to exec just in a while.
 }
 
+static void do_flush(lua_State *L, const char *handle) {
+	lua_getfield(L, LUA_GLOBALSINDEX, "io");
+	lua_getfield(L, -1, handle);
+	lua_getfield(L, -1, "flush");
+	lua_pushvalue(L, -2);
+	lua_call(L, 1, 0);
+	lua_pop(L, 2);
+}
+
 static int lua_run_command(lua_State *L) {
-	// First extract the parameters. There's a lot of them.
+	// Flush the lua output (it seems to buffered separately)
+	do_flush(L, "stdout");
+	do_flush(L, "stderr");
+	// Extract the parameters. There's a lot of them.
 	luaL_checktype(L, 1, LUA_TFUNCTION);
 	int pf_cback_type = lua_type(L, 2);
 	if (pf_cback_type != LUA_TNIL && pf_cback_type != LUA_TFUNCTION)
@@ -231,11 +244,12 @@ static int lua_run_command(lua_State *L) {
 	int term_timeout = luaL_checkinteger(L, 4);
 	int kill_timeout = luaL_checkinteger(L, 5);
 	const char *command = luaL_checkstring(L, 6);
+	DBG("Command %s", command);
 	// The rest of the args are args for the command ‒ get them into an array
 	const size_t arg_count = lua_gettop(L) - 6;
 	const char *args[arg_count + 1];
 	for (int i = 6; i < lua_gettop(L); i ++)
-		args[i - 6] = luaL_checkstring(L, i);
+		DBG("Arg %s", args[i - 6] = luaL_checkstring(L, i + 1));
 	args[arg_count] = NULL;
 	// Data for the callbacks. It will get freed there.
 	struct lua_command_data *data = malloc(sizeof *data);
