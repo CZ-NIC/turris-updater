@@ -169,7 +169,7 @@ END_TEST
 START_TEST(command_timeout) {
 	struct events *events = events_new();
 	struct command_info info = { .called = 0 };
-	struct wait_id id = run_command(events, command_terminated, NULL, &info, 0, NULL, 100, 1000, "/bin/sh", "-c", "while true ; do sleep 1 ; done", NULL);
+	struct wait_id id = run_command(events, command_terminated, NULL, &info, 0, NULL, 100, 1000, "/bin/sh", "-c", "while true ; do : ; done", NULL);
 	info.id_expected = id;
 	alarm(10);
 	events_wait(events, 1, &id);
