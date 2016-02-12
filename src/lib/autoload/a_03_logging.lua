@@ -17,24 +17,15 @@ You should have received a copy of the GNU General Public License
 along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
-local function concat_all(...)
-	local result = ''
-	for _, val in ipairs({...}) do
-		result = result .. val
-	end
-	return result
-end
-
 -- Generate appropriate logging functions
 for _, name in ipairs({ 'ERROR', 'WARN', 'DBG' }) do
 	_G[name] = function(...)
-		log(name, concat_all(...))
+		log(name, ...)
 	end
 end
 
 -- The DIE function (which should really terminate, not just throw)
 function DIE(...)
-	local msg = concat_all(...)
-	log('DIE', msg)
+	log('DIE', ...)
 	os.exit(1)
 end
