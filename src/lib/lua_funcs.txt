@@ -1,0 +1,77 @@
+Lua injections
+==============
+
+We inject several functions into the lua global environment. Since
+there's no good place to document them (like .h files for C code),
+they are listed here
+
+Logging
+-------
+
+log(level, msg, msg, msg, ...)::
+  This is a low-level function used for logging. It should not be used
+  directly by lua code. The messages are just strings that are
+  concatenated together before outputting. The level is one of:
+  - DIE
+  - ERROR
+  - WARN
+  - DBG
+ERROR(msg, msg, ...)::
+WARN(msg, msg, ...)::
+DBG(msg, msg, ...)::
+  These output a message to the logs with a given level. The messages
+  are concatenated together.
+DIE(msg, msg, ...)::
+  In addition to outputting the message on the ``DIE`` level, it also
+  terminates the application with error exit code.
+
+Asynchronous events
+-------------------
+
+Some of the functions from ``events.h`` are exposed to lua code, with
+minor modifications.
+
+Currently, it is possible to run external commands with the
+`run_command` function. The code would look like this:
+
+  function terminated(exit_code, killed, stdout, stderr)
+    -- The command terminated
+  end
+
+  function postfork()
+    -- Run after fork in the child ‒ set up the environment
+  end
+
+  local id = run_command(terminated, postfork, input, term_timeout, kill_timeout, command, param, param)
+
+  events_wait(id)
+
+The functionality is very similar to the C functions, with these
+differences:
+
+* It doesn't take the `events` parameter, one global `events`
+  structure per interpreter is used.
+* The callbacks don't take the `data` or `wait_id` parameters, since
+  lua has closures and passing information into the callbacks is easy.
+* Lua naturally supports strings with embedded zero bytes, therefore
+  there are no lengths of the inputs or outputs.
+* The `exit_code` in the callback is not the raw integer from the
+  system call, but decoded to the exit code of the process or signal
+  number that terminated it.
+* `killed` is a string, one of:
+  - `TERMINATED`
+  - `TERMED`
+  - `KILLED`
+  - `SIGNAL_OTHER`
+* The events_wait take any number of ip parameters instead of an
+  array.
+
+The `postfork` and `input` parameters may be nil. The `term_timeout`
+and `kill_timeout` take -1 to mean no timeout.
+
+There may be any number of the `param` parameters, which are passed to
+the command.
+
+Currently, there's no way to cancel running command from lua, since
+that would make the wrapper code needlessly complex (while there seems
+to be no need to cancel them currently).

@@ -15,3 +15,5 @@ libupdater_MODULES := \
 	events \
 	util
 libupdater_PKG_CONFIGS := $(LUA_NAME) libevent
+
+DOCS += src/lib/lua_funcs
