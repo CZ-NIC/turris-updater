@@ -188,7 +188,7 @@ static void command_terminated(struct wait_id id __attribute__((unused)), void *
 	 */
 	free(lcd);
 	// Push the rest of parameters here
-	lua_pushinteger(L, status);
+	lua_pushinteger(L, WIFEXITED(status) ? WEXITSTATUS(status) : WTERMSIG(status));
 	const char *ks = NULL;
 	switch (killed) {
 #define KS(NAME) case CK_##NAME: ks = #NAME; break
