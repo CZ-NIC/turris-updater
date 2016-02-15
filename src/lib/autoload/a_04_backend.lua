@@ -57,4 +57,34 @@ function parse_block(block)
 	return result
 end
 
+--[[
+Split text into blocks separated by at least one empty line.
+Returns an iterator.
+]]
+function split_blocks(string)
+	local pos = 0 -- 0 is the last one we /don't/ want.
+	-- Get the next block (an iterator)
+	local function next_block()
+		if not pos then return end
+		pos = pos + 1 -- Move /after/ the last char of the previous separator
+		local bstart, bend = string:find("\n\n+", pos)
+		-- Omit the first character of the separator from the result
+		if bstart then bstart = bstart - 1 end
+		-- It's OK to call with nil ‒ we take the rest of the string
+		local block = string:sub(pos, bstart)
+		pos = bend
+		return block
+	end
+	-- Filter out empty results
+	local function filter_empty()
+		local result = next_block()
+		-- Just retry as long as the block are empty
+		while result and result:len() == 0 do
+			result = next_block()
+		end
+		return result
+	end
+	return filter_empty
+end
+
 return _M

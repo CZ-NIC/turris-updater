@@ -49,3 +49,44 @@ val2: value 2]]))
 	assert_error(function() B.parse_block("xyz") end)
 	assert_error(function() B.parse_block(" ") end)
 end
+
+--[[
+Call the B.split_blocks on inputs. Then go in through the iterator
+returned and in the outputs table in tandem, checking the things match.
+]]
+local function blocks_check(input, outputs)
+	local exp_i, exp_v = next(outputs)
+	for b in B.split_blocks(input) do
+		assert_equal(exp_v, b)
+		exp_i, exp_v = next(outputs, exp_i)
+	end
+	-- Nothing left.
+	assert_nil(exp_i)
+end
+
+-- Tests for the split_blocks function.
+function test_split_blocks()
+	-- Just splitting into blocks
+	blocks_check([[block 1
+next line
+another line
+
+block 2
+multi line]], {[[block 1
+next line
+another line]], [[block 2
+multi line]]})
+	-- More than one empty line (should not produce extra empty block)
+	blocks_check([[block 1
+
+
+block 2]], {'block 1', 'block 2'})
+	-- Few empty lines at the end - should not produce an empty block
+	blocks_check([[block 1
+
+block 2
+
+
+]], {'block 1', 'block 2'})
+	-- Few empty lines at the beginning - should not produce an empty block
+end
