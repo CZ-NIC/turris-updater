@@ -90,3 +90,43 @@ block 2
 ]], {'block 1', 'block 2'})
 	-- Few empty lines at the beginning - should not produce an empty block
 end
+
+--[[
+Test post-processing packages. Examples taken and combined from real status file
+(however, this exact package doesn't exist).
+]]
+function test_package_postprocces()
+	local package = {
+		Package = "dnsmasq-dhcpv6",
+		Version = "2.73-1",
+		Depends = "libc, kernel (= 3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10), kmod-nls-base",
+		Status = "install user installed",
+		Architecture = "mpc85xx",
+		Conffiles = [[
+ /etc/config/dhcp f81fe9bd228dede2165be71e5c9dcf76cc
+ /etc/dnsmasq.conf 1e6ab19c1ae5e70d609ac7b6246541d520]]
+	}
+	local output = B.package_postprocess(package)
+	-- Make sure it modifies the table in-place
+	assert_equal(package, output)
+	assert_table_equal({install = true, user = true, installed = true}, output.Status)
+	assert_table_equal({["/etc/config/dhcp"] = "f81fe9bd228dede2165be71e5c9dcf76cc", ["/etc/dnsmasq.conf"] = "1e6ab19c1ae5e70d609ac7b6246541d520"}, output.Conffiles)
+	assert_table_equal({"libc", "kernel (=3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10)", "kmod-nls-base"}, output.Depends)
+	--[[
+	Now check it doesn't get confused when some of the modified fields aren't there
+	(or none, in this case).
+	]]
+	local pack_nomod = {
+		Package = "wget",
+		Version = "1.17.1-1",
+		Architecture = "mpc85xx"
+	}
+	local pack_nomod_cp = {}
+	for n, v in pairs(pack_nomod) do
+		pack_nomod_cp[n] = v
+	end
+	local output = B.package_postprocess(pack_nomod)
+	assert_not_equal(pack_nomod_cp, output)
+	assert_equal(pack_nomod, output)
+	assert_table_equal(pack_nomod_cp, output)
+end

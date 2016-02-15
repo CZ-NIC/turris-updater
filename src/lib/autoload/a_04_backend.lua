@@ -18,6 +18,7 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
 local error = error
+local type = type
 
 module "backend"
 
@@ -85,6 +86,55 @@ function split_blocks(string)
 		return result
 	end
 	return filter_empty
+end
+
+--[[
+Postprocess the table representing a status of a package. The original table
+is modified and returned.
+
+It does:
+Splitting these fielts into subtables of items:
+Conffiles
+Depends
+Status
+]]
+function package_postprocess(status)
+	--[[
+	If the field is present, it replaces it with a new table.
+	The table is created from the field by splitting it by
+	separator (list of „forbidden“ characters and extracting
+	two fields from cleanup pattern. If only one is provided,
+	the second is replaced by true. If the cleanup doesn't match,
+	the part is thrown away.
+	]]
+	local function replace(name, separator, cleanup)
+		if type(cleanup) == "string" then
+			local c = cleanup
+			cleanup = function (s) return s:match(c) end
+		end
+		local value = status[name]
+		if value then
+			local result = {}
+			for item in value:gmatch("[^" .. separator .. "]+") do
+				local n, v = cleanup(item)
+				if n then
+					if not v then v = true end
+					result[n] = v
+				end
+			end
+			status[name] = result
+		end
+	end
+	-- Conffiles are lines with two „words“
+	replace("Conffiles", "\n", "%s*(%S+)%s+(%S+)")
+	-- Depends are separated by commas and may contain a version in parentheses
+	local idx = 0
+	replace("Depends", ",", function (s)
+		idx = idx + 1
+		return idx, s:gsub("%s", ""):gsub("%(", " (")
+	end)
+	replace("Status", " ", "(%S+)")
+	return status
 end
 
 return _M
