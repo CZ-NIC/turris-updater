@@ -217,6 +217,16 @@ function test_status_parse()
 		["/etc/config/dhcp"] = "f81fe9bd228dede2165be71e5c9dcf76cc",
 		["/etc/dnsmasq.conf"] = "1e6ab19c1ae5e70d609ac7b6246541d520"
 	})
+	-- Slightly broken package ‒ no relevant info files
+	status_check("ucollect-count", {
+		Package = "ucollect-count",
+		Version = "27",
+		Architecture = "mpc85xx",
+		["Installed-Time"] = "1453896279"
+	}, {"libc", "ucollect-prog"}, std_status, {})
+	-- More broken case - the whole status file missing
+	B.status_file = "/does/not/exist"
+	assert_error(B.status_parse)
 end
 
 local orig_status_file = B.status_file

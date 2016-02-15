@@ -21,3 +21,10 @@ Conffiles:
  /etc/config/dhcp f81fe9bd228dede2165be71e5c9dcf76cc
  /etc/dnsmasq.conf 1e6ab19c1ae5e70d609ac7b6246541d520
 Installed-Time: 1453896240
+
+Package: ucollect-count
+Version: 27
+Depends: libc, ucollect-prog
+Status: install user installed
+Architecture: mpc85xx
+Installed-Time: 1453896279
