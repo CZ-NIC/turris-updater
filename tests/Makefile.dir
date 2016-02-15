@@ -48,10 +48,10 @@ test: test-lua-$(1)
 valgrind: valgrind-lua-$(1)
 
 test-lua-$(1): $(O)/bin/lulaunch $(S)/tests/$(1).lua
-	SUPPRESS_LOG=1 $(O)/bin/lulaunch $(S)/tests/$(1).lua
+	SUPPRESS_LOG=1 S=$(S) $(O)/bin/lulaunch $(S)/tests/$(1).lua
 
 valgrind-lua-$(1): $(O)/bin/lulaunch $(S)/tests/$(1).lua
-	SUPPRESS_LOG=1 $(VALGRIND) $(O)/bin/lulaunch $(S)/tests/$(1).lua
+	SUPPRESS_LOG=1 S=$(S) $(VALGRIND) $(O)/bin/lulaunch $(S)/tests/$(1).lua
 
 endef
 

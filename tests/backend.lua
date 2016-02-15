@@ -22,14 +22,14 @@ local B = require 'backend'
 
 module("backend-tests", package.seeall, lunit.testcase)
 
--- Tests for the parse_block function
-function test_parse_block()
+-- Tests for the block_parse function
+function test_block_parse()
 	-- Simple case
 	assert_table_equal({
 		val1 = "value 1",
 		val2 = "value 2",
 		val3 = "value 3"
-	}, B.parse_block([[val1: value 1
+	}, B.block_parse([[val1: value 1
 val2:  value 2
 val3:	value 3]]))
 	-- Continuations of fields
@@ -38,25 +38,25 @@ val3:	value 3]]))
  line 2
  line 3]],
 		val2 = "value 2"
-	}, B.parse_block([[val1: value 1
+	}, B.block_parse([[val1: value 1
  line 2
  line 3
 val2: value 2]]))
 	-- Continuation on the first line, several ways
-	assert_error(function() B.parse_block(" x") end)
-	assert_error(function() B.parse_block(" x: y") end)
+	assert_error(function() B.block_parse(" x") end)
+	assert_error(function() B.block_parse(" x: y") end)
 	-- Some other strange lines
-	assert_error(function() B.parse_block("xyz") end)
-	assert_error(function() B.parse_block(" ") end)
+	assert_error(function() B.block_parse("xyz") end)
+	assert_error(function() B.block_parse(" ") end)
 end
 
 --[[
-Call the B.split_blocks on inputs. Then go in through the iterator
+Call the B.block_split on inputs. Then go in through the iterator
 returned and in the outputs table in tandem, checking the things match.
 ]]
 local function blocks_check(input, outputs)
 	local exp_i, exp_v = next(outputs)
-	for b in B.split_blocks(input) do
+	for b in B.block_split(input) do
 		assert_equal(exp_v, b)
 		exp_i, exp_v = next(outputs, exp_i)
 	end
@@ -64,8 +64,8 @@ local function blocks_check(input, outputs)
 	assert_nil(exp_i)
 end
 
--- Tests for the split_blocks function.
-function test_split_blocks()
+-- Tests for the block_split function.
+function test_block_split()
 	-- Just splitting into blocks
 	blocks_check([[block 1
 next line
@@ -129,4 +129,58 @@ function test_package_postprocces()
 	assert_not_equal(pack_nomod_cp, output)
 	assert_equal(pack_nomod, output)
 	assert_table_equal(pack_nomod_cp, output)
+end
+
+-- Tests for status_parse ‒ which parses the whole thing
+function test_status_parse()
+	local result = B.status_parse()
+	local function status_check(name, desc, depends, status, conffiles)
+		local pkg = result[name]
+		assert_not_nil(pkg)
+		if depends then
+			assert_not_nil(pkg.Depends)
+			assert_table_equal(depends, pkg.Depends)
+			desc.Depends = pkg.Depends
+		end
+		if status then
+			assert_not_nil(pkg.Status)
+			assert_table_equal(status, pkg.Status)
+			desc.Status = pkg.Status
+		end
+		if conffiles then
+			assert_not_nil(pkg.Conffiles)
+			assert_table_equal(conffiles, pkg.Conffiles)
+			desc.Conffiles = pkg.Conffiles
+		end
+		assert_table_equal(desc, pkg)
+	end
+	local std_status = {install = true, user = true, installed = true}
+	status_check("kmod-usb-storage", {
+		Package = "kmod-usb-storage",
+		Version = "3.18.21+10-1-70ea6b9a4b789c558ac9d579b5c1022f-10",
+		Architecture = "mpc85xx",
+		["Installed-Time"] = "1453896142"}, {"kernel (=3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10)", "kmod-scsi-core", "kmod-usb-core"}, std_status)
+	status_check("terminfo", {
+		Package = "terminfo",
+		Version = "5.9-2",
+		Architecture = "mpc85xx",
+		["Installed-Time"] = "1453896265"}, {"libc"}, std_status)
+	status_check("dnsmasq-dhcpv6", {
+		Package = "dnsmasq-dhcpv6",
+		Version = "2.73-1",
+		Architecture = "mpc85xx",
+		["Installed-Time"] = "1453896240"}, {"libc"}, std_status, {["/etc/config/dhcp"] = "f81fe9bd228dede2165be71e5c9dcf76cc", ["/etc/dnsmasq.conf"] = "1e6ab19c1ae5e70d609ac7b6246541d520"})
+end
+
+local orig_status_file = B.status_file
+
+function setup()
+	local sdir = os.getenv("S") or "."
+	-- Use a shortened version of a real status file for tests
+	B.status_file = sdir .. "/tests/data/opkg/status"
+end
+
+function teardown()
+	-- Clean up, return the original file name
+	B.status_file = orig_status_file
 end

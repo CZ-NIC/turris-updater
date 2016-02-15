@@ -19,6 +19,8 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 
 local error = error
 local type = type
+local io = io
+local DBG = DBG
 
 module "backend"
 
@@ -26,7 +28,7 @@ module "backend"
 Parse a single block of mail-header-like records.
 Return as a table.
 ]]--
-function parse_block(block)
+function block_parse(block)
 	local result = {}
 	local name
 	local value
@@ -62,7 +64,7 @@ end
 Split text into blocks separated by at least one empty line.
 Returns an iterator.
 ]]
-function split_blocks(string)
+function block_split(string)
 	local pos = 0 -- 0 is the last one we /don't/ want.
 	-- Get the next block (an iterator)
 	local function next_block()
@@ -135,6 +137,28 @@ function package_postprocess(status)
 	end)
 	replace("Status", " ", "(%S+)")
 	return status
+end
+
+status_file = "/usr/lib/opkg/status"
+
+function status_parse()
+	DBG("Parsing status file ", status_file)
+	local result = {}
+	local f, err = io.open(status_file)
+	if f then
+		local content = f:read("*a")
+		f:close()
+		if not content then error("Failed to read content of the status file") end
+		for block in block_split(content) do
+			local pkg = block_parse(block)
+			-- TODO: merge other sources of information
+			pkg = package_postprocess(pkg)
+			result[pkg.Package] = pkg
+		end
+	else
+		error("Couldn't read status file " .. status_file .. ": " .. err)
+	end
+	return result
 end
 
 return _M
