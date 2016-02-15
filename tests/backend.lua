@@ -134,24 +134,20 @@ end
 -- Tests for status_parse ‒ which parses the whole thing
 function test_status_parse()
 	local result = B.status_parse()
-	local function status_check(name, desc, depends, status, conffiles)
+	local function status_check(name, desc, depends, status, files, conffiles)
 		local pkg = result[name]
 		assert_not_nil(pkg)
-		if depends then
-			assert_not_nil(pkg.Depends)
-			assert_table_equal(depends, pkg.Depends)
-			desc.Depends = pkg.Depends
+		local function sub_check(value, name)
+			if value then
+				assert_not_nil(pkg[name])
+				assert_table_equal(value, pkg[name])
+				desc[name] = pkg[name]
+			end
 		end
-		if status then
-			assert_not_nil(pkg.Status)
-			assert_table_equal(status, pkg.Status)
-			desc.Status = pkg.Status
-		end
-		if conffiles then
-			assert_not_nil(pkg.Conffiles)
-			assert_table_equal(conffiles, pkg.Conffiles)
-			desc.Conffiles = pkg.Conffiles
-		end
+		sub_check(depends, "Depends")
+		sub_check(status, "Status")
+		sub_check(files, "files")
+		sub_check(conffiles, "Conffiles")
 		assert_table_equal(desc, pkg)
 	end
 	local std_status = {install = true, user = true, installed = true}
@@ -164,7 +160,16 @@ function test_status_parse()
 		Section = "kernel",
 		["Installed-Size"] = "22537",
 		Description = "Kernel support for USB Mass Storage devices",
-		["Installed-Time"] = "1453896142"}, {"kernel (=3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10)", "kmod-scsi-core", "kmod-usb-core"}, std_status)
+		["Installed-Time"] = "1453896142"
+	}, {
+		"kernel (=3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10)",
+		"kmod-scsi-core",
+		"kmod-usb-core"
+	}, std_status, {
+		["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
+		["/etc/modules-boot.d/usb-storage"] = true,
+		["/etc/modules.d/usb-storage"] = true
+	})
 	status_check("terminfo", {
 		Package = "terminfo",
 		Version = "5.9-2",
@@ -175,7 +180,20 @@ function test_status_parse()
 		Section = "libs",
 		["Installed-Size"] = "5822",
 		Description = "Terminal Info Database (ncurses)",
-		["Installed-Time"] = "1453896265"}, {"libc"}, std_status)
+		["Installed-Time"] = "1453896265"
+	}, {"libc"}, std_status, {
+		["/usr/share/terminfo/x/xterm"] = true,
+		["/usr/share/terminfo/r/rxvt-unicode"] = true,
+		["/usr/share/terminfo/d/dumb"] = true,
+		["/usr/share/terminfo/a/ansi"] = true,
+		["/usr/share/terminfo/x/xterm-color"] = true,
+		["/usr/share/terminfo/r/rxvt"] = true,
+		["/usr/share/terminfo/s/screen"] = true,
+		["/usr/share/terminfo/x/xterm-256color"] = true,
+		["/usr/share/terminfo/l/linux"] = true,
+		["/usr/share/terminfo/v/vt100"] = true,
+		["/usr/share/terminfo/v/vt102"] = true
+	})
 	status_check("dnsmasq-dhcpv6", {
 		Package = "dnsmasq-dhcpv6",
 		Version = "2.73-1",
@@ -188,7 +206,17 @@ function test_status_parse()
 		Description = [[It is intended to provide coupled DNS and DHCP service to a LAN.
  
  This is a variant with DHCPv6 support]],
-		["Installed-Time"] = "1453896240"}, {"libc"}, std_status, {["/etc/config/dhcp"] = "f81fe9bd228dede2165be71e5c9dcf76cc", ["/etc/dnsmasq.conf"] = "1e6ab19c1ae5e70d609ac7b6246541d520"})
+		["Installed-Time"] = "1453896240"
+	}, {"libc"}, std_status, {
+		["/etc/dnsmasq.conf"] = true,
+		["/etc/hotplug.d/iface/25-dnsmasq"] = true,
+		["/etc/config/dhcp"] = true,
+		["/etc/init.d/dnsmasq"] = true,
+		["/usr/sbin/dnsmasq"] = true
+	}, {
+		["/etc/config/dhcp"] = "f81fe9bd228dede2165be71e5c9dcf76cc",
+		["/etc/dnsmasq.conf"] = "1e6ab19c1ae5e70d609ac7b6246541d520"
+	})
 end
 
 local orig_status_file = B.status_file

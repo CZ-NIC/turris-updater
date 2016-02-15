@@ -144,18 +144,42 @@ end
 status_file = "/usr/lib/opkg/status"
 info_dir = "/usr/lib/opkg/info/"
 
--- Read pkg_name's .control file and return it as a parsed block
-local function pkg_control(pkg_name)
-	local fname = info_dir .. pkg_name .. ".control"
+-- Get pkg_name's file's content with given suffix. Nil on error.
+local function pkg_file(pkg_name, suffix, warn)
+	local fname = info_dir .. pkg_name .. "." .. suffix
 	local f, err = io.open(fname)
 	if not f then
-		WARN("Could not read .control file of " .. pkg_name .. ": " .. err)
+		if warn then WARN("Could not read ." .. suffix .. "file of " .. pkg_name .. ": " .. err) end
 		return nil
 	end
 	local content = f:read("*a")
 	f:close()
 	if not content then error("Could not read content of " .. fname) end
-	return block_parse(content)
+	return content
+end
+
+-- Read pkg_name's .control file and return it as a parsed block
+local function pkg_control(pkg_name)
+	local content = pkg_file(pkg_name, "control", true)
+	if content then
+		return block_parse(content)
+	else
+		return {}
+	end
+end
+
+--
+local function pkg_files(pkg_name)
+	local content = pkg_file(pkg_name, "list", true)
+	if content then
+		local result = {}
+		for l in content:gmatch("[^\n]+") do
+			result[l] = true
+		end
+		return result
+	else
+		return {}
+	end
 end
 
 -- Merge additions into target (both are tables)
@@ -175,9 +199,8 @@ function status_parse()
 		if not content then error("Failed to read content of the status file") end
 		for block in block_split(content) do
 			local pkg = block_parse(block)
-			local control = pkg_control(pkg.Package)
-			if control then merge(pkg, control) end
-			-- TODO: merge other sources of information
+			merge(pkg, pkg_control(pkg.Package))
+			pkg.files = pkg_files(pkg.Package)
 			pkg = package_postprocess(pkg)
 			result[pkg.Package] = pkg
 		end
