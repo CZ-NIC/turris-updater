@@ -159,28 +159,50 @@ function test_status_parse()
 		Package = "kmod-usb-storage",
 		Version = "3.18.21+10-1-70ea6b9a4b789c558ac9d579b5c1022f-10",
 		Architecture = "mpc85xx",
+		Source = "package/kernel/linux",
+		License = "GPLv2",
+		Section = "kernel",
+		["Installed-Size"] = "22537",
+		Description = "Kernel support for USB Mass Storage devices",
 		["Installed-Time"] = "1453896142"}, {"kernel (=3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10)", "kmod-scsi-core", "kmod-usb-core"}, std_status)
 	status_check("terminfo", {
 		Package = "terminfo",
 		Version = "5.9-2",
 		Architecture = "mpc85xx",
+		Source = "package/libs/ncurses",
+		License = "MIT",
+		LicenseFiles = "README",
+		Section = "libs",
+		["Installed-Size"] = "5822",
+		Description = "Terminal Info Database (ncurses)",
 		["Installed-Time"] = "1453896265"}, {"libc"}, std_status)
 	status_check("dnsmasq-dhcpv6", {
 		Package = "dnsmasq-dhcpv6",
 		Version = "2.73-1",
 		Architecture = "mpc85xx",
+		Source = "package/network/services/dnsmasq",
+		License = "GPL-2.0",
+		LicenseFiles = "COPYING",
+		Section = "net",
+		["Installed-Size"] = "142254",
+		Description = [[It is intended to provide coupled DNS and DHCP service to a LAN.
+ 
+ This is a variant with DHCPv6 support]],
 		["Installed-Time"] = "1453896240"}, {"libc"}, std_status, {["/etc/config/dhcp"] = "f81fe9bd228dede2165be71e5c9dcf76cc", ["/etc/dnsmasq.conf"] = "1e6ab19c1ae5e70d609ac7b6246541d520"})
 end
 
 local orig_status_file = B.status_file
+local orig_info_dir = B.info_dir
 
 function setup()
 	local sdir = os.getenv("S") or "."
 	-- Use a shortened version of a real status file for tests
 	B.status_file = sdir .. "/tests/data/opkg/status"
+	B.info_dir = sdir .. "/tests/data/opkg/info/"
 end
 
 function teardown()
 	-- Clean up, return the original file name
 	B.status_file = orig_status_file
+	B.info_dir = orig_info_dir
 end

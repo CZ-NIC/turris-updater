@@ -19,8 +19,10 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 
 local error = error
 local type = type
+local pairs = pairs
 local io = io
 local DBG = DBG
+local WARN = WARN
 
 module "backend"
 
@@ -140,6 +142,28 @@ function package_postprocess(status)
 end
 
 status_file = "/usr/lib/opkg/status"
+info_dir = "/usr/lib/opkg/info/"
+
+-- Read pkg_name's .control file and return it as a parsed block
+local function pkg_control(pkg_name)
+	local fname = info_dir .. pkg_name .. ".control"
+	local f, err = io.open(fname)
+	if not f then
+		WARN("Could not read .control file of " .. pkg_name .. ": " .. err)
+		return nil
+	end
+	local content = f:read("*a")
+	f:close()
+	if not content then error("Could not read content of " .. fname) end
+	return block_parse(content)
+end
+
+-- Merge additions into target (both are tables)
+local function merge(target, additions)
+	for n, v in pairs(additions) do
+		target[n] = v
+	end
+end
 
 function status_parse()
 	DBG("Parsing status file ", status_file)
@@ -151,6 +175,8 @@ function status_parse()
 		if not content then error("Failed to read content of the status file") end
 		for block in block_split(content) do
 			local pkg = block_parse(block)
+			local control = pkg_control(pkg.Package)
+			if control then merge(pkg, control) end
 			-- TODO: merge other sources of information
 			pkg = package_postprocess(pkg)
 			result[pkg.Package] = pkg
