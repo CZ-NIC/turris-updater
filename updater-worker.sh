@@ -165,8 +165,22 @@ do_remove() {
 }
 
 do_restart() {
-	echo 'Updater restart requested on abnormal run, terminating instead' | my_logger -p daemon.warn
-	exit 0
+	echo 'Restarting updater' | my_logger -p daemon.info
+	# If we are not full fledged updater, we want to start full fledged one
+	if [ "$(basename "$0")" == updater.sh ]; then
+		exec "$0" -r "Restarted" -n "$@"
+	else
+		# We want procd to let finish bootup if we are restarting in resume updater
+		# So we fork here and update state files to somehow correct values
+		# And as network might not be up yet, let's wait for 10 minutes
+		echo initial sleep >"$STATE_FILE"
+		"`dirname "$0"`/updater.sh" -w 600 -r "Restarted" -n "$@" 2> /tmp/updater-trace &
+		echo $! >"$PID_FILE"
+		# We don't want to release locks, delete PID files or cleanup anything
+		# Restart shouldn't be visible to the outside world and child will cleanup
+		trap - EXIT INT QUIT TERM ABRT
+		exit 0
+	fi
 }
 
 do_install() {

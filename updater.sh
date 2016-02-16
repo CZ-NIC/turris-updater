@@ -141,12 +141,6 @@ if $HAVE_WORK ; then
 		die "Not enough space to install whole base plan"
 	fi
 
-	# Overwrite the restart function
-	do_restart() {
-		echo 'Update restart requested, complying' | my_logger -p daemon.info
-		exec "$0" -r "Restarted" -n "$@"
-	}
-
 	# Back up the packages to permanent storage, so we can resume on next restart if the power is unplugged
 	rm -rf /usr/share/updater/packages # Remove leftovers
 	mv "$PKG_DIR" /usr/share/updater/packages
