@@ -115,7 +115,7 @@ static void chld_event(evutil_socket_t socket __attribute__((unused)), short fla
 }
 
 // Ensure there's at least 1 element empty in the array
-#define CHECK_FREE(ARRAY, COUNT, ALLOC) \
+#define ENSURE_FREE(ARRAY, COUNT, ALLOC) \
 	do { \
 		if (events->COUNT == events->ALLOC) \
 			events->ARRAY = realloc(events->ARRAY, (events->ALLOC = events->ALLOC * 2 + 10) * sizeof *events->ARRAY); \
@@ -125,7 +125,7 @@ struct wait_id watch_child(struct events *events, pid_t pid, child_callback_t ca
 	// We must not watch the child multiple times
 	assert(!child_lookup(events, pid));
 	// Create the record about the child
-	CHECK_FREE(children, child_count, child_alloc);
+	ENSURE_FREE(children, child_count, child_alloc);
 	events->children[events->child_count ++] = (struct watched_child) {
 		.pid = pid,
 		.callback = callback,
@@ -134,13 +134,15 @@ struct wait_id watch_child(struct events *events, pid_t pid, child_callback_t ca
 	if (!events->child_event) {
 		// Create the SIGCHLD events when needed
 		events->child_event = event_new(events->base, SIGCHLD, EV_SIGNAL | EV_PERSIST, chld_event, events);
-		event_add(events->child_event, NULL);
+		int result = event_add(events->child_event, NULL);
+		assert(result != -1);
 		events->child_kick_event = event_new(events->base, -1, 0, chld_event, events);
 	}
 	// Ensure the callback is called even if the SIGCHLD came before the init above
 	// event_active doesn't seem to be called in our case (no idea why), so this trick with 0 timeout
 	struct timeval tv = {0, 0};
-	event_add(events->child_kick_event, &tv);
+	int result = event_add(events->child_kick_event, &tv);
+	assert(result != -1);
 	return child_id(pid);
 }
 
@@ -169,6 +171,15 @@ void events_wait(struct events *events, size_t nid, struct wait_id *ids) {
 				// TODO: Logging…
 				abort();
 		}
+		/*
+		 * Look if there's still some event to wait for. Drop all the events
+		 * that are no longer interesting.
+		 *
+		 * Note that we repeatedly look at the first event. If it is still
+		 * active, we terminate the loop (we know there's at least one active).
+		 * If it is not active, we drop the first one we just looked at and
+		 * a different one becomes active.
+		 */
 		while (nid) {
 			// Try looking up the event
 			bool found = false;
@@ -181,7 +192,11 @@ void events_wait(struct events *events, size_t nid, struct wait_id *ids) {
 				// There's at least one active event, just keep going
 				break;
 			else
-				// The ID is not found, so drop it.
+				/*
+				 * Replace the dropped event with any other event.
+				 * The last one is as good as any, except that it
+				 * is easy to remove its original instance.
+				 */
 				ids[0] = ids[-- nid];
 		}
 	}
