@@ -27,6 +27,15 @@ local WARN = WARN
 module "backend"
 
 --[[
+Configuration of the module. It is supported (yet unlikely to be
+needed) to modify these variables.
+]]
+-- The file with status of installed packages
+status_file = "/usr/lib/opkg/status"
+-- The directory where unpacked control files of the packages live
+info_dir = "/usr/lib/opkg/info/"
+
+--[[
 Parse a single block of mail-header-like records.
 Return as a table.
 ]]--
@@ -140,9 +149,6 @@ function package_postprocess(status)
 	replace("Status", " ", "(%S+)")
 	return status
 end
-
-status_file = "/usr/lib/opkg/status"
-info_dir = "/usr/lib/opkg/info/"
 
 -- Get pkg_name's file's content with given suffix. Nil on error.
 local function pkg_file(pkg_name, suffix, warn)
