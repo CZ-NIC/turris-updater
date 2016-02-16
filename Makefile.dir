@@ -1,5 +1,6 @@
 LUA_NAME := $(shell for lua in lua5.1 lua ; do if pkg-config $$lua ; then echo $$lua ; break ; fi ; done)
-VALGRIND:=valgrind --leak-check=full --show-leak-kinds=all --track-fds=yes --error-exitcode=1
+VALGRIND:=IN_VALGRIND=1 valgrind --leak-check=full --show-leak-kinds=all --track-fds=yes --trace-children=no --child-silent-after-fork=yes --error-exitcode=1
+
 include $(S)/build/Makefile.top
 
 include $(S)/design/Makefile.dir

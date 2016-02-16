@@ -19,11 +19,11 @@
 
 #include "interpreter.h"
 #include "embed_types.h"
+#include "util.h"
 
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
-#include <assert.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdarg.h>
@@ -35,12 +35,52 @@ struct interpreter {
 	lua_State *state;
 };
 
+static int lua_log(lua_State *L) {
+	int nargs = lua_gettop(L);
+	if (nargs < 1)
+		return luaL_error(L, "Not enough arguments passed to log()");
+	enum log_level level = log_level_get(lua_tostring(L, 1));
+	size_t sum = 1;
+	size_t sizes[nargs - 1];
+	const char *strs[nargs - 1];
+	for (int i = 2; i <= nargs; i ++) {
+		strs[i - 2] = lua_tostring(L, i);
+		sizes[i - 2] = strlen(strs[i - 2]);
+		sum += sizes[i - 2];
+	}
+	char *message = alloca(sum);
+	size_t pos = 0;
+	for (size_t i = 0; i < (unsigned)nargs - 1; i ++) {
+		memcpy(message + pos, strs[i], sizes[i]);
+		pos += sizes[i];
+	}
+	message[pos] = '\0';
+	// TODO: It would be nice to know the line number and file from lua. But it's quite a lot of work now.
+	log_internal(level, "lua", 0, "???", "%s", message);
+	return 0;
+}
+
+struct injected_func {
+	int (*func)(lua_State *);
+	const char *name;
+};
+
+static const struct injected_func injected_funcs[] = {
+	{ lua_log, "log" }
+};
+
 struct interpreter *interpreter_create(void) {
 	struct interpreter *result = malloc(sizeof *result);
+	lua_State *L = luaL_newstate();
 	*result = (struct interpreter) {
-		.state = luaL_newstate()
+		.state = L
 	};
-	luaL_openlibs(result->state);
+	luaL_openlibs(L);
+	for (size_t i = 0; i < sizeof injected_funcs / sizeof *injected_funcs; i ++) {
+		DBG("Injecting function no %zu %s/%p", i, injected_funcs[i].name, injected_funcs[i].name);
+		lua_pushcfunction(L, injected_funcs[i].func);
+		lua_setglobal(L, injected_funcs[i].name);
+	}
 	return result;
 }
 
@@ -107,7 +147,7 @@ static int push_err_handler(lua_State *L) {
 }
 
 const char *interpreter_include(struct interpreter *interpreter, const char *code, size_t length, const char *src) {
-	assert(interpreter->state);
+	ASSERT(interpreter->state);
 	// We don't know how dirty stack we get here
 	luaL_checkstack(interpreter->state, 2, "Can't create space for interpreter_include");
 	if (!length) // It is a null-terminated string, compute its length
@@ -226,7 +266,7 @@ const char *interpreter_call(struct interpreter *interpreter, const char *functi
 			}
 			CASE(double, 'f', number);
 			default:
-				assert(0);
+				DIE("Unknown type specifier '%c' passed", *param_spec);
 #undef CASE
 		}
 	}
@@ -292,7 +332,7 @@ int interpreter_collect_results(struct interpreter *interpreter, const char *spe
 					return pos;
 				break;
 			default:
-				assert(0);
+				DIE("Invalid type specifier '%c' passed", *spec);
 		}
 		pos ++;
 	}
@@ -301,7 +341,7 @@ int interpreter_collect_results(struct interpreter *interpreter, const char *spe
 }
 
 void interpreter_destroy(struct interpreter *interpreter) {
-	assert(interpreter->state);
+	ASSERT(interpreter->state);
 	lua_close(interpreter->state);
 	interpreter->state = NULL;
 	free(interpreter);

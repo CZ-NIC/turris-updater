@@ -18,6 +18,7 @@
  */
 
 #include "../lib/arguments.h"
+#include "../lib/events.h"
 #include "../lib/interpreter.h"
 
 #include <stdlib.h>
@@ -36,6 +37,7 @@ const char *help =
 "opkg-trans -h			This help message.\n";
 
 int main(int argc, char *argv[]) {
+	struct events *events = events_new();
 	// Parse the arguments
 	struct cmd_op *ops = cmd_args_parse(argc, argv);
 	struct cmd_op *op = ops;
@@ -63,5 +65,6 @@ int main(int argc, char *argv[]) {
 	enum cmd_op_type exit_type = op->type;
 	free(ops);
 	interpreter_destroy(interpreter);
+	events_destroy(events);
 	return exit_type == COT_EXIT ? 0 : 1;
 }

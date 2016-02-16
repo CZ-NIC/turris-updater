@@ -10,5 +10,7 @@ $(O)/.gen/src/lib/lautoload.embedlist: $(S)/src/lib/gen_embed.sh $(S)/src/lib/em
 libupdater_MODULES := \
 	arguments \
 	interpreter \
-	lautoload.embed
-libupdater_PKG_CONFIGS := $(LUA_NAME)
+	lautoload.embed \
+	events \
+	util
+libupdater_PKG_CONFIGS := $(LUA_NAME) libevent

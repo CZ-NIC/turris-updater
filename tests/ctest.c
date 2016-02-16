@@ -18,8 +18,12 @@
  */
 
 #include "ctest.h"
+#include "../src/lib/util.h"
 
 int main(void) {
+	const char *suppress_log = getenv("SUPPRESS_LOG");
+	if (suppress_log && strcmp("1", suppress_log) == 0)
+		updater_logging_enabled = false;
 	Suite *suite = gen_test_suite();
 	SRunner *runner = srunner_create(suite);
 

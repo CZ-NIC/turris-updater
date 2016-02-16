@@ -18,10 +18,10 @@
  */
 
 #include "arguments.h"
+#include "util.h"
 
 #include <unistd.h>
 #include <stdlib.h>
-#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -62,11 +62,11 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[]) {
 				result_extend(&res_count, &result, COT_JOURNAL_ABORT, NULL);
 				break;
 			case 'a':
-				assert(optarg);
+				ASSERT(optarg);
 				result_extend(&res_count, &result, COT_INSTALL, optarg);
 				break;
 			case 'r':
-				assert(optarg);
+				ASSERT(optarg);
 				result_extend(&res_count, &result, COT_REMOVE, optarg);
 				break;
 			default:

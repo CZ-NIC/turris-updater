@@ -42,6 +42,7 @@ const char *shared_context[] = { "function xyz() return 1 ; end", "if xyz() ~= 1
 const char *survival[] = { "invalid_func();", "local x = 1;", NULL };
 const char *library[] = { "next({});", "getfenv();", "string.find('x', 'y');", "math.abs(-1);", "os.clock();", "debug.getregistry()", NULL };
 const char *autoloaded[] = { "testing.values();", NULL };
+const char *logging[] = { "log('DEBUG', 'test')", "log('INVALID', 'test')", "ERROR('test')", NULL };
 
 struct loading_case loading_cases[] = {
 	{ "OK", ok, 1, false },
@@ -55,8 +56,11 @@ struct loading_case loading_cases[] = {
 	// Check a selection of library functions is loaded
 	{ "Library functions", library, 6, false },
 	// Check the auto-loaded lua is available (but only when we autoload)
-	{ "Not autoloaded", autoloaded, 1, true },
-	{ "Not autoloaded", autoloaded, 0, false }
+	{ "Autoloaded", autoloaded, 1, true },
+	{ "Not autoloaded", autoloaded, 0, false },
+	// Check that logging doesn't crash us
+	{ "Logging", logging, 3, true },
+	{ "Missing logging", logging, 2, false }
 };
 
 START_TEST(loading) {
