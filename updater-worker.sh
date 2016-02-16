@@ -210,7 +210,7 @@ do_install() {
 		if has_flag "$3" U ; then
 			do_restart
 		fi
-		rm "$PKG_DIR/$PACKAGE.ipk"
+		rm -f "$PKG_DIR/$PACKAGE.ipk"
 		echo 'examine' >"$STATE_FILE"
 		echo "$(date '+%F %T %Z'): installed $PACKAGE-$VERSION" >>/usr/share/updater/updater-log
 		touch /tmp/updater-check-hashes
