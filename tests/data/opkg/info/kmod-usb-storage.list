@@ -1,0 +1,3 @@
+/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko
+/etc/modules-boot.d/usb-storage
+/etc/modules.d/usb-storage

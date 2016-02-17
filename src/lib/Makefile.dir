@@ -11,6 +11,9 @@ libupdater_MODULES := \
 	arguments \
 	interpreter \
 	lautoload.embed \
+	embed_types \
 	events \
 	util
 libupdater_PKG_CONFIGS := $(LUA_NAME) libevent
+
+DOCS += src/lib/lua_funcs

@@ -23,11 +23,16 @@
 #include <stdlib.h>
 
 struct interpreter;
+struct events;
 
 /*
- * Create a new lua interpreter.
+ * Create a new lua interpreter. The events structure is used
+ * to manipulate the event loop. You may provide NULL, but
+ * then all the event-related functions ASSERT. The events
+ * structure is not owned by the interpreter, but if you provide
+ * one, it must stay alive for the whole life of the interpreter.
  */
-struct interpreter *interpreter_create(void) __attribute__((malloc));
+struct interpreter *interpreter_create(struct events *events) __attribute__((malloc));
 /*
  * Run lua chunk in an interpreter. In case there's an error,
  * the error is returned. The string is owned by the lua
@@ -37,7 +42,10 @@ struct interpreter *interpreter_create(void) __attribute__((malloc));
  * null-terminated string.
  *
  * The result of the chunk is stored under name into the global
- * table.
+ * table. Also, package.loaded is set to this value (if not already set
+ * by the loaded lua code itself, for example by module()), so it acts
+ * similar to require(name). Furthermore, future require(name)
+ * will return this value.
  */
 const char *interpreter_include(struct interpreter *interpreter, const char *code, size_t length, const char *name) __attribute__((nonnull));
 
