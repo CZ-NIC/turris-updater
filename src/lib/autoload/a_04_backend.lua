@@ -20,7 +20,13 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 local error = error
 local type = type
 local pairs = pairs
+local pcall = pcall
+local unpack = unpack
 local io = io
+local table = table
+local mkdtemp = mkdtemp
+local run_command = run_command
+local events_wait = events_wait
 local DBG = DBG
 local WARN = WARN
 
@@ -34,6 +40,10 @@ needed) to modify these variables.
 status_file = "/usr/lib/opkg/status"
 -- The directory where unpacked control files of the packages live
 info_dir = "/usr/lib/opkg/info/"
+-- Time after which we SIGTERM external commands. Something incredibly long, just prevent them from being stuck.
+cmd_timeout = 600000
+-- Time after which we SIGKILL external commands
+cmd_kill_timeout = 900000
 
 --[[
 Parse a single block of mail-header-like records.
@@ -150,18 +160,29 @@ function package_postprocess(status)
 	return status
 end
 
--- Get pkg_name's file's content with given suffix. Nil on error.
-local function pkg_file(pkg_name, suffix, warn)
-	local fname = info_dir .. pkg_name .. "." .. suffix
-	local f, err = io.open(fname)
+--[[
+Read the whole content of given file. Return the content, or nil and error message.
+In case of errors during the reading (instead of when opening), it calls error()
+]]
+local function slurp(filename)
+	local f, err = io.open(filename)
 	if not f then
-		if warn then WARN("Could not read ." .. suffix .. "file of " .. pkg_name .. ": " .. err) end
-		return nil
+		return nil, err
 	end
 	local content = f:read("*a")
 	f:close()
-	if not content then error("Could not read content of " .. fname) end
+	if not content then error("Could not read content of " .. filename) end
 	return content
+end
+
+-- Get pkg_name's file's content with given suffix. Nil on error.
+local function pkg_file(pkg_name, suffix, warn)
+	local fname = info_dir .. pkg_name .. "." .. suffix
+	local content, err = slurp(fname)
+	if not content then
+		WARN("Could not read ." .. suffix .. " file of " .. pkg_name .. ": " .. err)
+	end
+	return content, err
 end
 
 -- Read pkg_name's .control file and return it as a parsed block
@@ -214,6 +235,78 @@ function status_parse()
 		error("Couldn't read status file " .. status_file .. ": " .. err)
 	end
 	return result
+end
+
+--[[
+Take the .ipk package (passed as the data, not as a path to a file) and unpack it
+into a temporary location somewhere under tmp_dir. If you omit tmp_dir, /tmp is used.
+
+It returns a path to a subdirectory of tmp_dir, where the package is unpacked.
+There are two further subdirectories, control and data. Data are the files to be merged
+into the system, control are the control files for the package manager.
+
+TODO:
+• Sanity checking of the package.
+• Less calling of external commands.
+]]
+function pkg_unpack(package, tmp_dir)
+	-- The first unpack goes into the /tmp
+	-- We assume s1dir returs sane names of directories ‒ no spaces or strange chars in them
+	local s1dir = mkdtemp()
+	-- The results go into the provided dir, or to /tmp if none was provided
+	-- FIXME: Sanity-check provided tmp_dir ‒ it must not contain strange chars
+	local s2dir = mkdtemp(tmp_dir)
+	-- If anything goes wrong, this is where we find the error message
+	local err
+	-- Unpack the ipk into s1dir, getting control.tar.gz and data.tar.gz
+	local function stage1()
+		events_wait(run_command(function (ecode, killed, stdout, stderr)
+			if ecode ~= 0 then
+				err = "Stage 1 unpack failed: " .. stderr
+			end
+		end, nil, package, cmd_timeout, cmd_kill_timeout, "/bin/sh", "-c", "cd '" .. s1dir .. "' && /bin/gzip -dc | /bin/tar x"))
+		-- TODO: Sanity check debian-binary
+		return err == nil
+	end
+	-- Unpack the control.tar.gz and data.tar.gz under respective subdirs in s2dir
+	local function unpack_archive(what)
+		local archive = s1dir .. "/" .. what .. ".tar.gz"
+		local dir = s2dir .. "/" .. what
+		return run_command(function (ecode, killed, stdout, stderr)
+			if ecode ~= 0 then
+				err = "Stage 2 unpack of " .. what .. " failed: " .. stderr
+			end
+		end, nil, package, cmd_timeout, cmd_kill_timeout, "/bin/sh", "-c", "mkdir -p '" .. dir .. "' && cd '" .. dir .. "' && /bin/gzip -dc <'" .. archive .. "' | /bin/tar x")
+	end
+	local function stage2()
+		events_wait(unpack_archive("control"), unpack_archive("data"))
+		return err == nil
+	end
+	-- Try-finally like construct, make sure cleanup is called no matter what
+	local success, ok = pcall(function () return stage1() and stage2() end)
+	-- Do the cleanups
+	local events = {}
+	local function remove(dir)
+		-- TODO: Would it be better to remove from within our code, without calling rm?
+		table.insert(events, run_command(function (ecode, killed, stdout, stderr)
+			if ecode ~= 0 then
+				WARN("Failed to clean up work directory ", dir, ": ", stderr)
+			end
+		end, nil, nil, cmd_timeout, cmd_kill_timeout, "/bin/rm", "-rf", dir))
+	end
+	-- Intermediate work space, not needed by the caller
+	remove(s1dir)
+	if err then
+		-- Clean up the resulting directory in case of errors
+		remove(s2dir)
+	end
+	-- Run all the cleanup removes in parallel
+	events_wait(unpack(events))
+	-- Cleanup done, call error() if anything failed
+	if not success then error(ok) end
+	if not ok then error(err) end
+	-- Everything went well. So return path to the directory where the package is unpacked
+	return s2dir
 end
 
 return _M

@@ -291,7 +291,7 @@ static int lua_mkdtemp(lua_State *L) {
 	if (param_count > 1)
 		return luaL_error(L, "Too many parameters to mkdtemp: %d", param_count);
 	const char *base_dir = "/tmp";
-	if (param_count)
+	if (param_count && !lua_isnil(L, 1))
 		base_dir = luaL_checkstring(L, 1);
 	char *template = aprintf("%s/updater-XXXXXX", base_dir);
 	char *result = mkdtemp(template);

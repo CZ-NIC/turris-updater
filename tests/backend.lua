@@ -231,6 +231,51 @@ end
 
 local orig_status_file = B.status_file
 local orig_info_dir = B.info_dir
+local tmp_dirs = {}
+
+function test_pkg_unpack()
+	local fname = (os.getenv("S") or ".") .. "/tests/data/updater.ipk"
+	local f = io.open(fname)
+	local input = f:read("*a")
+	f:close()
+	local path = B.pkg_unpack(input)
+	-- Make sure it is deleted on teardown
+	table.insert(tmp_dirs, path)
+	-- Check list of extracted files
+	events_wait(run_command(function (ecode, killed, stdout)
+		assert_equal(0, ecode, "Failed to check the list of files")
+		assert_equal([[.
+./control
+./control/conffiles
+./control/control
+./control/postinst
+./control/prerm
+./data
+./data/etc
+./data/etc/config
+./data/etc/config/updater
+./data/etc/cron.d
+./data/etc/init.d
+./data/etc/init.d/updater
+./data/etc/ssl
+./data/etc/ssl/updater.pem
+./data/usr
+./data/usr/bin
+./data/usr/bin/updater-resume.sh
+./data/usr/bin/updater.sh
+./data/usr/bin/updater-unstuck.sh
+./data/usr/bin/updater-utils.sh
+./data/usr/bin/updater-wipe.sh
+./data/usr/bin/updater-worker.sh
+./data/usr/share
+./data/usr/share/updater
+./data/usr/share/updater/hashes
+./data/usr/share/updater/keys
+./data/usr/share/updater/keys/release.pem
+./data/usr/share/updater/keys/standby.pem
+]], stdout)
+	end, nil, nil, -1, -1, '/bin/sh', '-c', "cd '" .. path .. "' && find | sort"))
+end
 
 function setup()
 	local sdir = os.getenv("S") or "."
@@ -243,4 +288,7 @@ function teardown()
 	-- Clean up, return the original file name
 	B.status_file = orig_status_file
 	B.info_dir = orig_info_dir
+	if next(tmp_dirs) then
+		events_wait(run_command(function (ecode) assert_equal(0, ecode) end, nil, nil, -1, -1, '/bin/rm', '-rf', unpack(tmp_dirs)))
+	end
 end
