@@ -22,6 +22,7 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
+#include <alloca.h>
 
 enum log_level {
 	LL_DIE,
@@ -44,5 +45,12 @@ void log_internal(enum log_level level, const char *file, size_t line, const cha
 enum log_level log_level_get(const char *str) __attribute__((nonnull));
 
 extern bool updater_logging_enabled;
+
+// Compute the size needed (including \0) to format given message
+size_t printf_len(const char *msg, ...) __attribute__((format(printf, 1, 2)));
+// Like sprintf, but returs the string. Expects there's enough space.
+char *printf_into(char *dst, const char *msg, ...) __attribute__((format(printf, 2, 3)));
+// Like printf, but allocates the data on the stack with alloca and returns. It uses the arguments multiple times, so beware of side effects.
+#define aprintf(...) printf_into(alloca(printf_len(__VA_ARGS__)), __VA_ARGS__)
 
 #endif

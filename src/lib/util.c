@@ -56,3 +56,19 @@ enum log_level log_level_get(const char *level) {
 	}
 	return LL_UNKNOWN;
 }
+
+size_t printf_len(const char *msg, ...) {
+	va_list args;
+	va_start(args, msg);
+	size_t result = vsnprintf(NULL, 0, msg, args);
+	va_end(args);
+	return result + 1;
+}
+
+char *printf_into(char *dst, const char *msg, ...) {
+	va_list args;
+	va_start(args, msg);
+	vsprintf(dst, msg, args);
+	va_end(args);
+	return dst;
+}

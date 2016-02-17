@@ -22,6 +22,10 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <sys/types.h>
+#include <dirent.h>
+#include <errno.h>
+#include <unistd.h>
 
 struct loading_case {
 	// Just a name of the test
@@ -195,6 +199,41 @@ START_INTERPRETER_TEST(call_echo)
 	ck_assert_str_eq(s, "hello");
 END_INTERPRETER_TEST
 
+static void check_mkdtemp(struct interpreter *interpreter, const char *error, size_t results) {
+	ck_assert_msg(!error, "Failed to run the mkdtemp function: %s", error);
+	ck_assert_uint_eq(1, results);
+	char *dname;
+	ck_assert_int_eq(-1, interpreter_collect_results(interpreter, "s", &dname));
+	DIR *d = opendir(dname);
+	ck_assert_msg(d, "Failed to open the temp directory: %s", strerror(errno));
+	closedir(d);
+	ck_assert_int_eq(rmdir(dname), 0);
+	const char *prefix = "/tmp/updater-";
+	ck_assert(strncmp("/tmp/updater-", dname, strlen(prefix)) == 0);
+}
+
+START_INTERPRETER_TEST(test_mkdtemp) {
+	/*
+	 * Test the mkdtemp function acts sane in lua.
+	 */
+	size_t results;
+	// Try it with default directory
+	const char *error = interpreter_call(interpreter, "mkdtemp", &results, "");
+	check_mkdtemp(interpreter, error, results);
+	mark_point();
+	// Try explicitly specifying the /tmp directory and see it doesn't vomit
+	error = interpreter_call(interpreter, "mkdtemp", &results, "s", "/tmp");
+	check_mkdtemp(interpreter, error, results);
+	mark_point();
+	// This should fail, but softly
+	error = interpreter_call(interpreter, "mkdtemp", &results, "s", "/dir/does/not/exist");
+	ck_assert_msg(!error, "Failed to run the mkdtemp function: %s", error);
+	ck_assert_uint_eq(2, results);
+	char *e;
+	ck_assert_int_eq(-1, interpreter_collect_results(interpreter, "ns", &e));
+}
+END_INTERPRETER_TEST
+
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Lua interpreter");
 	TCase *interpreter = tcase_create("loading");
@@ -204,6 +243,7 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(interpreter, call_noparams);
 	tcase_add_test(interpreter, call_method);
 	tcase_add_test(interpreter, call_echo);
+	tcase_add_test(interpreter, test_mkdtemp);
 	suite_add_tcase(result, interpreter);
 	return result;
 }

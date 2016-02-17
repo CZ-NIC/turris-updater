@@ -29,6 +29,7 @@
 #include <stdbool.h>
 #include <stdarg.h>
 #include <inttypes.h>
+#include <errno.h>
 
 // The name used in lua registry to store stuff
 #define REGISTRY_NAME "libupdater"
@@ -285,6 +286,25 @@ static int lua_events_wait(lua_State *L) {
 	return 0;
 }
 
+static int lua_mkdtemp(lua_State *L) {
+	int param_count = lua_gettop(L);
+	if (param_count > 1)
+		return luaL_error(L, "Too many parameters to mkdtemp: %d", param_count);
+	const char *base_dir = "/tmp";
+	if (param_count)
+		base_dir = luaL_checkstring(L, 1);
+	char *template = aprintf("%s/updater-XXXXXX", base_dir);
+	char *result = mkdtemp(template);
+	if (result) {
+		lua_pushstring(L, result);
+		return 1;
+	} else {
+		lua_pushnil(L);
+		lua_pushstring(L, strerror(errno));
+		return 2;
+	}
+}
+
 struct injected_func {
 	int (*func)(lua_State *);
 	const char *name;
@@ -292,9 +312,9 @@ struct injected_func {
 
 static const struct injected_func injected_funcs[] = {
 	{ lua_log, "log" },
-	// TODO: Document that thing
 	{ lua_run_command, "run_command" },
-	{ lua_events_wait, "events_wait" }
+	{ lua_events_wait, "events_wait" },
+	{ lua_mkdtemp, "mkdtemp" }
 	/*
 	 * Note: watch_cancel is not provided, because it would be hell to
 	 * manage the dynamically allocated memory correctly and there doesn't

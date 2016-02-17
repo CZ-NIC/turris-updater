@@ -75,3 +75,12 @@ the command.
 Currently, there's no way to cancel running command from lua, since
 that would make the wrapper code needlessly complex (while there seems
 to be no need to cancel them currently).
+
+Filesystem manipulation
+-----------------------
+
+mkdtemp([directory])::
+  It creates a temporary directory. If directory is provided, it is
+  created as a subdirectory of the given directory, otherwise it is
+  created inside `/tmp`. It returns path to the new directory, or
+  `nil` and an error message.
