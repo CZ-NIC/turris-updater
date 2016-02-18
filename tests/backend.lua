@@ -233,6 +233,15 @@ local orig_status_file = B.status_file
 local orig_info_dir = B.info_dir
 local tmp_dirs = {}
 
+-- Convert provided text into set of lines. Doesn't care about the order.
+local function lines2set(lines)
+	local result = {}
+	for line in lines:gmatch("[^\n]+") do
+		result[line] = true
+	end
+	return result
+end
+
 function test_pkg_unpack()
 	local fname = (os.getenv("S") or ".") .. "/tests/data/updater.ipk"
 	local f = io.open(fname)
@@ -244,7 +253,7 @@ function test_pkg_unpack()
 	-- Check list of extracted files
 	events_wait(run_command(function (ecode, killed, stdout)
 		assert_equal(0, ecode, "Failed to check the list of files")
-		assert_equal([[.
+		assert_table_equal(lines2set([[.
 ./control
 ./control/conffiles
 ./control/control
@@ -273,8 +282,8 @@ function test_pkg_unpack()
 ./data/usr/share/updater/keys
 ./data/usr/share/updater/keys/release.pem
 ./data/usr/share/updater/keys/standby.pem
-]], stdout)
-	end, nil, nil, -1, -1, '/bin/sh', '-c', "cd '" .. path .. "' && find | sort"))
+]]), lines2set(stdout))
+	end, nil, nil, -1, -1, '/bin/sh', '-c', "cd '" .. path .. "' && find"))
 end
 
 function setup()
