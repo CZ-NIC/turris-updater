@@ -50,6 +50,7 @@ fi
 trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR" /usr/share/updater/packages $BASE_PLAN_FILE; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
 
 mkdir -p "$TMP_DIR"
+mkdir -p "$LOCK_DIR"
 PID_FILE="$STATE_DIR/pid"
 echo 'startup' >"$STATE_FILE"
 echo "$$" >"$PID_FILE"
