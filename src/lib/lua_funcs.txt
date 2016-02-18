@@ -84,3 +84,9 @@ mkdtemp([directory])::
   created as a subdirectory of the given directory, otherwise it is
   created inside `/tmp`. It returns path to the new directory, or
   `nil` and an error message.
+
+chdir(directory)::
+  Change the current working directory to the one provided.
+
+getcwd()::
+  Get the current working directory.

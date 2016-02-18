@@ -305,6 +305,32 @@ static int lua_mkdtemp(lua_State *L) {
 	}
 }
 
+static int lua_chdir(lua_State *L) {
+	int param_count = lua_gettop(L);
+	if (param_count != 1)
+		return luaL_error(L, "chdir expects 1 parameter");
+	const char *path = luaL_checkstring(L, 1);
+	int result = chdir(path);
+	if (result == -1)
+		return luaL_error(L, "chdir to %s: %s", path, strerror(errno));
+	return 0;
+}
+
+static int lua_getcwd(lua_State *L) {
+	const char *result = NULL;
+	// An arbitrary length.
+	size_t s = 16;
+	while (!result) {
+		s *= 2;
+		char *buf = alloca(s);
+		result = getcwd(buf, s);
+		if (!result && errno != ERANGE)
+			return luaL_error(L, "getcwd: %s", strerror(errno));
+	}
+	lua_pushstring(L, result);
+	return 1;
+}
+
 struct injected_func {
 	int (*func)(lua_State *);
 	const char *name;
@@ -314,7 +340,9 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_log, "log" },
 	{ lua_run_command, "run_command" },
 	{ lua_events_wait, "events_wait" },
-	{ lua_mkdtemp, "mkdtemp" }
+	{ lua_mkdtemp, "mkdtemp" },
+	{ lua_chdir, "chdir" },
+	{ lua_getcwd, "getcwd" }
 	/*
 	 * Note: watch_cancel is not provided, because it would be hell to
 	 * manage the dynamically allocated memory correctly and there doesn't

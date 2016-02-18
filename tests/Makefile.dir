@@ -18,7 +18,8 @@ C_TESTS := \
 
 LUA_TESTS := \
 	backend \
-	events
+	events \
+	interpreter
 
 define DO_C_TEST
 
