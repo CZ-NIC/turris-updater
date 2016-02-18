@@ -25,6 +25,7 @@ local unpack = unpack
 local io = io
 local table = table
 local mkdtemp = mkdtemp
+local chdir = chdir
 local run_command = run_command
 local events_wait = events_wait
 local DBG = DBG
@@ -264,7 +265,7 @@ function pkg_unpack(package, tmp_dir)
 			if ecode ~= 0 then
 				err = "Stage 1 unpack failed: " .. stderr
 			end
-		end, nil, package, cmd_timeout, cmd_kill_timeout, "/bin/sh", "-c", "cd '" .. s1dir .. "' && /bin/gzip -dc | /bin/tar x"))
+		end, function () chdir(s1dir) end, package, cmd_timeout, cmd_kill_timeout, "/bin/sh", "-c", "/bin/gzip -dc | /bin/tar x"))
 		-- TODO: Sanity check debian-binary
 		return err == nil
 	end
