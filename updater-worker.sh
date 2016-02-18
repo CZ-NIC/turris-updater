@@ -207,14 +207,14 @@ do_install() {
 			echo 'cooldown' >"$STATE_FILE"
 			sleep "$COOLDOWN"
 		fi
-		if has_flag "$3" U ; then
-			do_restart
-		fi
 		rm -f "$PKG_DIR/$PACKAGE.ipk"
 		echo 'examine' >"$STATE_FILE"
 		echo "$(date '+%F %T %Z'): installed $PACKAGE-$VERSION" >>/usr/share/updater/updater-log
 		touch /tmp/updater-check-hashes
 		rm -f /usr/share/updater/hashes/"$PACKAGE---"*.json
+		if has_flag "$3" U ; then
+			do_restart
+		fi
 	fi
 }
 
