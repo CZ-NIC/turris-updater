@@ -31,10 +31,9 @@ local run_command = run_command
 local events_wait = events_wait
 local DBG = DBG
 local WARN = WARN
+local utils = require "utils"
 
 module "backend"
-
-require "utils"
 
 --[[
 Configuration of the module. It is supported (yet unlikely to be
@@ -348,13 +347,13 @@ function pkg_examine(dir)
 		Split into „lines“ separated by 0-char. Then eat leading dots and, in case
 		there was only a dot, replace it by /.
 		]]
-		return utils.map(utils.lines2set(text, "%z"), function (f) return f:gsub("^%.", ""):gsub("^$", "/") end)
+		return utils.map(utils.lines2set(text, "%z"), function (f) return f:gsub("^%.", ""):gsub("^$", "/"), true end)
 	end
 	local files, dirs
 	-- One for non-directories
-	launch(data_dir, function (text) files = find_result(text) end, "find", "!", "-type", "d", "-print0")
+	launch(data_dir, function (text) files = find_result(text) end, "/usr/bin/find", "!", "-type", "d", "-print0")
 	-- One for directories
-	launch(data_dir, function (text) dirs = find_result(text) end, "find", "-type", "d", "-print0")
+	launch(data_dir, function (text) dirs = find_result(text) end, "/usr/bin/find", "-type", "d", "-print0")
 	-- Wait for all asynchronous processes to finish
 	events_wait(unpack(events))
 	-- How well did it go?

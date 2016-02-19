@@ -25,6 +25,8 @@ local lines2set = utils.lines2set
 
 module("backend-tests", package.seeall, lunit.testcase)
 
+local datadir = (os.getenv("S") or ".") .. "/tests/data/"
+
 -- Tests for the block_parse function
 function test_block_parse()
 	-- Simple case
@@ -236,8 +238,11 @@ local orig_status_file = B.status_file
 local orig_info_dir = B.info_dir
 local tmp_dirs = {}
 
+--[[
+Test the chain of functions ‒ unpack, examine
+]]
 function test_pkg_unpack()
-	local fname = (os.getenv("S") or ".") .. "/tests/data/updater.ipk"
+	local fname = datadir .. "updater.ipk"
 	local f = io.open(fname)
 	local input = f:read("*a")
 	f:close()
@@ -277,7 +282,31 @@ function test_pkg_unpack()
 ./data/usr/share/updater/keys/release.pem
 ./data/usr/share/updater/keys/standby.pem
 ]]), lines2set(stdout))
-	end, nil, nil, -1, -1, '/bin/sh', '-c', "cd '" .. path .. "' && find"))
+	end, function () chdir(path) end, nil, -1, -1, "/usr/bin/find"))
+	local files, dirs = B.pkg_examine(path)
+	assert_table_equal(lines2set([[/etc/init.d/updater
+/etc/config/updater
+/etc/ssl/updater.pem
+/usr/share/updater/keys/standby.pem
+/usr/share/updater/keys/release.pem
+/usr/bin/updater-resume.sh
+/usr/bin/updater.sh
+/usr/bin/updater-unstuck.sh
+/usr/bin/updater-utils.sh
+/usr/bin/updater-worker.sh
+/usr/bin/updater-wipe.sh]]), files)
+	assert_table_equal(lines2set([[/
+/etc
+/etc/init.d
+/etc/cron.d
+/etc/config
+/etc/ssl
+/usr
+/usr/share
+/usr/share/updater
+/usr/share/updater/hashes
+/usr/share/updater/keys
+/usr/bin]]), dirs)
 end
 
 function setup()
