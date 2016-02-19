@@ -35,3 +35,13 @@ line]]))
 another
 line]]))
 end
+
+function test_map()
+	assert_table_equal({
+		an = "av",
+		bn = "bv"
+	}, U.map({
+		a = "a",
+		b = "b"
+	}, function (k, v) return k .. "n", v .. "v" end))
+end

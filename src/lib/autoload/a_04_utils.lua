@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
+local pairs = pairs
+
 module "utils"
 
 -- Convert provided text into set of lines. Doesn't care about the order.
@@ -24,6 +26,21 @@ function lines2set(lines)
 	local result = {}
 	for line in lines:gmatch("[^\n]+") do
 		result[line] = true
+	end
+	return result
+end
+
+--[[
+Run a function for each key and value in the table.
+The function shall return new key and value (may be
+the same and may be modified). A new table with
+the results is returned.
+]]
+function map(table, fun)
+	local result = {}
+	for k, v in pairs(table) do
+		local nk, nv = fun(k, v)
+		result[nk] = nv
 	end
 	return result
 end
