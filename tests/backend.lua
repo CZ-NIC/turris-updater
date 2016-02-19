@@ -19,6 +19,9 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 
 require 'lunit'
 local B = require 'backend'
+require 'utils'
+
+local lines2set = utils.lines2set
 
 module("backend-tests", package.seeall, lunit.testcase)
 
@@ -232,15 +235,6 @@ end
 local orig_status_file = B.status_file
 local orig_info_dir = B.info_dir
 local tmp_dirs = {}
-
--- Convert provided text into set of lines. Doesn't care about the order.
-local function lines2set(lines)
-	local result = {}
-	for line in lines:gmatch("[^\n]+") do
-		result[line] = true
-	end
-	return result
-end
 
 function test_pkg_unpack()
 	local fname = (os.getenv("S") or ".") .. "/tests/data/updater.ipk"
