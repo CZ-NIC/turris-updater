@@ -41,16 +41,19 @@ LIB_DIR="$(dirname "$0")"
 
 echo "Resuming updater after reboot" | my_logger -p daemon.warn
 
-if [ -d "$LOCK_DIR" ] ; then
+mkdir -p "$STATE_DIR"
+if ! mkdir "$LOCK_DIR"; then
 	echo "Lockdir already exists. Is it possible the updater-resume.sh got started after booting up and ordinary updater is already running?" | my_logger -p daemon.warn
 	exit 0
 fi
 
-trap 'rm -rf "$TMP_DIR" /usr/share/updater/packages $BASE_PLAN_FILE; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
+trap 'rm -rf "$TMP_DIR" "$PID_FILE" "$LOCK_DIR" /usr/share/updater/packages $BASE_PLAN_FILE; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
 
 mkdir -p "$TMP_DIR"
-mkdir -p "$STATE_DIR"
+mkdir -p "$LOCK_DIR"
+PID_FILE="$STATE_DIR/pid"
 echo 'startup' >"$STATE_FILE"
+echo "$$" >"$PID_FILE"
 
 RESTART_REQUESTED=false
 run_plan "$BASE_PLAN_FILE"
@@ -71,16 +74,5 @@ if $RESTART_REQUESTED ; then
 	exit
 fi
 
-echo 'initial sleep' >"$STATE_FILE"
-echo 'Resumed updater sleeping' | my_logger -p daemon.info
-
-# We may need to wait for network connection now.
 # Run the complete updater now, as we installed what was planned, to finish other phases
-(
-	while ! ping -c1 turris.cz >/dev/null 2>&1 ; do
-		sleep 1
-	done
-	"$LIB_DIR"/updater.sh -n >/dev/null 2>&1
-) &
-
-EXIT_CODE=0
+do_restart

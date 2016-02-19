@@ -26,13 +26,19 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # Switches (to be used in this order if multiple are needed)
+# -w: Wait for network at least this amount of seconds (default 3 minutes)
 # -b: Fork to background.
 # -r <Reason>: Restarted. Internal switch, not to be used by other applications.
 # -n: Now. Don't wait a random amount of time before doing something.
 
 set -xe
 
-ping -c1 -w10 api.turris.cz || true # Start up resolution inside turris.cz. It seems unbound sometimes takes a long time, caching part of the path may help.
+if [ "$1" = "-w" ] ; then
+	WAIT_FOR_ONLINE="$2"
+	shift 2
+else
+	WAIT_FOR_ONLINE=180
+fi
 
 # Load the libraries
 LIB_DIR="$(dirname "$0")"
@@ -67,6 +73,16 @@ if [ "$1" = "-b" ] ; then
 	BACKGROUND=true
 	shift
 fi
+
+# Try to wait for network
+PING_TEST_HOST="`echo "$BASE_URL" | sed 's|^https*://\([^/]*\)/.*|\1|'`"
+for i in `seq 1 $WAIT_FOR_ONLINE`; do
+	if ping -c 1 -w 1 $PING_TEST_HOST > /dev/null 2> /dev/null; then
+		break
+	else
+		sleep 1
+	fi
+done
 
 if [ "$1" = '-r' ] ; then
 	echo "$2" | my_logger -p daemon.info
@@ -140,12 +156,6 @@ if $HAVE_WORK ; then
 	if ! size_check "$PKG_DIR"/* ; then
 		die "Not enough space to install whole base plan"
 	fi
-
-	# Overwrite the restart function
-	do_restart() {
-		echo 'Update restart requested, complying' | my_logger -p daemon.info
-		exec "$0" -r "Restarted" -n "$@"
-	}
 
 	# Back up the packages to permanent storage, so we can resume on next restart if the power is unplugged
 	rm -rf /usr/share/updater/packages # Remove leftovers
