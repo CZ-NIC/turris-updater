@@ -331,7 +331,7 @@ function pkg_examine(dir)
 	local events = {}
 	local err = nil
 	-- Launch scans of the data directory
-	local function launch(dir, postprocess, ...)
+	local function launch(postprocess, ...)
 		local function cback(ecode, killed, stdout, stderr)
 			if ecode == 0 then
 				postprocess(stdout)
@@ -339,7 +339,7 @@ function pkg_examine(dir)
 				err = stderr
 			end
 		end
-		local event = run_command(cback, function () chdir(dir) end, nil, cmd_timeout, cmd_kill_timeout, ...)
+		local event = run_command(cback, function () chdir(data_dir) end, nil, cmd_timeout, cmd_kill_timeout, ...)
 		table.insert(events, event)
 	end
 	local function find_result(text)
@@ -351,16 +351,31 @@ function pkg_examine(dir)
 	end
 	local files, dirs
 	-- One for non-directories
-	launch(data_dir, function (text) files = find_result(text) end, "/usr/bin/find", "!", "-type", "d", "-print0")
+	launch(function (text) files = find_result(text) end, "/usr/bin/find", "!", "-type", "d", "-print0")
 	-- One for directories
-	launch(data_dir, function (text) dirs = find_result(text) end, "/usr/bin/find", "-type", "d", "-print0")
+	launch(function (text) dirs = find_result(text) end, "/usr/bin/find", "-type", "d", "-print0")
+	-- Get list of config files, if there are any
+	local control_dir = dir .. "/control"
+	local cidx = io.open(control_dir .. "/conffiles")
+	local conffiles = {}
+	if cidx then
+		for l in cidx:lines() do
+			local fname = l:match("^%s*/(.*%S)%s*")
+			local function get_hash(text)
+				local hash = text:match("[0-9a-fA-F]+")
+				conffiles[fname] = hash
+			end
+			launch(get_hash, "/usr/bin/md5sum", fname)
+		end
+		cidx:close()
+	end
 	-- Wait for all asynchronous processes to finish
 	events_wait(unpack(events))
 	-- How well did it go?
 	if err then
 		error(err)
 	end
-	return files, dirs
+	return files, dirs, conffiles
 end
 
 return _M

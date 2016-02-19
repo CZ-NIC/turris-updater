@@ -283,7 +283,7 @@ function test_pkg_unpack()
 ./data/usr/share/updater/keys/standby.pem
 ]]), lines2set(stdout))
 	end, function () chdir(path) end, nil, -1, -1, "/usr/bin/find"))
-	local files, dirs = B.pkg_examine(path)
+	local files, dirs, conffiles = B.pkg_examine(path)
 	assert_table_equal(lines2set([[/etc/init.d/updater
 /etc/config/updater
 /etc/ssl/updater.pem
@@ -307,6 +307,7 @@ function test_pkg_unpack()
 /usr/share/updater/hashes
 /usr/share/updater/keys
 /usr/bin]]), dirs)
+	-- TODO: How about the conffiles
 end
 
 function setup()
