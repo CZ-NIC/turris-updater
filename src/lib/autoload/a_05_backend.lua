@@ -21,6 +21,7 @@ local error = error
 local type = type
 local pairs = pairs
 local pcall = pcall
+local require = require
 local unpack = unpack
 local io = io
 local table = table
@@ -32,6 +33,8 @@ local DBG = DBG
 local WARN = WARN
 
 module "backend"
+
+require "utils"
 
 --[[
 Configuration of the module. It is supported (yet unlikely to be
@@ -308,6 +311,53 @@ function pkg_unpack(package, tmp_dir)
 	if not ok then error(err) end
 	-- Everything went well. So return path to the directory where the package is unpacked
 	return s2dir
+end
+
+--[[
+Look into the dir with unpacked package (the one containing control and data subdirs).
+Return three tables:
+• Set of files, symlinks, pipes, etc.
+  (in short, the things that are owned exclusively by the package)
+• Set of directories
+  (which may be shared between packages)
+• Map of config files with their md5 sums.
+
+In all three cases, the file names are keys, not values.
+
+In case of errors, it raises error()
+]]
+function pkg_examine(dir)
+	local data_dir = dir .. "/data"
+	-- Events to wait for
+	local events = {}
+	local err = nil
+	-- Launch scans of the data directory
+	local function launch(dir, postprocess, ...)
+		local function cback(ecode, killed, stdout, stderr)
+			if ecode == 0 then
+				postprocess(stdout)
+			else
+				err = stderr
+			end
+		end
+		local event = run_command(cback, function () chdir(dir) end, nil, cmd_timeout, cmd_kill_timeout, ...)
+		table.insert(events, event)
+	end
+	local function find_result(text)
+		return utils.map(utils.lines2set(text), function (f) return f:gsub("^%.", ""):gsub("^$", "/") end)
+	end
+	local files, dirs
+	-- One for non-directories
+	launch(data_dir, function (text) files = find_result(text) end, "find", "!", "-type", "d", "-print0")
+	-- One for directories
+	launch(data_dir, function (text) dirs = find_result(text) end, "find", "-type", "d", "-print0")
+	-- Wait for all asynchronous processes to finish
+	events_wait(unpack(events))
+	-- How well did it go?
+	if err then
+		error(err)
+	end
+	return files, dirs
 end
 
 return _M
