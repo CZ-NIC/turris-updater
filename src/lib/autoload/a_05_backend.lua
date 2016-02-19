@@ -280,7 +280,7 @@ function pkg_unpack(package, tmp_dir)
 			if ecode ~= 0 then
 				err = "Stage 2 unpack of " .. what .. " failed: " .. stderr
 			end
-		end, nil, package, cmd_timeout, cmd_kill_timeout, "/bin/sh", "-c", "mkdir -p '" .. dir .. "' && cd '" .. dir .. "' && /bin/gzip -dc <'" .. archive .. "' | /bin/tar x")
+		end, nil, package, cmd_timeout, cmd_kill_timeout, "/bin/sh", "-c", "mkdir -p '" .. dir .. "' && cd '" .. dir .. "' && /bin/gzip -dc <'" .. archive .. "' | /bin/tar xp")
 	end
 	local function stage2()
 		events_wait(unpack_archive("control"), unpack_archive("data"))
@@ -344,7 +344,11 @@ function pkg_examine(dir)
 		table.insert(events, event)
 	end
 	local function find_result(text)
-		return utils.map(utils.lines2set(text), function (f) return f:gsub("^%.", ""):gsub("^$", "/") end)
+		--[[
+		Split into „lines“ separated by 0-char. Then eat leading dots and, in case
+		there was only a dot, replace it by /.
+		]]
+		return utils.map(utils.lines2set(text, "%z"), function (f) return f:gsub("^%.", ""):gsub("^$", "/") end)
 	end
 	local files, dirs
 	-- One for non-directories

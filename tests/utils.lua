@@ -34,6 +34,7 @@ line]]))
 	assert_table_equal(treq, U.lines2set([[line
 another
 line]]))
+	assert_table_equal(treq, U.lines2set("lineXanother", "X"))
 end
 
 function test_map()

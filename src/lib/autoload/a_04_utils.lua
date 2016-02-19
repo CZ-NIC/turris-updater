@@ -21,10 +21,14 @@ local pairs = pairs
 
 module "utils"
 
--- Convert provided text into set of lines. Doesn't care about the order.
-function lines2set(lines)
+--[[
+Convert provided text into set of lines. Doesn't care about the order.
+You may override the separator, if your lines aren't terminated by \n.
+]]
+function lines2set(lines, separator)
+	separator = separator or "\n"
 	local result = {}
-	for line in lines:gmatch("[^\n]+") do
+	for line in lines:gmatch("[^" .. separator .. "]+") do
 		result[line] = true
 	end
 	return result
