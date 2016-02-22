@@ -312,6 +312,66 @@ function test_pkg_unpack()
 	}, conffiles)
 end
 
+-- Test the collision_check function
+function test_collisions()
+	local status = B.status_parse()
+	-- Just remove a package - no collisions, but files should disappear
+	local col, rem = B.collision_check(status, {['kmod-usb-storage'] = true}, {})
+	assert_table_equal({}, col)
+	assert_table_equal({
+		["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
+		["/etc/modules-boot.d/usb-storage"] = true,
+		["/etc/modules.d/usb-storage"] = true
+	}, rem)
+	-- Add a new package, but without any collisions
+	local col, rem = B.collision_check(status, {}, {
+		['package'] = {
+			['/a/file'] = true
+		}
+	})
+	assert_table_equal({}, col)
+	assert_table_equal({}, rem)
+	local test_pkg = {
+		['package'] = {
+			["/etc/modules.d/usb-storage"] = true
+		}
+	}
+	-- Add a new package, collision isn't reported, because the original package owning it gets removed
+	local col, rem = B.collision_check(status, {['kmod-usb-storage'] = true}, test_pkg)
+	assert_table_equal({}, col)
+	assert_table_equal({
+		["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
+		["/etc/modules-boot.d/usb-storage"] = true
+		-- The usb-storage file is taken over, it doesn't disappear
+	}, rem)
+	-- A collision
+	local col, rem = B.collision_check(status, {}, test_pkg)
+	-- We need to do the check in two parts, we don't have a deep table compare (maybe we should?)
+	assert_table_equal({
+		["/etc/modules.d/usb-storage"] = true
+	}, utils.map(col, function (k) return k, true end))
+	assert_table_equal({
+		["kmod-usb-storage"] = "existing",
+		["package"] = "new"
+	}, col["/etc/modules.d/usb-storage"])
+	assert_table_equal({}, rem)
+	-- A collision between two new packages
+	test_pkg['another'] = test_pkg['package']
+	local col, rem = B.collision_check(status, {['kmod-usb-storage'] = true}, test_pkg)
+	assert_not_equal({
+		["/etc/modules.d/usb-storage"] = true
+	}, utils.map(col, function (k) return k, true end))
+	assert_table_equal({
+		["package"] = "new",
+		["another"] = "new"
+	}, col["/etc/modules.d/usb-storage"])
+	assert_table_equal({
+		["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
+		["/etc/modules-boot.d/usb-storage"] = true
+		-- The usb-storage file is taken over, it doesn't disappear
+	}, rem)
+end
+
 function setup()
 	local sdir = os.getenv("S") or "."
 	-- Use a shortened version of a real status file for tests

@@ -420,12 +420,12 @@ function collision_check(current_status, remove_pkgs, add_pkgs)
 	for name, status in pairs(current_status) do
 		if remove_pkgs[name] then
 			-- If we remove the package, all its files might disappear
-			for f in pairs(status.file) do
+			for f in pairs(status.files or {}) do
 				remove_candidates[f] = true
 			end
 		else
 			-- Otherwise, the file is in the OS
-			for f in pairs(status.files) do
+			for f in pairs(status.files or {}) do
 				file_insert(f, name, 'existing')
 			end
 		end
