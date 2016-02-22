@@ -378,4 +378,76 @@ function pkg_examine(dir)
 	return files, dirs, conffiles
 end
 
+--[[
+Check if we can perform installation of packages and no files
+of other packages would get overwritten. It checks both the
+newly installed packages and the currently installed packages.
+It doesn't report any already collisions and it doesn't show collisions
+with removed packages.
+
+Note that when upgrading, the old packages needs to be considered removed
+(and listed in the remove_pkgs set).
+
+The current_status is what is returned from status_parse(). The remove_pkgs
+is set of package names (without versions) to remove. It's not a problem if
+the package is not installed. The add_pkgs is a table, values are names of packages
+(without versions), the values are sets of the files the new package will own.
+
+It returns a table, values are name of files where are new collisions, values
+are tables where the keys are names of packages and values are either `existing`
+or `new`.
+
+The second result is a set of all the files that shall disappear after
+performing these operations.
+]]
+function collision_check(current_status, remove_pkgs, add_pkgs)
+	-- List of all files in the OS
+	local files_all = {}
+	-- Files that might disappear (but we need to check if another package claims them as well)
+	local remove_candidates = {}
+	-- Mark the given file as belonging to the package. Return if there's a collision.
+	local function file_insert(fname, pkg_name, when)
+		local collision = true
+		-- The file hasn't existed yet, so there's no collision
+		if not files_all[fname] then
+			files_all[fname] = {}
+			collision = false
+		end
+		files_all[fname][pkg_name] = when
+		return collision
+	end
+	-- Build the structure for the current state
+	for name, status in pairs(current_status) do
+		if remove_pkgs[name] then
+			-- If we remove the package, all its files might disappear
+			for f in pairs(status.file) do
+				remove_candidates[f] = true
+			end
+		else
+			-- Otherwise, the file is in the OS
+			for f in pairs(status.files) do
+				file_insert(f, name, 'existing')
+			end
+		end
+	end
+	local collisions = {}
+	-- No go through the new packages and check if there are any new collisions
+	for name, files in pairs(add_pkgs) do
+		for f in pairs(files) do
+			if file_insert(f, name, 'new') then
+				-- In the end, there'll be the newest version of the table with all the collisions
+				collisions[f] = files_all[f]
+			end
+		end
+	end
+	-- Files that shall really disappear
+	local remove = {}
+	for f in pairs(remove_candidates) do
+		if not files_all[f] then
+			remove[f] = true
+		end
+	end
+	return collisions, remove
+end
+
 return _M
