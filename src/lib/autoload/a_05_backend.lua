@@ -363,7 +363,7 @@ function pkg_examine(dir)
 			local fname = l:match("^%s*/(.*%S)%s*")
 			local function get_hash(text)
 				local hash = text:match("[0-9a-fA-F]+")
-				conffiles[fname] = hash
+				conffiles["/" .. fname] = hash
 			end
 			launch(get_hash, "/usr/bin/md5sum", fname)
 		end

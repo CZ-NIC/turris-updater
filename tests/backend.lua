@@ -307,7 +307,9 @@ function test_pkg_unpack()
 /usr/share/updater/hashes
 /usr/share/updater/keys
 /usr/bin]]), dirs)
-	-- TODO: How about the conffiles
+	assert_table_equal({
+		["/etc/config/updater"] = "30843ef73412c8f6b4212c00724a1cc8"
+	}, conffiles)
 end
 
 function setup()
