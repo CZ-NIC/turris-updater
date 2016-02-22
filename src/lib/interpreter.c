@@ -30,6 +30,11 @@
 #include <stdarg.h>
 #include <inttypes.h>
 #include <errno.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <dirent.h>
 
 // The name used in lua registry to store stuff
 #define REGISTRY_NAME "libupdater"
@@ -331,6 +336,109 @@ static int lua_getcwd(lua_State *L) {
 	return 1;
 }
 
+static int lua_mkdir(lua_State *L) {
+	const char *dir = luaL_checkstring(L, 1);
+	// TODO: Make the mask configurable
+	int result = mkdir(dir, 0777);
+	if (result == -1)
+		return luaL_error(L, "mkdir '%s' failed: %s", dir, strerror(errno));
+	// No results if it was successfull
+	return 0;
+}
+
+static int lua_move(lua_State *L) {
+	const char *old = luaL_checkstring(L, 1);
+	const char *new = luaL_checkstring(L, 2);
+	int result = rename(old, new);
+	if (result == -1) {
+		if (errno == EXDEV) {
+			// Simulate cross-device move
+			WARN("Moving '%s' to '%s' across devices", old, new);
+			// TODO: Mask, owner, strange files, etc…
+			// TODO: O_LARGEFILE
+			int oldf = open(old, O_RDONLY);
+			if (oldf == -1)
+				return luaL_error(L, "Could not open %s: %s", old, strerror(errno));
+			int newf = open(new, O_WRONLY | O_CREAT | O_TRUNC, 0777);
+			const char *error;
+			const size_t buf_size = 1024;
+			uint8_t buffer[buf_size];
+			ssize_t result;
+			// Macro to set an error message and jump to the error handling code in case of VAL == -1
+#define ECHECK(VAL, ...) do { if ((VAL) == -1) { error = aprintf(__VA_ARGS__); goto ERROR; } } while (0)
+			ECHECK(newf, "Could not open %s: %s", new, strerror(errno));
+			while ((result = read(oldf, buffer, buf_size))) {
+				if (result == -1) {
+					if (errno == EINTR)
+						continue;
+					ECHECK(result, "Failed to copy from %s: %s", old, strerror(errno));
+				}
+				ssize_t pos = 0;
+				while (pos < result) {
+					ssize_t wresult = write(newf, buffer + pos, result - pos);
+					if (wresult == -1) {
+						if (errno == EINTR)
+							continue;
+						ECHECK(wresult, "Failed to copy to %s: %s", new, strerror(errno));
+					}
+				}
+			}
+			ECHECK(close(oldf), "Failed to close %s: %s", old, strerror(errno));
+			oldf = -1;
+			ECHECK(close(newf), "Failed to close %s: %s", new, strerror(errno));
+			newf = -1;
+			ECHECK(unlink(old), "Failed to remove %s: %s", old, strerror(errno));
+			return 0;
+#undef ECHECK
+ERROR:
+			if (oldf != -1)
+				close(oldf);
+			if (newf != -1)
+				close(newf);
+			return luaL_error(L, "%s", error);
+		} else
+			return luaL_error(L, "Failed to move '%s' to '%s': %s", old, new, strerror(errno));
+	}
+	return 0;
+}
+
+static int lua_unlink(lua_State *L) {
+	const char *path = luaL_checkstring(L, 1);
+	int result = unlink(path);
+	if (result == -1)
+		return luaL_error(L, "Failed to unlink '%s': %s", path, strerror(errno));
+	return 0;
+}
+
+static int lua_rmdir(lua_State *L) {
+	const char *path = luaL_checkstring(L, 1);
+	int result = rmdir(path);
+	if (result == -1)
+		return luaL_error(L, "Failed to remove directory '%s': %s", path, strerror(errno));
+	return 0;
+}
+
+static int lua_ls(lua_State *L) {
+	const char *dir = luaL_checkstring(L, 1);
+	DIR *d = opendir(dir);
+	if (!d)
+		return luaL_error(L, "Could not read directory %s: %s", dir, strerror(errno));
+	struct dirent *ent;
+	errno = 0;
+	lua_newtable(L);
+	while ((ent = readdir(d))) {
+		lua_pushboolean(L, true);
+		lua_setfield(L, -2, ent->d_name);
+	}
+	int old_errno = errno;
+	int result = closedir(d);
+	if (old_errno)
+		return luaL_error(L, "Could not read directory entity of %s: %s", dir, strerror(old_errno));
+	if (result == -1)
+		return luaL_error(L, "Failed to close directory %s: %s", dir, strerror(errno));
+	return 1;
+}
+
 struct injected_func {
 	int (*func)(lua_State *);
 	const char *name;
@@ -342,7 +450,12 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_events_wait, "events_wait" },
 	{ lua_mkdtemp, "mkdtemp" },
 	{ lua_chdir, "chdir" },
-	{ lua_getcwd, "getcwd" }
+	{ lua_getcwd, "getcwd" },
+	{ lua_mkdir, "mkdir" },
+	{ lua_move, "move" },
+	{ lua_unlink, "unlink" },
+	{ lua_rmdir, "rmdir" },
+	{ lua_ls, "ls" }
 	/*
 	 * Note: watch_cancel is not provided, because it would be hell to
 	 * manage the dynamically allocated memory correctly and there doesn't

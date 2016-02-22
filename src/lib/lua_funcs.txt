@@ -90,3 +90,21 @@ chdir(directory)::
 
 getcwd()::
   Get the current working directory.
+
+mkdir(directory)::
+  Create a directory. All the parent directories must already exist.
+  The directory itself shall not exist. It throws on error.
+
+move(old, new)::
+  Move a file from the old location to the new. It tries to cope with
+  paths on different devices, but this is not yet fully supported.
+
+unlink(path)::
+  Remove a file or something like that.
+
+rmdir(path)::
+  Remove (an empty) directory.
+
+ls(directory)::
+  Return a set with the file names under the given directory. The set
+  is a table where the names are keys and values are set to `true`.
