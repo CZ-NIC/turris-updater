@@ -97,7 +97,7 @@ mkdir(directory)::
 
 move(old, new)::
   Move a file from the old location to the new. It tries to cope with
-  paths on different devices, but this is not yet fully supported.
+  paths on different devices.
 
 unlink(path)::
   Remove a file or something like that.

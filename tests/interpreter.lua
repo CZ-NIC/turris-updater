@@ -53,11 +53,19 @@ function test_fsutils()
 	-- Create a file
 	local f = io.open(dir .. "/d2/x", "w")
 	assert(f)
+	f:close()
 	-- The file exists
 	assert_table_equal({["x"] = "r"}, ls(dir .. "/d2"))
 	-- Can't remove non-empty dir
 	assert_error(function () rmdir(dir .. "/d2") end)
-	unlink(dir .. "/d2/x")
+	-- A directory on another file system than tmp (likely)
+	local ldir = mkdtemp(getcwd())
+	table.insert(tmp_dirs, ldir)
+	-- Cross-device move
+	move(dir .. "/d2/x", ldir .. "/x")
+	assert_table_equal({["x"] = "r"}, ls(ldir))
+	unlink(ldir .. "/x")
+	-- d2 is now empty, so it can be removed
 	rmdir(dir .. "/d2")
 	-- Nothing left now
 	assert_table_equal({}, ls(dir))

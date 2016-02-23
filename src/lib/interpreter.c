@@ -346,56 +346,41 @@ static int lua_mkdir(lua_State *L) {
 	return 0;
 }
 
+struct mv_result_data {
+	char *err;
+	int status;
+};
+
+static void mv_result(struct wait_id id __attribute__((unused)), void *data, int status, enum command_kill_status killed __attribute__((unused)), size_t out_size __attribute__((unused)), const char *output __attribute__((unused)), size_t err_size __attribute__((unused)), const char *err) {
+	struct mv_result_data *mv_result_data = data;
+	mv_result_data->status = WTERMSIG(status);
+	if (status)
+		mv_result_data->err = strdup(err);
+}
+
 static int lua_move(lua_State *L) {
 	const char *old = luaL_checkstring(L, 1);
 	const char *new = luaL_checkstring(L, 2);
 	int result = rename(old, new);
 	if (result == -1) {
 		if (errno == EXDEV) {
-			// Simulate cross-device move
-			WARN("Moving '%s' to '%s' across devices", old, new);
-			// TODO: Mask, owner, strange files, etc…
-			// TODO: O_LARGEFILE
-			int oldf = open(old, O_RDONLY);
-			if (oldf == -1)
-				return luaL_error(L, "Could not open %s: %s", old, strerror(errno));
-			int newf = open(new, O_WRONLY | O_CREAT | O_TRUNC, 0777);
-			const char *error;
-			const size_t buf_size = 1024;
-			uint8_t buffer[buf_size];
-			ssize_t result;
-			// Macro to set an error message and jump to the error handling code in case of VAL == -1
-#define ECHECK(VAL, ...) do { if ((VAL) == -1) { error = aprintf(__VA_ARGS__); goto ERROR; } } while (0)
-			ECHECK(newf, "Could not open %s: %s", new, strerror(errno));
-			while ((result = read(oldf, buffer, buf_size))) {
-				if (result == -1) {
-					if (errno == EINTR)
-						continue;
-					ECHECK(result, "Failed to copy from %s: %s", old, strerror(errno));
-				}
-				ssize_t pos = 0;
-				while (pos < result) {
-					ssize_t wresult = write(newf, buffer + pos, result - pos);
-					if (wresult == -1) {
-						if (errno == EINTR)
-							continue;
-						ECHECK(wresult, "Failed to copy to %s: %s", new, strerror(errno));
-					}
-				}
+			/*
+			 * TODO:
+			 * We need to support cross-device move. But that one is a hell
+			 * to implement (because it might be a symlink, block or character
+			 * device, we need to support file permissions, etc. We use
+			 * external mv for now instead, we may want to reconsider later.
+			 */
+			struct events *events = extract_registry(L, "events");
+			ASSERT(events);
+			struct mv_result_data mv_result_data = { .err = NULL };
+			struct wait_id id = run_command(events, mv_result, NULL, &mv_result_data, 0, NULL, -1, -1, "/bin/mv", old, new, NULL);
+			events_wait(events, 1, &id);
+			if (mv_result_data.status) {
+				lua_pushfstring(L, "Failed to X-dev move '%s' to '%s': %s (ecode %d)", old, new, mv_result_data.err, mv_result_data.status);
+				free(mv_result_data.err);
+				return lua_error(L);
 			}
-			ECHECK(close(oldf), "Failed to close %s: %s", old, strerror(errno));
-			oldf = -1;
-			ECHECK(close(newf), "Failed to close %s: %s", new, strerror(errno));
-			newf = -1;
-			ECHECK(unlink(old), "Failed to remove %s: %s", old, strerror(errno));
-			return 0;
-#undef ECHECK
-ERROR:
-			if (oldf != -1)
-				close(oldf);
-			if (newf != -1)
-				close(newf);
-			return luaL_error(L, "%s", error);
 		} else
 			return luaL_error(L, "Failed to move '%s' to '%s': %s", old, new, strerror(errno));
 	}
