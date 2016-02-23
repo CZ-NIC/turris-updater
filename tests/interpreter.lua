@@ -43,18 +43,18 @@ function test_fsutils()
 	assert_table_equal({}, ls(dir))
 	-- We can create a directory
 	mkdir(dir .. "/d1")
-	assert_table_equal({["d1"] = true}, ls(dir))
+	assert_table_equal({["d1"] = "d"}, ls(dir))
 	-- Parent directory doesn't exist
 	assert_error(function () mkdir(dir .. "/d2/d3") end)
 	-- Already exists
 	assert_error(function () mkdir(dir .. "/d1") end)
 	move(dir .. "/d1", dir .. "/d2")
-	assert_table_equal({["d2"] = true}, ls(dir))
+	assert_table_equal({["d2"] = "d"}, ls(dir))
 	-- Create a file
 	local f = io.open(dir .. "/d2/x", "w")
 	assert(f)
 	-- The file exists
-	assert_table_equal({["x"] = true}, ls(dir .. "/d2"))
+	assert_table_equal({["x"] = "r"}, ls(dir .. "/d2"))
 	-- Can't remove non-empty dir
 	assert_error(function () rmdir(dir .. "/d2") end)
 	unlink(dir .. "/d2/x")

@@ -418,6 +418,53 @@ static int lua_rmdir(lua_State *L) {
 	return 0;
 }
 
+// Get the type of file refered by the dirent.
+static const char *get_dirent_type(DIR *d, struct dirent *ent) {
+	switch (ent->d_type) {
+		case DT_BLK:
+			return "b";
+		case DT_CHR:
+			return "c";
+		case DT_DIR:
+			return "d";
+		case DT_FIFO:
+			return "f";
+		case DT_LNK:
+			return "l";
+		case DT_REG:
+			return "r";
+		case DT_SOCK:
+			return "s";
+		default: // DT_UNKNOWN
+			// The file system might not have this info in dir, try again with stat
+			break;
+	}
+	struct stat buf;
+	int result = fstatat(dirfd(d), ent->d_name, &buf, AT_SYMLINK_NOFOLLOW);
+	if (result == -1) {
+		ERROR("fstatat failed on %s: %s", ent->d_name, strerror(errno));
+		return "?";
+	}
+	switch (buf.st_mode & S_IFMT) {
+		case S_IFSOCK:
+			return "s";
+		case S_IFLNK:
+			return "l";
+		case S_IFREG:
+			return "r";
+		case S_IFBLK:
+			return "b";
+		case S_IFDIR:
+			return "d";
+		case S_IFCHR:
+			return "c";
+		case S_IFIFO:
+			return "f";
+	}
+	// OK, we didn't find out here, try again with stat
+	return "?";
+}
+
 static int lua_ls(lua_State *L) {
 	const char *dir = luaL_checkstring(L, 1);
 	DIR *d = opendir(dir);
@@ -429,7 +476,7 @@ static int lua_ls(lua_State *L) {
 	while ((ent = readdir(d))) {
 		// Skip the . and .. directories
 		if (strcmp(ent->d_name, "..") && strcmp(ent->d_name, ".")) {
-			lua_pushboolean(L, true);
+			lua_pushstring(L, get_dirent_type(d, ent));
 			lua_setfield(L, -2, ent->d_name);
 		}
 	}
