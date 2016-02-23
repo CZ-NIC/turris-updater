@@ -383,7 +383,5 @@ function teardown()
 	-- Clean up, return the original file name
 	B.status_file = orig_status_file
 	B.info_dir = orig_info_dir
-	if next(tmp_dirs) then
-		events_wait(run_command(function (ecode) assert_equal(0, ecode) end, nil, nil, -1, -1, '/bin/rm', '-rf', unpack(tmp_dirs)))
-	end
+	utils.cleanup_dirs(tmp_dirs)
 end

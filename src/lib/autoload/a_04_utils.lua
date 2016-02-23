@@ -18,6 +18,11 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
 local pairs = pairs
+local next = next
+local error = error
+local unpack = unpack
+local events_wait = events_wait
+local run_command = run_command
 
 module "utils"
 
@@ -47,6 +52,17 @@ function map(table, fun)
 		result[nk] = nv
 	end
 	return result
+end
+
+-- Run rm -rf on all dirs in the provided table
+function cleanup_dirs(dirs)
+	if next(dirs) then
+		events_wait(run_command(function (ecode, killed, stdout, stderr)
+			if ecode ~= 0 then
+				error("rm -rf failed: " .. stderr)
+			end
+		end, nil, nil, -1, -1, "/bin/rm", "-rf", unpack(dirs)));
+	end
 end
 
 return _M

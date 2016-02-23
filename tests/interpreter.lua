@@ -18,10 +18,14 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
 require 'lunit'
+require 'utils'
 
 -- Some of the interpreter tests are in C, some are easier written in lua
 module("interpreter-tests", package.seeall, lunit.testcase)
 
+local tmp_dirs = {}
+
+-- Test work with working directory
 function test_dirs()
 	local top = os.getenv("S") or "."
 	chdir(top)
@@ -29,4 +33,36 @@ function test_dirs()
 	local dir = getcwd()
 	-- The current directory should be in tests now
 	assert_equal("/tests", dir:sub(-6))
+end
+
+-- Test some FS utilities
+function test_fsutils()
+	local dir = mkdtemp()
+	table.insert(tmp_dirs, dir)
+	-- ls on empty directory
+	assert_table_equal({}, ls(dir))
+	-- We can create a directory
+	mkdir(dir .. "/d1")
+	assert_table_equal({["d1"] = true}, ls(dir))
+	-- Parent directory doesn't exist
+	assert_error(function () mkdir(dir .. "/d2/d3") end)
+	-- Already exists
+	assert_error(function () mkdir(dir .. "/d1") end)
+	move(dir .. "/d1", dir .. "/d2")
+	assert_table_equal({["d2"] = true}, ls(dir))
+	-- Create a file
+	local f = io.open(dir .. "/d2/x", "w")
+	assert(f)
+	-- The file exists
+	assert_table_equal({["x"] = true}, ls(dir .. "/d2"))
+	-- Can't remove non-empty dir
+	assert_error(function () rmdir(dir .. "/d2") end)
+	unlink(dir .. "/d2/x")
+	rmdir(dir .. "/d2")
+	-- Nothing left now
+	assert_table_equal({}, ls(dir))
+end
+
+function teardown()
+	utils.cleanup_dirs(tmp_dirs)
 end

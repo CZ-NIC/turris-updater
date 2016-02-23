@@ -427,8 +427,11 @@ static int lua_ls(lua_State *L) {
 	errno = 0;
 	lua_newtable(L);
 	while ((ent = readdir(d))) {
-		lua_pushboolean(L, true);
-		lua_setfield(L, -2, ent->d_name);
+		// Skip the . and .. directories
+		if (strcmp(ent->d_name, "..") && strcmp(ent->d_name, ".")) {
+			lua_pushboolean(L, true);
+			lua_setfield(L, -2, ent->d_name);
+		}
 	}
 	int old_errno = errno;
 	int result = closedir(d);
