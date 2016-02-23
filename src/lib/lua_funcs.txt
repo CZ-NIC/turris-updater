@@ -117,3 +117,8 @@ ls(directory)::
   r;; A regular file
   s;; A unix-domain socket
   ?;; Failed to determine the type
+
+stat(path)::
+  Statistics about the given file. It currently returns only the type
+  of file see the types of `ls`). If it doesn't exist, it returns
+  nothing.

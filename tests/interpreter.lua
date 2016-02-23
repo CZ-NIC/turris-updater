@@ -44,6 +44,10 @@ function test_fsutils()
 	-- We can create a directory
 	mkdir(dir .. "/d1")
 	assert_table_equal({["d1"] = "d"}, ls(dir))
+	-- Exists and is a directory
+	assert_equal("d", stat(dir .. "/d1"))
+	-- Doesn't exist
+	assert_table_equal({}, {stat(dir .. "/d2")})
 	-- Parent directory doesn't exist
 	assert_error(function () mkdir(dir .. "/d2/d3") end)
 	-- Already exists

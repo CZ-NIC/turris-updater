@@ -403,6 +403,26 @@ static int lua_rmdir(lua_State *L) {
 	return 0;
 }
 
+static const char *stat2str(const struct stat *buf) {
+	switch (buf->st_mode & S_IFMT) {
+		case S_IFSOCK:
+			return "s";
+		case S_IFLNK:
+			return "l";
+		case S_IFREG:
+			return "r";
+		case S_IFBLK:
+			return "b";
+		case S_IFDIR:
+			return "d";
+		case S_IFCHR:
+			return "c";
+		case S_IFIFO:
+			return "f";
+	}
+	return "?";
+}
+
 // Get the type of file refered by the dirent.
 static const char *get_dirent_type(DIR *d, struct dirent *ent) {
 	switch (ent->d_type) {
@@ -424,30 +444,14 @@ static const char *get_dirent_type(DIR *d, struct dirent *ent) {
 			// The file system might not have this info in dir, try again with stat
 			break;
 	}
+	// OK, we didn't find out here, try again with stat
 	struct stat buf;
 	int result = fstatat(dirfd(d), ent->d_name, &buf, AT_SYMLINK_NOFOLLOW);
 	if (result == -1) {
 		ERROR("fstatat failed on %s: %s", ent->d_name, strerror(errno));
 		return "?";
 	}
-	switch (buf.st_mode & S_IFMT) {
-		case S_IFSOCK:
-			return "s";
-		case S_IFLNK:
-			return "l";
-		case S_IFREG:
-			return "r";
-		case S_IFBLK:
-			return "b";
-		case S_IFDIR:
-			return "d";
-		case S_IFCHR:
-			return "c";
-		case S_IFIFO:
-			return "f";
-	}
-	// OK, we didn't find out here, try again with stat
-	return "?";
+	return stat2str(&buf);
 }
 
 static int lua_ls(lua_State *L) {
@@ -474,6 +478,21 @@ static int lua_ls(lua_State *L) {
 	return 1;
 }
 
+static int lua_stat(lua_State *L) {
+	const char *fname = luaL_checkstring(L, 1);
+	struct stat buf;
+	int result = stat(fname, &buf);
+	if (result == -1) {
+		if (errno == ENOENT)
+			// No result, because the file does not exist
+			return 0;
+		else
+			return luaL_error(L, "Failed to stat '%s': %s", fname, strerror(errno));
+	}
+	lua_pushstring(L, stat2str(&buf));
+	return 1;
+}
+
 struct injected_func {
 	int (*func)(lua_State *);
 	const char *name;
@@ -490,7 +509,8 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_move, "move" },
 	{ lua_unlink, "unlink" },
 	{ lua_rmdir, "rmdir" },
-	{ lua_ls, "ls" }
+	{ lua_ls, "ls" },
+	{ lua_stat, "stat" }
 	/*
 	 * Note: watch_cancel is not provided, because it would be hell to
 	 * manage the dynamically allocated memory correctly and there doesn't
