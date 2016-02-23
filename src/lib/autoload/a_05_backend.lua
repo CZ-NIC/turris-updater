@@ -45,6 +45,8 @@ status_file = "/usr/lib/opkg/status"
 info_dir = "/usr/lib/opkg/info/"
 -- A root directory
 root_dir = "/"
+-- A directory where unpacked packages live
+pkg_temp_dir = "/usr/share/updater/unpacked"
 -- Time after which we SIGTERM external commands. Something incredibly long, just prevent them from being stuck.
 cmd_timeout = 600000
 -- Time after which we SIGKILL external commands
@@ -371,13 +373,15 @@ function pkg_examine(dir)
 		end
 		cidx:close()
 	end
+	-- Load the control file of the package and parse it
+	local control = package_postprocess(block_parse(slurp(control_dir .. "/control")));
 	-- Wait for all asynchronous processes to finish
 	events_wait(unpack(events))
 	-- How well did it go?
 	if err then
 		error(err)
 	end
-	return files, dirs, conffiles
+	return files, dirs, conffiles, control
 end
 
 --[[
@@ -470,7 +474,7 @@ local function dir_ensure(dir)
 	end
 end
 
--- Merge the given package into the live system and remove the temporary file
+-- Merge the given package into the live system and remove the temporary file.
 function pkg_merge_files(dir, dirs, files, configs)
 	--[[
 	First, create the needed directories. Sort them according to
