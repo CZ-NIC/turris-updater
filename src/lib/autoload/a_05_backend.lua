@@ -43,6 +43,8 @@ needed) to modify these variables.
 status_file = "/usr/lib/opkg/status"
 -- The directory where unpacked control files of the packages live
 info_dir = "/usr/lib/opkg/info/"
+-- A root directory
+root_dir = "/"
 -- Time after which we SIGTERM external commands. Something incredibly long, just prevent them from being stuck.
 cmd_timeout = 600000
 -- Time after which we SIGKILL external commands
@@ -443,11 +445,111 @@ function collision_check(current_status, remove_pkgs, add_pkgs)
 	-- Files that shall really disappear
 	local remove = {}
 	for f in pairs(remove_candidates) do
+		-- TODO: How about config files?
 		if not files_all[f] then
 			remove[f] = true
 		end
 	end
 	return collisions, remove
+end
+
+-- Ensure the given directory exists
+local function dir_ensure(dir)
+	-- Try creating it.
+	local ok, err = pcall(function () mkdir(dir) end)
+	if not ok then
+		-- It may have failed because it already exists, check it
+		local tp = stat(dir)
+		if not tp then
+			-- It does not create, so creation failed for some reason
+			error(err)
+		elseif tp ~= "d" then
+			error("Could not create dir '" .. dir .. "', file of type " .. tp .. " is already in place")
+		end
+		-- else ‒ there's the given directory, so it failed because it pre-existed. That's OK.
+	end
+end
+
+-- Merge the given package into the live system and remove the temporary file
+function pkg_merge_files(dir, dirs, files, configs)
+	--[[
+	First, create the needed directories. Sort them according to
+	their length, which ensures the parent directories are created
+	first.
+	FIXME: We currently completely ignore the file mode and owner of
+	the directories.
+	]]
+	local dirs_sorted = utils.set2arr(dirs)
+	table.sort(dirs_sorted, function (a, b)
+		return a:len() < b:len()
+	end)
+	for _, new_dir in ipairs(dirs_sorted) do
+		DBG("Creating dir " .. new_dir)
+		dir_ensure(root_dir .. new_dir)
+	end
+	--[[
+	Now move all the files in place.
+	]]
+	for f in pairs(files) do
+		-- TODO: Handle the configs
+		DBG("Installing file " .. f)
+		--[[
+		TODO: Handle the possibility of the file being already
+		moved to place, because the previous run has been
+		interrupted and we resumed from the journal.
+		]]
+		move(dir .. f, root_dir .. f)
+	end
+	-- Remove the original directory
+	utils.cleanup_dirs({dir})
+end
+
+--[[
+Remove files provided as a set and any directories which became
+empty by doing so (recursively).
+]]
+function pkg_cleanup_files(files)
+	for f in pairs(files) do
+		-- Make sure there are no // in there, which would confuse the directory cleaning code
+		f = f:gsub("/+", "/")
+		path = root_dir .. f
+		DBG("Removing file " .. path)
+		local ok, err = pcall(function () unlink(path) end)
+		-- If it failed because the file didn't exist, that's OK. Mostly.
+		if not ok then
+			local tp = stat(path)
+			if tp then
+				error(err)
+			else
+				WARN("Not removing " .. path .. " since it is not there")
+			end
+		end
+		-- Now, go through the levels of f, looking if they may be removed
+		-- Iterator for the chunking of the path
+		function get_parent()
+			local parent = f:match("^(.+)/[^/]+")
+			f = parent
+			if f:len() > 0 then
+				return f
+			else
+				return nil
+			end
+		end
+		for parent in get_parent do
+			local content = ls(parent)
+			if next(root_dir .. parent) then
+				-- It is not empty
+				break
+			else
+				local ok, err = pcall(function () rmdir(root_dir .. parent) end)
+				if not ok then
+					-- It is an error, but we don't want to give up on the rest of the operation because of that
+					ERROR("Failed to removed empty " .. parent .. ", ignoring")
+					break
+				end
+			end
+		end
+	end
 end
 
 return _M
