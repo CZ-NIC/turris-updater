@@ -46,3 +46,9 @@ function test_map()
 		b = "b"
 	}, function (k, v) return k .. "n", v .. "v" end))
 end
+
+function test_set2arr()
+	local result = U.set2arr({a = true, b = true, c = true})
+	table.sort(result)
+	assert_table_equal({"a", "b", "c"}, result)
+end

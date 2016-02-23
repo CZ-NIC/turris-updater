@@ -54,6 +54,15 @@ function map(table, fun)
 	return result
 end
 
+-- Convert a set to an array
+function set2arr(set)
+	local idx = 0
+	return map(set, function (key)
+		idx = idx + 1
+		return idx, key
+	end)
+end
+
 -- Run rm -rf on all dirs in the provided table
 function cleanup_dirs(dirs)
 	if next(dirs) then
