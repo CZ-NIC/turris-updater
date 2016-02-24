@@ -238,17 +238,14 @@ end
 
 local orig_status_file = B.status_file
 local orig_info_dir = B.info_dir
+local orig_root_dir = B.root_dir
 local tmp_dirs = {}
 
 --[[
 Test the chain of functions ‒ unpack, examine
 ]]
 function test_pkg_unpack()
-	local fname = datadir .. "updater.ipk"
-	local f = io.open(fname)
-	local input = f:read("*a")
-	f:close()
-	local path = B.pkg_unpack(input)
+	local path = B.pkg_unpack(utils.slurp(datadir .. "updater.ipk"))
 	-- Make sure it is deleted on teardown
 	table.insert(tmp_dirs, path)
 	-- Check list of extracted files
@@ -323,6 +320,49 @@ function test_pkg_unpack()
 		Description = "updater",
 		Depends = {"libc", "vixie-cron", "openssl-util", "libatsha204", "curl", "cert-backup", "opkg", "bzip2", "cznic-cacert-bundle"}
 	}, control)
+	local test_root = mkdtemp()
+	table.insert(tmp_dirs, test_root)
+	B.root_dir = test_root
+	-- Try merging it to a „root“ directory. We need to find all the files and directories.
+	--[[
+	Omit the empty directories. They wouldn't get cleared currently, and
+	we want to test it. We may store list of directories in future.
+	]]
+	dirs["/usr/share/updater/hashes"] = nil
+	dirs["/etc/cron.d"] = nil
+	B.pkg_merge_files(path .. "/data", dirs, files, conffiles)
+	-- The original directory disappeared.
+	assert_table_equal({
+		["control"] = "d"
+	}, ls(path))
+	events_wait(run_command(function (ecode, killed, stdout)
+		assert_equal(0, ecode, "Failed to check the list of files")
+		assert_table_equal(lines2set([[.
+./etc
+./etc/config
+./etc/config/updater
+./etc/init.d
+./etc/init.d/updater
+./etc/ssl
+./etc/ssl/updater.pem
+./usr
+./usr/bin
+./usr/bin/updater-resume.sh
+./usr/bin/updater.sh
+./usr/bin/updater-unstuck.sh
+./usr/bin/updater-utils.sh
+./usr/bin/updater-wipe.sh
+./usr/bin/updater-worker.sh
+./usr/share
+./usr/share/updater
+./usr/share/updater/keys
+./usr/share/updater/keys/release.pem
+./usr/share/updater/keys/standby.pem
+]]), lines2set(stdout))
+	end, function () chdir(test_root) end, nil, -1, -1, "/usr/bin/find"))
+	-- Now try clearing the package. When we list all the files, it should remove the directories as well.
+	B.pkg_cleanup_files(files)
+	assert_table_equal({}, ls(test_root))
 end
 
 -- Test the collision_check function
@@ -394,5 +434,6 @@ function teardown()
 	-- Clean up, return the original file name
 	B.status_file = orig_status_file
 	B.info_dir = orig_info_dir
+	B.root_dir= orig_root_dir
 	utils.cleanup_dirs(tmp_dirs)
 end

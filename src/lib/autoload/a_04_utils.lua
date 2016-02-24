@@ -20,6 +20,7 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 local pairs = pairs
 local next = next
 local error = error
+local io = io
 local unpack = unpack
 local events_wait = events_wait
 local run_command = run_command
@@ -72,6 +73,21 @@ function cleanup_dirs(dirs)
 			end
 		end, nil, nil, -1, -1, "/bin/rm", "-rf", unpack(dirs)));
 	end
+end
+
+--[[
+Read the whole content of given file. Return the content, or nil and error message.
+In case of errors during the reading (instead of when opening), it calls error()
+]]
+function slurp(filename)
+	local f, err = io.open(filename)
+	if not f then
+		return nil, err
+	end
+	local content = f:read("*a")
+	f:close()
+	if not content then error("Could not read content of " .. filename) end
+	return content
 end
 
 return _M

@@ -20,8 +20,10 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 local error = error
 local type = type
 local pairs = pairs
+local ipairs = ipairs
 local pcall = pcall
 local require = require
+local next = next
 local unpack = unpack
 local io = io
 local table = table
@@ -29,6 +31,12 @@ local mkdtemp = mkdtemp
 local chdir = chdir
 local run_command = run_command
 local events_wait = events_wait
+local stat = stat
+local mkdir = mkdir
+local move = move
+local unlink = unlink
+local rmdir = rmdir
+local ls = ls
 local DBG = DBG
 local WARN = WARN
 local utils = require "utils"
@@ -167,25 +175,10 @@ function package_postprocess(status)
 	return status
 end
 
---[[
-Read the whole content of given file. Return the content, or nil and error message.
-In case of errors during the reading (instead of when opening), it calls error()
-]]
-local function slurp(filename)
-	local f, err = io.open(filename)
-	if not f then
-		return nil, err
-	end
-	local content = f:read("*a")
-	f:close()
-	if not content then error("Could not read content of " .. filename) end
-	return content
-end
-
 -- Get pkg_name's file's content with given suffix. Nil on error.
 local function pkg_file(pkg_name, suffix, warn)
 	local fname = info_dir .. pkg_name .. "." .. suffix
-	local content, err = slurp(fname)
+	local content, err = utils.slurp(fname)
 	if not content then
 		WARN("Could not read ." .. suffix .. " file of " .. pkg_name .. ": " .. err)
 	end
@@ -375,7 +368,7 @@ function pkg_examine(dir)
 		cidx:close()
 	end
 	-- Load the control file of the package and parse it
-	local control = package_postprocess(block_parse(slurp(control_dir .. "/control")));
+	local control = package_postprocess(block_parse(utils.slurp(control_dir .. "/control")));
 	-- Wait for all asynchronous processes to finish
 	events_wait(unpack(events))
 	-- How well did it go?
@@ -534,18 +527,15 @@ function pkg_cleanup_files(files)
 		function get_parent()
 			local parent = f:match("^(.+)/[^/]+")
 			f = parent
-			if f:len() > 0 then
-				return f
-			else
-				return nil
-			end
+			return f
 		end
 		for parent in get_parent do
-			local content = ls(parent)
-			if next(root_dir .. parent) then
+			if next(ls(root_dir .. parent)) then
+				DBG("Directory " .. root_dir .. parent .. " not empty, keeping in place")
 				-- It is not empty
 				break
 			else
+				DBG("Removing empty directory " .. root_dir .. parent)
 				local ok, err = pcall(function () rmdir(root_dir .. parent) end)
 				if not ok then
 					-- It is an error, but we don't want to give up on the rest of the operation because of that
