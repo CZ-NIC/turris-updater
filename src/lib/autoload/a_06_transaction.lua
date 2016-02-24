@@ -26,6 +26,7 @@ This is a fairly high-level module, connecting many things together.
 ]]
 
 local ipairs = ipairs
+local next = next
 local table = table
 local backend = require "backend"
 local utils = require "utils"
@@ -50,8 +51,8 @@ An error may be thrown if anything goes wrong.
 function perform(operations)
 	-- Make sure the temporary directory for unpacked packages exist
 	local created = ""
-	for segment in backend.pkg_temp_dir:gmatch("([^/]*)/") do
-		created = created .. "/" .. segment
+	for segment in (backend.pkg_temp_dir .. "/"):gmatch("([^/]*)/") do
+		created = created .. segment .. "/"
 		backend.dir_ensure(created)
 	end
 	-- Look at what the current status looks like.
@@ -97,7 +98,7 @@ function perform(operations)
 	local dir_cleanups = {}
 	-- TODO: Journal note, we're going to proceed now.
 	-- Go through the list once more and perform the prepared operations
-	for _, op in ipairs(operations) do
+	for _, op in ipairs(plan) do
 		-- TODO: Run the scripts through here
 		if op.op == "install" then
 			backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.configs)
