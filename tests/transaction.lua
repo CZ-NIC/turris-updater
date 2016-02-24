@@ -145,6 +145,58 @@ function test_perform_ok()
 	assert_table_equal(expected, mocks_called)
 end
 
+-- Test it stops when it finds collisions
+function test_perform_collision()
+	mocks_install()
+	mock_gen("backend.collision_check", function () return {f = {["<pkg1name>"] = "new", ["<pkg2name>"] = "new", ["other"] = "existing"}}, {} end)
+	mock_gen("backend.pkg_unpack", function (data) return data:gsub("data", "dir") end)
+	mock_gen("backend.pkg_examine", function (dir) return {f = true}, {d = true}, {c = "1234567890123456"}, {Package = dir:gsub("dir", "name")} end)
+	assert_error(function() T.perform({
+		{
+			op = "install",
+			data = "<pkg1data>"
+		},
+		{
+			op = "install",
+			data = "<pkg2data>"
+		}
+	}) end)
+	local expected = tables_join(intro, {
+		{
+			f = "backend.pkg_unpack",
+			p = {"<pkg1data>", B.pkg_temp_dir}
+		},
+		{
+			f = "backend.pkg_examine",
+			p = {"<pkg1dir>"}
+		},
+		{
+			f = "backend.pkg_unpack",
+			p = {"<pkg2data>", B.pkg_temp_dir}
+		},
+		{
+			f = "backend.pkg_examine",
+			p = {"<pkg2dir>"}
+		},
+		{
+			f = "backend.collision_check",
+			p = {
+				test_status,
+				{
+					["<pkg1name>"] = true,
+					["<pkg2name>"] = true
+				},
+				{
+					["<pkg1name>"] = {f = true},
+					["<pkg2name>"] = {f = true}
+				}
+			}
+		}
+	})
+	print(DataDumper(mocks_called))
+	assert_table_equal(expected, mocks_called)
+end
+
 function teardown()
 	mocks_reset()
 end

@@ -27,6 +27,7 @@ This is a fairly high-level module, connecting many things together.
 
 local ipairs = ipairs
 local next = next
+local error = error
 local table = table
 local backend = require "backend"
 local utils = require "utils"
