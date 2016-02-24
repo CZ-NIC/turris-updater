@@ -75,11 +75,13 @@ function perform(operations)
 			local pkg_dir = backend.pkg_unpack(op.data, backend.pkg_temp_dir)
 			local files, dirs, configs, control = backend.pkg_examine(pkg_dir)
 			to_remove[control.Package] = true
+			to_install[control.Package] = files
 			table.insert(plan, {
+				op = "install",
 				dir = pkg_dir,
 				files = files,
 				dirs = dirs,
-				configs = confis,
+				configs = configs,
 				control = control
 			})
 		else

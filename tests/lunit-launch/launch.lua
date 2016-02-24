@@ -61,13 +61,11 @@ function mock_gen(name, fun)
 	-- Make sure there's something to call
 	fun = fun or function() end
 	local f = function (...)
-		local result = {fun(...)}
 		table.insert(mocks_called, {
 			f = name,
-			r = result,
 			p = {...}
 		})
-		return unpack(result)
+		return fun(...)
 	end
 	local orig = mod_insert(name, f)
 	if not mocks_origs[name] then

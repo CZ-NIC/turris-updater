@@ -18,36 +18,36 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
 require 'lunit'
+local B = require 'backend'
 local T = require 'transaction'
 
 module("transaction-tests", package.seeall, lunit.testcase)
 
-local test_status = {}
+local test_status = {"status"}
 local intro = {
 	{
 		f = "backend.dir_ensure",
-		r = {},
 		p = {"/"}
 	},
 	{
 		f = "backend.dir_ensure",
-		r = {},
 		p = {"/usr/"}
 	},
 	{
 		f = "backend.dir_ensure",
-		r = {},
 		p = {"/usr/share/"}
 	},
 	{
 		f = "backend.dir_ensure",
-		r = {},
 		p = {"/usr/share/updater/"}
 	},
 	{
 		f = "backend.dir_ensure",
-		r = {},
 		p = {"/usr/share/updater/unpacked/"}
+	},
+	{
+		f = "backend.status_parse",
+		p = {}
 	}
 }
 
@@ -63,38 +63,83 @@ local function tables_join(...)
 	return result
 end
 
-function test_perform_empty()
-	-- Some empty mocks, to check nothing extra is called
+local function mocks_install()
 	mock_gen("backend.dir_ensure")
 	mock_gen("backend.status_parse", function () return test_status end)
-	mock_gen("backend.pkg_unpack")
-	mock_gen("backend.pkg_examine")
+	mock_gen("backend.pkg_unpack", function () return "pkg_dir" end)
+	mock_gen("backend.pkg_examine", function () return {f = true}, {d = true}, {c = "1234567890123456"}, {Package = "pkg-name"} end)
 	mock_gen("backend.collision_check", function () return {}, {}  end)
-	mock_gen("backend.merge_files")
+	mock_gen("backend.pkg_merge_files")
 	mock_gen("backend.pkg_cleanup_files")
 	mock_gen("utils.cleanup_dirs")
+end
+
+-- Test calling empty transaction
+function test_perform_empty()
+	mocks_install()
 	-- Run empty set of operations
 	T.perform({})
 	local expected = tables_join(intro, {
 		{
-			f = "backend.status_parse",
-			r = {test_status},
-			p = {}
-		},
-		{
 			f = "backend.collision_check",
-			r = {{}, {}},
 			p = {test_status, {}, {}}
 		},
 		{
 			f = "backend.pkg_cleanup_files",
-			r = {},
 			p = {{}}
 		},
 		{
 			f = "utils.cleanup_dirs",
-			r = {},
 			p = {{}}
+		}
+	})
+	assert_table_equal(expected, mocks_called)
+end
+
+-- Test a transaction when it goes well
+function test_perform_ok()
+	mocks_install()
+	mock_gen("backend.collision_check", function () return {}, {d2 = true}  end)
+	T.perform({
+		{
+			op = "install",
+			data = "<package data>"
+		}, {
+			op = "remove",
+			name = "pkg-rem"
+		}
+	})
+	local expected = tables_join(intro, {
+		{
+			f = "backend.pkg_unpack",
+			p = {"<package data>", B.pkg_temp_dir}
+		},
+		{
+			f = "backend.pkg_examine",
+			p = {"pkg_dir"}
+		},
+		{
+			f = "backend.collision_check",
+			p = {
+				test_status,
+				{
+					["pkg-rem"] = true,
+					["pkg-name"] = true
+				},
+				{["pkg-name"] = {f = true}}
+			}
+		},
+		{
+			f = "backend.pkg_merge_files",
+			p = {"pkg_dir/data", {d = true}, {f = true}, {c = "1234567890123456"}}
+		},
+		{
+			f = "backend.pkg_cleanup_files",
+			p = {{d2 = true}}
+		},
+		{
+			f = "utils.cleanup_dirs",
+			p = {{"pkg_dir"}}
 		}
 	})
 	assert_table_equal(expected, mocks_called)
