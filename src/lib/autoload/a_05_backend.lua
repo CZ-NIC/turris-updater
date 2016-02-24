@@ -318,12 +318,13 @@ end
 
 --[[
 Look into the dir with unpacked package (the one containing control and data subdirs).
-Return three tables:
+Return four tables:
 • Set of files, symlinks, pipes, etc.
   (in short, the things that are owned exclusively by the package)
 • Set of directories
   (which may be shared between packages)
 • Map of config files with their md5 sums.
+• The parset control file of the package.
 
 In all three cases, the file names are keys, not values.
 

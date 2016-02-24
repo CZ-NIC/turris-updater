@@ -285,7 +285,7 @@ function test_pkg_unpack()
 ./data/usr/share/updater/keys/standby.pem
 ]]), lines2set(stdout))
 	end, function () chdir(path) end, nil, -1, -1, "/usr/bin/find"))
-	local files, dirs, conffiles = B.pkg_examine(path)
+	local files, dirs, conffiles, control = B.pkg_examine(path)
 	assert_table_equal(lines2set([[/etc/init.d/updater
 /etc/config/updater
 /etc/ssl/updater.pem
@@ -312,6 +312,17 @@ function test_pkg_unpack()
 	assert_table_equal({
 		["/etc/config/updater"] = "30843ef73412c8f6b4212c00724a1cc8"
 	}, conffiles)
+	assert_table_equal({
+		Package = "updater",
+		Version = "129",
+		Source = "feeds/turrispackages/cznic/updater",
+		Section = "opt",
+		Maintainer = "Michal Vaner <michal.vaner@nic.cz>",
+		Architecture = "mpc85xx",
+		["Installed-Size"] = "14773",
+		Description = "updater",
+		Depends = {"libc", "vixie-cron", "openssl-util", "libatsha204", "curl", "cert-backup", "opkg", "bzip2", "cznic-cacert-bundle"}
+	}, control)
 end
 
 -- Test the collision_check function

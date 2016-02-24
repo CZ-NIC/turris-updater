@@ -1,6 +1,5 @@
 • Tests for pkg_merge_files
 • Tests for pkg_cleanup_files
-• Tests and docs for the fourth result of pkg_examine
 • Tests for the transaction.perform
 • ticket for config file manipulation
 • ticket for integrating the transaction.perform into the main app
