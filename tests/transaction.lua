@@ -191,9 +191,12 @@ function test_perform_collision()
 					["<pkg2name>"] = {f = true}
 				}
 			}
+		},
+		{
+			f = "utils.cleanup_dirs",
+			p = {{"<pkg1dir>", "<pkg2dir>"}}
 		}
 	})
-	print(DataDumper(mocks_called))
 	assert_table_equal(expected, mocks_called)
 end
 

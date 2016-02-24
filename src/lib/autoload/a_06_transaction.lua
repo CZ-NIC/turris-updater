@@ -28,6 +28,7 @@ This is a fairly high-level module, connecting many things together.
 local ipairs = ipairs
 local next = next
 local error = error
+local pcall = pcall
 local table = table
 local backend = require "backend"
 local utils = require "utils"
@@ -50,74 +51,81 @@ TODO: Do all the journal stuff and calling of hooks/pre-postinst scripts.
 An error may be thrown if anything goes wrong.
 ]]
 function perform(operations)
-	-- Make sure the temporary directory for unpacked packages exist
-	local created = ""
-	for segment in (backend.pkg_temp_dir .. "/"):gmatch("([^/]*)/") do
-		created = created .. segment .. "/"
-		backend.dir_ensure(created)
-	end
-	-- Look at what the current status looks like.
-	local status = backend.status_parse()
-	--[[
-	Set of packages from the current system we want to remove.
-	This contains the ones we want to install too, since the original would
-	disappear.
-	]]
-	local to_remove = {}
-	-- Table of package name → set of files
-	local to_install = {}
-	-- Plan of the operations we have prepared, similar to operations, but with different things in them
-	local plan = {}
-	for _, op in ipairs(operations) do
-		if op.op == "remove" then
-			to_remove[op.name] = true
-			table.insert(plan, op)
-		elseif op.op == "install" then
-			local pkg_dir = backend.pkg_unpack(op.data, backend.pkg_temp_dir)
-			local files, dirs, configs, control = backend.pkg_examine(pkg_dir)
-			to_remove[control.Package] = true
-			to_install[control.Package] = files
-			table.insert(plan, {
-				op = "install",
-				dir = pkg_dir,
-				files = files,
-				dirs = dirs,
-				configs = configs,
-				control = control
-			})
-		else
-			error("Unknown operation " .. op.op)
-		end
-	end
-	-- Drop the operations. This way, if we are tail-called, then the package buffers may be garbage-collected
-	operations = nil
-	-- TODO: Journal note, we unpacked everything
-	-- Check for collisions
-	local collisions, removes = backend.collision_check(status, to_remove, to_install)
-	if next(collisions) then
-		-- TODO: Format the error message about collisions
-		error("Collisions happened")
-	end
 	local dir_cleanups = {}
-	-- TODO: Journal note, we're going to proceed now.
-	-- Go through the list once more and perform the prepared operations
-	for _, op in ipairs(plan) do
-		-- TODO: Run the scripts through here
-		if op.op == "install" then
-			backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.configs)
-			table.insert(dir_cleanups, op.dir)
+	-- Emulate try-finally
+	local ok, err = pcall(function ()
+		-- Make sure the temporary directory for unpacked packages exist
+		local created = ""
+		for segment in (backend.pkg_temp_dir .. "/"):gmatch("([^/]*)/") do
+			created = created .. segment .. "/"
+			backend.dir_ensure(created)
 		end
-		-- Ignore others, at least for now.
-	end
-	-- TODO: Journal note, we have everything in place.
-	-- Clean up the files from removed or upgraded packages
-	backend.pkg_cleanup_files(removes)
-	-- Clean up the temporary files there.
-	-- TODO: Think about when to clean up any leftover files if something goes wrong? On success? On transaction rollback as well?
+		-- Look at what the current status looks like.
+		local status = backend.status_parse()
+		--[[
+		Set of packages from the current system we want to remove.
+		This contains the ones we want to install too, since the original would
+		disappear.
+		]]
+		local to_remove = {}
+		-- Table of package name → set of files
+		local to_install = {}
+		-- Plan of the operations we have prepared, similar to operations, but with different things in them
+		local plan = {}
+		for _, op in ipairs(operations) do
+			if op.op == "remove" then
+				to_remove[op.name] = true
+				table.insert(plan, op)
+			elseif op.op == "install" then
+				local pkg_dir = backend.pkg_unpack(op.data, backend.pkg_temp_dir)
+				table.insert(dir_cleanups, pkg_dir)
+				local files, dirs, configs, control = backend.pkg_examine(pkg_dir)
+				to_remove[control.Package] = true
+				to_install[control.Package] = files
+				table.insert(plan, {
+					op = "install",
+					dir = pkg_dir,
+					files = files,
+					dirs = dirs,
+					configs = configs,
+					control = control
+				})
+			else
+				error("Unknown operation " .. op.op)
+			end
+		end
+		-- Drop the operations. This way, if we are tail-called, then the package buffers may be garbage-collected
+		operations = nil
+		-- TODO: Journal note, we unpacked everything
+		-- Check for collisions
+		local collisions, removes = backend.collision_check(status, to_remove, to_install)
+		if next(collisions) then
+			-- TODO: Format the error message about collisions
+			error("Collisions happened")
+		end
+		-- TODO: Journal note, we're going to proceed now.
+		-- Go through the list once more and perform the prepared operations
+		for _, op in ipairs(plan) do
+			-- TODO: Run the scripts through here
+			if op.op == "install" then
+				backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.configs)
+			end
+			-- Ignore others, at least for now.
+		end
+		-- TODO: Journal note, we have everything in place.
+		-- Clean up the files from removed or upgraded packages
+		backend.pkg_cleanup_files(removes)
+		-- Clean up the temporary files there.
+		-- TODO: Think about when to clean up any leftover files if something goes wrong? On success? On transaction rollback as well?
+	end)
+	-- Make sure the temporary dirs are removed even if it fails.
 	utils.cleanup_dirs(dir_cleanups)
 	-- TODO: Journal note, everything is cleaned up
 	-- TODO: Store the new status
 	-- TODO: Clean up package control files for packages not present any more
+	if not ok then
+		error(err)
+	end
 end
 
 return _M
