@@ -50,7 +50,7 @@ get_list() {
 get_list_pack() {
 	(
 		echo "$GENERATION$REVISION"
-		if [ "$ID" != "unknown-id" ] ; then
+		if [ "$ID" != "unknown-id" ] && [ -z "$(uci -q get updater.override.branch)" ] ; then
 			SERIAL="$(echo "$ID" | sed -e 's/........//')"
 		else
 			SERIAL="$ID"
