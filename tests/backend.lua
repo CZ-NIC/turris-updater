@@ -34,16 +34,22 @@ function test_block_parse()
 		val1 = "value 1",
 		val2 = "value 2",
 		val3 = "value 3"
-	}, B.block_parse([[val1: value 1
+	}, B.block_parse(
+[[
+val1: value 1
 val2:  value 2
 val3:	value 3]]))
 	-- Continuations of fields
 	assert_table_equal({
-		val1 = [[value 1
+		val1 =
+[[
+value 1
  line 2
  line 3]],
 		val2 = "value 2"
-	}, B.block_parse([[val1: value 1
+	}, B.block_parse(
+[[
+val1: value 1
  line 2
  line 3
 val2: value 2]]))
@@ -72,7 +78,9 @@ end
 -- Tests for the block_split function.
 function test_block_split()
 	-- Just splitting into blocks
-	blocks_check([[block 1
+	blocks_check(
+[[
+block 1
 next line
 another line
 
@@ -87,7 +95,9 @@ multi line]]})
 
 block 2]], {'block 1', 'block 2'})
 	-- Few empty lines at the end - should not produce an empty block
-	blocks_check([[block 1
+	blocks_check(
+[[
+block 1
 
 block 2
 
@@ -107,7 +117,8 @@ function test_package_postprocces()
 		Depends = "libc, kernel (= 3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10), kmod-nls-base",
 		Status = "install user installed",
 		Architecture = "mpc85xx",
-		Conffiles = [[
+		Conffiles =
+[[
  /etc/config/dhcp f81fe9bd228dede2165be71e5c9dcf76cc
  /etc/dnsmasq.conf 1e6ab19c1ae5e70d609ac7b6246541d520]]
 	}
@@ -251,7 +262,9 @@ function test_pkg_unpack()
 	-- Check list of extracted files
 	events_wait(run_command(function (ecode, killed, stdout)
 		assert_equal(0, ecode, "Failed to check the list of files")
-		assert_table_equal(lines2set([[.
+		assert_table_equal(lines2set(
+[[
+.
 ./control
 ./control/conffiles
 ./control/control
@@ -283,7 +296,9 @@ function test_pkg_unpack()
 ]]), lines2set(stdout))
 	end, function () chdir(path) end, nil, -1, -1, "/usr/bin/find"))
 	local files, dirs, conffiles, control = B.pkg_examine(path)
-	assert_table_equal(lines2set([[/etc/init.d/updater
+	assert_table_equal(lines2set(
+[[
+/etc/init.d/updater
 /etc/config/updater
 /etc/ssl/updater.pem
 /usr/share/updater/keys/standby.pem
@@ -294,7 +309,9 @@ function test_pkg_unpack()
 /usr/bin/updater-utils.sh
 /usr/bin/updater-worker.sh
 /usr/bin/updater-wipe.sh]]), files)
-	assert_table_equal(lines2set([[/
+	assert_table_equal(lines2set(
+[[
+/
 /etc
 /etc/init.d
 /etc/cron.d
@@ -337,7 +354,9 @@ function test_pkg_unpack()
 	}, ls(path))
 	events_wait(run_command(function (ecode, killed, stdout)
 		assert_equal(0, ecode, "Failed to check the list of files")
-		assert_table_equal(lines2set([[.
+		assert_table_equal(lines2set(
+[[
+.
 ./etc
 ./etc/config
 ./etc/config/updater
