@@ -533,6 +533,33 @@ Installed-Time: 1
 	}))
 end
 
+function test_status_dump()
+	-- Read the status
+	local status = B.status_parse()
+	-- Make a copy of the status file, we'are going to write into it
+	local test_dir = mkdtemp()
+	table.insert(tmp_dirs, test_dir)
+	B.status_file = test_dir .. "/status"
+	B.status_dump(status)
+	-- Now read it again. It must be the same
+	local status2 = B.status_parse()
+	assert_table_equal(status, status2)
+	-- Change something in the status. Add a new package
+	status["New"] = {
+		Package = "New",
+		Version = "1",
+		["Installed-Time"] = "1",
+		Depends = { "Dep1", "dep2" },
+		Status = { flag = true }
+	}
+	-- Do one more store-read-compare cycle
+	B.status_dump(status)
+	local status3 = B.status_parse()
+	-- The status_parse always generates list of files, even if there are none
+	status["New"].files = {}
+	assert_table_equal(status, status3)
+end
+
 function setup()
 	local sdir = os.getenv("S") or "."
 	-- Use a shortened version of a real status file for tests

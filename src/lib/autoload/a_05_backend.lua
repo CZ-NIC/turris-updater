@@ -299,6 +299,26 @@ function status_parse()
 	return result
 end
 
+function status_dump(status)
+	DBG("Writing status file ", status_file)
+	--[[
+	Use a temporary file, so we don't garble the real and precious file.
+	Write the thing first and then switch attomicaly.
+	]]
+	local tmp_file = status_file .. ".tmp"
+	local f, err = io.open(tmp_file, "w")
+	if f then
+		for _, pkg in pairs(status) do
+			f:write(pkg_status_dump(pkg), "\n")
+		end
+		f:close()
+		-- Override the resulting file
+		local _, err = os.rename(tmp_file, status_file)
+	else
+		error("Couldn't write status file " .. tmp_file .. ": " .. err)
+	end
+end
+
 --[[
 Take the .ipk package (passed as the data, not as a path to a file) and unpack it
 into a temporary location somewhere under tmp_dir. If you omit tmp_dir, /tmp is used.
