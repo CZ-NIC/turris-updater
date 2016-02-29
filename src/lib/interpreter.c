@@ -387,22 +387,6 @@ static int lua_move(lua_State *L) {
 	return 0;
 }
 
-static int lua_unlink(lua_State *L) {
-	const char *path = luaL_checkstring(L, 1);
-	int result = unlink(path);
-	if (result == -1)
-		return luaL_error(L, "Failed to unlink '%s': %s", path, strerror(errno));
-	return 0;
-}
-
-static int lua_rmdir(lua_State *L) {
-	const char *path = luaL_checkstring(L, 1);
-	int result = rmdir(path);
-	if (result == -1)
-		return luaL_error(L, "Failed to remove directory '%s': %s", path, strerror(errno));
-	return 0;
-}
-
 static const char *stat2str(const struct stat *buf) {
 	switch (buf->st_mode & S_IFMT) {
 		case S_IFSOCK:
@@ -507,8 +491,6 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_getcwd, "getcwd" },
 	{ lua_mkdir, "mkdir" },
 	{ lua_move, "move" },
-	{ lua_unlink, "unlink" },
-	{ lua_rmdir, "rmdir" },
 	{ lua_ls, "ls" },
 	{ lua_stat, "stat" }
 	/*

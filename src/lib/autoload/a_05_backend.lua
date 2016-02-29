@@ -26,6 +26,7 @@ local require = require
 local next = next
 local unpack = unpack
 local io = io
+local os = os
 local table = table
 local mkdtemp = mkdtemp
 local chdir = chdir
@@ -34,8 +35,6 @@ local events_wait = events_wait
 local stat = stat
 local mkdir = mkdir
 local move = move
-local unlink = unlink
-local rmdir = rmdir
 local ls = ls
 local DBG = DBG
 local WARN = WARN
@@ -512,7 +511,7 @@ function pkg_cleanup_files(files)
 		f = f:gsub("/+", "/")
 		path = root_dir .. f
 		DBG("Removing file " .. path)
-		local ok, err = pcall(function () unlink(path) end)
+		local ok, err = pcall(function () os.remove(path) end)
 		-- If it failed because the file didn't exist, that's OK. Mostly.
 		if not ok then
 			local tp = stat(path)
@@ -536,7 +535,7 @@ function pkg_cleanup_files(files)
 				break
 			else
 				DBG("Removing empty directory " .. root_dir .. parent)
-				local ok, err = pcall(function () rmdir(root_dir .. parent) end)
+				local ok, err = pcall(function () os.remove(root_dir .. parent) end)
 				if not ok then
 					-- It is an error, but we don't want to give up on the rest of the operation because of that
 					ERROR("Failed to removed empty " .. parent .. ", ignoring")
