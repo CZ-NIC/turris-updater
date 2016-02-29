@@ -423,6 +423,97 @@ function test_collisions()
 	}, rem)
 end
 
+function test_block_dump_ordered()
+	-- Empty block should produce empty output
+	assert_equal('', B.block_dump_ordered({}))
+	-- An ordinary block, nothing special
+	assert_equal(
+[[
+Header: value
+Header2: value2
+]], B.block_dump_ordered({
+		{ header = "Header", value = "value" },
+		{ header = "Header2", value = "value2" }
+	}))
+	-- Repeated headers. Not that we would actually need that in practice.
+	assert_equal(
+[[
+Header: value
+Header: value
+]], B.block_dump_ordered({
+		{ header = "Header", value = "value" },
+		{ header = "Header", value = "value" }
+	}))
+	-- An empty object generates nothing
+	assert_equal(
+[[
+Header: value
+Header: value
+]], B.block_dump_ordered({
+		{ header = "Header", value = "value" },
+		{},
+		{ header = "Header", value = "value" }
+	}))
+	-- A multi-line value
+	assert_equal(
+[[
+Header:
+ value
+ another line
+]], B.block_dump_ordered({
+		{ header = "Header", value =
+-- Since lua eats the first newline directly after [[, we need to provide two.
+[[
+
+ value
+ another line]]}}))
+end
+
+function test_pkg_status_dump()
+	-- Simple package with just one-line headers
+	assert_equal(
+[[
+Package: pkg-name
+Version: 1
+Installed-Time: 1
+]], B.pkg_status_dump({
+	Package = "pkg-name",
+	Version = "1",
+	["Installed-Time"] = "1"
+	}))
+	-- Package with some extra (unused) headers
+	assert_equal(
+[[
+Package: pkg-name
+Version: 1
+Installed-Time: 1
+]], B.pkg_status_dump({
+	Package = "pkg-name",
+	Version = "1",
+	["Installed-Time"] = "1",
+	Extra = "xxxx"
+	}))
+	-- Package with more complex headers
+	assert_equal(
+[[
+Package: pkg-name
+Version: 1
+Depends: dep1, dep2
+Status: flag
+Conffiles:
+ file 1234567890123456
+Installed-Time: 1
+]], B.pkg_status_dump({
+	Package = "pkg-name",
+	Version = "1",
+	["Installed-Time"] = "1",
+	Extra = "xxxx",
+	Depends = { "dep1", "dep2" },
+	Status = { flag = true },
+	Conffiles = { ["file"] = "1234567890123456" }
+	}))
+end
+
 function setup()
 	local sdir = os.getenv("S") or "."
 	-- Use a shortened version of a real status file for tests

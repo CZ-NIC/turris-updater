@@ -96,6 +96,69 @@ function block_parse(block)
 end
 
 --[[
+Format single block of data.
+The block shall be passed as an array, each item an object with header and value strings.
+The object may be an empty table. In that case, no output is generated for the given
+object.
+]]
+function block_dump_ordered(block)
+	return table.concat(utils.map(block, function (i, line)
+		if line.header then
+			local space = ' '
+			if line.value:match("^%s") then
+				space = ''
+			end
+			return i, line.header .. ":" .. space .. line.value .. "\n"
+		else
+			return i, ''
+		end
+	end))
+end
+
+--[[
+Dump status of a single package.
+]]
+function pkg_status_dump(status)
+	local function line(name, conversion)
+		if status[name] then
+			return {header = name, value = conversion(status[name])}
+		else
+			return {}
+		end
+	end
+	local function raw(name)
+		return line(name, function (v) return v end)
+	end
+	return block_dump_ordered({
+		raw "Package",
+		raw "Version",
+		line("Depends", function (deps)
+			-- Join the dependencies together, separated by commas
+			return table.concat(deps, ', ')
+		end),
+		raw "Conflicts",
+		line("Status", function (status)
+			-- Join status flags together, separated by spaces
+			return table.concat(utils.set2arr(status), ' ')
+		end),
+		raw "Architecture",
+		line("Conffiles", function (confs)
+			local i = 0
+			--[[
+			For each dep, place it into an array instead of map and format the line.
+			Then connect these lines together with newlines.
+			]]
+			return "\n" .. table.concat(utils.map(confs, function (filename, hash)
+				i = i + 1
+				return i, " " .. filename .. " " .. hash
+			end), "\n")
+		end),
+		raw "Installed-Time",
+		raw "Auto-Installed"
+	})
+end
+
+--[[
 Split text into blocks separated by at least one empty line.
 Returns an iterator.
 ]]
