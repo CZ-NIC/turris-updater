@@ -106,5 +106,14 @@ rmdir(path)::
   Remove (an empty) directory.
 
 ls(directory)::
-  Return a set with the file names under the given directory. The set
-  is a table where the names are keys and values are set to `true`.
+  Return a table with file names under the given directory (acts like
+  shell's `ls -a`, omitting the `.` and `..` entries). Value of
+  each is the type of the file there, which may be:
+  b;; A block device
+  c;; A character device
+  d;; A directory
+  f;; A named pipe
+  l;; A symbolic link
+  r;; A regular file
+  s;; A unix-domain socket
+  ?;; Failed to determine the type
