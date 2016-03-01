@@ -20,15 +20,25 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 local error = error
 local type = type
 local pairs = pairs
+local ipairs = ipairs
 local pcall = pcall
+local require = require
+local next = next
 local unpack = unpack
 local io = io
+local os = os
 local table = table
 local mkdtemp = mkdtemp
+local chdir = chdir
 local run_command = run_command
 local events_wait = events_wait
+local stat = stat
+local mkdir = mkdir
+local move = move
+local ls = ls
 local DBG = DBG
 local WARN = WARN
+local utils = require "utils"
 
 module "backend"
 
@@ -40,6 +50,10 @@ needed) to modify these variables.
 status_file = "/usr/lib/opkg/status"
 -- The directory where unpacked control files of the packages live
 info_dir = "/usr/lib/opkg/info/"
+-- A root directory
+root_dir = "/"
+-- A directory where unpacked packages live
+pkg_temp_dir = "/usr/share/updater/unpacked"
 -- Time after which we SIGTERM external commands. Something incredibly long, just prevent them from being stuck.
 cmd_timeout = 600000
 -- Time after which we SIGKILL external commands
@@ -160,25 +174,10 @@ function package_postprocess(status)
 	return status
 end
 
---[[
-Read the whole content of given file. Return the content, or nil and error message.
-In case of errors during the reading (instead of when opening), it calls error()
-]]
-local function slurp(filename)
-	local f, err = io.open(filename)
-	if not f then
-		return nil, err
-	end
-	local content = f:read("*a")
-	f:close()
-	if not content then error("Could not read content of " .. filename) end
-	return content
-end
-
 -- Get pkg_name's file's content with given suffix. Nil on error.
 local function pkg_file(pkg_name, suffix, warn)
 	local fname = info_dir .. pkg_name .. "." .. suffix
-	local content, err = slurp(fname)
+	local content, err = utils.slurp(fname)
 	if not content then
 		WARN("Could not read ." .. suffix .. " file of " .. pkg_name .. ": " .. err)
 	end
@@ -264,7 +263,7 @@ function pkg_unpack(package, tmp_dir)
 			if ecode ~= 0 then
 				err = "Stage 1 unpack failed: " .. stderr
 			end
-		end, nil, package, cmd_timeout, cmd_kill_timeout, "/bin/sh", "-c", "cd '" .. s1dir .. "' && /bin/gzip -dc | /bin/tar x"))
+		end, function () chdir(s1dir) end, package, cmd_timeout, cmd_kill_timeout, "/bin/sh", "-c", "/bin/gzip -dc | /bin/tar x"))
 		-- TODO: Sanity check debian-binary
 		return err == nil
 	end
@@ -276,7 +275,7 @@ function pkg_unpack(package, tmp_dir)
 			if ecode ~= 0 then
 				err = "Stage 2 unpack of " .. what .. " failed: " .. stderr
 			end
-		end, nil, package, cmd_timeout, cmd_kill_timeout, "/bin/sh", "-c", "mkdir -p '" .. dir .. "' && cd '" .. dir .. "' && /bin/gzip -dc <'" .. archive .. "' | /bin/tar x")
+		end, nil, package, cmd_timeout, cmd_kill_timeout, "/bin/sh", "-c", "mkdir -p '" .. dir .. "' && cd '" .. dir .. "' && /bin/gzip -dc <'" .. archive .. "' | /bin/tar xp")
 	end
 	local function stage2()
 		events_wait(unpack_archive("control"), unpack_archive("data"))
@@ -307,6 +306,244 @@ function pkg_unpack(package, tmp_dir)
 	if not ok then error(err) end
 	-- Everything went well. So return path to the directory where the package is unpacked
 	return s2dir
+end
+
+--[[
+Look into the dir with unpacked package (the one containing control and data subdirs).
+Return four tables:
+• Set of files, symlinks, pipes, etc.
+  (in short, the things that are owned exclusively by the package)
+• Set of directories
+  (which may be shared between packages)
+• Map of config files with their md5 sums.
+• The parset control file of the package.
+
+In all three cases, the file names are keys, not values.
+
+In case of errors, it raises error()
+]]
+function pkg_examine(dir)
+	local data_dir = dir .. "/data"
+	-- Events to wait for
+	local events = {}
+	local err = nil
+	-- Launch scans of the data directory
+	local function launch(postprocess, ...)
+		local function cback(ecode, killed, stdout, stderr)
+			if ecode == 0 then
+				postprocess(stdout)
+			else
+				err = stderr
+			end
+		end
+		local event = run_command(cback, function () chdir(data_dir) end, nil, cmd_timeout, cmd_kill_timeout, ...)
+		table.insert(events, event)
+	end
+	local function find_result(text)
+		--[[
+		Split into „lines“ separated by 0-char. Then eat leading dots and, in case
+		there was only a dot, replace it by /.
+		]]
+		return utils.map(utils.lines2set(text, "%z"), function (f) return f:gsub("^%.", ""):gsub("^$", "/"), true end)
+	end
+	local files, dirs
+	-- One for non-directories
+	launch(function (text) files = find_result(text) end, "/usr/bin/find", "!", "-type", "d", "-print0")
+	-- One for directories
+	launch(function (text) dirs = find_result(text) end, "/usr/bin/find", "-type", "d", "-print0")
+	-- Get list of config files, if there are any
+	local control_dir = dir .. "/control"
+	local cidx = io.open(control_dir .. "/conffiles")
+	local conffiles = {}
+	if cidx then
+		for l in cidx:lines() do
+			local fname = l:match("^%s*/(.*%S)%s*")
+			local function get_hash(text)
+				local hash = text:match("[0-9a-fA-F]+")
+				conffiles["/" .. fname] = hash
+			end
+			launch(get_hash, "/usr/bin/md5sum", fname)
+		end
+		cidx:close()
+	end
+	-- Load the control file of the package and parse it
+	local control = package_postprocess(block_parse(utils.slurp(control_dir .. "/control")));
+	-- Wait for all asynchronous processes to finish
+	events_wait(unpack(events))
+	-- How well did it go?
+	if err then
+		error(err)
+	end
+	return files, dirs, conffiles, control
+end
+
+--[[
+Check if we can perform installation of packages and no files
+of other packages would get overwritten. It checks both the
+newly installed packages and the currently installed packages.
+It doesn't report any already collisions and it doesn't show collisions
+with removed packages.
+
+Note that when upgrading, the old packages needs to be considered removed
+(and listed in the remove_pkgs set).
+
+The current_status is what is returned from status_parse(). The remove_pkgs
+is set of package names (without versions) to remove. It's not a problem if
+the package is not installed. The add_pkgs is a table, values are names of packages
+(without versions), the values are sets of the files the new package will own.
+
+It returns a table, values are name of files where are new collisions, values
+are tables where the keys are names of packages and values are either `existing`
+or `new`.
+
+The second result is a set of all the files that shall disappear after
+performing these operations.
+]]
+function collision_check(current_status, remove_pkgs, add_pkgs)
+	-- List of all files in the OS
+	local files_all = {}
+	-- Files that might disappear (but we need to check if another package claims them as well)
+	local remove_candidates = {}
+	-- Mark the given file as belonging to the package. Return if there's a collision.
+	local function file_insert(fname, pkg_name, when)
+		local collision = true
+		-- The file hasn't existed yet, so there's no collision
+		if not files_all[fname] then
+			files_all[fname] = {}
+			collision = false
+		end
+		files_all[fname][pkg_name] = when
+		return collision
+	end
+	-- Build the structure for the current state
+	for name, status in pairs(current_status) do
+		if remove_pkgs[name] then
+			-- If we remove the package, all its files might disappear
+			for f in pairs(status.files or {}) do
+				remove_candidates[f] = true
+			end
+		else
+			-- Otherwise, the file is in the OS
+			for f in pairs(status.files or {}) do
+				file_insert(f, name, 'existing')
+			end
+		end
+	end
+	local collisions = {}
+	-- No go through the new packages and check if there are any new collisions
+	for name, files in pairs(add_pkgs) do
+		for f in pairs(files) do
+			if file_insert(f, name, 'new') then
+				-- In the end, there'll be the newest version of the table with all the collisions
+				collisions[f] = files_all[f]
+			end
+		end
+	end
+	-- Files that shall really disappear
+	local remove = {}
+	for f in pairs(remove_candidates) do
+		-- TODO: How about config files?
+		if not files_all[f] then
+			remove[f] = true
+		end
+	end
+	return collisions, remove
+end
+
+-- Ensure the given directory exists
+local function dir_ensure(dir)
+	-- Try creating it.
+	local ok, err = pcall(function () mkdir(dir) end)
+	if not ok then
+		-- It may have failed because it already exists, check it
+		local tp = stat(dir)
+		if not tp then
+			-- It does not create, so creation failed for some reason
+			error(err)
+		elseif tp ~= "d" then
+			error("Could not create dir '" .. dir .. "', file of type " .. tp .. " is already in place")
+		end
+		-- else ‒ there's the given directory, so it failed because it pre-existed. That's OK.
+	end
+end
+
+-- Merge the given package into the live system and remove the temporary file.
+function pkg_merge_files(dir, dirs, files, configs)
+	--[[
+	First, create the needed directories. Sort them according to
+	their length, which ensures the parent directories are created
+	first.
+	FIXME: We currently completely ignore the file mode and owner of
+	the directories.
+	]]
+	local dirs_sorted = utils.set2arr(dirs)
+	table.sort(dirs_sorted, function (a, b)
+		return a:len() < b:len()
+	end)
+	for _, new_dir in ipairs(dirs_sorted) do
+		DBG("Creating dir " .. new_dir)
+		dir_ensure(root_dir .. new_dir)
+	end
+	--[[
+	Now move all the files in place.
+	]]
+	for f in pairs(files) do
+		-- TODO: Handle the configs
+		DBG("Installing file " .. f)
+		--[[
+		TODO: Handle the possibility of the file being already
+		moved to place, because the previous run has been
+		interrupted and we resumed from the journal.
+		]]
+		move(dir .. f, root_dir .. f)
+	end
+	-- Remove the original directory
+	utils.cleanup_dirs({dir})
+end
+
+--[[
+Remove files provided as a set and any directories which became
+empty by doing so (recursively).
+]]
+function pkg_cleanup_files(files)
+	for f in pairs(files) do
+		-- Make sure there are no // in there, which would confuse the directory cleaning code
+		f = f:gsub("/+", "/")
+		path = root_dir .. f
+		DBG("Removing file " .. path)
+		local ok, err = pcall(function () os.remove(path) end)
+		-- If it failed because the file didn't exist, that's OK. Mostly.
+		if not ok then
+			local tp = stat(path)
+			if tp then
+				error(err)
+			else
+				WARN("Not removing " .. path .. " since it is not there")
+			end
+		end
+		-- Now, go through the levels of f, looking if they may be removed
+		-- Iterator for the chunking of the path
+		function get_parent()
+			local parent = f:match("^(.+)/[^/]+")
+			f = parent
+			return f
+		end
+		for parent in get_parent do
+			if next(ls(root_dir .. parent)) then
+				DBG("Directory " .. root_dir .. parent .. " not empty, keeping in place")
+				-- It is not empty
+				break
+			else
+				DBG("Removing empty directory " .. root_dir .. parent)
+				local ok, err = pcall(function () os.remove(root_dir .. parent) end)
+				if not ok then
+					-- It is an error, but we don't want to give up on the rest of the operation because of that
+					ERROR("Failed to removed empty " .. parent .. ", ignoring")
+					break
+				end
+			end
+		end
+	end
 end
 
 return _M

@@ -84,3 +84,35 @@ mkdtemp([directory])::
   created as a subdirectory of the given directory, otherwise it is
   created inside `/tmp`. It returns path to the new directory, or
   `nil` and an error message.
+
+chdir(directory)::
+  Change the current working directory to the one provided.
+
+getcwd()::
+  Get the current working directory.
+
+mkdir(directory)::
+  Create a directory. All the parent directories must already exist.
+  The directory itself shall not exist. It throws on error.
+
+move(old, new)::
+  Move a file from the old location to the new. It tries to cope with
+  paths on different devices.
+
+ls(directory)::
+  Return a table with file names under the given directory (acts like
+  shell's `ls -a`, omitting the `.` and `..` entries). Value of
+  each is the type of the file there, which may be:
+  b;; A block device
+  c;; A character device
+  d;; A directory
+  f;; A named pipe
+  l;; A symbolic link
+  r;; A regular file
+  s;; A unix-domain socket
+  ?;; Failed to determine the type
+
+stat(path)::
+  Statistics about the given file. It currently returns only the type
+  of file see the types of `ls`). If it doesn't exist, it returns
+  nothing.

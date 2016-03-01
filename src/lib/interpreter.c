@@ -30,6 +30,11 @@
 #include <stdarg.h>
 #include <inttypes.h>
 #include <errno.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <dirent.h>
 
 // The name used in lua registry to store stuff
 #define REGISTRY_NAME "libupdater"
@@ -305,6 +310,173 @@ static int lua_mkdtemp(lua_State *L) {
 	}
 }
 
+static int lua_chdir(lua_State *L) {
+	int param_count = lua_gettop(L);
+	if (param_count != 1)
+		return luaL_error(L, "chdir expects 1 parameter");
+	const char *path = luaL_checkstring(L, 1);
+	int result = chdir(path);
+	if (result == -1)
+		return luaL_error(L, "chdir to %s: %s", path, strerror(errno));
+	return 0;
+}
+
+static int lua_getcwd(lua_State *L) {
+	const char *result = NULL;
+	// An arbitrary length.
+	size_t s = 16;
+	while (!result) {
+		s *= 2;
+		char *buf = alloca(s);
+		result = getcwd(buf, s);
+		if (!result && errno != ERANGE)
+			return luaL_error(L, "getcwd: %s", strerror(errno));
+	}
+	lua_pushstring(L, result);
+	return 1;
+}
+
+static int lua_mkdir(lua_State *L) {
+	const char *dir = luaL_checkstring(L, 1);
+	// TODO: Make the mask configurable
+	int result = mkdir(dir, 0777);
+	if (result == -1)
+		return luaL_error(L, "mkdir '%s' failed: %s", dir, strerror(errno));
+	// No results if it was successfull
+	return 0;
+}
+
+struct mv_result_data {
+	char *err;
+	int status;
+};
+
+static void mv_result(struct wait_id id __attribute__((unused)), void *data, int status, enum command_kill_status killed __attribute__((unused)), size_t out_size __attribute__((unused)), const char *output __attribute__((unused)), size_t err_size __attribute__((unused)), const char *err) {
+	struct mv_result_data *mv_result_data = data;
+	mv_result_data->status = WTERMSIG(status);
+	if (status)
+		mv_result_data->err = strdup(err);
+}
+
+static int lua_move(lua_State *L) {
+	const char *old = luaL_checkstring(L, 1);
+	const char *new = luaL_checkstring(L, 2);
+	int result = rename(old, new);
+	if (result == -1) {
+		if (errno == EXDEV) {
+			/*
+			 * TODO:
+			 * We need to support cross-device move. But that one is a hell
+			 * to implement (because it might be a symlink, block or character
+			 * device, we need to support file permissions, etc. We use
+			 * external mv for now instead, we may want to reconsider later.
+			 */
+			struct events *events = extract_registry(L, "events");
+			ASSERT(events);
+			struct mv_result_data mv_result_data = { .err = NULL };
+			struct wait_id id = run_command(events, mv_result, NULL, &mv_result_data, 0, NULL, -1, -1, "/bin/mv", old, new, NULL);
+			events_wait(events, 1, &id);
+			if (mv_result_data.status) {
+				lua_pushfstring(L, "Failed to X-dev move '%s' to '%s': %s (ecode %d)", old, new, mv_result_data.err, mv_result_data.status);
+				free(mv_result_data.err);
+				return lua_error(L);
+			}
+		} else
+			return luaL_error(L, "Failed to move '%s' to '%s': %s", old, new, strerror(errno));
+	}
+	return 0;
+}
+
+static const char *stat2str(const struct stat *buf) {
+	switch (buf->st_mode & S_IFMT) {
+		case S_IFSOCK:
+			return "s";
+		case S_IFLNK:
+			return "l";
+		case S_IFREG:
+			return "r";
+		case S_IFBLK:
+			return "b";
+		case S_IFDIR:
+			return "d";
+		case S_IFCHR:
+			return "c";
+		case S_IFIFO:
+			return "f";
+	}
+	return "?";
+}
+
+// Get the type of file refered by the dirent.
+static const char *get_dirent_type(DIR *d, struct dirent *ent) {
+	switch (ent->d_type) {
+		case DT_BLK:
+			return "b";
+		case DT_CHR:
+			return "c";
+		case DT_DIR:
+			return "d";
+		case DT_FIFO:
+			return "f";
+		case DT_LNK:
+			return "l";
+		case DT_REG:
+			return "r";
+		case DT_SOCK:
+			return "s";
+		default: // DT_UNKNOWN
+			// The file system might not have this info in dir, try again with stat
+			break;
+	}
+	// OK, we didn't find out here, try again with stat
+	struct stat buf;
+	int result = fstatat(dirfd(d), ent->d_name, &buf, AT_SYMLINK_NOFOLLOW);
+	if (result == -1) {
+		ERROR("fstatat failed on %s: %s", ent->d_name, strerror(errno));
+		return "?";
+	}
+	return stat2str(&buf);
+}
+
+static int lua_ls(lua_State *L) {
+	const char *dir = luaL_checkstring(L, 1);
+	DIR *d = opendir(dir);
+	if (!d)
+		return luaL_error(L, "Could not read directory %s: %s", dir, strerror(errno));
+	struct dirent *ent;
+	errno = 0;
+	lua_newtable(L);
+	while ((ent = readdir(d))) {
+		// Skip the . and .. directories
+		if (strcmp(ent->d_name, "..") && strcmp(ent->d_name, ".")) {
+			lua_pushstring(L, get_dirent_type(d, ent));
+			lua_setfield(L, -2, ent->d_name);
+		}
+	}
+	int old_errno = errno;
+	int result = closedir(d);
+	if (old_errno)
+		return luaL_error(L, "Could not read directory entity of %s: %s", dir, strerror(old_errno));
+	if (result == -1)
+		return luaL_error(L, "Failed to close directory %s: %s", dir, strerror(errno));
+	return 1;
+}
+
+static int lua_stat(lua_State *L) {
+	const char *fname = luaL_checkstring(L, 1);
+	struct stat buf;
+	int result = stat(fname, &buf);
+	if (result == -1) {
+		if (errno == ENOENT)
+			// No result, because the file does not exist
+			return 0;
+		else
+			return luaL_error(L, "Failed to stat '%s': %s", fname, strerror(errno));
+	}
+	lua_pushstring(L, stat2str(&buf));
+	return 1;
+}
+
 struct injected_func {
 	int (*func)(lua_State *);
 	const char *name;
@@ -314,7 +486,13 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_log, "log" },
 	{ lua_run_command, "run_command" },
 	{ lua_events_wait, "events_wait" },
-	{ lua_mkdtemp, "mkdtemp" }
+	{ lua_mkdtemp, "mkdtemp" },
+	{ lua_chdir, "chdir" },
+	{ lua_getcwd, "getcwd" },
+	{ lua_mkdir, "mkdir" },
+	{ lua_move, "move" },
+	{ lua_ls, "ls" },
+	{ lua_stat, "stat" }
 	/*
 	 * Note: watch_cancel is not provided, because it would be hell to
 	 * manage the dynamically allocated memory correctly and there doesn't

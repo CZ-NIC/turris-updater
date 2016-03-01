@@ -19,8 +19,13 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 
 require 'lunit'
 local B = require 'backend'
+require 'utils'
+
+local lines2set = utils.lines2set
 
 module("backend-tests", package.seeall, lunit.testcase)
+
+local datadir = (os.getenv("S") or ".") .. "/tests/data/"
 
 -- Tests for the block_parse function
 function test_block_parse()
@@ -134,20 +139,9 @@ end
 -- Tests for status_parse ‒ which parses the whole thing
 function test_status_parse()
 	local result = B.status_parse()
-	local function status_check(name, desc, depends, status, files, conffiles)
+	local function status_check(name, desc)
 		local pkg = result[name]
 		assert_not_nil(pkg)
-		local function sub_check(value, name)
-			if value then
-				assert_not_nil(pkg[name])
-				assert_table_equal(value, pkg[name])
-				desc[name] = pkg[name]
-			end
-		end
-		sub_check(depends, "Depends")
-		sub_check(status, "Status")
-		sub_check(files, "files")
-		sub_check(conffiles, "Conffiles")
 		assert_table_equal(desc, pkg)
 	end
 	local std_status = {install = true, user = true, installed = true}
@@ -160,15 +154,18 @@ function test_status_parse()
 		Section = "kernel",
 		["Installed-Size"] = "22537",
 		Description = "Kernel support for USB Mass Storage devices",
-		["Installed-Time"] = "1453896142"
-	}, {
-		"kernel (=3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10)",
-		"kmod-scsi-core",
-		"kmod-usb-core"
-	}, std_status, {
-		["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
-		["/etc/modules-boot.d/usb-storage"] = true,
-		["/etc/modules.d/usb-storage"] = true
+		["Installed-Time"] = "1453896142",
+		Depends = {
+			"kernel (=3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10)",
+			"kmod-scsi-core",
+			"kmod-usb-core"
+		},
+		Status = std_status,
+		files = {
+			["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
+			["/etc/modules-boot.d/usb-storage"] = true,
+			["/etc/modules.d/usb-storage"] = true
+		}
 	})
 	status_check("terminfo", {
 		Package = "terminfo",
@@ -180,19 +177,22 @@ function test_status_parse()
 		Section = "libs",
 		["Installed-Size"] = "5822",
 		Description = "Terminal Info Database (ncurses)",
-		["Installed-Time"] = "1453896265"
-	}, {"libc"}, std_status, {
-		["/usr/share/terminfo/x/xterm"] = true,
-		["/usr/share/terminfo/r/rxvt-unicode"] = true,
-		["/usr/share/terminfo/d/dumb"] = true,
-		["/usr/share/terminfo/a/ansi"] = true,
-		["/usr/share/terminfo/x/xterm-color"] = true,
-		["/usr/share/terminfo/r/rxvt"] = true,
-		["/usr/share/terminfo/s/screen"] = true,
-		["/usr/share/terminfo/x/xterm-256color"] = true,
-		["/usr/share/terminfo/l/linux"] = true,
-		["/usr/share/terminfo/v/vt100"] = true,
-		["/usr/share/terminfo/v/vt102"] = true
+		["Installed-Time"] = "1453896265",
+		Depends = {"libc"},
+		Status = std_status,
+		files = {
+			["/usr/share/terminfo/x/xterm"] = true,
+			["/usr/share/terminfo/r/rxvt-unicode"] = true,
+			["/usr/share/terminfo/d/dumb"] = true,
+			["/usr/share/terminfo/a/ansi"] = true,
+			["/usr/share/terminfo/x/xterm-color"] = true,
+			["/usr/share/terminfo/r/rxvt"] = true,
+			["/usr/share/terminfo/s/screen"] = true,
+			["/usr/share/terminfo/x/xterm-256color"] = true,
+			["/usr/share/terminfo/l/linux"] = true,
+			["/usr/share/terminfo/v/vt100"] = true,
+			["/usr/share/terminfo/v/vt102"] = true
+		}
 	})
 	status_check("dnsmasq-dhcpv6", {
 		Package = "dnsmasq-dhcpv6",
@@ -206,24 +206,31 @@ function test_status_parse()
 		Description = [[It is intended to provide coupled DNS and DHCP service to a LAN.
  
  This is a variant with DHCPv6 support]],
-		["Installed-Time"] = "1453896240"
-	}, {"libc"}, std_status, {
-		["/etc/dnsmasq.conf"] = true,
-		["/etc/hotplug.d/iface/25-dnsmasq"] = true,
-		["/etc/config/dhcp"] = true,
-		["/etc/init.d/dnsmasq"] = true,
-		["/usr/sbin/dnsmasq"] = true
-	}, {
-		["/etc/config/dhcp"] = "f81fe9bd228dede2165be71e5c9dcf76cc",
-		["/etc/dnsmasq.conf"] = "1e6ab19c1ae5e70d609ac7b6246541d520"
+		["Installed-Time"] = "1453896240",
+		Depends = {"libc"},
+		Status = std_status,
+		files = {
+			["/etc/dnsmasq.conf"] = true,
+			["/etc/hotplug.d/iface/25-dnsmasq"] = true,
+			["/etc/config/dhcp"] = true,
+			["/etc/init.d/dnsmasq"] = true,
+			["/usr/sbin/dnsmasq"] = true
+		},
+		Conffiles = {
+			["/etc/config/dhcp"] = "f81fe9bd228dede2165be71e5c9dcf76cc",
+			["/etc/dnsmasq.conf"] = "1e6ab19c1ae5e70d609ac7b6246541d520"
+		}
 	})
 	-- Slightly broken package ‒ no relevant info files
 	status_check("ucollect-count", {
 		Package = "ucollect-count",
 		Version = "27",
 		Architecture = "mpc85xx",
-		["Installed-Time"] = "1453896279"
-	}, {"libc", "ucollect-prog"}, std_status, {})
+		["Installed-Time"] = "1453896279",
+		Depends = {"libc", "ucollect-prog"},
+		Status = std_status,
+		files = {}
+	})
 	-- More broken case - the whole status file missing
 	B.status_file = "/does/not/exist"
 	assert_error(B.status_parse)
@@ -231,23 +238,14 @@ end
 
 local orig_status_file = B.status_file
 local orig_info_dir = B.info_dir
+local orig_root_dir = B.root_dir
 local tmp_dirs = {}
 
--- Convert provided text into set of lines. Doesn't care about the order.
-local function lines2set(lines)
-	local result = {}
-	for line in lines:gmatch("[^\n]+") do
-		result[line] = true
-	end
-	return result
-end
-
+--[[
+Test the chain of functions ‒ unpack, examine
+]]
 function test_pkg_unpack()
-	local fname = (os.getenv("S") or ".") .. "/tests/data/updater.ipk"
-	local f = io.open(fname)
-	local input = f:read("*a")
-	f:close()
-	local path = B.pkg_unpack(input)
+	local path = B.pkg_unpack(utils.slurp(datadir .. "updater.ipk"))
 	-- Make sure it is deleted on teardown
 	table.insert(tmp_dirs, path)
 	-- Check list of extracted files
@@ -283,7 +281,146 @@ function test_pkg_unpack()
 ./data/usr/share/updater/keys/release.pem
 ./data/usr/share/updater/keys/standby.pem
 ]]), lines2set(stdout))
-	end, nil, nil, -1, -1, '/bin/sh', '-c', "cd '" .. path .. "' && find"))
+	end, function () chdir(path) end, nil, -1, -1, "/usr/bin/find"))
+	local files, dirs, conffiles, control = B.pkg_examine(path)
+	assert_table_equal(lines2set([[/etc/init.d/updater
+/etc/config/updater
+/etc/ssl/updater.pem
+/usr/share/updater/keys/standby.pem
+/usr/share/updater/keys/release.pem
+/usr/bin/updater-resume.sh
+/usr/bin/updater.sh
+/usr/bin/updater-unstuck.sh
+/usr/bin/updater-utils.sh
+/usr/bin/updater-worker.sh
+/usr/bin/updater-wipe.sh]]), files)
+	assert_table_equal(lines2set([[/
+/etc
+/etc/init.d
+/etc/cron.d
+/etc/config
+/etc/ssl
+/usr
+/usr/share
+/usr/share/updater
+/usr/share/updater/hashes
+/usr/share/updater/keys
+/usr/bin]]), dirs)
+	assert_table_equal({
+		["/etc/config/updater"] = "30843ef73412c8f6b4212c00724a1cc8"
+	}, conffiles)
+	assert_table_equal({
+		Package = "updater",
+		Version = "129",
+		Source = "feeds/turrispackages/cznic/updater",
+		Section = "opt",
+		Maintainer = "Michal Vaner <michal.vaner@nic.cz>",
+		Architecture = "mpc85xx",
+		["Installed-Size"] = "14773",
+		Description = "updater",
+		Depends = {"libc", "vixie-cron", "openssl-util", "libatsha204", "curl", "cert-backup", "opkg", "bzip2", "cznic-cacert-bundle"}
+	}, control)
+	local test_root = mkdtemp()
+	table.insert(tmp_dirs, test_root)
+	B.root_dir = test_root
+	-- Try merging it to a „root“ directory. We need to find all the files and directories.
+	--[[
+	Omit the empty directories. They wouldn't get cleared currently, and
+	we want to test it. We may store list of directories in future.
+	]]
+	dirs["/usr/share/updater/hashes"] = nil
+	dirs["/etc/cron.d"] = nil
+	B.pkg_merge_files(path .. "/data", dirs, files, conffiles)
+	-- The original directory disappeared.
+	assert_table_equal({
+		["control"] = "d"
+	}, ls(path))
+	events_wait(run_command(function (ecode, killed, stdout)
+		assert_equal(0, ecode, "Failed to check the list of files")
+		assert_table_equal(lines2set([[.
+./etc
+./etc/config
+./etc/config/updater
+./etc/init.d
+./etc/init.d/updater
+./etc/ssl
+./etc/ssl/updater.pem
+./usr
+./usr/bin
+./usr/bin/updater-resume.sh
+./usr/bin/updater.sh
+./usr/bin/updater-unstuck.sh
+./usr/bin/updater-utils.sh
+./usr/bin/updater-wipe.sh
+./usr/bin/updater-worker.sh
+./usr/share
+./usr/share/updater
+./usr/share/updater/keys
+./usr/share/updater/keys/release.pem
+./usr/share/updater/keys/standby.pem
+]]), lines2set(stdout))
+	end, function () chdir(test_root) end, nil, -1, -1, "/usr/bin/find"))
+	-- Now try clearing the package. When we list all the files, it should remove the directories as well.
+	B.pkg_cleanup_files(files)
+	assert_table_equal({}, ls(test_root))
+end
+
+-- Test the collision_check function
+function test_collisions()
+	local status = B.status_parse()
+	-- Just remove a package - no collisions, but files should disappear
+	local col, rem = B.collision_check(status, {['kmod-usb-storage'] = true}, {})
+	assert_table_equal({}, col)
+	assert_table_equal({
+		["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
+		["/etc/modules-boot.d/usb-storage"] = true,
+		["/etc/modules.d/usb-storage"] = true
+	}, rem)
+	-- Add a new package, but without any collisions
+	local col, rem = B.collision_check(status, {}, {
+		['package'] = {
+			['/a/file'] = true
+		}
+	})
+	assert_table_equal({}, col)
+	assert_table_equal({}, rem)
+	local test_pkg = {
+		['package'] = {
+			["/etc/modules.d/usb-storage"] = true
+		}
+	}
+	-- Add a new package, collision isn't reported, because the original package owning it gets removed
+	local col, rem = B.collision_check(status, {['kmod-usb-storage'] = true}, test_pkg)
+	assert_table_equal({}, col)
+	assert_table_equal({
+		["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
+		["/etc/modules-boot.d/usb-storage"] = true
+		-- The usb-storage file is taken over, it doesn't disappear
+	}, rem)
+	-- A collision
+	local col, rem = B.collision_check(status, {}, test_pkg)
+	assert_table_equal({
+		["/etc/modules.d/usb-storage"] = {
+			["kmod-usb-storage"] = "existing",
+			["package"] = "new"
+		}
+	}, col)
+	assert_table_equal({}, rem)
+	-- A collision between two new packages
+	test_pkg['another'] = test_pkg['package']
+	local col, rem = B.collision_check(status, {['kmod-usb-storage'] = true}, test_pkg)
+	assert_not_equal({
+		["/etc/modules.d/usb-storage"] = true
+	}, utils.map(col, function (k) return k, true end))
+	assert_table_equal({
+		["package"] = "new",
+		["another"] = "new"
+	}, col["/etc/modules.d/usb-storage"])
+	assert_table_equal({
+		["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
+		["/etc/modules-boot.d/usb-storage"] = true
+		-- The usb-storage file is taken over, it doesn't disappear
+	}, rem)
 end
 
 function setup()
@@ -297,7 +434,6 @@ function teardown()
 	-- Clean up, return the original file name
 	B.status_file = orig_status_file
 	B.info_dir = orig_info_dir
-	if next(tmp_dirs) then
-		events_wait(run_command(function (ecode) assert_equal(0, ecode) end, nil, nil, -1, -1, '/bin/rm', '-rf', unpack(tmp_dirs)))
-	end
+	B.root_dir= orig_root_dir
+	utils.cleanup_dirs(tmp_dirs)
 end
