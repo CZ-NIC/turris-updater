@@ -1,2 +1,3 @@
-• ticket for config file manipulation
-• ticket for integrating the transaction.perform into the main app
+• Contsruct the control structure and place it into the global status structure
+• Control files cleanup function
+• Integrate the stuff into transaction.perform
