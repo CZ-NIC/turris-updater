@@ -585,6 +585,63 @@ function pkg_merge_files(dir, dirs, files, configs)
 end
 
 --[[
+Merge all the control file belonging to the package into place. Also, provide
+the files control file (which is not packaged)
+
+TODO: Do we want to have "dirs" file as well? So we could handle empty package's
+directories properly.
+]]
+function pkg_merge_control(dir, name, files)
+	--[[
+	First, make sure there are no leftover files from previous version
+	(the new version might removed a postinst script, or something).
+	]]
+	local prefix = name .. '.'
+	local plen = prefix:len()
+	for fname in pairs(ls(info_dir)) do
+		if fname:sub(1, plen) == prefix then
+			DBG("Removing previous version control file " .. fname)
+			local _, err = os.remove(info_dir .. fname)
+			if err then
+				error(err)
+			end
+		end
+	end
+	--[[
+	Now copy all the new ones into place.
+	Note that we use a copy, to make sure it is still preserved in the original dir.
+	If we are interrupted and resume, we would delete the new one in the info_dir,
+	so we need to keep the original.
+
+	We use the shell's cp to ensure we preserve attributes.
+	TODO: Do it in our own code.
+	]]
+	local events = {}
+	local err
+	for fname, tp in pairs(ls(dir)) do
+		if not fname:sub(1, plen) ~= prefix then
+			WARN("Control file for package " .. name .. " has a wrong name " .. fname .. ", skipping")
+		elseif tp ~= "r" and tp ~= "?" then
+			WARN("Control file " .. fname .. " is not a file, skipping")
+		else
+			DBG("Putting control file " .. fname .. " into place")
+			table.insert(events, run_command(function (ecode, killed, stdout, stderr)
+				err = stderr
+			end, nil, nil, cmd_timeout, cmd_kill_timeout, "/bin/cp", "-Lpf", dir .. fname, info_dir .. fname))
+		end
+	end
+	-- Create the list of files
+	local f, err = io.open(info_dir .. name .. ".list", "w")
+	if err then
+		error(err)
+	end
+	f:write(table.concat(utils.str2arr(utils.map(files, function (f) return f .. "\n" end))))
+	f:close()
+	-- Wait for the cp calls to finish
+	events_wait(unpack(events))
+end
+
+--[[
 Remove files provided as a set and any directories which became
 empty by doing so (recursively).
 ]]
