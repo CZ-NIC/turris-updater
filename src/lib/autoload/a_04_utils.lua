@@ -20,6 +20,7 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 local pairs = pairs
 local next = next
 local error = error
+local type = type
 local io = io
 local unpack = unpack
 local events_wait = events_wait
@@ -88,6 +89,23 @@ function slurp(filename)
 	f:close()
 	if not content then error("Could not read content of " .. filename) end
 	return content
+end
+
+--[[
+Make a deep copy of passed data. This does not work on userdata, on functions
+(which might have some local upvalues) and metatables (it doesn't fail, it just
+doesn't copy them and uses the original).
+]]
+function clone(data)
+	if type(data) == "table" then
+		local result = {}
+		for k, v in pairs(data) do
+			result[clone(k)] = clone(v)
+		end
+		return result
+	else
+		return data
+	end
 end
 
 return _M
