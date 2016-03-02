@@ -691,4 +691,27 @@ function pkg_cleanup_files(files)
 	end
 end
 
+--[[
+Clean up the control files of packages. Leave only the ones related to packages
+installed, as listed by status.
+]]
+function control_cleanup(status)
+	for file, tp in pairs(ls(info_dir)) do
+		if tp ~= 'r' and tp ~= '?' then
+			WARN("Non-file " .. file .. " in control directory")
+		else
+			local pname = file:match("^([^%.]+)%.")
+			if not pname then
+				WARN("Control file " .. file .. " has a wrong name format")
+			elseif not status[pname] then
+				DBG("Removing control file " .. file)
+				local _, err = os.remove(info_dir .. file)
+				if err then
+					ERROR(err)
+				end
+			end
+		end
+	end
+end
+
 return _M
