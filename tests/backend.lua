@@ -565,6 +565,72 @@ function test_status_dump()
 	assert_table_equal(status, status3)
 end
 
+function test_control_cleanup()
+	--[[
+	Create few files in a test info dir.
+	Some of them are bit stange.
+	]]
+	local test_dir = mkdtemp() .. "/"
+	table.insert(tmp_dirs, test_dir)
+	B.info_dir = test_dir
+	local all_files = {
+		["pkg1.control"] = "r",
+		["pkg1.list"] = "r",
+		["pkg2.control"] = "r",
+		["pkg2.xyz.abc"] = "r",
+		[".bad"] = "r",
+		["another_bad"] = "r"
+	}
+	for f in pairs(all_files) do
+		local f, err = io.open(test_dir .. f, "w")
+		assert_not_nil(f, err)
+		f:close()
+	end
+	assert_table_equal(all_files, ls(test_dir))
+	--[[
+	Run the cleanup, but with both pkg1 and pkg2 installed. Also, the strange files should stay.
+
+	The control_cleanup doesn't care about the content of the packages, so be lazy a bit.
+	]]
+	B.control_cleanup({
+		pkg1 = true,
+		pkg2 = true
+	})
+	assert_table_equal(all_files, ls(test_dir))
+	-- Drop the things belonging to pkg2
+	B.control_cleanup({ pkg1 = true })
+	all_files["pkg2.control"] = nil
+	all_files["pkg2.xyz.abc"] = nil
+	assert_table_equal(all_files, ls(test_dir))
+end
+
+function test_merge_control()
+	--[[
+	Create a control file in some directory.
+	]]
+	local src_dir = mkdtemp() .. "/"
+	table.insert(tmp_dirs, src_dir)
+	local f, err = io.open(src_dir .. "pkg1.control", "w")
+	assert_not_nil(f, err)
+	f:write("test\n")
+	f:close()
+	local dst_dir = mkdtemp() .. "/"
+	table.insert(tmp_dirs, dst_dir)
+	B.info_dir = dst_dir
+	-- Place an "outdated" file in the destination, which should disappear by the merge
+	local f, err = io.open(dst_dir .. "pkg1.outdated", "w")
+	assert_not_nil(f, err)
+	f:write("Old\n")
+	f:close()
+	B.pkg_merge_control(src_dir, "pkg1", { file = true })
+	-- The files are in the destination directory with the right content
+	assert_table_equal({["pkg1.control"] = 'r', ["pkg1.list"] = 'r'}, ls(dst_dir))
+	assert_equal("test\n", utils.slurp(dst_dir .. "pkg1.control"))
+	assert_equal("file\n", utils.slurp(dst_dir .. "pkg1.list"))
+	-- The file stayed at the origin as well
+	assert_table_equal({["pkg1.control"] = 'r'}, ls(src_dir))
+end
+
 function setup()
 	local sdir = os.getenv("S") or "."
 	-- Use a shortened version of a real status file for tests

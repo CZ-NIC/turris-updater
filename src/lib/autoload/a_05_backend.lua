@@ -624,7 +624,7 @@ function pkg_merge_control(dir, name, files)
 	local events = {}
 	local err
 	for fname, tp in pairs(ls(dir)) do
-		if not fname:sub(1, plen) ~= prefix then
+		if fname:sub(1, plen) ~= prefix then
 			WARN("Control file for package " .. name .. " has a wrong name " .. fname .. ", skipping")
 		elseif tp ~= "r" and tp ~= "?" then
 			WARN("Control file " .. fname .. " is not a file, skipping")
@@ -640,7 +640,7 @@ function pkg_merge_control(dir, name, files)
 	if err then
 		error(err)
 	end
-	f:write(table.concat(utils.str2arr(utils.map(files, function (f) return f .. "\n" end))))
+	f:write(table.concat(utils.set2arr(utils.map(files, function (f) return f .. "\n", true end))))
 	f:close()
 	-- Wait for the cp calls to finish
 	events_wait(unpack(events))
