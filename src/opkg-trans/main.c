@@ -20,6 +20,7 @@
 #include "../lib/arguments.h"
 #include "../lib/events.h"
 #include "../lib/interpreter.h"
+#include "../lib/util.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -48,22 +49,37 @@ int main(int argc, char *argv[]) {
 		fputs(error, stderr);
 		return 1;
 	}
+	bool transaction_run = false;
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
 			case COT_HELP:
 				fputs(help, stderr);
 				break;
 				// Some not implemented operations
+			case COT_INSTALL: {
+				const char *err = interpreter_call(interpreter, "transaction.queue_install", NULL, "s", op->parameter);
+				ASSERT_MSG(!err, "%s", err);
+				transaction_run = true;
+				break;
+			}
+			case COT_REMOVE: {
+				const char *err = interpreter_call(interpreter, "transaction.queue_remove", NULL, "s", op->parameter);
+				ASSERT_MSG(!err, "%s", err);
+				transaction_run = true;
+				break;
+			}
 #define NIP(TYPE) case COT_##TYPE: fputs("Operation " #TYPE " not implemented yet\n", stderr); return 1
 				NIP(JOURNAL_ABORT);
 				NIP(JOURNAL_RESUME);
-				NIP(INSTALL);
-				NIP(REMOVE);
 			default:
 				assert(0);
 		}
 	enum cmd_op_type exit_type = op->type;
 	free(ops);
+	if (transaction_run && exit_type == COT_EXIT) {
+		const char *err = interpreter_call(interpreter, "transaction.perform_queue", NULL, "");
+		ASSERT_MSG(!err, "%s", err);
+	}
 	interpreter_destroy(interpreter);
 	events_destroy(events);
 	return exit_type == COT_EXIT ? 0 : 1;

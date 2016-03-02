@@ -451,7 +451,7 @@ function collision_check(current_status, remove_pkgs, add_pkgs)
 end
 
 -- Ensure the given directory exists
-local function dir_ensure(dir)
+function dir_ensure(dir)
 	-- Try creating it.
 	local ok, err = pcall(function () mkdir(dir) end)
 	if not ok then
