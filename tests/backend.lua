@@ -608,25 +608,25 @@ function test_merge_control()
 	--[[
 	Create a control file in some directory.
 	]]
-	local src_dir = mkdtemp() .. "/"
+	local src_dir = mkdtemp()
 	table.insert(tmp_dirs, src_dir)
-	local f, err = io.open(src_dir .. "pkg1.control", "w")
+	local f, err = io.open(src_dir .. "/pkg1.control", "w")
 	assert_not_nil(f, err)
 	f:write("test\n")
 	f:close()
-	local dst_dir = mkdtemp() .. "/"
+	local dst_dir = mkdtemp()
 	table.insert(tmp_dirs, dst_dir)
 	B.info_dir = dst_dir
 	-- Place an "outdated" file in the destination, which should disappear by the merge
-	local f, err = io.open(dst_dir .. "pkg1.outdated", "w")
+	local f, err = io.open(dst_dir .. "/pkg1.outdated", "w")
 	assert_not_nil(f, err)
 	f:write("Old\n")
 	f:close()
 	B.pkg_merge_control(src_dir, "pkg1", { file = true })
 	-- The files are in the destination directory with the right content
 	assert_table_equal({["pkg1.control"] = 'r', ["pkg1.list"] = 'r'}, ls(dst_dir))
-	assert_equal("test\n", utils.slurp(dst_dir .. "pkg1.control"))
-	assert_equal("file\n", utils.slurp(dst_dir .. "pkg1.list"))
+	assert_equal("test\n", utils.slurp(dst_dir .. "/pkg1.control"))
+	assert_equal("file\n", utils.slurp(dst_dir .. "/pkg1.list"))
 	-- The file stayed at the origin as well
 	assert_table_equal({["pkg1.control"] = 'r'}, ls(src_dir))
 end

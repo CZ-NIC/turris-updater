@@ -606,7 +606,7 @@ function pkg_merge_control(dir, name, files)
 	for fname in pairs(ls(info_dir)) do
 		if fname:sub(1, plen) == prefix then
 			DBG("Removing previous version control file " .. fname)
-			local _, err = os.remove(info_dir .. fname)
+			local _, err = os.remove(info_dir .. "/" .. fname)
 			if err then
 				error(err)
 			end
@@ -632,11 +632,11 @@ function pkg_merge_control(dir, name, files)
 			DBG("Putting control file " .. fname .. " into place")
 			table.insert(events, run_command(function (ecode, killed, stdout, stderr)
 				err = stderr
-			end, nil, nil, cmd_timeout, cmd_kill_timeout, "/bin/cp", "-Lpf", dir .. fname, info_dir .. fname))
+			end, nil, nil, cmd_timeout, cmd_kill_timeout, "/bin/cp", "-Lpf", dir .. "/" .. fname, info_dir .. "/" .. fname))
 		end
 	end
 	-- Create the list of files
-	local f, err = io.open(info_dir .. name .. ".list", "w")
+	local f, err = io.open(info_dir .. "/" .. name .. ".list", "w")
 	if err then
 		error(err)
 	end
@@ -705,7 +705,7 @@ function control_cleanup(status)
 				WARN("Control file " .. file .. " has a wrong name format")
 			elseif not status[pname] then
 				DBG("Removing control file " .. file)
-				local _, err = os.remove(info_dir .. file)
+				local _, err = os.remove(info_dir .. "/" .. file)
 				if err then
 					ERROR(err)
 				end
