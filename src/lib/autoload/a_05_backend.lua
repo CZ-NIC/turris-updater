@@ -24,6 +24,7 @@ local ipairs = ipairs
 local pcall = pcall
 local require = require
 local next = next
+local tostring = tostring
 local unpack = unpack
 local io = io
 local os = os
@@ -457,6 +458,10 @@ function pkg_examine(dir)
 	if err then
 		error(err)
 	end
+	-- Complete the control structure
+	control.files = files
+	control.Conffiles = conffiles
+	control["Installed-Time"] = tostring(os.time())
 	return files, dirs, conffiles, control
 end
 

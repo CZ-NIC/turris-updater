@@ -326,6 +326,9 @@ function test_pkg_unpack()
 	assert_table_equal({
 		["/etc/config/updater"] = "30843ef73412c8f6b4212c00724a1cc8"
 	}, conffiles)
+	-- We want to take it out, the time changes every time
+	assert_not_nil(control["Installed-Time"])
+	control["Installed-Time"] = nil
 	assert_table_equal({
 		Package = "updater",
 		Version = "129",
@@ -335,7 +338,9 @@ function test_pkg_unpack()
 		Architecture = "mpc85xx",
 		["Installed-Size"] = "14773",
 		Description = "updater",
-		Depends = {"libc", "vixie-cron", "openssl-util", "libatsha204", "curl", "cert-backup", "opkg", "bzip2", "cznic-cacert-bundle"}
+		Depends = {"libc", "vixie-cron", "openssl-util", "libatsha204", "curl", "cert-backup", "opkg", "bzip2", "cznic-cacert-bundle"},
+		Conffiles = conffiles,
+		files = files
 	}, control)
 	local test_root = mkdtemp()
 	table.insert(tmp_dirs, test_root)
