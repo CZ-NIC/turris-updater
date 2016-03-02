@@ -128,4 +128,32 @@ function perform(operations)
 	end
 end
 
+-- Queue of planned operations
+local queue = {}
+
+--[[
+Run transaction of the queued operations.
+]]
+function perform_queue()
+	-- Ensure we reset the queue by running it. And also that we allow the garbage collector to collect the data in there.
+	local queue_cp = queue
+	queue = {}
+	return perform(queue_cp)
+end
+
+-- Queue a request to remove package with the given name.
+function queue_remove(name)
+	table.insert(queue, {op = "remove", name = name})
+end
+
+-- Queue a request to install a package from the given file name.
+function queue_install(filename)
+	local content, err = utils.slurp(filename)
+	if content then
+		table.insert(queue, {op = "install", data = content})
+	else
+		error(err)
+	end
+end
+
 return _M
