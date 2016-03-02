@@ -1,4 +1,5 @@
 require 'lunit'
+require 'utils'
 
 function launch(test)
 	local stats = lunit.main({test})
@@ -63,7 +64,8 @@ function mock_gen(name, fun)
 	local f = function (...)
 		table.insert(mocks_called, {
 			f = name,
-			p = {...}
+			-- Make a copy. Things may change later, we want to preserve the state whet it was called.
+			p = utils.clone({...})
 		})
 		return fun(...)
 	end
