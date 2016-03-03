@@ -13,6 +13,7 @@ libupdater_MODULES := \
 	lautoload.embed \
 	embed_types \
 	events \
+	journal \
 	util
 libupdater_PKG_CONFIGS := $(LUA_NAME) libevent
 

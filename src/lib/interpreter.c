@@ -21,6 +21,7 @@
 #include "embed_types.h"
 #include "util.h"
 #include "events.h"
+#include "journal.h"
 
 #include <lua.h>
 #include <lualib.h>
@@ -521,6 +522,8 @@ struct interpreter *interpreter_create(struct events *events) {
 		lua_pushcfunction(L, injected_funcs[i].func);
 		lua_setglobal(L, injected_funcs[i].name);
 	}
+	// Some binary embedded modules
+	journal_mod_init(L);
 	return result;
 }
 
