@@ -59,7 +59,7 @@ char *journal_path = NULL;
 static void journal_open(lua_State *L, int flags) {
 	if (fd != -1)
 		luaL_error(L, "Journal already open");
-	lua_getfield(L, LUA_GLOBALSINDEX, "journal");
+	lua_getglobal(L, "journal");
 	lua_getfield(L, -1, "path");
 	// Keep a copy of the journal path, someone might change it and we want to remove the correct journal on finish
 	journal_path = strdup(lua_tostring(L, -1));
@@ -170,7 +170,7 @@ static int lua_write(lua_State *L) {
 	size_t lengths[extra_par_count];
 	const char *data[extra_par_count];
 	for (size_t i = 0; i < extra_par_count; i ++) {
-		lua_getfield(L, LUA_GLOBALSINDEX, "DataDumper");
+		lua_getglobal(L, "DataDumper");
 		lua_pushvalue(L, i + 2);
 		lua_call(L, 1, 0);
 		ASSERT_MSG(data[i] = lua_tolstring(L, -1, &lengths[i]), "Couldn't find converted parameter #%zu", i);
@@ -212,13 +212,13 @@ void journal_mod_init(lua_State *L) {
 		lua_setfield(L, -2, inject[i].name);
 	}
 	// package.loaded["journal"] = _M
-	lua_getfield(L, LUA_GLOBALSINDEX, "package");
+	lua_getglobal(L, "package");
 	lua_getfield(L, -1, "loaded");
 	lua_pushvalue(L, -3); // Copy the _M table on top of the stack
 	lua_setfield(L, -2, "journal");
 	// journal = _M
 	lua_pushvalue(L, -3); // Copy the _M table
-	lua_setfield(L, LUA_GLOBALSINDEX, "journal");
+	lua_setglobal(L, "journal");
 	// Drop the _M, package, loaded
 	lua_pop(L, 3);
 }
