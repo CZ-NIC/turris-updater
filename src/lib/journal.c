@@ -56,60 +56,6 @@ enum record_type {
 static int fd = -1;
 char *journal_path = NULL;
 
-static void journal_open(lua_State *L, int flags) {
-	if (fd != -1)
-		luaL_error(L, "Journal already open");
-	lua_getglobal(L, "journal");
-	lua_getfield(L, -1, "path");
-	// Keep a copy of the journal path, someone might change it and we want to remove the correct journal on finish
-	journal_path = strdup(lua_tostring(L, -1));
-	fd = open(journal_path, O_RDWR | O_CLOEXEC | O_DSYNC | O_APPEND | flags, 0006);
-	if (fd == -1) {
-		switch (errno) {
-			case EEXIST:
-				luaL_error(L, "Unfinished journal exists");
-			case ENOENT:
-				luaL_error(L, "No journal to recover");
-			default:
-				luaL_error(L, "Error opening journal: %s", strerror(errno));
-		}
-	}
-}
-
-static int lua_fresh(lua_State *L) {
-	journal_open(L, O_CREAT |O_EXCL);
-	return 0;
-}
-
-static bool do_read(void *dst, size_t size) {
-	uint8_t *dst_u = dst;
-	size_t pos = 0;
-	while (pos < size) {
-		ssize_t result = read(fd, dst_u + pos, size - pos);
-		switch (result) {
-			case -1:
-				switch (errno) {
-					case EINTR:
-						// Interrupted. Try again.
-						continue;
-					case EIO:
-						// Garbled file. We can't read it.
-						return false;
-					default:
-						// Some programming error.
-						DIE("Failed to read journal data: %s", strerror(errno));
-				}
-				// No break needed ‒ not reachable
-			case 0:
-				// Not enough data. Broken record.
-				return false;
-			default:
-				pos += result;
-		}
-	}
-	return true;
-}
-
 struct journal_record {
 	uint8_t record_type;
 	uint8_t param_count;
@@ -117,98 +63,6 @@ struct journal_record {
 	uint32_t total_size; // Total size of parameters with their leingths
 	uint8_t data[];
 };
-
-static bool journal_read(lua_State *L, size_t index) {
-	struct journal_record record;
-	// Read the header
-	if (!do_read(&record, sizeof record)) {
-		WARN("Incomplete journal header");
-		return false;
-	}
-	// Check the header
-	if ((record.magic ^ (record.total_size & 0xFFFF) ^ ((record.total_size & 0xFFFF0000) >> 16)) != MAGIC) {
-		WARN("Broken magic at the header");
-		return false;
-	}
-	// Read the rest of data
-	uint8_t *data = malloc(record.total_size + sizeof(uint16_t));
-	if (!do_read(data, record.total_size + sizeof(uint16_t))) {
-		WARN("Incomplete journal record");
-		goto FAIL;
-	}
-	uint16_t magic_tail;
-	memcpy(&magic_tail, data + record.total_size, sizeof magic_tail);
-	if (record.magic != magic_tail) {
-		WARN("Broken magic at the tail");
-		goto FAIL;
-	}
-	// Prepare the index for the whole record table
-	lua_pushinteger(L, index + 1);
-	// Create a table with the record
-	lua_newtable(L);
-	lua_pushinteger(L, record.record_type);
-	lua_setfield(L, -2, "type");
-	// Table with the parameters
-	lua_newtable(L);
-	// Go through the parameters and stuff them into the param table
-	size_t pos = record.param_count * sizeof(uint32_t);
-	uint32_t *lens = alloca(pos);
-	memcpy(lens, data, pos);
-	for (size_t i = 0; i < record.param_count; i ++) {
-		// Prepare the index to store the result as
-		lua_pushinteger(L, i + 1);
-		// Parse the data stored in the parameter
-		int load_result = luaL_loadbuffer(L, (char *)data + pos, lens[i], aprintf("Journal param %zu/%zu", index, i));
-		pos += lens[i];
-		if (load_result) {
-			WARN("Failed to parse journal record %zu parameter %zu: %s", index, i, lua_tostring(L, -1));
-			goto FAIL;
-		}
-		// Now run the thing to get the result. However, run it with empty environment, to make sure it does nothing bad.
-		lua_newtable(L); // New env
-		lua_setfenv(L, -2); // Pop the new env
-		int run_result = lua_pcall(L, 0, 1, 0);
-		if (run_result) {
-			WARN("Failed to run the journal record %zu parameter %zu generator: %s", index, i, lua_tostring(L, -1));
-			goto FAIL;
-		}
-		int result = lua_pcall(L, 1, 1, 0);
-		if (result) {
-			WARN("Failed to parse journal record parameter: %s", lua_tostring(L, -1));
-			goto FAIL;
-		}
-		// We have the data we wanted, we have the index. Put it into the param table
-		lua_settable(L, -3);
-	}
-	ASSERT(pos == record.total_size);
-	// Store the param table
-	lua_setfield(L, -2, "params");
-	// Store the whole record table into the result table (index waiting there already)
-	lua_settable(L, -3);
-	return true;
-FAIL:
-	lua_settop(L, 1); // Remove any leftover lua stuff on top of the stack, leave only the one result table there
-	free(data);
-	return false;
-}
-
-static int lua_recover(lua_State *L) {
-	journal_open(L, 0);
-	lua_newtable(L);
-	size_t i = 0;
-	off_t offset = 0;
-	// Read to the first broken record or EOF
-	while (journal_read(L, ++ i)) {
-		// Mark the place where we read to. We abuse lseek, which moves the offset by 0 bytes and reports where it is.
-		offset = lseek(fd, 0, SEEK_CUR);
-		ASSERT_MSG(offset != (off_t)-1, "Failed to get the journal position: %s", strerror(errno));
-	}
-	// Now return before the possibly broken record (or to the end of file) and truncate the file, erasing the broken part.
-	ASSERT_MSG(lseek(fd, offset, SEEK_SET) != (off_t)-1, "Failed to set the journal position: %s", strerror(errno));
-	ASSERT_MSG(ftruncate(fd, offset) != (off_t)-1, "Failed to erase the end of journal: %s", strerror(errno));
-	// Now everything is in place, we have the table to return.
-	return 1;
-}
 
 static void journal_write(enum record_type type, size_t num_params, const size_t *lens, const char **params) {
 	// How large should the whole message be?
@@ -258,7 +112,158 @@ static void journal_write(enum record_type type, size_t num_params, const size_t
 	ASSERT_MSG(!error, "Failed to write journal: %s", strerror(errno));
 }
 
+static void journal_open(lua_State *L, int flags) {
+	DBG("Opening journal");
+	if (fd != -1)
+		luaL_error(L, "Journal already open");
+	lua_getglobal(L, "journal");
+	lua_getfield(L, -1, "path");
+	const char *path = lua_tostring(L, -1);
+	fd = open(path, O_RDWR | O_CLOEXEC | O_DSYNC | O_APPEND | flags, S_IRUSR | S_IWUSR);
+	if (fd == -1) {
+		switch (errno) {
+			case EEXIST:
+				luaL_error(L, "Unfinished journal exists");
+			case ENOENT:
+				luaL_error(L, "No journal to recover");
+			default:
+				luaL_error(L, "Error opening journal: %s", strerror(errno));
+		}
+	}
+	// Keep a copy of the journal path, someone might change it and we want to remove the correct journal on finish
+	journal_path = strdup(path);
+}
+
+static int lua_fresh(lua_State *L) {
+	journal_open(L, O_CREAT |O_EXCL);
+	journal_write(RT_START, 0, NULL, NULL);
+	return 0;
+}
+
+static bool do_read(void *dst, size_t size, bool *zero) {
+	uint8_t *dst_u = dst;
+	size_t pos = 0;
+	while (pos < size) {
+		ssize_t result = read(fd, dst_u + pos, size - pos);
+		switch (result) {
+			case -1:
+				switch (errno) {
+					case EINTR:
+						// Interrupted. Try again.
+						continue;
+					case EIO:
+						// Garbled file. We can't read it.
+						return false;
+					default:
+						// Some programming error.
+						DIE("Failed to read journal data: %s", strerror(errno));
+				}
+				// No break needed ‒ not reachable
+			case 0:
+				// Not enough data. Broken record.
+				if (!pos && zero)
+					*zero = true;
+				return false;
+			default:
+				pos += result;
+		}
+	}
+	return true;
+}
+
+static bool journal_read(lua_State *L, size_t index) {
+	int top = lua_gettop(L);
+	struct journal_record record;
+	// Read the header
+	bool zero = false;
+	if (!do_read(&record, sizeof record, &zero)) {
+		if (!zero)
+			WARN("Incomplete journal header");
+		return false;
+	}
+	// Check the header
+	if ((record.magic ^ (record.total_size & 0xFFFF) ^ ((record.total_size & 0xFFFF0000) >> 16)) != MAGIC) {
+		WARN("Broken magic at the header");
+		return false;
+	}
+	// Read the rest of data
+	uint8_t *data = malloc(record.total_size + sizeof(uint16_t));
+	if (!do_read(data, record.total_size + sizeof(uint16_t), NULL)) {
+		WARN("Incomplete journal record");
+		goto FAIL;
+	}
+	uint16_t magic_tail;
+	memcpy(&magic_tail, data + record.total_size, sizeof magic_tail);
+	if (record.magic != magic_tail) {
+		WARN("Broken magic at the tail");
+		goto FAIL;
+	}
+	// Prepare the index for the whole record table
+	lua_pushinteger(L, index);
+	// Create a table with the record
+	lua_newtable(L);
+	lua_pushinteger(L, record.record_type);
+	lua_setfield(L, -2, "type");
+	// Table with the parameters
+	lua_newtable(L);
+	// Go through the parameters and stuff them into the param table
+	size_t pos = record.param_count * sizeof(uint32_t);
+	uint32_t *lens = alloca(pos);
+	memcpy(lens, data, pos);
+	for (size_t i = 0; i < record.param_count; i ++) {
+		// Prepare the index to store the result as
+		lua_pushinteger(L, i + 1);
+		// Parse the data stored in the parameter
+		int load_result = luaL_loadbuffer(L, (char *)data + pos, lens[i], aprintf("Journal param %zu/%zu", index, i));
+		pos += lens[i];
+		if (load_result) {
+			WARN("Failed to parse journal record %zu parameter %zu: %s", index, i, lua_tostring(L, -1));
+			goto FAIL;
+		}
+		// Now run the thing to get the result. However, run it with empty environment, to make sure it does nothing bad.
+		lua_newtable(L); // New env
+		lua_setfenv(L, -2); // Pop the new env
+		int run_result = lua_pcall(L, 0, 1, 0);
+		if (run_result) {
+			WARN("Failed to run the journal record %zu parameter %zu generator: %s", index, i, lua_tostring(L, -1));
+			goto FAIL;
+		}
+		// We have the data we wanted, we have the index. Put it into the param table
+		lua_settable(L, -3);
+	}
+	ASSERT(pos == record.total_size);
+	// Store the param table
+	lua_setfield(L, -2, "params");
+	// Store the whole record table into the result table (index waiting there already)
+	lua_settable(L, -3);
+	free(data);
+	return true;
+FAIL:
+	lua_settop(L, top); // Remove any leftover lua stuff on top of the stack, leave only the one result table there
+	free(data);
+	return false;
+}
+
+static int lua_recover(lua_State *L) {
+	journal_open(L, 0);
+	lua_newtable(L);
+	size_t i = 0;
+	off_t offset = 0;
+	// Read to the first broken record or EOF
+	while (journal_read(L, ++ i)) {
+		// Mark the place where we read to. We abuse lseek, which moves the offset by 0 bytes and reports where it is.
+		offset = lseek(fd, 0, SEEK_CUR);
+		ASSERT_MSG(offset != (off_t)-1, "Failed to get the journal position: %s", strerror(errno));
+	}
+	// Now return before the possibly broken record (or to the end of file) and truncate the file, erasing the broken part.
+	ASSERT_MSG(lseek(fd, offset, SEEK_SET) != (off_t)-1, "Failed to set the journal position: %s", strerror(errno));
+	ASSERT_MSG(ftruncate(fd, offset) != (off_t)-1, "Failed to erase the end of journal: %s", strerror(errno));
+	// Now everything is in place, we have the table to return.
+	return 1;
+}
+
 static int lua_finish(lua_State *L) {
+	DBG("Closing journal");
 	ASSERT_MSG(fd != -1, "Journal not open");
 	ASSERT(journal_path);
 	bool keep = false;
@@ -287,12 +292,17 @@ static int lua_write(lua_State *L) {
 	for (size_t i = 0; i < extra_par_count; i ++) {
 		lua_getglobal(L, "DataDumper");
 		lua_pushvalue(L, i + 2);
-		lua_call(L, 1, 0);
+		lua_call(L, 1, 1);
 		ASSERT_MSG(data[i] = lua_tolstring(L, -1, &lengths[i]), "Couldn't find converted parameter #%zu", i);
 		// Leave the result on the stack, so it is not garbage collected too early.
 	}
 	journal_write(type, extra_par_count, lengths, data);
 	return 0;
+}
+
+static int lua_opened(lua_State *L) {
+	lua_pushboolean(L, fd != -1);
+	return 1;
 }
 
 struct func {
@@ -304,7 +314,8 @@ static struct func inject[] = {
 	{ lua_fresh, "fresh" },
 	{ lua_recover, "recover" },
 	{ lua_finish, "finish" },
-	{ lua_write, "write" }
+	{ lua_write, "write" },
+	{ lua_opened, "opened" }
 };
 
 void journal_mod_init(lua_State *L) {

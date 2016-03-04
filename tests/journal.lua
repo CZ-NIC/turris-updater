@@ -24,6 +24,8 @@ local J = require 'journal'
 
 module("journal-tests", package.seeall, lunit.testcase)
 
+local tmp_dirs = {}
+
 -- Test the module is injected correctly
 function test_module()
 	assert_equal(journal, J)
@@ -41,4 +43,106 @@ function test_values()
 			end
 		end
 	end
+end
+
+-- Initialize a temporary directory to use by the journal and point the journal file inside
+function dir_init()
+	local dir = mkdtemp()
+	table.insert(tmp_dirs, dir)
+	J.path = dir .. "/journal"
+	return dir
+end
+
+-- Check creating a fresh journal
+function test_fresh()
+	local dir = dir_init()
+	assert_table_equal({}, ls(dir))
+	-- Create a fresh journal file
+	assert_false(J.opened())
+	J.fresh()
+	assert(J.opened())
+	assert_table_equal({journal = "r"}, ls(dir));
+	-- The journal disappears once we are finished with it.
+	J.finish()
+	assert_false(J.opened())
+	assert_table_equal({}, ls(dir))
+	-- Create a fake journal file
+	io.open(J.path, "w"):close()
+	assert_table_equal({journal = "r"}, ls(dir));
+	-- Can't open fresh journal, if there's one already
+	assert_error(function () J.fresh() end)
+	assert_false(J.opened())
+end
+
+-- Check we can read a journal (only the start and finish is there)
+function test_recover_empty()
+	local dir = dir_init()
+	assert_table_equal({}, ls(dir))
+	-- Nothing to recover
+	assert_error(function () J.recover() end)
+	J.fresh()
+	-- Keep the journal file
+	J.finish(true)
+	assert_false(J.opened())
+	assert_table_equal({journal = "r"}, ls(dir));
+	assert_table_equal({
+		{ type = J.START, params = {} },
+		{ type = J.FINISH, params = {} }
+	}, J.recover())
+	assert_table_equal({journal = "r"}, ls(dir));
+	assert(J.opened())
+	J.finish()
+	assert_table_equal({}, ls(dir))
+	assert_false(J.opened())
+end
+
+-- Same as test_recover_empty, but with more data and parameters
+function test_recover_data()
+	local dir = dir_init()
+	assert_table_equal({}, ls(dir))
+	J.fresh()
+	J.write(J.UNPACKED, { data = { more_data = "hello" } }, { "x", "y", "z" })
+	J.finish(true)
+	assert_table_equal({
+		{ type = J.START, params = {} },
+		{ type = J.UNPACKED, params = { { data = { more_data = "hello" } }, { "x", "y", "z" } } },
+		{ type = J.FINISH, params = {} }
+	}, J.recover())
+end
+
+-- The journal is incomplete, test it can read the complete part
+function test_recover_broken()
+	dir_init()
+	J.fresh()
+	J.write(J.UNPACKED, { data = "xyz" }, { "x", "y", "z" })
+	J.finish(true)
+	-- Now damage the file a little bit
+	local content = utils.slurp(J.path)
+	local f, err = io.open(J.path, "w")
+	assert(f, err)
+	-- Store everything except for the last 3 bytes. That should kill the last FINISH record
+	f:write(content:sub(1, -3))
+	f:close()
+	assert_table_equal({
+		{ type = J.START, params = {} },
+		{ type = J.UNPACKED, params = { { data = "xyz" }, { "x", "y", "z" } } }
+	}, J.recover())
+	-- We write something in addition
+	J.write(J.CHECKED, "more data")
+	J.finish(true)
+	-- Read it once more and check there are proper data stored
+	assert_table_equal({
+		{ type = J.START, params = {} },
+		{ type = J.UNPACKED, params = { { data = "xyz" }, { "x", "y", "z" } } },
+		{ type = J.CHECKED, params = { "more data" } },
+		{ type = J.FINISH, params = {} }
+	}, J.recover())
+end
+
+function teardown()
+	if J.opened() then
+		J.finish()
+	end
+	utils.cleanup_dirs(tmp_dirs)
+	tmp_dirs = {}
 end
