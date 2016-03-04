@@ -116,3 +116,45 @@ stat(path)::
   Statistics about the given file. It currently returns only the type
   of file see the types of `ls`). If it doesn't exist, it returns
   nothing.
+
+Journal manipulation
+--------------------
+
+All the journal manipulation is located in the `journal` module. This
+is about the lua interface. For the on-disk format, look at the
+`journal` document.
+
+The location of the journal can be set by the `path` variable inside
+the module (it exists mostly for testing purposes).
+
+There are several constants for the journal record types:
+
+ `START`:: Automatically inserted at the beginning of journal.
+ `FINISH`:: Automatically inserted when the journal is closed.
+ `UNPACKED`:: Packages are unpacked and ready to be installed.
+ `CHECKED`:: Pre-installation checks (like collision checks) are
+   successfully performed.
+ `MOVED`:: The files are moved into place.
+ `SCRIPTS`:: All the post/pre-* scripts were run.
+ `CLEANED`:: Cleanup of temporary files is successful.
+
+There are following functions:
+
+  fresh():: Open a new journal. It fails if there's a journal file
+    already.
+  recover():: Open a previous journal. It returns table with the
+    content of the journal. It fails in case there's no journal.
+  finish([keep]):: Close the journal. If the keep is set to true,
+    it keeps the journal in place, otherwise it is deleted. The idea
+    is that the application would close the journal when it succeeds,
+    but would leave it there in case of interrupted operation, so
+    usually nothing is set, the flag is for testing purposes.
+  write(type, ...):: Write a journal record of the given type (see
+    above). Any other parameters are stored as parameters. Data
+    structures must not contain meta tables and functions.
+  opened():: Returns if the journal is opened. This is for testing
+    purposes.
+
+The format of journal returned by recover is a table with records.
+Each record contains `type` ‒ one of the types above, and `params` ‒
+table with all the parameters stored with the record.
