@@ -52,3 +52,18 @@ function test_set2arr()
 	table.sort(result)
 	assert_table_equal({"a", "b", "c"}, result)
 end
+
+function test_clone()
+	local input = {
+		x = 1,
+		y = 2,
+		z = {
+			a = 3
+		}
+	}
+	local output = U.clone(input)
+	assert_table_equal(input, output)
+	assert_not_equal(input, output)
+	assert_not_equal(input.z, output.z)
+	assert_equal("xyz", U.clone("xyz"))
+end

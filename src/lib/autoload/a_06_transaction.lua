@@ -52,6 +52,7 @@ An error may be thrown if anything goes wrong.
 ]]
 function perform(operations)
 	local dir_cleanups = {}
+	local status = backend.status_parse()
 	-- Emulate try-finally
 	local ok, err = pcall(function ()
 		-- Make sure the temporary directory for unpacked packages exist
@@ -61,7 +62,6 @@ function perform(operations)
 			backend.dir_ensure(created)
 		end
 		-- Look at what the current status looks like.
-		local status = backend.status_parse()
 		--[[
 		Set of packages from the current system we want to remove.
 		This contains the ones we want to install too, since the original would
@@ -106,26 +106,38 @@ function perform(operations)
 		-- TODO: Journal note, we're going to proceed now.
 		-- Go through the list once more and perform the prepared operations
 		for _, op in ipairs(plan) do
-			-- TODO: Run the scripts through here
 			if op.op == "install" then
+				-- TODO: pre-install scripts (who would use such thing anyway?)
 				backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.configs)
 			end
 			-- Ignore others, at least for now.
 		end
 		-- TODO: Journal note, we have everything in place.
+		for _, op in ipairs(plan) do
+			if op.op == "install" then
+				backend.pkg_merge_control(op.dir .. "/control", op.control.Package, op.control.files)
+				status[op.control.Package] = op.control
+				-- TODO: Postinst script
+			elseif op.op == "remove" then
+				status[op.name] = nil
+				-- TODO: Pre-rm script, but only if not re-installed
+			end
+		end
 		-- Clean up the files from removed or upgraded packages
 		backend.pkg_cleanup_files(removes)
-		-- Clean up the temporary files there.
+		-- TODO: post-rm scripts, for the removed (not re-installed) packages
 		-- TODO: Think about when to clean up any leftover files if something goes wrong? On success? On transaction rollback as well?
 	end)
-	-- Make sure the temporary dirs are removed even if it fails.
+	-- Make sure the temporary dirs are removed even if it fails. This will probably be slightly different with working journal.
 	utils.cleanup_dirs(dir_cleanups)
 	-- TODO: Journal note, everything is cleaned up
 	-- TODO: Store the new status
-	-- TODO: Clean up package control files for packages not present any more
 	if not ok then
 		error(err)
 	end
+	backend.control_cleanup(status)
+	backend.pkg_status_dump(status)
+	-- TODO: Journal note, everything is written down
 end
 
 -- Queue of planned operations

@@ -24,6 +24,7 @@ local ipairs = ipairs
 local pcall = pcall
 local require = require
 local next = next
+local tostring = tostring
 local unpack = unpack
 local io = io
 local os = os
@@ -93,6 +94,69 @@ function block_parse(block)
 	end
 	store()
 	return result
+end
+
+--[[
+Format single block of data.
+The block shall be passed as an array, each item an object with header and value strings.
+The object may be an empty table. In that case, no output is generated for the given
+object.
+]]
+function block_dump_ordered(block)
+	return table.concat(utils.map(block, function (i, line)
+		if line.header then
+			local space = ' '
+			if line.value:match("^%s") then
+				space = ''
+			end
+			return i, line.header .. ":" .. space .. line.value .. "\n"
+		else
+			return i, ''
+		end
+	end))
+end
+
+--[[
+Dump status of a single package.
+]]
+function pkg_status_dump(status)
+	local function line(name, conversion)
+		if status[name] then
+			return {header = name, value = conversion(status[name])}
+		else
+			return {}
+		end
+	end
+	local function raw(name)
+		return line(name, function (v) return v end)
+	end
+	return block_dump_ordered({
+		raw "Package",
+		raw "Version",
+		line("Depends", function (deps)
+			-- Join the dependencies together, separated by commas
+			return table.concat(deps, ', ')
+		end),
+		raw "Conflicts",
+		line("Status", function (status)
+			-- Join status flags together, separated by spaces
+			return table.concat(utils.set2arr(status), ' ')
+		end),
+		raw "Architecture",
+		line("Conffiles", function (confs)
+			local i = 0
+			--[[
+			For each dep, place it into an array instead of map and format the line.
+			Then connect these lines together with newlines.
+			]]
+			return "\n" .. table.concat(utils.map(confs, function (filename, hash)
+				i = i + 1
+				return i, " " .. filename .. " " .. hash
+			end), "\n")
+		end),
+		raw "Installed-Time",
+		raw "Auto-Installed"
+	})
 end
 
 --[[
@@ -236,6 +300,26 @@ function status_parse()
 	return result
 end
 
+function status_dump(status)
+	DBG("Writing status file ", status_file)
+	--[[
+	Use a temporary file, so we don't garble the real and precious file.
+	Write the thing first and then switch attomicaly.
+	]]
+	local tmp_file = status_file .. ".tmp"
+	local f, err = io.open(tmp_file, "w")
+	if f then
+		for _, pkg in pairs(status) do
+			f:write(pkg_status_dump(pkg), "\n")
+		end
+		f:close()
+		-- Override the resulting file
+		local _, err = os.rename(tmp_file, status_file)
+	else
+		error("Couldn't write status file " .. tmp_file .. ": " .. err)
+	end
+end
+
 --[[
 Take the .ipk package (passed as the data, not as a path to a file) and unpack it
 into a temporary location somewhere under tmp_dir. If you omit tmp_dir, /tmp is used.
@@ -374,6 +458,10 @@ function pkg_examine(dir)
 	if err then
 		error(err)
 	end
+	-- Complete the control structure
+	control.files = files
+	control.Conffiles = conffiles
+	control["Installed-Time"] = tostring(os.time())
 	return files, dirs, conffiles, control
 end
 
@@ -502,6 +590,63 @@ function pkg_merge_files(dir, dirs, files, configs)
 end
 
 --[[
+Merge all the control file belonging to the package into place. Also, provide
+the files control file (which is not packaged)
+
+TODO: Do we want to have "dirs" file as well? So we could handle empty package's
+directories properly.
+]]
+function pkg_merge_control(dir, name, files)
+	--[[
+	First, make sure there are no leftover files from previous version
+	(the new version might removed a postinst script, or something).
+	]]
+	local prefix = name .. '.'
+	local plen = prefix:len()
+	for fname in pairs(ls(info_dir)) do
+		if fname:sub(1, plen) == prefix then
+			DBG("Removing previous version control file " .. fname)
+			local _, err = os.remove(info_dir .. "/" .. fname)
+			if err then
+				error(err)
+			end
+		end
+	end
+	--[[
+	Now copy all the new ones into place.
+	Note that we use a copy, to make sure it is still preserved in the original dir.
+	If we are interrupted and resume, we would delete the new one in the info_dir,
+	so we need to keep the original.
+
+	We use the shell's cp to ensure we preserve attributes.
+	TODO: Do it in our own code.
+	]]
+	local events = {}
+	local err
+	for fname, tp in pairs(ls(dir)) do
+		if fname:sub(1, plen) ~= prefix then
+			WARN("Control file for package " .. name .. " has a wrong name " .. fname .. ", skipping")
+		elseif tp ~= "r" and tp ~= "?" then
+			WARN("Control file " .. fname .. " is not a file, skipping")
+		else
+			DBG("Putting control file " .. fname .. " into place")
+			table.insert(events, run_command(function (ecode, killed, stdout, stderr)
+				err = stderr
+			end, nil, nil, cmd_timeout, cmd_kill_timeout, "/bin/cp", "-Lpf", dir .. "/" .. fname, info_dir .. "/" .. fname))
+		end
+	end
+	-- Create the list of files
+	local f, err = io.open(info_dir .. "/" .. name .. ".list", "w")
+	if err then
+		error(err)
+	end
+	f:write(table.concat(utils.set2arr(utils.map(files, function (f) return f .. "\n", true end))))
+	f:close()
+	-- Wait for the cp calls to finish
+	events_wait(unpack(events))
+end
+
+--[[
 Remove files provided as a set and any directories which became
 empty by doing so (recursively).
 ]]
@@ -540,6 +685,29 @@ function pkg_cleanup_files(files)
 					-- It is an error, but we don't want to give up on the rest of the operation because of that
 					ERROR("Failed to removed empty " .. parent .. ", ignoring")
 					break
+				end
+			end
+		end
+	end
+end
+
+--[[
+Clean up the control files of packages. Leave only the ones related to packages
+installed, as listed by status.
+]]
+function control_cleanup(status)
+	for file, tp in pairs(ls(info_dir)) do
+		if tp ~= 'r' and tp ~= '?' then
+			WARN("Non-file " .. file .. " in control directory")
+		else
+			local pname = file:match("^([^%.]+)%.")
+			if not pname then
+				WARN("Control file " .. file .. " has a wrong name format")
+			elseif not status[pname] then
+				DBG("Removing control file " .. file)
+				local _, err = os.remove(info_dir .. "/" .. file)
+				if err then
+					ERROR(err)
 				end
 			end
 		end

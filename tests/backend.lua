@@ -34,16 +34,22 @@ function test_block_parse()
 		val1 = "value 1",
 		val2 = "value 2",
 		val3 = "value 3"
-	}, B.block_parse([[val1: value 1
+	}, B.block_parse(
+[[
+val1: value 1
 val2:  value 2
 val3:	value 3]]))
 	-- Continuations of fields
 	assert_table_equal({
-		val1 = [[value 1
+		val1 =
+[[
+value 1
  line 2
  line 3]],
 		val2 = "value 2"
-	}, B.block_parse([[val1: value 1
+	}, B.block_parse(
+[[
+val1: value 1
  line 2
  line 3
 val2: value 2]]))
@@ -72,7 +78,9 @@ end
 -- Tests for the block_split function.
 function test_block_split()
 	-- Just splitting into blocks
-	blocks_check([[block 1
+	blocks_check(
+[[
+block 1
 next line
 another line
 
@@ -87,7 +95,9 @@ multi line]]})
 
 block 2]], {'block 1', 'block 2'})
 	-- Few empty lines at the end - should not produce an empty block
-	blocks_check([[block 1
+	blocks_check(
+[[
+block 1
 
 block 2
 
@@ -107,7 +117,8 @@ function test_package_postprocces()
 		Depends = "libc, kernel (= 3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10), kmod-nls-base",
 		Status = "install user installed",
 		Architecture = "mpc85xx",
-		Conffiles = [[
+		Conffiles =
+[[
  /etc/config/dhcp f81fe9bd228dede2165be71e5c9dcf76cc
  /etc/dnsmasq.conf 1e6ab19c1ae5e70d609ac7b6246541d520]]
 	}
@@ -251,7 +262,9 @@ function test_pkg_unpack()
 	-- Check list of extracted files
 	events_wait(run_command(function (ecode, killed, stdout)
 		assert_equal(0, ecode, "Failed to check the list of files")
-		assert_table_equal(lines2set([[.
+		assert_table_equal(lines2set(
+[[
+.
 ./control
 ./control/conffiles
 ./control/control
@@ -283,7 +296,9 @@ function test_pkg_unpack()
 ]]), lines2set(stdout))
 	end, function () chdir(path) end, nil, -1, -1, "/usr/bin/find"))
 	local files, dirs, conffiles, control = B.pkg_examine(path)
-	assert_table_equal(lines2set([[/etc/init.d/updater
+	assert_table_equal(lines2set(
+[[
+/etc/init.d/updater
 /etc/config/updater
 /etc/ssl/updater.pem
 /usr/share/updater/keys/standby.pem
@@ -294,7 +309,9 @@ function test_pkg_unpack()
 /usr/bin/updater-utils.sh
 /usr/bin/updater-worker.sh
 /usr/bin/updater-wipe.sh]]), files)
-	assert_table_equal(lines2set([[/
+	assert_table_equal(lines2set(
+[[
+/
 /etc
 /etc/init.d
 /etc/cron.d
@@ -309,6 +326,9 @@ function test_pkg_unpack()
 	assert_table_equal({
 		["/etc/config/updater"] = "30843ef73412c8f6b4212c00724a1cc8"
 	}, conffiles)
+	-- We want to take it out, the time changes every time
+	assert_not_nil(control["Installed-Time"])
+	control["Installed-Time"] = nil
 	assert_table_equal({
 		Package = "updater",
 		Version = "129",
@@ -318,7 +338,9 @@ function test_pkg_unpack()
 		Architecture = "mpc85xx",
 		["Installed-Size"] = "14773",
 		Description = "updater",
-		Depends = {"libc", "vixie-cron", "openssl-util", "libatsha204", "curl", "cert-backup", "opkg", "bzip2", "cznic-cacert-bundle"}
+		Depends = {"libc", "vixie-cron", "openssl-util", "libatsha204", "curl", "cert-backup", "opkg", "bzip2", "cznic-cacert-bundle"},
+		Conffiles = conffiles,
+		files = files
 	}, control)
 	local test_root = mkdtemp()
 	table.insert(tmp_dirs, test_root)
@@ -337,7 +359,9 @@ function test_pkg_unpack()
 	}, ls(path))
 	events_wait(run_command(function (ecode, killed, stdout)
 		assert_equal(0, ecode, "Failed to check the list of files")
-		assert_table_equal(lines2set([[.
+		assert_table_equal(lines2set(
+[[
+.
 ./etc
 ./etc/config
 ./etc/config/updater
@@ -421,6 +445,190 @@ function test_collisions()
 		["/etc/modules-boot.d/usb-storage"] = true
 		-- The usb-storage file is taken over, it doesn't disappear
 	}, rem)
+end
+
+function test_block_dump_ordered()
+	-- Empty block should produce empty output
+	assert_equal('', B.block_dump_ordered({}))
+	-- An ordinary block, nothing special
+	assert_equal(
+[[
+Header: value
+Header2: value2
+]], B.block_dump_ordered({
+		{ header = "Header", value = "value" },
+		{ header = "Header2", value = "value2" }
+	}))
+	-- Repeated headers. Not that we would actually need that in practice.
+	assert_equal(
+[[
+Header: value
+Header: value
+]], B.block_dump_ordered({
+		{ header = "Header", value = "value" },
+		{ header = "Header", value = "value" }
+	}))
+	-- An empty object generates nothing
+	assert_equal(
+[[
+Header: value
+Header: value
+]], B.block_dump_ordered({
+		{ header = "Header", value = "value" },
+		{},
+		{ header = "Header", value = "value" }
+	}))
+	-- A multi-line value
+	assert_equal(
+[[
+Header:
+ value
+ another line
+]], B.block_dump_ordered({
+		{ header = "Header", value =
+-- Since lua eats the first newline directly after [[, we need to provide two.
+[[
+
+ value
+ another line]]}}))
+end
+
+function test_pkg_status_dump()
+	-- Simple package with just one-line headers
+	assert_equal(
+[[
+Package: pkg-name
+Version: 1
+Installed-Time: 1
+]], B.pkg_status_dump({
+	Package = "pkg-name",
+	Version = "1",
+	["Installed-Time"] = "1"
+	}))
+	-- Package with some extra (unused) headers
+	assert_equal(
+[[
+Package: pkg-name
+Version: 1
+Installed-Time: 1
+]], B.pkg_status_dump({
+	Package = "pkg-name",
+	Version = "1",
+	["Installed-Time"] = "1",
+	Extra = "xxxx"
+	}))
+	-- Package with more complex headers
+	assert_equal(
+[[
+Package: pkg-name
+Version: 1
+Depends: dep1, dep2
+Status: flag
+Conffiles:
+ file 1234567890123456
+Installed-Time: 1
+]], B.pkg_status_dump({
+	Package = "pkg-name",
+	Version = "1",
+	["Installed-Time"] = "1",
+	Extra = "xxxx",
+	Depends = { "dep1", "dep2" },
+	Status = { flag = true },
+	Conffiles = { ["file"] = "1234567890123456" }
+	}))
+end
+
+function test_status_dump()
+	-- Read the status
+	local status = B.status_parse()
+	-- Make a copy of the status file, we'are going to write into it
+	local test_dir = mkdtemp()
+	table.insert(tmp_dirs, test_dir)
+	B.status_file = test_dir .. "/status"
+	B.status_dump(status)
+	-- Now read it again. It must be the same
+	local status2 = B.status_parse()
+	assert_table_equal(status, status2)
+	-- Change something in the status. Add a new package
+	status["New"] = {
+		Package = "New",
+		Version = "1",
+		["Installed-Time"] = "1",
+		Depends = { "Dep1", "dep2" },
+		Status = { flag = true }
+	}
+	-- Do one more store-read-compare cycle
+	B.status_dump(status)
+	local status3 = B.status_parse()
+	-- The status_parse always generates list of files, even if there are none
+	status["New"].files = {}
+	assert_table_equal(status, status3)
+end
+
+function test_control_cleanup()
+	--[[
+	Create few files in a test info dir.
+	Some of them are bit stange.
+	]]
+	local test_dir = mkdtemp() .. "/"
+	table.insert(tmp_dirs, test_dir)
+	B.info_dir = test_dir
+	local all_files = {
+		["pkg1.control"] = "r",
+		["pkg1.list"] = "r",
+		["pkg2.control"] = "r",
+		["pkg2.xyz.abc"] = "r",
+		[".bad"] = "r",
+		["another_bad"] = "r"
+	}
+	for f in pairs(all_files) do
+		local f, err = io.open(test_dir .. f, "w")
+		assert_not_nil(f, err)
+		f:close()
+	end
+	assert_table_equal(all_files, ls(test_dir))
+	--[[
+	Run the cleanup, but with both pkg1 and pkg2 installed. Also, the strange files should stay.
+
+	The control_cleanup doesn't care about the content of the packages, so be lazy a bit.
+	]]
+	B.control_cleanup({
+		pkg1 = true,
+		pkg2 = true
+	})
+	assert_table_equal(all_files, ls(test_dir))
+	-- Drop the things belonging to pkg2
+	B.control_cleanup({ pkg1 = true })
+	all_files["pkg2.control"] = nil
+	all_files["pkg2.xyz.abc"] = nil
+	assert_table_equal(all_files, ls(test_dir))
+end
+
+function test_merge_control()
+	--[[
+	Create a control file in some directory.
+	]]
+	local src_dir = mkdtemp()
+	table.insert(tmp_dirs, src_dir)
+	local f, err = io.open(src_dir .. "/pkg1.control", "w")
+	assert_not_nil(f, err)
+	f:write("test\n")
+	f:close()
+	local dst_dir = mkdtemp()
+	table.insert(tmp_dirs, dst_dir)
+	B.info_dir = dst_dir
+	-- Place an "outdated" file in the destination, which should disappear by the merge
+	local f, err = io.open(dst_dir .. "/pkg1.outdated", "w")
+	assert_not_nil(f, err)
+	f:write("Old\n")
+	f:close()
+	B.pkg_merge_control(src_dir, "pkg1", { file = true })
+	-- The files are in the destination directory with the right content
+	assert_table_equal({["pkg1.control"] = 'r', ["pkg1.list"] = 'r'}, ls(dst_dir))
+	assert_equal("test\n", utils.slurp(dst_dir .. "/pkg1.control"))
+	assert_equal("file\n", utils.slurp(dst_dir .. "/pkg1.list"))
+	-- The file stayed at the origin as well
+	assert_table_equal({["pkg1.control"] = 'r'}, ls(src_dir))
 end
 
 function setup()
