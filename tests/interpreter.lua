@@ -70,4 +70,5 @@ end
 
 function teardown()
 	utils.cleanup_dirs(tmp_dirs)
+	tmp_dirs = {}
 end
