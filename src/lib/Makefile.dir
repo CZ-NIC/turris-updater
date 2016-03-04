@@ -17,4 +17,4 @@ libupdater_MODULES := \
 	util
 libupdater_PKG_CONFIGS := $(LUA_NAME) libevent
 
-DOCS += src/lib/lua_funcs
+DOCS += $(addprefix src/lib/,lua_funcs journal)

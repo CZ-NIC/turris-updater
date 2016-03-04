@@ -1,0 +1,67 @@
+The journal
+===========
+
+This is about the on-disk format of the journal. The interface is
+described in `lua_func`.
+
+The journal file is composed of records. Each record has a fixed-sized
+header, fixed-sized tail and variable length data in between.
+
+The first record is always `RT_START`, and a closed journal terminates
+with `RT_FINISH`. These may not appear anywhere in the middle of the
+stream of records.
+
+The header
+----------
+
+The header is binary dump of C structure:
+
+  struct journal_record {
+    uint8_t record_type;
+    uint8_t param_count;
+    uint16_t magic;
+    uint32_t total_size;
+  };
+
+The `record_type` is in fact the raw value of the following enum:
+
+  enum record_type {
+    RT_START,
+    RT_FINISH,
+    RT_UNPACKED,
+    RT_CHECKED,
+    RT_MOVED,
+    RT_SCRIPTS,
+    RT_CLEANED
+  };
+
+The `param_count` specifies the number of parameters that go with the
+record.
+
+The `magic` is a canary value. In case the file is not valid journal,
+is written on a different endian machine or with different padding,
+the chance is high that it would not match. The value there is
+computed as:
+
+   0x2A7C ^ (total_size & 0xFFFF) ^ ((total_size & 0xFFFF0000) >> 16);
+
+The `total_size` is the total size of the variable length data in the
+middle. It may be 0.
+
+The variable-length data
+------------------------
+
+First, there are `param_count` `uint32_t` values. Each value specifies
+the length, in bytes, of the given parameter. It is followed by the
+parameter data, each having the specified number of bytes. All these
+`uint32_t` variables and the data together sum up to `total_size` in
+the header.
+
+Each parameter is a lua chunk that, if run, produces the corresponding
+data structure.
+
+The tail
+--------
+
+A copy of the `magic` variable closes the record. This is just a
+consistency check.
