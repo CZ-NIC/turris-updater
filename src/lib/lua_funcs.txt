@@ -158,3 +158,16 @@ There are following functions:
 The format of journal returned by recover is a table with records.
 Each record contains `type` ‒ one of the types above, and `params` ‒
 table with all the parameters stored with the record.
+
+Others
+------
+
+There are some other functions.
+
+DataDumper(variable)::
+  A function that converts (almost any) variable to a string
+  containing a lua chunk. The chunk, when run, returns equivalent
+  value as passed. Simply stated, this serializes data into lua code.
+  It is a third-party code from
+  `http://lua-users.org/wiki/DataDumper`. Note that some data
+  (userdata, for example) can't be represented this way.
