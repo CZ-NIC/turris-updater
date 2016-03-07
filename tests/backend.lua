@@ -610,7 +610,7 @@ function test_merge_control()
 	]]
 	local src_dir = mkdtemp()
 	table.insert(tmp_dirs, src_dir)
-	local f, err = io.open(src_dir .. "/pkg1.control", "w")
+	local f, err = io.open(src_dir .. "/control", "w")
 	assert_not_nil(f, err)
 	f:write("test\n")
 	f:close()
@@ -628,7 +628,7 @@ function test_merge_control()
 	assert_equal("test\n", utils.slurp(dst_dir .. "/pkg1.control"))
 	assert_equal("file\n", utils.slurp(dst_dir .. "/pkg1.list"))
 	-- The file stayed at the origin as well
-	assert_table_equal({["pkg1.control"] = 'r'}, ls(src_dir))
+	assert_table_equal({["control"] = 'r'}, ls(src_dir))
 end
 
 function setup()
