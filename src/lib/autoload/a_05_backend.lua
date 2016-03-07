@@ -624,15 +624,13 @@ function pkg_merge_control(dir, name, files)
 	local events = {}
 	local err
 	for fname, tp in pairs(ls(dir)) do
-		if fname:sub(1, plen) ~= prefix then
-			WARN("Control file for package " .. name .. " has a wrong name " .. fname .. ", skipping")
-		elseif tp ~= "r" and tp ~= "?" then
+		if tp ~= "r" and tp ~= "?" then
 			WARN("Control file " .. fname .. " is not a file, skipping")
 		else
 			DBG("Putting control file " .. fname .. " into place")
 			table.insert(events, run_command(function (ecode, killed, stdout, stderr)
 				err = stderr
-			end, nil, nil, cmd_timeout, cmd_kill_timeout, "/bin/cp", "-Lpf", dir .. "/" .. fname, info_dir .. "/" .. fname))
+			end, nil, nil, cmd_timeout, cmd_kill_timeout, "/bin/cp", "-Lpf", dir .. "/" .. fname, info_dir .. "/" .. name .. '.' .. fname))
 		end
 	end
 	-- Create the list of files
