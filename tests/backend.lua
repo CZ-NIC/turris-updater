@@ -644,4 +644,5 @@ function teardown()
 	B.info_dir = orig_info_dir
 	B.root_dir= orig_root_dir
 	utils.cleanup_dirs(tmp_dirs)
+	tmp_dirs = {}
 end

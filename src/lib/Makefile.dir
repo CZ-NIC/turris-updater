@@ -13,7 +13,8 @@ libupdater_MODULES := \
 	lautoload.embed \
 	embed_types \
 	events \
+	journal \
 	util
 libupdater_PKG_CONFIGS := $(LUA_NAME) libevent
 
-DOCS += src/lib/lua_funcs
+DOCS += $(addprefix src/lib/,lua_funcs journal)
