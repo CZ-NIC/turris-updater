@@ -35,6 +35,10 @@
 // Just to make sure this is ours. Also, endians, etc.
 #define MAGIC 0x2a7c
 
+uint16_t magic(uint32_t len) {
+	return MAGIC ^ (len & 0xFFFF) ^ ((len & 0xFFFF0000) >> 16);
+}
+
 // This way, we may define lists of actions, values, strings, etc for each of the value
 #define RECORD_TYPES \
 	X(START) \
@@ -75,7 +79,7 @@ static void journal_write(enum record_type type, size_t num_params, const size_t
 	record->record_type = type;
 	record->param_count = num_params;
 	record->total_size = param_len;
-	record->magic = MAGIC ^ (param_len & 0xFFFF) ^ ((param_len & 0xFFFF0000) >> 16);
+	record->magic = magic(param_len);
 	size_t pos = num_params * sizeof(uint32_t);
 	for (size_t i = 0; i < num_params; i ++) {
 		uint32_t len = lens[i];
@@ -182,7 +186,7 @@ static bool journal_read(lua_State *L, size_t index) {
 		return false;
 	}
 	// Check the header
-	if ((record.magic ^ (record.total_size & 0xFFFF) ^ ((record.total_size & 0xFFFF0000) >> 16)) != MAGIC) {
+	if (record.magic != magic(record.total_size)) {
 		WARN("Broken magic at the header");
 		return false;
 	}
