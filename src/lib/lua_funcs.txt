@@ -113,9 +113,10 @@ ls(directory)::
   ?;; Failed to determine the type
 
 stat(path)::
-  Statistics about the given file. It currently returns only the type
-  of file see the types of `ls`). If it doesn't exist, it returns
-  nothing.
+  Statistics about the given file. If the file does not exist, it
+  returns nothing. Otherwise, the file type is returned (see the types
+  of `ls`). The second result is the permissions of the file, in the
+  imitation of shell's `ls -l`, like `rwxr-x---`.
 
 Journal manipulation
 --------------------
