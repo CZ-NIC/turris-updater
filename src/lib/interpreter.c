@@ -518,6 +518,16 @@ static int lua_stat(lua_State *L) {
 	return 2;
 }
 
+static int lua_setenv(lua_State *L) {
+	const char *name = luaL_checkstring(L, 1);
+	const char *value = luaL_checkstring(L, 2);
+	int result = setenv(name, value, 1);
+	if (result) {
+		return luaL_error(L, "Failed to set env %s = %s", name, value, strerror(errno));
+	}
+	return 0;
+}
+
 struct injected_func {
 	int (*func)(lua_State *);
 	const char *name;
@@ -533,7 +543,8 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_mkdir, "mkdir" },
 	{ lua_move, "move" },
 	{ lua_ls, "ls" },
-	{ lua_stat, "stat" }
+	{ lua_stat, "stat" },
+	{ lua_setenv, "setenv" }
 	/*
 	 * Note: watch_cancel is not provided, because it would be hell to
 	 * manage the dynamically allocated memory correctly and there doesn't

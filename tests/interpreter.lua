@@ -71,6 +71,12 @@ function test_fsutils()
 	assert_table_equal({["x"] = "r"}, ls(ldir))
 end
 
+-- Test setting the environment
+function test_env()
+	setenv("TEST_ENV", "42")
+	assert_equal("42", os.getenv("TEST_ENV"))
+end
+
 function teardown()
 	utils.cleanup_dirs(tmp_dirs)
 	tmp_dirs = {}

@@ -172,3 +172,7 @@ DataDumper(variable)::
   It is a third-party code from
   `http://lua-users.org/wiki/DataDumper`. Note that some data
   (userdata, for example) can't be represented this way.
+
+setenv(name, value)::
+  Set the environment variable with the given name to the given value.
+  Errors in case of failure, otherwise returns nothing.
