@@ -30,7 +30,8 @@ local test_status = {
 	},
 	["pkg-name"] = {
 		Package = "pkg-name",
-		Canary = true
+		Canary = true,
+		Version = "0"
 	}
 }
 local intro = {
@@ -93,13 +94,20 @@ local function mocks_install()
 	mock_gen("backend.dir_ensure")
 	mock_gen("backend.status_parse", function () return utils.clone(test_status) end)
 	mock_gen("backend.pkg_unpack", function () return "pkg_dir" end)
-	mock_gen("backend.pkg_examine", function () return {f = true}, {d = true}, {c = "1234567890123456"}, {Package = "pkg-name", files = {f = true}, Conffiles = {c = "1234567890123456"}} end)
+	mock_gen("backend.pkg_examine", function () return {f = true}, {d = true}, {c = "1234567890123456"}, {Package = "pkg-name", files = {f = true}, Conffiles = {c = "1234567890123456"}, Version = "1"} end)
 	mock_gen("backend.collision_check", function () return {}, {}  end)
 	mock_gen("backend.pkg_merge_files")
 	mock_gen("backend.pkg_cleanup_files")
 	mock_gen("backend.control_cleanup")
 	mock_gen("backend.pkg_merge_control")
 	mock_gen("backend.pkg_status_dump")
+	mock_gen("backend.script_run", function (pkgname, suffix)
+		if suffix == "postinst" then
+			return false, "Fake failed postinst"
+		else
+			return true, ""
+		end
+	end)
 	mock_gen("utils.cleanup_dirs")
 end
 
@@ -125,7 +133,7 @@ end
 function test_perform_ok()
 	mocks_install()
 	mock_gen("backend.collision_check", function () return {}, {d2 = true}  end)
-	T.perform({
+	local result = T.perform({
 		{
 			op = "install",
 			data = "<package data>"
@@ -134,10 +142,17 @@ function test_perform_ok()
 			name = "pkg-rem"
 		}
 	})
+	-- No collected errors
+	assert_table_equal({
+		["pkg-name"] = {
+			["postinst"] = "Fake failed postinst"
+		}
+	}, result)
 	local status_mod = utils.clone(test_status)
 	status_mod["pkg-name"] = {
 		Package = "pkg-name",
 		Conffiles = { c = "1234567890123456" },
+		Version = "1",
 		files = { f = true }
 	}
 	status_mod["pkg-rem"] = nil
@@ -162,16 +177,32 @@ function test_perform_ok()
 			}
 		},
 		{
-			f = "backend.pkg_merge_files",
-			p = {"pkg_dir/data", {d = true}, {f = true}, {c = "1234567890123456"}}
-		},
-		{
 			f = "backend.pkg_merge_control",
 			p = {"pkg_dir/control", "pkg-name", {f = true}}
 		},
 		{
+			f = "backend.script_run",
+			p = {"pkg-name", "preinst", "upgrade", "0"}
+		},
+		{
+			f = "backend.pkg_merge_files",
+			p = {"pkg_dir/data", {d = true}, {f = true}, {c = "1234567890123456"}}
+		},
+		{
+			f = "backend.script_run",
+			p = {"pkg-name", "postinst", "configure"}
+		},
+		{
+			f = "backend.script_run",
+			p = {"pkg-rem", "prerm", "remove"}
+		},
+		{
 			f = "backend.pkg_cleanup_files",
 			p = {{d2 = true}}
+		},
+		{
+			f = "backend.script_run",
+			p = {"pkg-rem", "postrm", "remove"}
 		}
 	}, outro({"pkg_dir"}, status_mod))
 	assert_table_equal(expected, mocks_called)
