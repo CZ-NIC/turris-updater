@@ -631,6 +631,29 @@ function test_merge_control()
 	assert_table_equal({["control"] = 'r'}, ls(src_dir))
 end
 
+function test_script_run()
+	B.info_dir = (os.getenv("S") or ".") .. "/tests/data/scripts"
+	-- This one doesn't exist. So the call succeeds.
+	local result, stderr = B.script_run("xyz", "preinst", "install")
+	assert(result)
+	assert_nil(stderr)
+	-- This one fails and outputs some of the data passed to it on stderr
+	result, stderr = B.script_run("xyz", "postinst", "install")
+	assert_false(result)
+	assert_equal([[
+install
+PKG_ROOT=
+]], stderr)
+	-- This one doesn't have executable permission, won't be run
+	result, stderr = B.script_run("xyz", "prerm", "remove")
+	assert(result)
+	assert_nil(stderr)
+	-- This one terminates successfully
+	result, stderr = B.script_run("xyz", "postrm", "remove")
+	assert(result)
+	assert_equal("test\n", stderr)
+end
+
 function setup()
 	local sdir = os.getenv("S") or "."
 	-- Use a shortened version of a real status file for tests
