@@ -76,11 +76,26 @@ int main(int argc, char *argv[]) {
 		}
 	enum cmd_op_type exit_type = op->type;
 	free(ops);
+	bool trans_ok = true;
 	if (transaction_run && exit_type == COT_EXIT) {
-		const char *err = interpreter_call(interpreter, "transaction.perform_queue", NULL, "");
+		size_t result_count;
+		const char *err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
 		ASSERT_MSG(!err, "%s", err);
+		if (result_count >= 2) {
+			char *msg;
+			ASSERT(interpreter_collect_results(interpreter, "-s", &msg) == -1);
+			ERROR("%s", msg);
+		}
+		if (result_count >= 1)
+			ASSERT(interpreter_collect_results(interpreter, "b", &trans_ok) == -1);
 	}
 	interpreter_destroy(interpreter);
 	events_destroy(events);
-	return exit_type == COT_EXIT ? 0 : 1;
+	if (exit_type == COT_EXIT) {
+		if (trans_ok)
+			return 0;
+		else
+			return 2;
+	} else
+		return 1;
 }

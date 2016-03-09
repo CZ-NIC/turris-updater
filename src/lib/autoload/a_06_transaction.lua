@@ -183,7 +183,18 @@ function perform_queue()
 	-- Ensure we reset the queue by running it. And also that we allow the garbage collector to collect the data in there.
 	local queue_cp = queue
 	queue = {}
-	return perform(queue_cp)
+	local errors = perform(queue_cp)
+	if next(errors) then
+		local output = "Failed operations:\n"
+		for pkgname, value in pairs(errors) do
+			for op, text in pairs(value) do
+				output = output .. pkgname .. "/" .. op .. ": " .. text .. "\n"
+			end
+		end
+		return false, output
+	else
+		return true
+	end
 end
 
 -- Queue a request to remove package with the given name.
