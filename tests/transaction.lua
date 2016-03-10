@@ -72,7 +72,7 @@ local function outro(cleanup_dirs, status)
 			p = {status}
 		},
 		{
-			f = "backend.pkg_status_dump",
+			f = "backend.status_dump",
 			p = {status}
 		}
 	}
@@ -100,7 +100,7 @@ local function mocks_install()
 	mock_gen("backend.pkg_cleanup_files")
 	mock_gen("backend.control_cleanup")
 	mock_gen("backend.pkg_merge_control")
-	mock_gen("backend.pkg_status_dump")
+	mock_gen("backend.status_dump")
 	mock_gen("backend.script_run", function (pkgname, suffix)
 		if suffix == "postinst" then
 			return false, "Fake failed postinst"

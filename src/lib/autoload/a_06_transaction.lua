@@ -168,7 +168,7 @@ function perform(operations)
 		error(err)
 	end
 	backend.control_cleanup(status)
-	backend.pkg_status_dump(status)
+	backend.status_dump(status)
 	-- TODO: Journal note, everything is written down
 	return errors_collected
 end
