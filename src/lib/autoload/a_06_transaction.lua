@@ -68,7 +68,7 @@ function perform(operations)
 	local function script(name, suffix, ...)
 		local ok, stderr = backend.script_run(name, suffix, ...)
 		if stderr and stderr:len() > 0 then
-			io.stderr:write("Output from " .. name .. "." .. "suffix:\n")
+			io.stderr:write("Output from " .. name .. "." .. suffix .. ":\n")
 			io.stderr:write(stderr)
 		end
 		if not ok then

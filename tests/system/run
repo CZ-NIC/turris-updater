@@ -33,8 +33,16 @@ trap 'rm -rf "$TMP_DIR"' SIGHUP SIGINT SIGQUIT SIGABRT SIGALRM SIGTERM SIGILL SI
 ROOT_DIR="$TMP_DIR"/root
 DEFINITION="$2"
 : ${O:=$(pwd)}
+: ${S:=$(pwd)}
+DATA_DIR="$S"/tests/data
 
+# Prepare the root directory for the run
 cp -ar "$DEFINITION"/input "$TMP_DIR"/root
-ls "$ROOT_DIR"
+# Launch it
 eval $LAUNCHER "$O"/bin/"$1" $(cat "$DEFINITION"/params)
-# TODO: Check output
+# Do we need to de-randomize the output somehow?
+if [ -f "$DEFINITION"/cleanup ] ; then
+	. "$DEFINITION"/cleanup
+fi
+# Check it did what it should have
+diff -u -r "$DEFINITION"/output "$ROOT_DIR"

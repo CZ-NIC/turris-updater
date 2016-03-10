@@ -1,6 +1,7 @@
 
 SYS_TESTS := \
-	help
+	help \
+	install
 
 .PHONY: test-sys valgrind-sys check
 
