@@ -51,6 +51,7 @@ define DO_LUA_TEST
 
 test: test-lua-$(1)
 valgrind: valgrind-lua-$(1)
+.PHONY: test-lua-$(1) valgrind-lua-$(1)
 
 test-lua-$(1): $(O)/bin/lulaunch $(S)/tests/$(1).lua
 	SUPPRESS_LOG=1 S=$(S) $(O)/bin/lulaunch $(S)/tests/$(1).lua
@@ -66,3 +67,4 @@ $(eval $(foreach TEST,$(LUA_TESTS),$(call DO_LUA_TEST,$(TEST))))
 check: test valgrind
 
 include $(S)/tests/lunit-launch/Makefile.dir
+include $(S)/tests/system/Makefile.dir
