@@ -45,6 +45,17 @@ static struct cmd_op complex_install_ops[] = {
 	{ .type = COT_INSTALL, .parameter = "pkg-5.ipk" },
 	{ .type = COT_EXIT }
 };
+static struct cmd_op root_ops[] = { { .type = COT_ROOT_DIR, .parameter = "/dir" }, { .type = COT_EXIT } };
+static struct cmd_op root_install_ops[] = {
+	{ .type = COT_ROOT_DIR, .parameter = "/dir" },
+	{ .type = COT_INSTALL, .parameter = "pkg.ipk" },
+	{ .type = COT_EXIT }
+};
+static struct cmd_op root_journal_ops[] = {
+	{ .type = COT_ROOT_DIR, .parameter = "/dir" },
+	{ .type = COT_JOURNAL_RESUME },
+	{ .type = COT_EXIT }
+};
 static char *no_args[] = { NULL };
 static char *invalid_flag[] = { "-X", NULL };
 static char *free_arg[] = { "argument", NULL };
@@ -64,6 +75,12 @@ static char *remove_pkg[] = { "-r", "package", NULL };
 static char *complex_install_remove[] = { "-r", "pkg-1", "-a", "pkg-2.ipk", "-r", "pkg-3", "-r", "pkg-4", "-a", "pkg-5.ipk", NULL };
 static char *install_no_param[] = { "-a", NULL };
 static char *remove_no_param[] = { "-r", NULL };
+static char *root_no_param[] = { "-R", NULL };
+static char *root_only[] = { "-R", "/dir", NULL };
+static char *root_no_reorder[] = { "-R", "/dir", "-a", "pkg.ipk", NULL };
+static char *root_reorder[] = { "-a", "pkg.ipk", "-R", "/dir", NULL };
+static char *root_journal_no_reorder[] = { "-R", "/dir", "-j", NULL };
+static char *root_journal_reorder[] = { "-j", "-R", "/dir", NULL };
 
 static struct arg_case cases[] = {
 	{
@@ -183,6 +200,55 @@ static struct arg_case cases[] = {
 		.name = "Remove without package param",
 		.args = remove_no_param,
 		.expected_ops = bad_args_ops
+	},
+	{
+		/*
+		 * Set root dir, but without telling whic one → error.
+		 */
+		.name = "Root dir without param",
+		.args = root_no_param,
+		.expected_ops = bad_args_ops
+	},
+	{
+		/*
+		 * Just ask for a changed root dir.
+		 */
+		.name = "Root dir set",
+		.args = root_only,
+		.expected_ops = root_ops
+	},
+	{
+		/*
+		 * Set the root directory and install a package.
+		 */
+		.name = "Root dir install",
+		.args = root_no_reorder,
+		.expected_ops = root_install_ops
+	},
+	{
+		/*
+		 * Same as above, but check that it reorders the instructions
+		 * so the setting happens first.
+		 */
+		.name = "Root dir install, reorder",
+		.args = root_reorder,
+		.expected_ops = root_install_ops
+	},
+	{
+		/*
+		 * The setting of root dir is compatible with an exclusive command.
+		 */
+		.name = "Root dir & journal",
+		.args = root_journal_no_reorder,
+		.expected_ops = root_journal_ops
+	},
+	{
+		/*
+		 * Reorder in case of an exclusive command.
+		 */
+		.name = "Root dir & journal, reorder",
+		.args = root_journal_reorder,
+		.expected_ops = root_journal_ops
 	}
 };
 

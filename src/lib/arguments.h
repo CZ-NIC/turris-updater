@@ -35,7 +35,9 @@ enum cmd_op_type {
 	// Install a package. A parameter is passed, with the path to the .ipk file.
 	COT_INSTALL,
 	// Remove a package from the system. A parameter is passed with the name of the package.
-	COT_REMOVE
+	COT_REMOVE,
+	// Set a root directory (the parameter is the directory to set to)
+	COT_ROOT_DIR
 };
 
 // A whole operation to be performed, with any needed parameter.
