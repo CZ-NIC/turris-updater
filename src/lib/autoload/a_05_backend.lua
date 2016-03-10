@@ -720,7 +720,7 @@ If the script doesn't exist, true is returned (and no stderr is provided).
 ]]
 function script_run(pkg_name, script_name, ...)
 	local fname = pkg_name .. "." .. script_name
-	local fname_full = info_dir:gsub('^./', getcwd() .. "/") .. "/" .. fname
+	local fname_full = info_dir:gsub('^../', getcwd() .. "/../"):gsub('^./', getcwd() .. "/") .. "/" .. fname
 	local ftype, perm = stat(fname_full)
 	if ftype == 'r' and perm:match("^r.[xs]") then
 		DBG("Running " .. script_name .. " of " .. pkg_name)
