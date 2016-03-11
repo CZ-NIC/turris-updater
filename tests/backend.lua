@@ -324,7 +324,7 @@ function test_pkg_unpack()
 /usr/share/updater/keys
 /usr/bin]]), dirs)
 	assert_table_equal({
-		["/etc/config/updater"] = "30843ef73412c8f6b4212c00724a1cc8"
+		["/etc/config/updater"] = "b5cf279732a87011eadfe522a0c163b98682bef2919afc4f96330f9f103a3230"
 	}, conffiles)
 	-- We want to take it out, the time changes every time
 	assert_not_nil(control["Installed-Time"])

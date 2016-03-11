@@ -37,6 +37,8 @@ local stat = stat
 local mkdir = mkdir
 local move = move
 local ls = ls
+local md5 = md5
+local sha256 = sha256
 local DBG = DBG
 local WARN = WARN
 local utils = require "utils"
@@ -441,12 +443,12 @@ function pkg_examine(dir)
 	local conffiles = {}
 	if cidx then
 		for l in cidx:lines() do
-			local fname = l:match("^%s*/(.*%S)%s*")
-			local function get_hash(text)
-				local hash = text:match("[0-9a-fA-F]+")
-				conffiles["/" .. fname] = hash
+			local fname = l:match("^%s*(/.*%S)%s*")
+			local content, err = utils.slurp(data_dir .. fname)
+			if not content then
+				error(err)
 			end
-			launch(get_hash, "/usr/bin/md5sum", fname)
+			conffiles[fname] = sha256(content)
 		end
 		cidx:close()
 	end
