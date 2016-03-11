@@ -714,4 +714,29 @@ function control_cleanup(status)
 	end
 end
 
+--[[
+Decide if the config file has been modified. The hash is of the original.
+It can handle original hash of md5 and sha1.
+
+Returns true or false if it was modified. If the file can't be read, nil
+is returned.
+]]
+function config_modified(file, hash)
+	local len = hash:len()
+	local hasher
+	if len == 32 then
+		hasher = md5
+	elseif len == 64 then
+		hasher = sha256
+	else
+		error("Can not determine hash algorithm to use for hash " .. hash)
+	end
+	local content = utils.slurp(file)
+	if content then
+		return hasher(content) ~= hash:lower()
+	else
+		return nil
+	end
+end
+
 return _M

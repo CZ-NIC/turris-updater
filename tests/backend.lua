@@ -631,6 +631,22 @@ function test_merge_control()
 	assert_table_equal({["control"] = 'r'}, ls(src_dir))
 end
 
+function test_config_modified()
+	-- Bad length of the hash, no matter what file:
+	assert_error(function() B.config_modified("/file/does/not/exist", "1234") end)
+	-- If a file doesn't exist, it returns nil
+	assert_nil(B.config_modified("/file/does/not/exist", "12345678901234567890123456789012"))
+	-- We test on a non-config file, but it the same.
+	local file = (os.getenv("S") or ".") .. "/tests/data/updater.ipk"
+	assert_false(B.config_modified(file, "182171ccacfc32a9f684479509ac471a"))
+	assert(B.config_modified(file, "282171ccacfc32a9f684479509ac471b"))
+	assert_false(B.config_modified(file, "4f54362b30f53ae6862b11ff34d22a8d4510ed2b3e757b1f285dbd1033666e55"))
+	assert(B.config_modified(file, "5f54362b30f53ae6862b11ff34d22a8d4510ed2b3e757b1f285dbd1033666e56"))
+	-- Case insensitive checks
+	assert_false(B.config_modified(file, "182171CCACFC32A9F684479509AC471A"))
+	assert_false(B.config_modified(file, "4F54362B30F53AE6862B11FF34D22A8D4510ED2B3E757B1F285DBD1033666E55"))
+end
+
 function setup()
 	local sdir = os.getenv("S") or "."
 	-- Use a shortened version of a real status file for tests
