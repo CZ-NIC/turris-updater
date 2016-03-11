@@ -557,8 +557,22 @@ function dir_ensure(dir)
 	end
 end
 
--- Merge the given package into the live system and remove the temporary file.
+--[[
+Merge the given package into the live system and remove the temporary directory.
+
+The confis parameter describes the previous version of the package, not
+the current one.
+]]
 function pkg_merge_files(dir, dirs, files, configs)
+	if stat(dir) == nil then
+		--[[
+		The directory is not there. This looks like the package has
+		already been merged into place (and we are resuming
+		from journal), so skip it completely.
+		]]
+		DBG("Skipping installation of temporary dir " .. dir .. ", no longer present")
+		return
+	end
 	--[[
 	First, create the needed directories. Sort them according to
 	their length, which ensures the parent directories are created
@@ -578,14 +592,18 @@ function pkg_merge_files(dir, dirs, files, configs)
 	Now move all the files in place.
 	]]
 	for f in pairs(files) do
-		-- TODO: Handle the configs
-		DBG("Installing file " .. f)
-		--[[
-		TODO: Handle the possibility of the file being already
-		moved to place, because the previous run has been
-		interrupted and we resumed from the journal.
-		]]
-		move(dir .. f, root_dir .. f)
+		if stat(dir .. f) == nil then
+			DBG("File " .. f .. " already installed")
+		else
+			DBG("Installing file " .. f)
+			local hash = configs[f]
+			local result = root_dir .. f
+			if hash and config_modified(result, hash) then
+				WARN("Config file " .. f .. " modified by the user. Backing into " .. f .. "-opkg")
+				result = result .. "-opkg"
+			end
+			move(dir .. f, result)
+		end
 	end
 	-- Remove the original directory
 	utils.cleanup_dirs({dir})

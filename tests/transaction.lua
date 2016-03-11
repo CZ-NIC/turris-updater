@@ -30,7 +30,10 @@ local test_status = {
 	},
 	["pkg-name"] = {
 		Package = "pkg-name",
-		Canary = true
+		Canary = true,
+		Conffiles = {
+			c = "12345678901234567890123456789012"
+		}
 	}
 }
 local intro = {
@@ -163,7 +166,7 @@ function test_perform_ok()
 		},
 		{
 			f = "backend.pkg_merge_files",
-			p = {"pkg_dir/data", {d = true}, {f = true}, {c = "1234567890123456"}}
+			p = {"pkg_dir/data", {d = true}, {f = true}, {c = "12345678901234567890123456789012"}}
 		},
 		{
 			f = "backend.pkg_merge_control",

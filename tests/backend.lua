@@ -352,7 +352,13 @@ function test_pkg_unpack()
 	]]
 	dirs["/usr/share/updater/hashes"] = nil
 	dirs["/etc/cron.d"] = nil
-	B.pkg_merge_files(path .. "/data", dirs, files, conffiles)
+	-- Prepare a config file that was modified by a user
+	mkdir(test_root .. "/etc")
+	mkdir(test_root .. "/etc/config")
+	io.open(test_root .. "/etc/config/updater", "w"):close()
+	B.pkg_merge_files(path .. "/data", dirs, files, {
+		["/etc/config/updater"] = "12345678901234567890123456789012"
+	})
 	-- The original directory disappeared.
 	assert_table_equal({
 		["control"] = "d"
@@ -365,6 +371,7 @@ function test_pkg_unpack()
 ./etc
 ./etc/config
 ./etc/config/updater
+./etc/config/updater-opkg
 ./etc/init.d
 ./etc/init.d/updater
 ./etc/ssl
@@ -384,6 +391,8 @@ function test_pkg_unpack()
 ./usr/share/updater/keys/standby.pem
 ]]), lines2set(stdout))
 	end, function () chdir(test_root) end, nil, -1, -1, "/usr/bin/find"))
+	-- Delete the backed-up file, it is not tracked
+	os.remove(test_root .. "/etc/config/updater-opkg")
 	-- Now try clearing the package. When we list all the files, it should remove the directories as well.
 	B.pkg_cleanup_files(files)
 	assert_table_equal({}, ls(test_root))

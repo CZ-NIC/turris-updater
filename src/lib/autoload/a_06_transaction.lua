@@ -82,12 +82,14 @@ function perform(operations)
 				local files, dirs, configs, control = backend.pkg_examine(pkg_dir)
 				to_remove[control.Package] = true
 				to_install[control.Package] = files
+				local old = status[control.Package] or {}
 				table.insert(plan, {
 					op = "install",
 					dir = pkg_dir,
 					files = files,
 					dirs = dirs,
 					configs = configs,
+					old_configs = old.Conffiles or {},
 					control = control
 				})
 			else
@@ -108,7 +110,7 @@ function perform(operations)
 		for _, op in ipairs(plan) do
 			if op.op == "install" then
 				-- TODO: pre-install scripts (who would use such thing anyway?)
-				backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.configs)
+				backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.old_configs)
 			end
 			-- Ignore others, at least for now.
 		end
