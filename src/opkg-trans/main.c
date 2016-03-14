@@ -36,6 +36,9 @@ static const char *help =
 "				file. The ones to remove (-r) expect name of the\n"
 "				package.\n"
 "opkg-trans -R /root/dir	Use given path as a root directory\n"
+"opkg-trans -s syslog-level	What level of messages to send to syslog\n"
+"opkg-trans -S syslog-name	And under which name\n"
+"opkg-trans -e stderr-level	What level of messages to send to stderr\n"
 "opkg-trans -h			This help message.\n";
 
 int main(int argc, char *argv[]) {
@@ -75,6 +78,22 @@ int main(int argc, char *argv[]) {
 			case COT_ROOT_DIR: {
 				const char *err = interpreter_call(interpreter, "backend.root_dir_set", NULL, "s", op->parameter);
 				ASSERT_MSG(!err, "%s", err);
+				break;
+			}
+			case COT_SYSLOG_LEVEL: {
+				enum log_level level = log_level_get(op->parameter);
+				ASSERT_MSG(level != LL_UNKNOWN, "Unknown log level %s", op->parameter);
+				log_syslog_level(level);
+				break;
+			}
+			case COT_SYSLOG_NAME: {
+				log_syslog_name(op->parameter);
+				break;
+			}
+			case COT_STDERR_LEVEL: {
+				enum log_level level = log_level_get(op->parameter);
+				ASSERT_MSG(level != LL_UNKNOWN, "Unknown log level %s", op->parameter);
+				log_stderr_level(level);
 				break;
 			}
 			default:

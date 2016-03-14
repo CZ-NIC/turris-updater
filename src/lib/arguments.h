@@ -37,7 +37,13 @@ enum cmd_op_type {
 	// Remove a package from the system. A parameter is passed with the name of the package.
 	COT_REMOVE,
 	// Set a root directory (the parameter is the directory to set to)
-	COT_ROOT_DIR
+	COT_ROOT_DIR,
+	// Syslog level
+	COT_SYSLOG_LEVEL,
+	// Stderr log level
+	COT_STDERR_LEVEL,
+	// Name of the syslog
+	COT_SYSLOG_NAME
 };
 
 // A whole operation to be performed, with any needed parameter.

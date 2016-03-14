@@ -47,7 +47,7 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[]) {
 	struct cmd_op *result = NULL;
 	bool exclusive_cmd = false;
 	int c;
-	while ((c = getopt(argc, argv, "hbja:r:R:")) != -1) {
+	while ((c = getopt(argc, argv, "hbja:r:R:s:e:S:")) != -1) {
 		switch (c) {
 			case 'h':
 				exclusive_cmd = true;
@@ -73,6 +73,18 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[]) {
 				ASSERT(optarg);
 				result_extend(&res_count, &result, COT_ROOT_DIR, optarg);
 				break;
+			case 's':
+				ASSERT(optarg);
+				result_extend(&res_count, &result, COT_SYSLOG_LEVEL, optarg);
+				break;
+			case 'S':
+				ASSERT(optarg);
+				result_extend(&res_count, &result, COT_SYSLOG_NAME, optarg);
+				break;
+			case 'e':
+				ASSERT(optarg);
+				result_extend(&res_count, &result, COT_STDERR_LEVEL, optarg);
+				break;
 			default:
 				return provide_help(result);
 		}
@@ -88,7 +100,8 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[]) {
 	// Move settings options to the front
 	size_t set_pos = 0;
 	for (size_t i = 0; i < res_count; i ++) {
-		if (result[i].type == COT_ROOT_DIR) {
+		enum cmd_op_type tp = result[i].type;
+		if (tp == COT_ROOT_DIR || tp == COT_SYSLOG_LEVEL || tp == COT_SYSLOG_NAME || tp == COT_STDERR_LEVEL) {
 			struct cmd_op tmp = result[i];
 			for (size_t j = i; j > set_pos; j --)
 				result[j] = result[j - 1];
