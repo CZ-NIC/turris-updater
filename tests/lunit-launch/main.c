@@ -45,7 +45,9 @@ void require(struct interpreter *interpreter, const char *name) {
 int main(int argc __attribute__((unused)), char *argv[]) {
 	const char *suppress_log = getenv("SUPPRESS_LOG");
 	if (suppress_log && strcmp("1", suppress_log) == 0)
-		updater_logging_enabled = false;
+		log_stderr_level(LL_DIE);
+	else
+		log_stderr_level(LL_UNKNOWN);
 	// Get the interpreter
 	struct events *events = events_new();
 	struct interpreter *interpreter = interpreter_create(events);

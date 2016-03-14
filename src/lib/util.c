@@ -22,31 +22,61 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
-
-bool updater_logging_enabled = true;
+#include <syslog.h>
 
 struct level_info {
 	const char *prefix;
 	const char *name;
+	int syslog_prio;
 };
 
 static const struct level_info levels[] = {
-	[LL_DIE] = { "\x1b[31;1mDIE\x1b[0m", "DIE" },
-	[LL_ERROR] = { "\x1b[31mERROR\x1b[0m", "ERROR" },
-	[LL_WARN] = { "\x1b[35mWARN\x1b[0m", "WARN" },
-	[LL_DBG] = { "DEBUG", "DBG" },
-	[LL_UNKNOWN] = { "????", "UNKNOWN" }
+	[LL_DISABLE] = { "!!!!", "DISABLE", LOG_CRIT }, // This shouldn't actually appear
+	[LL_DIE] = { "\x1b[31;1mDIE\x1b[0m", "DIE", LOG_CRIT },
+	[LL_ERROR] = { "\x1b[31mERROR\x1b[0m", "ERROR", LOG_ERR },
+	[LL_WARN] = { "\x1b[35mWARN\x1b[0m", "WARN", LOG_WARNING },
+	[LL_DBG] = { "DEBUG", "DBG", LOG_DEBUG },
+	[LL_UNKNOWN] = { "????", "UNKNOWN", LOG_WARNING }
 };
 
+static enum log_level syslog_level = LL_DISABLE;
+static enum log_level stderr_level = LL_WARN;
+static bool syslog_opened = false;
+
 void log_internal(enum log_level level, const char *file, size_t line, const char *func, const char *format, ...) {
-	if (!updater_logging_enabled)
+	bool do_syslog = (level <= syslog_level);
+	bool do_stderr = (level <= stderr_level);
+	if (!do_syslog && !do_stderr)
 		return;
-	fprintf(stderr, "%s:%s:%zu (%s):\t", levels[level].prefix, file, line, func);
 	va_list args;
 	va_start(args, format);
-	vfprintf(stderr, format, args);
+	size_t msg_size = vsnprintf(NULL, 0, format, args) + 1;
 	va_end(args);
-	fputc('\n', stderr);
+	char *msg = alloca(msg_size);
+	va_start(args, format);
+	vsprintf(msg, format, args);
+	va_end(args);
+	if (do_syslog) {
+		if (!syslog_opened)
+			log_syslog_name("updater");
+		syslog(LOG_MAKEPRI(LOG_DAEMON, levels[level].syslog_prio), "%s:%zu (%s): %s", file, line, func, msg);
+	}
+	if (do_stderr)
+		fprintf(stderr, "%s:%s:%zu (%s):%s\n", levels[level].prefix, file, line, func, msg);
+}
+
+void log_syslog_level(enum log_level level) {
+	syslog_level = level;
+}
+
+void log_stderr_level(enum log_level level) {
+	stderr_level = level;
+}
+
+void log_syslog_name(const char *name) {
+	ASSERT(!syslog_opened);
+	openlog(name, LOG_CONS | LOG_PID, LOG_DAEMON);
+	syslog_opened = true;
 }
 
 enum log_level log_level_get(const char *level) {

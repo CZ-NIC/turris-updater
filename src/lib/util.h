@@ -25,6 +25,7 @@
 #include <alloca.h>
 
 enum log_level {
+	LL_DISABLE,
 	LL_DIE,
 	LL_ERROR,
 	LL_WARN,
@@ -44,7 +45,9 @@ void log_internal(enum log_level level, const char *file, size_t line, const cha
 
 enum log_level log_level_get(const char *str) __attribute__((nonnull));
 
-extern bool updater_logging_enabled;
+void log_syslog_level(enum log_level level);
+void log_syslog_name(const char *name);
+void log_stderr_level(enum log_level level);
 
 // Compute the size needed (including \0) to format given message
 size_t printf_len(const char *msg, ...) __attribute__((format(printf, 1, 2)));
