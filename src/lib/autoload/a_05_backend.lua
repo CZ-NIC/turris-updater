@@ -668,41 +668,46 @@ end
 Remove files provided as a set and any directories which became
 empty by doing so (recursively).
 ]]
-function pkg_cleanup_files(files)
+function pkg_cleanup_files(files, rm_configs)
 	for f in pairs(files) do
 		-- Make sure there are no // in there, which would confuse the directory cleaning code
 		f = f:gsub("/+", "/")
-		path = root_dir .. f
-		DBG("Removing file " .. path)
-		local ok, err = pcall(function () os.remove(path) end)
-		-- If it failed because the file didn't exist, that's OK. Mostly.
-		if not ok then
-			local tp = stat(path)
-			if tp then
-				error(err)
-			else
-				WARN("Not removing " .. path .. " since it is not there")
+		local path = root_dir .. f
+		local hash = rm_configs[f]
+		if hash and config_modified(path, hash) then
+			DBG("Not removing config " .. f .. ", as it has been modified")
+		else
+			DBG("Removing file " .. path)
+			local ok, err = pcall(function () os.remove(path) end)
+			-- If it failed because the file didn't exist, that's OK. Mostly.
+			if not ok then
+				local tp = stat(path)
+				if tp then
+					error(err)
+				else
+					WARN("Not removing " .. path .. " since it is not there")
+				end
 			end
-		end
-		-- Now, go through the levels of f, looking if they may be removed
-		-- Iterator for the chunking of the path
-		function get_parent()
-			local parent = f:match("^(.+)/[^/]+")
-			f = parent
-			return f
-		end
-		for parent in get_parent do
-			if next(ls(root_dir .. parent)) then
-				DBG("Directory " .. root_dir .. parent .. " not empty, keeping in place")
-				-- It is not empty
-				break
-			else
-				DBG("Removing empty directory " .. root_dir .. parent)
-				local ok, err = pcall(function () os.remove(root_dir .. parent) end)
-				if not ok then
-					-- It is an error, but we don't want to give up on the rest of the operation because of that
-					ERROR("Failed to removed empty " .. parent .. ", ignoring")
+			-- Now, go through the levels of f, looking if they may be removed
+			-- Iterator for the chunking of the path
+			function get_parent()
+				local parent = f:match("^(.+)/[^/]+")
+				f = parent
+				return f
+			end
+			for parent in get_parent do
+				if next(ls(root_dir .. parent)) then
+					DBG("Directory " .. root_dir .. parent .. " not empty, keeping in place")
+					-- It is not empty
 					break
+				else
+					DBG("Removing empty directory " .. root_dir .. parent)
+					local ok, err = pcall(function () os.remove(root_dir .. parent) end)
+					if not ok then
+						-- It is an error, but we don't want to give up on the rest of the operation because of that
+						ERROR("Failed to removed empty " .. parent .. ", ignoring")
+						break
+					end
 				end
 			end
 		end

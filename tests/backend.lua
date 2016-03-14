@@ -394,8 +394,25 @@ function test_pkg_unpack()
 	-- Delete the backed-up file, it is not tracked
 	os.remove(test_root .. "/etc/config/updater-opkg")
 	-- Now try clearing the package. When we list all the files, it should remove the directories as well.
-	B.pkg_cleanup_files(files)
+	B.pkg_cleanup_files(files, {})
 	assert_table_equal({}, ls(test_root))
+end
+
+function test_cleanup_files_config()
+	local test_root = mkdtemp()
+	table.insert(tmp_dirs, test_root)
+	-- Create an empty testing file
+	local fname = test_root .. "/config"
+	io.open(fname, "w"):close()
+	B.root_dir = test_root
+	-- First try with a non-matching hash ‒ the file has been modified
+	B.pkg_cleanup_files({["/config"] = true}, {["/config"] = "12345678901234567890123456789012"})
+	-- It is left there
+	assert_equal("r", stat(fname))
+	-- But when it matches, it is removed
+	B.pkg_cleanup_files({["/config"] = true}, {["/config"] = "d41d8cd98f00b204e9800998ecf8427e"})
+	-- The file disappeared
+	assert_nil(stat(fname))
 end
 
 -- Test the collision_check function

@@ -26,7 +26,10 @@ module("transaction-tests", package.seeall, lunit.testcase)
 
 local test_status = {
 	["pkg-rem"] = {
-		Package = "pkg-rem"
+		Package = "pkg-rem",
+		Conffiles = {
+			remconf = "12345678901234567890123456789012"
+		}
 	},
 	["pkg-name"] = {
 		Package = "pkg-name",
@@ -118,7 +121,7 @@ function test_perform_empty()
 		},
 		{
 			f = "backend.pkg_cleanup_files",
-			p = {{}}
+			p = {{}, {}}
 		}
 	}, outro({}, test_status))
 	assert_table_equal(expected, mocks_called)
@@ -174,7 +177,7 @@ function test_perform_ok()
 		},
 		{
 			f = "backend.pkg_cleanup_files",
-			p = {{d2 = true}}
+			p = {{d2 = true}, {c = "12345678901234567890123456789012", remconf = "12345678901234567890123456789012"}}
 		}
 	}, outro({"pkg_dir"}, status_mod))
 	assert_table_equal(expected, mocks_called)

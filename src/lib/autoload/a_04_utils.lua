@@ -108,4 +108,11 @@ function clone(data)
 	end
 end
 
+-- Add all elements of src to dest
+function table_merge(dest, src)
+	for k, v in pairs(src) do
+		dest[k] = v
+	end
+end
+
 return _M

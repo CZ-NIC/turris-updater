@@ -29,6 +29,7 @@ local ipairs = ipairs
 local next = next
 local error = error
 local pcall = pcall
+local pairs = pairs
 local table = table
 local backend = require "backend"
 local utils = require "utils"
@@ -105,10 +106,13 @@ function perform(operations)
 			-- TODO: Format the error message about collisions
 			error("Collisions happened")
 		end
+		local all_configs = {}
 		-- TODO: Journal note, we're going to proceed now.
 		-- Go through the list once more and perform the prepared operations
 		for _, op in ipairs(plan) do
 			if op.op == "install" then
+				-- We may want to remove one of the old configs on upgrade. Store the hash to check modification
+				utils.table_merge(all_configs, op.old_configs)
 				-- TODO: pre-install scripts (who would use such thing anyway?)
 				backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.old_configs)
 			end
@@ -121,12 +125,13 @@ function perform(operations)
 				status[op.control.Package] = op.control
 				-- TODO: Postinst script
 			elseif op.op == "remove" then
+				utils.table_merge(all_configs, status[op.name].Conffiles or {})
 				status[op.name] = nil
 				-- TODO: Pre-rm script, but only if not re-installed
 			end
 		end
 		-- Clean up the files from removed or upgraded packages
-		backend.pkg_cleanup_files(removes)
+		backend.pkg_cleanup_files(removes, all_configs)
 		-- TODO: post-rm scripts, for the removed (not re-installed) packages
 		-- TODO: Think about when to clean up any leftover files if something goes wrong? On success? On transaction rollback as well?
 	end)
