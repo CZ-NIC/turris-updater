@@ -81,7 +81,7 @@ void log_syslog_name(const char *name) {
 
 enum log_level log_level_get(const char *level) {
 	for (size_t i = 0; i < sizeof levels / sizeof *levels; i ++) {
-		if (strcmp(level, levels[i].name) == 0)
+		if (strcasecmp(level, levels[i].name) == 0)
 			return i;
 	}
 	return LL_UNKNOWN;
