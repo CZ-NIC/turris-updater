@@ -141,6 +141,9 @@ fi
 
 mkdir -p "$TMP_DIR"
 
+# Make sure we have a key - now we have network and are sure that we will run
+get-api-crl
+
 echo 'get list' >"$STATE_FILE"
 get_list_pack base core $(uci get updater.pkglists.lists) definitions
 get_list base list
