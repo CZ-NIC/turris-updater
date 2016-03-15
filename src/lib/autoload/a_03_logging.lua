@@ -18,7 +18,7 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
 -- Generate appropriate logging functions
-for _, name in ipairs({ 'ERROR', 'WARN', 'DBG' }) do
+for _, name in ipairs({ 'ERROR', 'WARN', 'INFO', 'DBG' }) do
 	_G[name] = function(...)
 		log(name, ...)
 	end

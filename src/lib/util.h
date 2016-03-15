@@ -29,6 +29,7 @@ enum log_level {
 	LL_DIE,
 	LL_ERROR,
 	LL_WARN,
+	LL_INFO,
 	LL_DBG,
 	LL_UNKNOWN
 };
@@ -38,6 +39,7 @@ void log_internal(enum log_level level, const char *file, size_t line, const cha
 #define LOG(level, ...) log_internal(level, __FILE__, __LINE__, __func__, __VA_ARGS__)
 #define ERROR(...) LOG(LL_ERROR, __VA_ARGS__)
 #define WARN(...) LOG(LL_WARN, __VA_ARGS__)
+#define INFO(...) LOG(LL_INFO, __VA_ARGS__)
 #define DBG(...) LOG(LL_DBG, __VA_ARGS__)
 #define DIE(...) do { LOG(LL_DIE, __VA_ARGS__); abort(); } while (0)
 #define ASSERT_MSG(COND, ...) do { if (!(COND)) DIE(__VA_ARGS__); } while (0)
