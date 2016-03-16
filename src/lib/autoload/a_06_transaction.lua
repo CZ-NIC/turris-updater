@@ -29,10 +29,12 @@ local ipairs = ipairs
 local next = next
 local error = error
 local pcall = pcall
+local unpack = unpack
 local io = io
 local table = table
 local backend = require "backend"
 local utils = require "utils"
+local journal = require "journal"
 
 module "transaction"
 
@@ -141,6 +143,26 @@ local function pkg_cleanup(status)
 end
 
 --[[
+Run one step of a transaction. Mark it in the journal once it is done.
+
+- journal_type: One of the constants from journal module. This is the type
+  of record written into the journal.
+- fun: The function performing the actual step.
+- sync: If true, the file system is synced before marking the journal.
+- ...: Parameters for the function.
+
+All the results from the step are stored in the journal and also returned.
+]]
+local function step(journal_type, fun, sync, ...)
+	local results = {fun(...)}
+	if flush then
+		-- TODO: sync the filesystem
+	end
+	journal.write(journal_type, unpack(results))
+	return unpack(results)
+end
+
+--[[
 Perform a list of operations in a single transaction. Each operation
 is a single table, with these keys:
 
@@ -160,11 +182,10 @@ continue.
 Also, the behaviour of the scripts (the order in which they are called and their
 parameters) is modeled based on opkg, not on dpkg.
 
-TODO: Do all the journal stuff
-
 An error may be thrown if anything goes wrong.
 ]]
 function perform(operations)
+	journal.fresh()
 	local dir_cleanups = {}
 	local status = backend.status_parse()
 	local errors_collected = {}
@@ -177,24 +198,37 @@ function perform(operations)
 			backend.dir_ensure(created)
 		end
 		-- Look at what the current status looks like.
-		local to_remove, to_install, plan, new_dir_cleanups = pkg_unpack(operations)
+		local to_remove, to_install, plan, new_dir_cleanups = step(journal.UNPACKED, pkg_unpack, true, operations)
 		dir_cleanups = new_dir_cleanups
 		-- Drop the operations. This way, if we are tail-called, then the package buffers may be garbage-collected
 		operations = nil
 		-- Check for collisions
-		local removes = pkg_collision_check(status, to_remove, to_install)
-		status, errors_collected = pkg_move(status, plan, errors_collected)
-		status, errors_collected = pkg_scripts(status, plan, removes, to_install, errors_collected)
-		-- TODO: Think about when to clean up any leftover files if something goes wrong? On success? On transaction rollback as well?
+		local removes = step(journal.CHECKED, pkg_collision_check, false, status, to_remove, to_install)
+		status, errors_collected = step(journal.MOVED, pkg_move, true, status, plan, errors_collected)
+		status, errors_collected = step(journal.SCRIPTS, pkg_scripts, true, status, plan, removes, to_install, errors_collected)
 	end)
 	-- Make sure the temporary dirs are removed even if it fails. This will probably be slightly different with working journal.
 	utils.cleanup_dirs(dir_cleanups)
-	-- TODO: Journal note, everything is cleaned up
 	if not ok then
+		--[[
+		FIXME: If there's an exception, we currently leave the system as it was and
+		abort the transaction. This is surely sub-optimal (since the system may be
+		left in inconsistent state), but leaving the journal and data there doesn't
+		seem like a good option either, as it would likely trigger an infinite loop
+		of journal recovers.
+
+		Any better idea what to do here?
+
+		For now, we simply hope there are no bugs and the only exceptions raised
+		are from pre-installation collision checks, and we want to abort in that
+		situation.
+		]]
+		journal.finish()
 		error(err)
 	end
-	pkg_cleanup(status)
-	-- TODO: Journal note, everything is written down
+	step(journal.CLEANED, pkg_cleanup, true, status)
+	-- All done. Mark journal as done.
+	journal.finish()
 	return errors_collected
 end
 
