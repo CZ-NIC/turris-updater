@@ -142,50 +142,28 @@ local function pkg_cleanup(status)
 	backend.pkg_status_dump(status)
 end
 
---[[
-Run one step of a transaction. Mark it in the journal once it is done.
+-- The internal part of perform, re-run on journal recover
+local function perform_internal(operations, journal_status)
+	--[[
+	Run one step of a transaction. Mark it in the journal once it is done.
 
-- journal_type: One of the constants from journal module. This is the type
-  of record written into the journal.
-- fun: The function performing the actual step.
-- sync: If true, the file system is synced before marking the journal.
-- ...: Parameters for the function.
+	- journal_type: One of the constants from journal module. This is the type
+	  of record written into the journal.
+	- fun: The function performing the actual step.
+	- sync: If true, the file system is synced before marking the journal.
+	- ...: Parameters for the function.
 
-All the results from the step are stored in the journal and also returned.
-]]
-local function step(journal_type, fun, sync, ...)
-	local results = {fun(...)}
-	if flush then
-		sync()
+	All the results from the step are stored in the journal and also returned.
+	]]
+	local function step(journal_type, fun, sync, ...)
+		local results = {fun(...)}
+		if flush then
+			sync()
+		end
+		journal.write(journal_type, unpack(results))
+		return unpack(results)
 	end
-	journal.write(journal_type, unpack(results))
-	return unpack(results)
-end
 
---[[
-Perform a list of operations in a single transaction. Each operation
-is a single table, with these keys:
-
-• op: The operation to perform. It is one of:
-  - install
-  - remove
-• name: Name of the package, needed for remove.
-• data: Buffer containing the necessary data. It is needed in the case
-  of install, when it contains the ipk package.
-
-Note that the transaction is not stopped by errors from the maintainer scripts,
-the errors are just stored for later and passed as a result (table indexed by
-package names, each value indexed by the name of the script). This is because once
-we start merging files to the system, it's more dangerous to stop than to
-continue.
-
-Also, the behaviour of the scripts (the order in which they are called and their
-parameters) is modeled based on opkg, not on dpkg.
-
-An error may be thrown if anything goes wrong.
-]]
-function perform(operations)
-	journal.fresh()
 	local dir_cleanups = {}
 	local status = backend.status_parse()
 	local errors_collected = {}
@@ -230,6 +208,33 @@ function perform(operations)
 	-- All done. Mark journal as done.
 	journal.finish()
 	return errors_collected
+end
+
+--[[
+Perform a list of operations in a single transaction. Each operation
+is a single table, with these keys:
+
+• op: The operation to perform. It is one of:
+  - install
+  - remove
+• name: Name of the package, needed for remove.
+• data: Buffer containing the necessary data. It is needed in the case
+  of install, when it contains the ipk package.
+
+Note that the transaction is not stopped by errors from the maintainer scripts,
+the errors are just stored for later and passed as a result (table indexed by
+package names, each value indexed by the name of the script). This is because once
+we start merging files to the system, it's more dangerous to stop than to
+continue.
+
+Also, the behaviour of the scripts (the order in which they are called and their
+parameters) is modeled based on opkg, not on dpkg.
+
+An error may be thrown if anything goes wrong.
+]]
+function perform(operations)
+	journal.fresh()
+	return perform_internal(operations, {})
 end
 
 -- Queue of planned operations
