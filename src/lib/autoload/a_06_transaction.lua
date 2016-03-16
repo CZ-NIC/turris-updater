@@ -36,6 +36,110 @@ local utils = require "utils"
 
 module "transaction"
 
+-- Wrap the call to the maintainer script, and store any possible errors for later use
+local function script(errors_collected, name, suffix, ...)
+	local ok, stderr = backend.script_run(name, suffix, ...)
+	if stderr and stderr:len() > 0 then
+		io.stderr:write("Output from " .. name .. "." .. "suffix:\n")
+		io.stderr:write(stderr)
+	end
+	if not ok then
+		errors_collected[name] = errors_collected[name] or {}
+		errors_collected[name][suffix] = stderr
+	end
+end
+
+-- Stages of the transaction. Each one is written into the journal, with its results.
+local function pkg_unpack(operations)
+	local dir_cleanups = {}
+	--[[
+	Set of packages from the current system we want to remove.
+	This contains the ones we want to install too, since the original would
+	disappear.
+	]]
+	local to_remove = {}
+	-- Table of package name → set of files
+	local to_install = {}
+	-- Plan of the operations we have prepared, similar to operations, but with different things in them
+	local plan = {}
+	for _, op in ipairs(operations) do
+		if op.op == "remove" then
+			to_remove[op.name] = true
+			table.insert(plan, op)
+		elseif op.op == "install" then
+			local pkg_dir = backend.pkg_unpack(op.data, backend.pkg_temp_dir)
+			table.insert(dir_cleanups, pkg_dir)
+			local files, dirs, configs, control = backend.pkg_examine(pkg_dir)
+			to_remove[control.Package] = true
+			to_install[control.Package] = files
+			table.insert(plan, {
+				op = "install",
+				dir = pkg_dir,
+				files = files,
+				dirs = dirs,
+				configs = configs,
+				control = control
+			})
+		else
+			error("Unknown operation " .. op.op)
+		end
+	end
+	return to_remove, to_install, plan, dir_cleanups
+end
+
+local function pkg_collision_check(status, to_remove, to_install)
+	local collisions, removes = backend.collision_check(status, to_remove, to_install)
+	if next(collisions) then
+		-- TODO: Format the error message about collisions
+		error("Collisions happened")
+	end
+	return removes
+end
+
+local function pkg_move(status, plan, errors_collected)
+	-- Go through the list once more and perform the prepared operations
+	for _, op in ipairs(plan) do
+		if op.op == "install" then
+			-- Unfortunately, we need to merge the control files first, otherwise the maintainer scripts won't run. They expect to live in the info dir when they are run. And we need to run the preinst script before merging the files.
+			backend.pkg_merge_control(op.dir .. "/control", op.control.Package, op.control.files)
+			if status[op.control.Package] then
+				-- There's a previous version. So this is an upgrade.
+				script(errors_collected, op.control.Package, "preinst", "upgrade", status[op.control.Package].Version)
+			else
+				script(errors_collected, op.control.Package, "preinst", "install", op.control.Version)
+			end
+			backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.configs)
+			status[op.control.Package] = op.control
+		end
+		-- Ignore others, at least for now.
+	end
+	return status, errors_collected
+end
+
+local function pkg_scripts(status, plan, removes, to_install, errors_collected)
+	for _, op in ipairs(plan) do
+		if op.op == "install" then
+			script(errors_collected, op.control.Package, "postinst", "configure")
+		elseif op.op == "remove" and not to_install[op.name] then
+			status[op.name] = nil
+			script(errors_collected, op.name, "prerm", "remove")
+		end
+	end
+	-- Clean up the files from removed or upgraded packages
+	backend.pkg_cleanup_files(removes)
+	for _, op in ipairs(plan) do
+		if op.op == "remove" and not to_install[op.name] then
+			script(errors_collected, op.name, "postrm", "remove")
+		end
+	end
+	return status, errors_collected
+end
+
+local function pkg_cleanup(status)
+	backend.control_cleanup(status)
+	backend.pkg_status_dump(status)
+end
+
 --[[
 Perform a list of operations in a single transaction. Each operation
 is a single table, with these keys:
@@ -64,18 +168,6 @@ function perform(operations)
 	local dir_cleanups = {}
 	local status = backend.status_parse()
 	local errors_collected = {}
-	-- Wrap the call to the maintainer script, and store any possible errors for later use
-	local function script(name, suffix, ...)
-		local ok, stderr = backend.script_run(name, suffix, ...)
-		if stderr and stderr:len() > 0 then
-			io.stderr:write("Output from " .. name .. "." .. "suffix:\n")
-			io.stderr:write(stderr)
-		end
-		if not ok then
-			errors_collected[name] = errors_collected[name] or {}
-			errors_collected[name][suffix] = stderr
-		end
-	end
 	-- Emulate try-finally
 	local ok, err = pcall(function ()
 		-- Make sure the temporary directory for unpacked packages exist
@@ -85,80 +177,14 @@ function perform(operations)
 			backend.dir_ensure(created)
 		end
 		-- Look at what the current status looks like.
-		--[[
-		Set of packages from the current system we want to remove.
-		This contains the ones we want to install too, since the original would
-		disappear.
-		]]
-		local to_remove = {}
-		-- Table of package name → set of files
-		local to_install = {}
-		-- Plan of the operations we have prepared, similar to operations, but with different things in them
-		local plan = {}
-		for _, op in ipairs(operations) do
-			if op.op == "remove" then
-				to_remove[op.name] = true
-				table.insert(plan, op)
-			elseif op.op == "install" then
-				local pkg_dir = backend.pkg_unpack(op.data, backend.pkg_temp_dir)
-				table.insert(dir_cleanups, pkg_dir)
-				local files, dirs, configs, control = backend.pkg_examine(pkg_dir)
-				to_remove[control.Package] = true
-				to_install[control.Package] = files
-				table.insert(plan, {
-					op = "install",
-					dir = pkg_dir,
-					files = files,
-					dirs = dirs,
-					configs = configs,
-					control = control
-				})
-			else
-				error("Unknown operation " .. op.op)
-			end
-		end
+		local to_remove, to_install, plan, new_dir_cleanups = pkg_unpack(operations)
+		dir_cleanups = new_dir_cleanups
 		-- Drop the operations. This way, if we are tail-called, then the package buffers may be garbage-collected
 		operations = nil
-		-- TODO: Journal note, we unpacked everything
 		-- Check for collisions
-		local collisions, removes = backend.collision_check(status, to_remove, to_install)
-		if next(collisions) then
-			-- TODO: Format the error message about collisions
-			error("Collisions happened")
-		end
-		-- TODO: Journal note, we're going to proceed now.
-		-- Go through the list once more and perform the prepared operations
-		for _, op in ipairs(plan) do
-			if op.op == "install" then
-				-- Unfortunately, we need to merge the control files first, otherwise the maintainer scripts won't run. They expect to live in the info dir when they are run. And we need to run the preinst script before merging the files.
-				backend.pkg_merge_control(op.dir .. "/control", op.control.Package, op.control.files)
-				if status[op.control.Package] then
-					-- There's a previous version. So this is an upgrade.
-					script(op.control.Package, "preinst", "upgrade", status[op.control.Package].Version)
-				else
-					script(op.control.Package, "preinst", "install", op.control.Version)
-				end
-				backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.configs)
-				status[op.control.Package] = op.control
-			end
-			-- Ignore others, at least for now.
-		end
-		-- TODO: Journal note, we have everything in place.
-		for _, op in ipairs(plan) do
-			if op.op == "install" then
-				script(op.control.Package, "postinst", "configure")
-			elseif op.op == "remove" and not to_install[op.name] then
-				status[op.name] = nil
-				script(op.name, "prerm", "remove")
-			end
-		end
-		-- Clean up the files from removed or upgraded packages
-		backend.pkg_cleanup_files(removes)
-		for _, op in ipairs(plan) do
-			if op.op == "remove" and not to_install[op.name] then
-				script(op.name, "postrm", "remove")
-			end
-		end
+		local removes = pkg_collision_check(status, to_remove, to_install)
+		status, errors_collected = pkg_move(status, plan, errors_collected)
+		status, errors_collected = pkg_scripts(status, plan, removes, to_install, errors_collected)
 		-- TODO: Think about when to clean up any leftover files if something goes wrong? On success? On transaction rollback as well?
 	end)
 	-- Make sure the temporary dirs are removed even if it fails. This will probably be slightly different with working journal.
@@ -167,8 +193,7 @@ function perform(operations)
 	if not ok then
 		error(err)
 	end
-	backend.control_cleanup(status)
-	backend.pkg_status_dump(status)
+	pkg_cleanup(status)
 	-- TODO: Journal note, everything is written down
 	return errors_collected
 end
