@@ -129,7 +129,9 @@ static void journal_open(lua_State *L, int flags) {
 			case EEXIST:
 				luaL_error(L, "Unfinished journal exists");
 			case ENOENT:
-				luaL_error(L, "No journal to recover");
+				if (!(flags & O_CREAT))
+					luaL_error(L, "No journal to recover");
+				// Otherwise ‒ fall through to the default section
 			default:
 				luaL_error(L, "Error opening journal: %s", strerror(errno));
 		}
