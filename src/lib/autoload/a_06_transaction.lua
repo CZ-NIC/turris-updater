@@ -156,7 +156,7 @@ All the results from the step are stored in the journal and also returned.
 local function step(journal_type, fun, sync, ...)
 	local results = {fun(...)}
 	if flush then
-		-- TODO: sync the filesystem
+		sync()
 	end
 	journal.write(journal_type, unpack(results))
 	return unpack(results)
