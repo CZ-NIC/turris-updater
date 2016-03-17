@@ -388,6 +388,113 @@ function test_perform_collision()
 	assert_table_equal(expected, mocks_called)
 end
 
+--[[
+Test the journal recovery.
+
+In this case, the journal contains nothing useful, because it's been
+interrupted before even unpacking the packages.
+
+Therefore, the recovery actioun would actually only close the journal
+properly, since there's been nothing to recover.
+]]
+function test_recover_early()
+	mocks_install()
+	-- The journal contains only the start, not even unpack, therefore there's nothing to restore
+	mock_gen("journal.recover", function ()
+		return {
+			{ type = journal.START, params = {} }
+		}
+	end)
+	assert_table_equal({
+		["*"] = {
+			transaction = "Transaction in the journal hasn't started yet, nothing to resume"
+		}
+	}, transaction.recover())
+	assert_table_equal({
+		{ f = "journal.recover", p = {} },
+		{ f = "journal.finish", p = {} }
+	}, mocks_called)
+end
+
+--[[
+Test the journal recovery.
+
+The transaction is almost complete, so nothing from the middle shall be called. Only
+the missing cleanup is run.
+]]
+function test_recover_late()
+	mocks_install()
+	mock_gen("journal.recover", function ()
+		return {
+			{ type = journal.START, params = {} },
+			{ type = journal.UNPACKED, params = {
+				{["pkg-name"] = true, ["pkg-rem"] = true},
+				{["pkg-name"] = { f = true } },
+				{
+					{
+						configs = { c = "1234567890123456" },
+						control = {
+							Conffiles = { c = "1234567890123456" },
+							Package = "pkg-name",
+							Version = "1",
+							files = { f = true }
+						},
+						dir = "pkg_dir",
+						dirs = { d = true },
+						files = { f = true },
+						op = "install"
+					},
+					{ name = "pkg-rem", op = "remove" }
+				},
+				{"pkg_dir"}
+			} },
+			{ type = journal.CHECKED, params = { {["d2"] = true} } },
+			{ type = journal.MOVED, params = {
+				{
+					["pkg-name"] = {
+						Conffiles = { c = "1234567890123456" },
+						Package = "pkg-name",
+						Version = "1",
+						files = { f = true }
+					},
+					["pkg-rem"] = {
+						Package = "pkg-rem"
+					}
+				},
+				{}
+			} },
+			{ type = journal.SCRIPTS, params = {
+				{
+					["pkg-name"] = {
+						Conffiles = { c = "1234567890123456" },
+						Package = "pkg-name",
+						Version = "1",
+						files = { f = true }
+					}
+				},
+				{ ["pkg-name"] = { ["postinst"] = "Fake failed postinst" } }
+			} }
+		}
+	end)
+	assert_table_equal({
+		["pkg-name"] = {
+			["postinst"] = "Fake failed postinst"
+		}
+	}, transaction.recover())
+	local status_mod = utils.clone(test_status)
+	status_mod["pkg-name"] = {
+		Package = "pkg-name",
+		Conffiles = { c = "1234567890123456" },
+		Version = "1",
+		files = { f = true }
+	}
+	status_mod["pkg-rem"] = nil
+	local intro_mod = utils.clone(intro)
+	intro_mod[1].f = "journal.recover"
+	local expected = tables_join(intro_mod, outro({"pkg_dir"}, status_mod))
+	assert_table_equal(expected, mocks_called)
+end
+
 function teardown()
 	mocks_reset()
 end

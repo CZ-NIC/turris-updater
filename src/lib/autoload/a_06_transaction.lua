@@ -29,12 +29,15 @@ local ipairs = ipairs
 local next = next
 local error = error
 local pcall = pcall
+local assert = assert
 local unpack = unpack
 local io = io
 local table = table
 local backend = require "backend"
 local utils = require "utils"
 local journal = require "journal"
+local DBG = DBG
+local WARN = WARN
 
 module "transaction"
 
@@ -156,12 +159,18 @@ local function perform_internal(operations, journal_status)
 	All the results from the step are stored in the journal and also returned.
 	]]
 	local function step(journal_type, fun, sync, ...)
-		local results = {fun(...)}
-		if flush then
-			sync()
+		if journal_status[journal_type] then
+			DBG("Step " .. journal_type .. " already stored in journal, providing the result")
+			return unpack(journal_status[journal_type])
+		else
+			DBG("Performing step " .. journal_type)
+			local results = {fun(...)}
+			if flush then
+				sync()
+			end
+			journal.write(journal_type, unpack(results))
+			return unpack(results)
 		end
-		journal.write(journal_type, unpack(results))
-		return unpack(results)
 	end
 
 	local dir_cleanups = {}
@@ -235,6 +244,31 @@ An error may be thrown if anything goes wrong.
 function perform(operations)
 	journal.fresh()
 	return perform_internal(operations, {})
+end
+
+-- Resume from the journal
+function recover()
+	local previous = journal.recover()
+	local status = {}
+	for i, value in ipairs(previous) do
+		assert(not status[value.type])
+		status[value.type] = value.params
+	end
+	if not status[journal.UNPACKED] then
+		WARN("Tried to resume a journal transaction. There was a journal, it got interrupted before a transaction started, so nothing to resume, wiping.")
+		--[[
+		TODO: The unstarted transaction could have created
+		temporary files and directories. Clean them up.
+		]]
+		journal.finish()
+		return {
+			["*"] = {
+				transaction = "Transaction in the journal hasn't started yet, nothing to resume"
+			}
+		}
+	else
+		return perform_internal(operations, status)
+	end
 end
 
 -- Queue of planned operations
