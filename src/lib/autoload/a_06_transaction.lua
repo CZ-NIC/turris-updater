@@ -274,14 +274,7 @@ end
 -- Queue of planned operations
 local queue = {}
 
---[[
-Run transaction of the queued operations.
-]]
-function perform_queue()
-	-- Ensure we reset the queue by running it. And also that we allow the garbage collector to collect the data in there.
-	local queue_cp = queue
-	queue = {}
-	local errors = perform(queue_cp)
+local function errors_format(errors)
 	if next(errors) then
 		local output = "Failed operations:\n"
 		for pkgname, value in pairs(errors) do
@@ -293,6 +286,21 @@ function perform_queue()
 	else
 		return true
 	end
+end
+
+--[[
+Run transaction of the queued operations.
+]]
+function perform_queue()
+	-- Ensure we reset the queue by running it. And also that we allow the garbage collector to collect the data in there.
+	local queue_cp = queue
+	queue = {}
+	return errors_format(perform(queue_cp))
+end
+
+-- Just like recover, but with the result formatted.
+function recover_pretty()
+	return errors_format(recover())
 end
 
 -- Queue a request to remove package with the given name.

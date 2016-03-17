@@ -37,6 +37,18 @@ const char *help =
 "				package.\n"
 "opkg-trans -h			This help message.\n";
 
+static bool results_interpret(struct interpreter *interpreter, size_t result_count) {
+	bool result = true;
+	if (result_count >= 2) {
+		char *msg;
+		ASSERT(interpreter_collect_results(interpreter, "-s", &msg) == -1);
+		ERROR("%s", msg);
+	}
+	if (result_count >= 1)
+		ASSERT(interpreter_collect_results(interpreter, "b", &result) == -1);
+	return result;
+}
+
 int main(int argc, char *argv[]) {
 	struct events *events = events_new();
 	// Parse the arguments
@@ -50,6 +62,7 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 	bool transaction_run = false;
+	bool trans_ok = true;
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
 			case COT_HELP:
@@ -68,26 +81,25 @@ int main(int argc, char *argv[]) {
 				transaction_run = true;
 				break;
 			}
+			case COT_JOURNAL_RESUME: {
+				size_t result_count;
+				const char *err = interpreter_call(interpreter, "transaction.recover_pretty", &result_count, "");
+				ASSERT_MSG(!err, "%s", err);
+				trans_ok = results_interpret(interpreter, result_count);
+				break;
+			}
 #define NIP(TYPE) case COT_##TYPE: fputs("Operation " #TYPE " not implemented yet\n", stderr); return 1
 				NIP(JOURNAL_ABORT);
-				NIP(JOURNAL_RESUME);
 			default:
 				assert(0);
 		}
 	enum cmd_op_type exit_type = op->type;
 	free(ops);
-	bool trans_ok = true;
 	if (transaction_run && exit_type == COT_EXIT) {
 		size_t result_count;
 		const char *err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
 		ASSERT_MSG(!err, "%s", err);
-		if (result_count >= 2) {
-			char *msg;
-			ASSERT(interpreter_collect_results(interpreter, "-s", &msg) == -1);
-			ERROR("%s", msg);
-		}
-		if (result_count >= 1)
-			ASSERT(interpreter_collect_results(interpreter, "b", &trans_ok) == -1);
+		trans_ok = results_interpret(interpreter, result_count);
 	}
 	interpreter_destroy(interpreter);
 	events_destroy(events);
