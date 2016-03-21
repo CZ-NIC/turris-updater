@@ -518,6 +518,11 @@ static int lua_stat(lua_State *L) {
 	return 2;
 }
 
+static int lua_sync(lua_State *L __attribute__((unused))) {
+	sync();
+	return 0;
+}
+
 static int lua_setenv(lua_State *L) {
 	const char *name = luaL_checkstring(L, 1);
 	const char *value = luaL_checkstring(L, 2);
@@ -544,6 +549,7 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_move, "move" },
 	{ lua_ls, "ls" },
 	{ lua_stat, "stat" },
+	{ lua_sync, "sync" },
 	{ lua_setenv, "setenv" }
 	/*
 	 * Note: watch_cancel is not provided, because it would be hell to

@@ -118,6 +118,10 @@ stat(path)::
   of `ls`). The second result is the permissions of the file, in the
   imitation of shell's `ls -l`, like `rwxr-x---`.
 
+sync()::
+  Writes everything to a permanent storage (equivalent to the shell's
+  `sync` command).
+
 Journal manipulation
 --------------------
 

@@ -6,10 +6,13 @@ function launch(test)
 	return stats.errors, stats.failed
 end
 
-function assert_table_equal(t1, t2)
+function assert_table_equal(t1, t2, tables)
 	if t1 == t2 then
 		-- The exact same instance
 		return
+	end
+	if not tables then
+		tables = DataDumper({t1, t2})
 	end
 	lunit.assert_table(t1)
 	lunit.assert_table(t2)
@@ -18,7 +21,7 @@ function assert_table_equal(t1, t2)
 			local v2 = t2[k]
 			if type(v) ~= "table" or type(v2) ~= "table" then
 				-- In case of two tables, we have special comparison below
-				lunit.assert_equal(v, v2, "Values for key '" .. k .. "' differ, " .. name)
+				lunit.assert_equal(v, v2, "Values for key '" .. k .. "' differ, " .. name .. " tables: " .. tables)
 			end
 		end
 	end
@@ -28,7 +31,7 @@ function assert_table_equal(t1, t2)
 	for k, v in pairs(t1) do
 		local v2 = t2[k]
 		if type(v) == "table" and type(v2) == "table" then
-			assert_table_equal(v, v2)
+			assert_table_equal(v, v2, tables)
 		end
 	end
 end

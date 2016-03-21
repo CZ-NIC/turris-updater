@@ -1,2 +1,0 @@
-# Drop empty directories (they are not preserved in git)
-find "$ROOT_DIR" -type d | tac | xargs rmdir --ignore-fail-on-non-empty

@@ -26,10 +26,10 @@ set -e
 #   or run it from the top level build directory with build-inside-sources.
 # - Optionally, set LAUNCHER variable (for valgrind or something)
 
-set -ex
+set -e
 
 TMP_DIR="$(mktemp -d)"
-trap 'rm -rf "$TMP_DIR"' SIGHUP SIGINT SIGQUIT SIGABRT SIGALRM SIGTERM SIGILL SIGPIPE EXIT
+#trap 'rm -rf "$TMP_DIR"' SIGHUP SIGINT SIGQUIT SIGABRT SIGALRM SIGTERM SIGILL SIGPIPE EXIT
 ROOT_DIR="$TMP_DIR"/root
 DEFINITION="$2"
 : ${O:=$(pwd)}
@@ -38,6 +38,9 @@ DATA_DIR="$S"/tests/data
 
 # Prepare the root directory for the run
 cp -ar "$DEFINITION"/input "$TMP_DIR"/root
+# Drop the .keep files, they are a hack for git to preserve directories
+cp -ar "$DEFINITION"/output "$TMP_DIR"/output
+find "$TMP_DIR" -type f -name .keep -exec rm {} \;
 # Launch it
 eval $LAUNCHER "$O"/bin/"$1" $(cat "$DEFINITION"/params)
 # Do we need to de-randomize the output somehow?
@@ -45,4 +48,4 @@ if [ -f "$DEFINITION"/cleanup ] ; then
 	. "$DEFINITION"/cleanup
 fi
 # Check it did what it should have
-diff -u -r "$DEFINITION"/output "$ROOT_DIR"
+diff -u -r "$TMP_DIR"/output "$ROOT_DIR"

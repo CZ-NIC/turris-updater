@@ -21,6 +21,7 @@ require 'lunit'
 local B = require 'backend'
 local T = require 'transaction'
 local utils = require 'utils'
+local journal = require 'journal'
 
 module("transaction-tests", package.seeall, lunit.testcase)
 
@@ -35,6 +36,10 @@ local test_status = {
 	}
 }
 local intro = {
+	{
+		f = "journal.fresh",
+		p = {}
+	},
 	{
 		f = "backend.status_parse",
 		p = {}
@@ -74,6 +79,14 @@ local function outro(cleanup_dirs, status)
 		{
 			f = "backend.status_dump",
 			p = {status}
+		},
+		{
+			f = "journal.write",
+			p = {journal.CLEANED}
+		},
+		{
+			f = "journal.finish",
+			p = {}
 		}
 	}
 end
@@ -109,6 +122,9 @@ local function mocks_install()
 		end
 	end)
 	mock_gen("utils.cleanup_dirs")
+	mock_gen("journal.fresh")
+	mock_gen("journal.finish")
+	mock_gen("journal.write")
 end
 
 -- Test calling empty transaction
@@ -118,12 +134,28 @@ function test_perform_empty()
 	T.perform({})
 	local expected = tables_join(intro, {
 		{
+			f = "journal.write",
+			p = {journal.UNPACKED, {}, {}, {}, {}}
+		},
+		{
 			f = "backend.collision_check",
 			p = {test_status, {}, {}}
 		},
 		{
+			f = "journal.write",
+			p = {journal.CHECKED, {}}
+		},
+		{
+			f = "journal.write",
+			p = {journal.MOVED, test_status, {}}
+		},
+		{
 			f = "backend.pkg_cleanup_files",
 			p = {{}}
+		},
+		{
+			f = "journal.write",
+			p = {journal.SCRIPTS, test_status, {}}
 		}
 	}, outro({}, test_status))
 	assert_table_equal(expected, mocks_called)
@@ -166,6 +198,31 @@ function test_perform_ok()
 			p = {"pkg_dir"}
 		},
 		{
+			f = "journal.write",
+			p = {
+				journal.UNPACKED,
+				{["pkg-name"] = true, ["pkg-rem"] = true},
+				{["pkg-name"] = { f = true }},
+				{
+					{
+						configs = { c = "1234567890123456" },
+						control = {
+							Conffiles = { c = "1234567890123456" },
+							Package = "pkg-name",
+							Version = "1",
+							files = { f = true }
+						},
+						dir = "pkg_dir",
+						dirs = { d = true },
+						files = { f = true },
+						op = "install"
+					},
+					{ name = "pkg-rem", op = "remove" }
+				},
+				{"pkg_dir"}
+			}
+		},
+		{
 			f = "backend.collision_check",
 			p = {
 				test_status,
@@ -175,6 +232,10 @@ function test_perform_ok()
 				},
 				{["pkg-name"] = {f = true}}
 			}
+		},
+		{
+			f = "journal.write",
+			p = {journal.CHECKED, {["d2"] = true}}
 		},
 		{
 			f = "backend.pkg_merge_control",
@@ -187,6 +248,24 @@ function test_perform_ok()
 		{
 			f = "backend.pkg_merge_files",
 			p = {"pkg_dir/data", {d = true}, {f = true}, {c = "1234567890123456"}}
+		},
+		{
+			f = "journal.write",
+			p = {
+				journal.MOVED,
+				{
+					["pkg-name"] = {
+						Conffiles = { c = "1234567890123456" },
+						Package = "pkg-name",
+						Version = "1",
+						files = { f = true }
+					},
+					["pkg-rem"] = {
+						Package = "pkg-rem"
+					}
+				},
+				{}
+			}
 		},
 		{
 			f = "backend.script_run",
@@ -203,6 +282,21 @@ function test_perform_ok()
 		{
 			f = "backend.script_run",
 			p = {"pkg-rem", "postrm", "remove"}
+		},
+		{
+			f = "journal.write",
+			p = {
+				journal.SCRIPTS,
+				{
+					["pkg-name"] = {
+						Conffiles = { c = "1234567890123456" },
+						Package = "pkg-name",
+						Version = "1",
+						files = { f = true }
+					}
+				},
+				{ ["pkg-name"] = { ["postinst"] = "Fake failed postinst" } }
+			}
 		}
 	}, outro({"pkg_dir"}, status_mod))
 	assert_table_equal(expected, mocks_called)
@@ -242,6 +336,33 @@ function test_perform_collision()
 			p = {"<pkg2dir>"}
 		},
 		{
+			f = "journal.write",
+			p = {
+				journal.UNPACKED,
+				{["<pkg1name>"] = true, ["<pkg2name>"] = true},
+				{["<pkg1name>"] = { f = true }, ["<pkg2name>"] = { f = true }},
+				{
+					{
+						configs = { c = "1234567890123456" },
+						control = { Package = "<pkg1name>" },
+						dir = "<pkg1dir>",
+						dirs = { d = true },
+						files = { f = true },
+						op = "install"
+					},
+					{
+						configs = { c = "1234567890123456" },
+						control = { Package = "<pkg2name>" },
+						dir = "<pkg2dir>",
+						dirs = { d = true },
+						files = { f = true },
+						op = "install"
+					}
+				},
+				{"<pkg1dir>", "<pkg2dir>"}
+			}
+		},
+		{
 			f = "backend.collision_check",
 			p = {
 				test_status,
@@ -258,6 +379,10 @@ function test_perform_collision()
 		{
 			f = "utils.cleanup_dirs",
 			p = {{"<pkg1dir>", "<pkg2dir>"}}
+		},
+		{
+			f = "journal.finish",
+			p = {}
 		}
 	})
 	assert_table_equal(expected, mocks_called)
