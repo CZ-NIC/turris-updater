@@ -45,7 +45,10 @@ function test_fsutils()
 	mkdir(dir .. "/d1")
 	assert_table_equal({["d1"] = "d"}, ls(dir))
 	-- Exists and is a directory
-	assert_equal("d", stat(dir .. "/d1"))
+	events_wait(run_command(function () end, nil, nil, -1, -1, "/bin/chmod", "0750", dir .. "/d1"))
+	local stat_type, stat_perm = stat(dir .. "/d1")
+	assert_equal("d", stat_type)
+	assert_equal("rwxr-x---", stat_perm)
 	-- Doesn't exist
 	assert_table_equal({}, {stat(dir .. "/d2")})
 	-- Parent directory doesn't exist
@@ -66,6 +69,12 @@ function test_fsutils()
 	-- Cross-device move
 	move(dir .. "/d2/x", ldir .. "/x")
 	assert_table_equal({["x"] = "r"}, ls(ldir))
+end
+
+-- Test setting the environment
+function test_env()
+	setenv("TEST_ENV", "42")
+	assert_equal("42", os.getenv("TEST_ENV"))
 end
 
 function teardown()

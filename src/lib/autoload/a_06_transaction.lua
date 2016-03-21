@@ -29,6 +29,7 @@ local ipairs = ipairs
 local next = next
 local error = error
 local pcall = pcall
+local io = io
 local table = table
 local backend = require "backend"
 local utils = require "utils"
@@ -46,13 +47,35 @@ is a single table, with these keys:
 • data: Buffer containing the necessary data. It is needed in the case
   of install, when it contains the ipk package.
 
-TODO: Do all the journal stuff and calling of hooks/pre-postinst scripts.
+Note that the transaction is not stopped by errors from the maintainer scripts,
+the errors are just stored for later and passed as a result (table indexed by
+package names, each value indexed by the name of the script). This is because once
+we start merging files to the system, it's more dangerous to stop than to
+continue.
+
+Also, the behaviour of the scripts (the order in which they are called and their
+parameters) is modeled based on opkg, not on dpkg.
+
+TODO: Do all the journal stuff
 
 An error may be thrown if anything goes wrong.
 ]]
 function perform(operations)
 	local dir_cleanups = {}
 	local status = backend.status_parse()
+	local errors_collected = {}
+	-- Wrap the call to the maintainer script, and store any possible errors for later use
+	local function script(name, suffix, ...)
+		local ok, stderr = backend.script_run(name, suffix, ...)
+		if stderr and stderr:len() > 0 then
+			io.stderr:write("Output from " .. name .. "." .. "suffix:\n")
+			io.stderr:write(stderr)
+		end
+		if not ok then
+			errors_collected[name] = errors_collected[name] or {}
+			errors_collected[name][suffix] = stderr
+		end
+	end
 	-- Emulate try-finally
 	local ok, err = pcall(function ()
 		-- Make sure the temporary directory for unpacked packages exist
@@ -107,37 +130,47 @@ function perform(operations)
 		-- Go through the list once more and perform the prepared operations
 		for _, op in ipairs(plan) do
 			if op.op == "install" then
-				-- TODO: pre-install scripts (who would use such thing anyway?)
+				-- Unfortunately, we need to merge the control files first, otherwise the maintainer scripts won't run. They expect to live in the info dir when they are run. And we need to run the preinst script before merging the files.
+				backend.pkg_merge_control(op.dir .. "/control", op.control.Package, op.control.files)
+				if status[op.control.Package] then
+					-- There's a previous version. So this is an upgrade.
+					script(op.control.Package, "preinst", "upgrade", status[op.control.Package].Version)
+				else
+					script(op.control.Package, "preinst", "install", op.control.Version)
+				end
 				backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.configs)
+				status[op.control.Package] = op.control
 			end
 			-- Ignore others, at least for now.
 		end
 		-- TODO: Journal note, we have everything in place.
 		for _, op in ipairs(plan) do
 			if op.op == "install" then
-				backend.pkg_merge_control(op.dir .. "/control", op.control.Package, op.control.files)
-				status[op.control.Package] = op.control
-				-- TODO: Postinst script
-			elseif op.op == "remove" then
+				script(op.control.Package, "postinst", "configure")
+			elseif op.op == "remove" and not to_install[op.name] then
 				status[op.name] = nil
-				-- TODO: Pre-rm script, but only if not re-installed
+				script(op.name, "prerm", "remove")
 			end
 		end
 		-- Clean up the files from removed or upgraded packages
 		backend.pkg_cleanup_files(removes)
-		-- TODO: post-rm scripts, for the removed (not re-installed) packages
+		for _, op in ipairs(plan) do
+			if op.op == "remove" and not to_install[op.name] then
+				script(op.name, "postrm", "remove")
+			end
+		end
 		-- TODO: Think about when to clean up any leftover files if something goes wrong? On success? On transaction rollback as well?
 	end)
 	-- Make sure the temporary dirs are removed even if it fails. This will probably be slightly different with working journal.
 	utils.cleanup_dirs(dir_cleanups)
 	-- TODO: Journal note, everything is cleaned up
-	-- TODO: Store the new status
 	if not ok then
 		error(err)
 	end
 	backend.control_cleanup(status)
 	backend.pkg_status_dump(status)
 	-- TODO: Journal note, everything is written down
+	return errors_collected
 end
 
 -- Queue of planned operations
@@ -150,7 +183,18 @@ function perform_queue()
 	-- Ensure we reset the queue by running it. And also that we allow the garbage collector to collect the data in there.
 	local queue_cp = queue
 	queue = {}
-	return perform(queue_cp)
+	local errors = perform(queue_cp)
+	if next(errors) then
+		local output = "Failed operations:\n"
+		for pkgname, value in pairs(errors) do
+			for op, text in pairs(value) do
+				output = output .. pkgname .. "/" .. op .. ": " .. text .. "\n"
+			end
+		end
+		return false, output
+	else
+		return true
+	end
 end
 
 -- Queue a request to remove package with the given name.

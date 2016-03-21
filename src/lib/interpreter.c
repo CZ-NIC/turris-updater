@@ -463,6 +463,45 @@ static int lua_ls(lua_State *L) {
 	return 1;
 }
 
+struct perm_def {
+	mode_t mask;
+	size_t pos;
+	char letter;
+};
+
+/*
+ * Note that some of these are on the same position. They are
+ * ordered so that the last matching wins, producing the desired
+ * result.
+ */
+static const struct perm_def perm_defs[] = {
+	{ S_IRUSR, 0, 'r' },
+	{ S_IWUSR, 1, 'w' },
+	{ S_IXUSR, 2, 'x' },
+	{ S_IRGRP, 3, 'r' },
+	{ S_IWGRP, 4, 'w' },
+	{ S_IXGRP, 5, 'x' },
+	{ S_IROTH, 6, 'r' },
+	{ S_IWOTH, 7, 'w' },
+	{ S_IXOTH, 8, 'x' },
+	{ S_ISVTX, 8, 't' },
+	{ S_ISVTX | S_IXOTH, 8, 'T' },
+	{ S_ISGID, 5, 'S' },
+	{ S_ISGID | S_IXGRP, 5, 's' },
+	{ S_ISUID, 2, 'S' },
+	{ S_ISUID | S_IXUSR, 2, 's' }
+};
+
+static const char *perm2str(struct stat *buf) {
+	static char perm[9];
+	memset(perm, '-', sizeof perm);
+	for (size_t i = 0; i < sizeof perm_defs / sizeof *perm_defs; i ++) {
+		if ((buf->st_mode & perm_defs[i].mask) == perm_defs[i].mask) // All the bits are set according to the mask
+			perm[perm_defs[i].pos] = perm_defs[i].letter;
+	}
+	return perm;
+}
+
 static int lua_stat(lua_State *L) {
 	const char *fname = luaL_checkstring(L, 1);
 	struct stat buf;
@@ -475,7 +514,18 @@ static int lua_stat(lua_State *L) {
 			return luaL_error(L, "Failed to stat '%s': %s", fname, strerror(errno));
 	}
 	lua_pushstring(L, stat2str(&buf));
-	return 1;
+	lua_pushstring(L, perm2str(&buf));
+	return 2;
+}
+
+static int lua_setenv(lua_State *L) {
+	const char *name = luaL_checkstring(L, 1);
+	const char *value = luaL_checkstring(L, 2);
+	int result = setenv(name, value, 1);
+	if (result) {
+		return luaL_error(L, "Failed to set env %s = %s", name, value, strerror(errno));
+	}
+	return 0;
 }
 
 struct injected_func {
@@ -493,7 +543,8 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_mkdir, "mkdir" },
 	{ lua_move, "move" },
 	{ lua_ls, "ls" },
-	{ lua_stat, "stat" }
+	{ lua_stat, "stat" },
+	{ lua_setenv, "setenv" }
 	/*
 	 * Note: watch_cancel is not provided, because it would be hell to
 	 * manage the dynamically allocated memory correctly and there doesn't

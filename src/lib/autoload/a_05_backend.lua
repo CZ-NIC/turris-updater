@@ -29,6 +29,8 @@ local unpack = unpack
 local io = io
 local os = os
 local table = table
+local setenv = setenv
+local getcwd = getcwd
 local mkdtemp = mkdtemp
 local chdir = chdir
 local run_command = run_command
@@ -687,6 +689,42 @@ function pkg_cleanup_files(files)
 			end
 		end
 	end
+end
+
+--[[
+Run a pre/post-install/rm script. Returns boolean if the script terminated
+correctly. Its stderr is returned as the second parameter.
+
+If the script doesn't exist, true is returned (and no stderr is provided).
+
+- pkg_name: Name of the package.
+- script_name: Suffix of the script (eg. 'control')
+- More parameters: Parameters to pass to the script.
+]]
+function script_run(pkg_name, script_name, ...)
+	local fname = pkg_name .. "." .. script_name
+	local fname_full = info_dir:gsub('^./', getcwd() .. "/") .. "/" .. fname
+	local ftype, perm = stat(fname_full)
+	if ftype == 'r' and perm:match("^r.[xs]") then
+		DBG("Running " .. script_name .. " of " .. pkg_name)
+		local s_ecode, s_stderr
+		events_wait(run_command(function (ecode, killed, stdout, stderr)
+			DBG("Terminated")
+			s_ecode = ecode
+			s_stderr = stderr
+		end, function ()
+			local dir = root_dir:gsub('^/+$', '')
+			setenv("PKG_ROOT", dir)
+			chdir(root_dir)
+		end, nil, cmd_timeout, cmd_kill_timeout, fname_full, ...))
+		DBG(s_stderr)
+		return s_ecode == 0, s_stderr
+	elseif ftype == 'r' then
+		WARN(fname .. " has wrong permissions " .. perm .. "(not running)")
+	elseif ftype then
+		WARN(fname .. " is not a file: " .. ftype .. " (not running)")
+	end
+	return true
 end
 
 --[[
