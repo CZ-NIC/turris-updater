@@ -23,7 +23,9 @@
 int main(void) {
 	const char *suppress_log = getenv("SUPPRESS_LOG");
 	if (suppress_log && strcmp("1", suppress_log) == 0)
-		updater_logging_enabled = false;
+		log_stderr_level(LL_DIE);
+	else
+		log_stderr_level(LL_UNKNOWN);
 	Suite *suite = gen_test_suite();
 	SRunner *runner = srunner_create(suite);
 

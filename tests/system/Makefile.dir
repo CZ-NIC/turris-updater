@@ -15,10 +15,10 @@ valgrind-sys: valgrind-sys-$(1)-$(2)
 .PHONY: test-sys-$(1)-$(2) valgrind-sys-$(1)-$(2)
 
 test-sys-$(1)-$(2): $(O)/bin/$(1)
-	LAUNCHER= SUPPRESS_LOG=1 S=$(S) O=$(O) $(S)/tests/system/run $(1) $(S)/tests/system/$(2)
+	LAUNCHER= S=$(S) O=$(O) $(S)/tests/system/run $(1) $(S)/tests/system/$(2)
 
 valgrind-sys-$(1)-$(2): $(O)/bin/$(1)
-	LAUNCHER="$(VALGRIND)" SUPPRESS_LOG=1 S=$(S) O=$(O) $(S)/tests/system/run $(1) $(S)/tests/system/$(2)
+	LAUNCHER="$(VALGRIND)" S=$(S) O=$(O) $(S)/tests/system/run $(1) $(S)/tests/system/$(2)
 
 endef
 
