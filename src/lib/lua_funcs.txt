@@ -122,6 +122,13 @@ sync()::
   Writes everything to a permanent storage (equivalent to the shell's
   `sync` command).
 
+locks.acquire(path)::
+  Lock a file with the `lockf` call. Fail if the lock is already held
+  by other process. Create the file as needed. Return a lock object as
+  a result. It has release() method, to release the lock. The lock is
+  also released when the object is garbage collected, but there's no
+  guarantee how soon it may be.
+
 Journal manipulation
 --------------------
 
