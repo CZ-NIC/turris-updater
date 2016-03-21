@@ -1,0 +1,28 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2013 CZ.NIC z.s.p.o. (http://www.nic.cz/)
+
+# Start before cron, to make sure it doesn't run copy of updater at the time.
+# But somewhat late, so needed services already run
+START=85
+
+status() {
+	return 0
+}
+
+start() {
+	# Just check if we should resume the updater
+	updater-resume.sh
+}
+
+stop() {
+	:
+}
+
+restart() {
+	stop
+	start
+}
+
+reload() {
+	restart
+}

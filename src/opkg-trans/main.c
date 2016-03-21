@@ -26,7 +26,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-const char *help =
+static const char *help =
 "opkg-trans -j			Recover from a crash/reboot from a journal.\n"
 "opkg-trans -b			Abort interrupted work in the journal and clean.\n"
 "				up. Some stages of installation might not be\n"
@@ -35,6 +35,7 @@ const char *help =
 "				(-a) need a path to already downloaded package\n"
 "				file. The ones to remove (-r) expect name of the\n"
 "				package.\n"
+"opkg-trans -R /root/dir	Use given path as a root directory\n"
 "opkg-trans -h			This help message.\n";
 
 int main(int argc, char *argv[]) {
@@ -71,6 +72,11 @@ int main(int argc, char *argv[]) {
 #define NIP(TYPE) case COT_##TYPE: fputs("Operation " #TYPE " not implemented yet\n", stderr); return 1
 				NIP(JOURNAL_ABORT);
 				NIP(JOURNAL_RESUME);
+			case COT_ROOT_DIR: {
+				const char *err = interpreter_call(interpreter, "backend.root_dir_set", NULL, "s", op->parameter);
+				ASSERT_MSG(!err, "%s", err);
+				break;
+			}
 			default:
 				assert(0);
 		}

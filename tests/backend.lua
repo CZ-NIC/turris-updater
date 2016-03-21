@@ -654,6 +654,14 @@ PKG_ROOT=
 	assert_equal("test\n", stderr)
 end
 
+function test_root_dir_set()
+	B.root_dir_set("/dir")
+	assert_equal("/dir/usr/lib/opkg/status", B.status_file)
+	assert_equal("/dir/usr/lib/opkg/info/", B.info_dir)
+	assert_equal("/dir/usr/share/updater/unpacked", B.pkg_temp_dir)
+	assert_equal("/dir/usr/share/updater/journal", journal.path)
+end
+
 function setup()
 	local sdir = os.getenv("S") or "."
 	-- Use a shortened version of a real status file for tests

@@ -42,6 +42,7 @@ local ls = ls
 local DBG = DBG
 local WARN = WARN
 local utils = require "utils"
+local journal = require "journal"
 
 module "backend"
 
@@ -50,17 +51,33 @@ Configuration of the module. It is supported (yet unlikely to be
 needed) to modify these variables.
 ]]
 -- The file with status of installed packages
-status_file = "/usr/lib/opkg/status"
+local status_file_suffix = "/usr/lib/opkg/status"
+status_file = status_file_suffix
 -- The directory where unpacked control files of the packages live
-info_dir = "/usr/lib/opkg/info/"
+local info_dir_suffix = "/usr/lib/opkg/info/"
+info_dir = info_dir_suffix
 -- A root directory
 root_dir = "/"
 -- A directory where unpacked packages live
-pkg_temp_dir = "/usr/share/updater/unpacked"
+local pkg_temp_dir_suffix = "/usr/share/updater/unpacked"
+pkg_temp_dir = pkg_temp_dir_suffix
 -- Time after which we SIGTERM external commands. Something incredibly long, just prevent them from being stuck.
 cmd_timeout = 600000
 -- Time after which we SIGKILL external commands
 cmd_kill_timeout = 900000
+
+--[[
+Set all the configurable directories to be inside the provided dir
+Effectively sets that the whole system is mounted under some
+prefix.
+]]
+function root_dir_set(dir)
+	root_dir = dir .. "/"
+	status_file = dir .. status_file_suffix
+	info_dir = dir .. info_dir_suffix
+	pkg_temp_dir = dir .. pkg_temp_dir
+	journal.path = dir .. "/usr/share/updater/journal"
+end
 
 --[[
 Parse a single block of mail-header-like records.
@@ -703,7 +720,7 @@ If the script doesn't exist, true is returned (and no stderr is provided).
 ]]
 function script_run(pkg_name, script_name, ...)
 	local fname = pkg_name .. "." .. script_name
-	local fname_full = info_dir:gsub('^./', getcwd() .. "/") .. "/" .. fname
+	local fname_full = info_dir:gsub('^../', getcwd() .. "/../"):gsub('^./', getcwd() .. "/") .. "/" .. fname
 	local ftype, perm = stat(fname_full)
 	if ftype == 'r' and perm:match("^r.[xs]") then
 		DBG("Running " .. script_name .. " of " .. pkg_name)
@@ -715,6 +732,7 @@ function script_run(pkg_name, script_name, ...)
 		end, function ()
 			local dir = root_dir:gsub('^/+$', '')
 			setenv("PKG_ROOT", dir)
+			setenv("IPKG_INSTROOT", dir)
 			chdir(root_dir)
 		end, nil, cmd_timeout, cmd_kill_timeout, fname_full, ...))
 		DBG(s_stderr)

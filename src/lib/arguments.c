@@ -47,7 +47,7 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[]) {
 	struct cmd_op *result = NULL;
 	bool exclusive_cmd = false;
 	int c;
-	while ((c = getopt(argc, argv, "hbja:r:")) != -1) {
+	while ((c = getopt(argc, argv, "hbja:r:R:")) != -1) {
 		switch (c) {
 			case 'h':
 				exclusive_cmd = true;
@@ -69,6 +69,10 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[]) {
 				ASSERT(optarg);
 				result_extend(&res_count, &result, COT_REMOVE, optarg);
 				break;
+			case 'R':
+				ASSERT(optarg);
+				result_extend(&res_count, &result, COT_ROOT_DIR, optarg);
+				break;
 			default:
 				return provide_help(result);
 		}
@@ -81,7 +85,17 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[]) {
 		fprintf(stderr, "Tell me what to do!\n");
 		return provide_help(result);
 	}
-	if (exclusive_cmd && res_count != 1) {
+	// Move settings options to the front
+	size_t set_pos = 0;
+	for (size_t i = 0; i < res_count; i ++) {
+		if (result[i].type == COT_ROOT_DIR) {
+			struct cmd_op tmp = result[i];
+			for (size_t j = i; j > set_pos; j --)
+				result[j] = result[j - 1];
+			result[set_pos ++] = tmp;
+		}
+	}
+	if (exclusive_cmd && res_count - set_pos != 1) {
 		fprintf(stderr, "Incompatible commands\n");
 		return provide_help(result);
 	}

@@ -68,7 +68,7 @@ function perform(operations)
 	local function script(name, suffix, ...)
 		local ok, stderr = backend.script_run(name, suffix, ...)
 		if stderr and stderr:len() > 0 then
-			io.stderr:write("Output from " .. name .. "." .. "suffix:\n")
+			io.stderr:write("Output from " .. name .. "." .. suffix .. ":\n")
 			io.stderr:write(stderr)
 		end
 		if not ok then
@@ -168,7 +168,7 @@ function perform(operations)
 		error(err)
 	end
 	backend.control_cleanup(status)
-	backend.pkg_status_dump(status)
+	backend.status_dump(status)
 	-- TODO: Journal note, everything is written down
 	return errors_collected
 end
