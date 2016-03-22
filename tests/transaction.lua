@@ -37,6 +37,10 @@ local test_status = {
 }
 local intro = {
 	{
+		f = "locks.acquire",
+		p = {"//var/lock/opkg.lock"}
+	},
+	{
 		f = "journal.fresh",
 		p = {}
 	},
@@ -87,6 +91,10 @@ local function outro(cleanup_dirs, status)
 		{
 			f = "journal.finish",
 			p = {}
+		},
+		{
+			f = "locks.release",
+			p = {"//var/lock/opkg.lock"}
 		}
 	}
 end
@@ -125,6 +133,17 @@ local function mocks_install()
 	mock_gen("journal.fresh")
 	mock_gen("journal.finish")
 	mock_gen("journal.write")
+	mock_gen("locks.acquire", function (path)
+		-- Return an "object" that has a mocked release method, but nothing more
+		return {
+			release = function ()
+				table.insert(mocks_called, {
+					f = "locks.release",
+					p = {path}
+				})
+			end
+		}
+	end)
 end
 
 -- Test calling empty transaction
@@ -411,8 +430,10 @@ function test_recover_early()
 		}
 	}, transaction.recover())
 	assert_table_equal({
+		{ f = "locks.acquire", p = {"//var/lock/opkg.lock"} },
 		{ f = "journal.recover", p = {} },
-		{ f = "journal.finish", p = {} }
+		{ f = "journal.finish", p = {} },
+		{ f = "locks.release", p = {"//var/lock/opkg.lock"} }
 	}, mocks_called)
 end
 
@@ -490,7 +511,7 @@ function test_recover_late()
 	}
 	status_mod["pkg-rem"] = nil
 	local intro_mod = utils.clone(intro)
-	intro_mod[1].f = "journal.recover"
+	intro_mod[2].f = "journal.recover"
 	local expected = tables_join(intro_mod, outro({"pkg_dir"}, status_mod))
 	assert_table_equal(expected, mocks_called)
 end
