@@ -227,7 +227,11 @@ prepare_plan() {
 	# interpreted as regexp. But we want to distinguish packages that have the same
 	# suffix, therefore we anchor the left end by extra ^ (which should never be part
 	# of package name) and with the ' - ' at the right end.
-	opkg list-installed | sed -e 's/^/^/g' >"$TMP_DIR/list-installed"
+	opkg list-installed 2>/tmp/updater-err | sed -e 's/^/^/g' >"$TMP_DIR/list-installed"
+	if [ ! -s "$TMP_DIR/list-installed" ] ; then
+		echo "Failed to get list of installed packages" | my_logger -p daemon.error
+		false
+	fi
 	# The EXTRA is unused. It is just placeholder to eat whatever extra columns there might be in future.
 	while read PACKAGE VERSION FLAGS HASH EXTRA ; do
 		if should_uninstall "$PACKAGE" "$VERSION" "$FLAGS" ; then
