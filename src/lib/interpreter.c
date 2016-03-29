@@ -448,14 +448,15 @@ static int lua_ls(lua_State *L) {
 	if (!d)
 		return luaL_error(L, "Could not read directory %s: %s", dir, strerror(errno));
 	struct dirent *ent;
-	errno = 0;
 	lua_newtable(L);
+	errno = 0;
 	while ((ent = readdir(d))) {
 		// Skip the . and .. directories
 		if (strcmp(ent->d_name, "..") && strcmp(ent->d_name, ".")) {
 			lua_pushstring(L, get_dirent_type(d, ent));
 			lua_setfield(L, -2, ent->d_name);
 		}
+		errno = 0;
 	}
 	int old_errno = errno;
 	int result = closedir(d);
