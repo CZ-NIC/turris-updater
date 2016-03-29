@@ -71,8 +71,12 @@ local function pkg_unpack(operations, status)
 	local plan = {}
 	for _, op in ipairs(operations) do
 		if op.op == "remove" then
-			to_remove[op.name] = true
-			table.insert(plan, op)
+			if status[op.name] then
+				to_remove[op.name] = true
+				table.insert(plan, op)
+			else
+				WARN("Package " .. op.name .. " is not installed. Can't remove")
+			end
 		elseif op.op == "install" then
 			local pkg_dir = backend.pkg_unpack(op.data, backend.pkg_temp_dir)
 			table.insert(dir_cleanups, pkg_dir)
