@@ -125,7 +125,7 @@ function test_package_postprocces()
 	local output = B.package_postprocess(package)
 	-- Make sure it modifies the table in-place
 	assert_equal(package, output)
-	assert_table_equal({install = true, user = true, installed = true}, output.Status)
+	assert_table_equal({"install", "user", "installed"}, output.Status)
 	assert_table_equal({["/etc/config/dhcp"] = "f81fe9bd228dede2165be71e5c9dcf76cc", ["/etc/dnsmasq.conf"] = "1e6ab19c1ae5e70d609ac7b6246541d520"}, output.Conffiles)
 	assert_table_equal({"libc", "kernel (=3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10)", "kmod-nls-base"}, output.Depends)
 	--[[
@@ -155,7 +155,7 @@ function test_status_parse()
 		assert_not_nil(pkg)
 		assert_table_equal(desc, pkg)
 	end
-	local std_status = {install = true, user = true, installed = true}
+	local std_status = {"install", "user", "installed"}
 	status_check("kmod-usb-storage", {
 		Package = "kmod-usb-storage",
 		Version = "3.18.21+10-1-70ea6b9a4b789c558ac9d579b5c1022f-10",
@@ -340,6 +340,7 @@ function test_pkg_unpack()
 		Description = "updater",
 		Depends = {"libc", "vixie-cron", "openssl-util", "libatsha204", "curl", "cert-backup", "opkg", "bzip2", "cznic-cacert-bundle"},
 		Conffiles = conffiles,
+		Status = {"install", "user", "installed"},
 		files = files
 	}, control)
 	local test_root = mkdtemp()
@@ -559,7 +560,7 @@ Installed-Time: 1
 	["Installed-Time"] = "1",
 	Extra = "xxxx",
 	Depends = { "dep1", "dep2" },
-	Status = { flag = true },
+	Status = { "flag" },
 	Conffiles = { ["file"] = "1234567890123456" }
 	}))
 end
@@ -581,7 +582,7 @@ function test_status_dump()
 		Version = "1",
 		["Installed-Time"] = "1",
 		Depends = { "Dep1", "dep2" },
-		Status = { flag = true }
+		Status = { "flag" }
 	}
 	-- Do one more store-read-compare cycle
 	B.status_dump(status)

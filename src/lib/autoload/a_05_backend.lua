@@ -161,7 +161,7 @@ function pkg_status_dump(status)
 		raw "Conflicts",
 		line("Status", function (status)
 			-- Join status flags together, separated by spaces
-			return table.concat(utils.set2arr(status), ' ')
+			return table.concat(status, ' ')
 		end),
 		raw "Architecture",
 		line("Conffiles", function (confs)
@@ -255,7 +255,11 @@ function package_postprocess(status)
 		idx = idx + 1
 		return idx, s:gsub("%s", ""):gsub("%(", " (")
 	end)
-	replace("Status", " ", "(%S+)")
+	idx = 0
+	replace("Status", " ", function (s)
+		idx = idx + 1
+		return idx, s
+	end)
 	return status
 end
 
@@ -483,6 +487,7 @@ function pkg_examine(dir)
 	control.files = files
 	control.Conffiles = conffiles
 	control["Installed-Time"] = tostring(os.time())
+	control.Status = {"install", "user", "installed"}
 	return files, dirs, conffiles, control
 end
 
