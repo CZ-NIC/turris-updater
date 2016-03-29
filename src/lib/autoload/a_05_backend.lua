@@ -253,7 +253,7 @@ function package_postprocess(status)
 	local idx = 0
 	replace("Depends", ",", function (s)
 		idx = idx + 1
-		return idx, s:gsub("%s", ""):gsub("%(", " (")
+		return idx, s:gsub("^%s", ""):gsub("%s$", "")
 	end)
 	idx = 0
 	replace("Status", " ", function (s)

@@ -127,7 +127,7 @@ function test_package_postprocces()
 	assert_equal(package, output)
 	assert_table_equal({"install", "user", "installed"}, output.Status)
 	assert_table_equal({["/etc/config/dhcp"] = "f81fe9bd228dede2165be71e5c9dcf76cc", ["/etc/dnsmasq.conf"] = "1e6ab19c1ae5e70d609ac7b6246541d520"}, output.Conffiles)
-	assert_table_equal({"libc", "kernel (=3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10)", "kmod-nls-base"}, output.Depends)
+	assert_table_equal({"libc", "kernel (= 3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10)", "kmod-nls-base"}, output.Depends)
 	--[[
 	Now check it doesn't get confused when some of the modified fields aren't there
 	(or none, in this case).
