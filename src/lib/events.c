@@ -67,6 +67,10 @@ struct events {
 };
 
 struct events *events_new(void) {
+	// We do a lot of writing to pipes and stuff. We don't want to be killed by a SIGPIPE from these, we shall handle errors of writing.
+	ASSERT_MSG(sigaction(SIGPIPE, &(struct sigaction) {
+		.sa_handler = SIG_IGN
+	}, NULL) == 0, "Can't ignore SIGPIPE");
 	struct event_config *config = event_config_new();
 	// We want to use all kinds of FDs, not just sockets
 	event_config_require_features(config, EV_FEATURE_FDS);
