@@ -485,7 +485,9 @@ function pkg_examine(dir)
 	end
 	-- Complete the control structure
 	control.files = files
-	control.Conffiles = conffiles
+	if next(conffiles) then -- Don't store empty config files
+		control.Conffiles = conffiles
+	end
 	control["Installed-Time"] = tostring(os.time())
 	control.Status = {"install", "user", "installed"}
 	return files, dirs, conffiles, control
