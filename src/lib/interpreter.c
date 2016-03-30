@@ -22,6 +22,7 @@
 #include "util.h"
 #include "events.h"
 #include "journal.h"
+#include "locks.h"
 
 #include <lua.h>
 #include <lualib.h>
@@ -581,6 +582,7 @@ struct interpreter *interpreter_create(struct events *events) {
 	}
 	// Some binary embedded modules
 	journal_mod_init(L);
+	locks_mod_init(L);
 	return result;
 }
 

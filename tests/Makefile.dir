@@ -1,5 +1,9 @@
 
-.PHONY: check-clean test valgrind check
+.PHONY: check-clean test valgrind check test-locks valgrind-locks
+
+BINARIES_NOTARGET += tests/locks
+locks_MODULES += locks
+locks_LOCAL_LIBS += updater
 
 $(O)/tests/check-compiled/compiled:
 	mkdir -p $(O)/tests/check-compiled
@@ -63,6 +67,15 @@ endef
 
 $(eval $(foreach TEST,$(C_TESTS),$(call DO_C_TEST,$(TEST))))
 $(eval $(foreach TEST,$(LUA_TESTS),$(call DO_LUA_TEST,$(TEST))))
+
+test-locks: $(O)/bin/locks
+	$(O)/bin/locks
+
+valgrind-locks: $(O)/bin/locks
+	$(VALGRIND) $(O)/bin/locks
+
+test: test-locks
+valgrind: valgrind-locks
 
 check: test valgrind
 

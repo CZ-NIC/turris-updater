@@ -19,6 +19,7 @@
 
 #include "journal.h"
 #include "util.h"
+#include "inject.h"
 
 #include <lualib.h>
 #include <lauxlib.h>
@@ -311,12 +312,7 @@ static int lua_opened(lua_State *L) {
 	return 1;
 }
 
-struct func {
-	int (*func)(lua_State *L);
-	const char *name;
-};
-
-static struct func inject[] = {
+static const struct inject_func inject[] = {
 	{ lua_fresh, "fresh" },
 	{ lua_recover, "recover" },
 	{ lua_finish, "finish" },
@@ -329,28 +325,11 @@ void journal_mod_init(lua_State *L) {
 	// Create _M
 	lua_newtable(L);
 	// Some variables
-	DBG("Injecting variable journal.path");
-	// journal.path = DEFAULT_JOURNAL_PATH
-	lua_pushstring(L, DEFAULT_JOURNAL_PATH);
-	lua_setfield(L, -2, "path");
+	inject_str_const(L, "journal", "path", DEFAULT_JOURNAL_PATH);
 	// journal.XXX = int(XXX) - init the constants
 #define X(VAL) DBG("Injecting constant journal." #VAL); lua_pushinteger(L, RT_##VAL); lua_setfield(L, -2, #VAL);
 	RECORD_TYPES
 #undef X
-	// Inject the functions
-	for (size_t i = 0; i < sizeof inject / sizeof *inject; i ++) {
-		DBG("Injecting function journal.%s", inject[i].name);
-		lua_pushcfunction(L, inject[i].func);
-		lua_setfield(L, -2, inject[i].name);
-	}
-	// package.loaded["journal"] = _M
-	lua_getglobal(L, "package");
-	lua_getfield(L, -1, "loaded");
-	lua_pushvalue(L, -3); // Copy the _M table on top of the stack
-	lua_setfield(L, -2, "journal");
-	// journal = _M
-	lua_pushvalue(L, -3); // Copy the _M table
-	lua_setglobal(L, "journal");
-	// Drop the _M, package, loaded
-	lua_pop(L, 3);
+	inject_func_n(L, "journal", inject, sizeof inject / sizeof *inject);
+	inject_module(L, "journal");
 }

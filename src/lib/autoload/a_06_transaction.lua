@@ -36,6 +36,7 @@ local table = table
 local backend = require "backend"
 local utils = require "utils"
 local journal = require "journal"
+local locks = require "locks"
 local DBG = DBG
 local WARN = WARN
 
@@ -146,7 +147,8 @@ local function pkg_cleanup(status)
 end
 
 -- The internal part of perform, re-run on journal recover
-local function perform_internal(operations, journal_status)
+-- The lock file is expected to be already acquired and is released at the end.
+local function perform_internal(operations, journal_status, lfile)
 	--[[
 	Run one step of a transaction. Mark it in the journal once it is done.
 
@@ -216,6 +218,7 @@ local function perform_internal(operations, journal_status)
 	step(journal.CLEANED, pkg_cleanup, true, status)
 	-- All done. Mark journal as done.
 	journal.finish()
+	lfile:release()
 	return errors_collected
 end
 
@@ -242,12 +245,16 @@ parameters) is modeled based on opkg, not on dpkg.
 An error may be thrown if anything goes wrong.
 ]]
 function perform(operations)
+	-- TODO: Make it configurable? OpenWRT hardcodes this into the binary, but we may want to be usable on non-OpenWRT systems as well.
+	local lfile = locks.acquire(backend.root_dir .. "/var/lock/opkg.lock")
 	journal.fresh()
-	return perform_internal(operations, {})
+	return perform_internal(operations, {}, lfile)
 end
 
 -- Resume from the journal
 function recover()
+	-- TODO: Make it configurable? OpenWRT hardcodes this into the binary, but we may want to be usable on non-OpenWRT systems as well.
+	local lfile = locks.acquire(backend.root_dir .. "/var/lock/opkg.lock")
 	local previous = journal.recover()
 	local status = {}
 	for i, value in ipairs(previous) do
@@ -261,13 +268,14 @@ function recover()
 		temporary files and directories. Clean them up.
 		]]
 		journal.finish()
+		lfile:release()
 		return {
 			["*"] = {
 				transaction = "Transaction in the journal hasn't started yet, nothing to resume"
 			}
 		}
 	else
-		return perform_internal(operations, status)
+		return perform_internal(operations, status, lfile)
 	end
 end
 

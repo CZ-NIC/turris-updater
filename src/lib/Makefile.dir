@@ -9,11 +9,13 @@ $(O)/.gen/src/lib/lautoload.embedlist: $(S)/src/lib/gen_embed.sh $(S)/src/lib/em
 
 libupdater_MODULES := \
 	arguments \
+	inject \
 	interpreter \
 	lautoload.embed \
 	embed_types \
 	events \
 	journal \
+	locks \
 	util
 libupdater_PKG_CONFIGS := $(LUA_NAME) libevent
 
