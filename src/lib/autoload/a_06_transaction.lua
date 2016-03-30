@@ -83,14 +83,32 @@ function perform(operations)
 				local files, dirs, configs, control = backend.pkg_examine(pkg_dir)
 				to_remove[control.Package] = true
 				to_install[control.Package] = files
-				local old = status[control.Package] or {}
+				--[[
+				We need to check if config files has been modified. If they were,
+				they should not be overwritten.
+
+				We do so by comparing them to the version packed in previous version.
+				If there's no previous version, we use the current version instead.
+				That is for the case where the package has been removed and we want
+				to install it again ‒ if there's a config file present, we don't want
+				to overwrite it. We currently don't store info about orphaned config
+				files, because opkg doesn't do that either, but that may change some day.
+
+				If the file is not present, it is installed no matter what.
+				]]
+				local old_configs
+				if status[control.Package] then
+					old_configs = status[control.Package].Conffiles or {}
+				else
+					old_configs = configs or {}
+				end
 				table.insert(plan, {
 					op = "install",
 					dir = pkg_dir,
 					files = files,
 					dirs = dirs,
 					configs = configs,
-					old_configs = old.Conffiles or {},
+					old_configs = old_configs,
 					control = control
 				})
 			else

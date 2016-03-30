@@ -599,7 +599,7 @@ function pkg_merge_files(dir, dirs, files, configs)
 			local hash = configs[f]
 			local result = root_dir .. f
 			if hash and config_modified(result, hash) then
-				WARN("Config file " .. f .. " modified by the user. Backing into " .. f .. "-opkg")
+				WARN("Config file " .. f .. " modified by the user. Backing up the new one into " .. f .. "-opkg")
 				result = result .. "-opkg"
 			end
 			move(dir .. f, result)
