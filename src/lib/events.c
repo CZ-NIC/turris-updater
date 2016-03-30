@@ -31,6 +31,8 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdarg.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 struct watched_child {
 	pid_t pid;
@@ -371,6 +373,9 @@ static struct wait_id register_command(struct events *events, command_callback_t
 	ASSERT(close(in_pipe[0]) != -1);
 	ASSERT(close(out_pipe[1]) != -1);
 	ASSERT(close(err_pipe[1]) != -1);
+	ASSERT_MSG(fcntl(in_pipe[1], F_SETFD, (long)FD_CLOEXEC) != -1, "Failed to set close on exec on commands stdin pipe: %s", strerror(errno));
+	ASSERT_MSG(fcntl(out_pipe[0], F_SETFD, (long)FD_CLOEXEC) != -1, "Failed to set close on exec on commands stdout pipe: %s", strerror(errno));
+	ASSERT_MSG(fcntl(err_pipe[0], F_SETFD, (long)FD_CLOEXEC) != -1, "Failed to set close on exec on commands stderr pipe: %s", strerror(errno));
 	struct watched_command *command = malloc(sizeof *command);
 	*command = (struct watched_command) {
 		.events = events,

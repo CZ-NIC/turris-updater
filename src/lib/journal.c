@@ -124,7 +124,7 @@ static void journal_open(lua_State *L, int flags) {
 	lua_getglobal(L, "journal");
 	lua_getfield(L, -1, "path");
 	const char *path = lua_tostring(L, -1);
-	fd = open(path, O_RDWR | O_CLOEXEC | O_DSYNC | O_APPEND | flags, S_IRUSR | S_IWUSR);
+	fd = open(path, O_RDWR | O_DSYNC | O_APPEND | flags, S_IRUSR | S_IWUSR);
 	if (fd == -1) {
 		switch (errno) {
 			case EEXIST:
@@ -137,6 +137,7 @@ static void journal_open(lua_State *L, int flags) {
 				luaL_error(L, "Error opening journal: %s", strerror(errno));
 		}
 	}
+	ASSERT_MSG(fcntl(fd, F_SETFD, (long)FD_CLOEXEC) != -1, "Failed to set close on exec on journal FD: %s", strerror(errno));
 	// Keep a copy of the journal path, someone might change it and we want to remove the correct journal on finish
 	journal_path = strdup(path);
 }

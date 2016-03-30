@@ -53,6 +53,7 @@ static int lua_acquire(lua_State *L) {
 	lock->fd = creat(path, S_IRUSR | S_IWUSR);
 	if (lock->fd == -1)
 		return luaL_error(L, "Failed to create the lock file %s: %s", path, strerror(errno));
+	ASSERT_MSG(fcntl(lock->fd, F_SETFD, (long)FD_CLOEXEC) != -1, "Failed to set close on exec on lock file %s: %s", path, strerror(errno));
 	if (lockf(lock->fd, F_TLOCK, 0) == -1)
 		// Leave closing up on the GC, that is enough
 		return luaL_error(L, "Failed to lock the lock file %s: %s", path, strerror(errno));
