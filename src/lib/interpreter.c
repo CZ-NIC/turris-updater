@@ -22,6 +22,8 @@
 #include "util.h"
 #include "events.h"
 #include "journal.h"
+#include "md5.h"
+#include "sha256.h"
 #include "locks.h"
 
 #include <lua.h>
@@ -534,6 +536,31 @@ static int lua_setenv(lua_State *L) {
 	return 0;
 }
 
+static void push_hex(lua_State *L, const uint8_t *buffer, size_t size) {
+	char result[2 * size];
+	for (size_t i = 0; i < size; i ++)
+		sprintf(result + 2 * i, "%02hhx", buffer[i]);
+	lua_pushlstring(L, result, 2 * size);
+}
+
+static int lua_md5(lua_State *L) {
+	size_t len;
+	const char *buffer = luaL_checklstring(L, 1, &len);
+	uint8_t result[MD5_DIGEST_SIZE];
+	md5_buffer(buffer, len, result);
+	push_hex(L, result, sizeof result);
+	return 1;
+}
+
+static int lua_sha256(lua_State *L) {
+	size_t len;
+	const char *buffer = luaL_checklstring(L, 1, &len);
+	uint8_t result[SHA256_DIGEST_SIZE];
+	sha256_buffer(buffer, len, result);
+	push_hex(L, result, sizeof result);
+	return 1;
+}
+
 struct injected_func {
 	int (*func)(lua_State *);
 	const char *name;
@@ -543,6 +570,11 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_log, "log" },
 	{ lua_run_command, "run_command" },
 	{ lua_events_wait, "events_wait" },
+	/*
+	 * Note: watch_cancel is not provided, because it would be hell to
+	 * manage the dynamically allocated memory correctly and there doesn't
+	 * seem to be a need for them at this moment.
+	 */
 	{ lua_mkdtemp, "mkdtemp" },
 	{ lua_chdir, "chdir" },
 	{ lua_getcwd, "getcwd" },
@@ -551,12 +583,9 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_ls, "ls" },
 	{ lua_stat, "stat" },
 	{ lua_sync, "sync" },
-	{ lua_setenv, "setenv" }
-	/*
-	 * Note: watch_cancel is not provided, because it would be hell to
-	 * manage the dynamically allocated memory correctly and there doesn't
-	 * seem to be a need for them at this moment.
-	 */
+	{ lua_setenv, "setenv" },
+	{ lua_md5, "md5" },
+	{ lua_sha256, "sha256" }
 };
 
 struct interpreter *interpreter_create(struct events *events) {

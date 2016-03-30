@@ -39,6 +39,8 @@ local stat = stat
 local mkdir = mkdir
 local move = move
 local ls = ls
+local md5 = md5
+local sha256 = sha256
 local DBG = DBG
 local WARN = WARN
 local utils = require "utils"
@@ -460,12 +462,12 @@ function pkg_examine(dir)
 	local conffiles = {}
 	if cidx then
 		for l in cidx:lines() do
-			local fname = l:match("^%s*/(.*%S)%s*")
-			local function get_hash(text)
-				local hash = text:match("[0-9a-fA-F]+")
-				conffiles["/" .. fname] = hash
+			local fname = l:match("^%s*(/.*%S)%s*")
+			local content, err = utils.slurp(data_dir .. fname)
+			if not content then
+				error(err)
 			end
-			launch(get_hash, "/usr/bin/md5sum", fname)
+			conffiles[fname] = sha256(content)
 		end
 		cidx:close()
 	end
@@ -574,8 +576,22 @@ function dir_ensure(dir)
 	end
 end
 
--- Merge the given package into the live system and remove the temporary file.
+--[[
+Merge the given package into the live system and remove the temporary directory.
+
+The confis parameter describes the previous version of the package, not
+the current one.
+]]
 function pkg_merge_files(dir, dirs, files, configs)
+	if stat(dir) == nil then
+		--[[
+		The directory is not there. This looks like the package has
+		already been merged into place (and we are resuming
+		from journal), so skip it completely.
+		]]
+		DBG("Skipping installation of temporary dir " .. dir .. ", no longer present")
+		return
+	end
 	--[[
 	First, create the needed directories. Sort them according to
 	their length, which ensures the parent directories are created
@@ -595,14 +611,18 @@ function pkg_merge_files(dir, dirs, files, configs)
 	Now move all the files in place.
 	]]
 	for f in pairs(files) do
-		-- TODO: Handle the configs
-		DBG("Installing file " .. f)
-		--[[
-		TODO: Handle the possibility of the file being already
-		moved to place, because the previous run has been
-		interrupted and we resumed from the journal.
-		]]
-		move(dir .. f, root_dir .. f)
+		if stat(dir .. f) == nil then
+			DBG("File " .. f .. " already installed")
+		else
+			DBG("Installing file " .. f)
+			local hash = configs[f]
+			local result = root_dir .. f
+			if hash and config_modified(result, hash) then
+				WARN("Config file " .. f .. " modified by the user. Backing up the new one into " .. f .. "-opkg")
+				result = result .. "-opkg"
+			end
+			move(dir .. f, result)
+		end
 	end
 	-- Remove the original directory
 	utils.cleanup_dirs({dir})
@@ -667,41 +687,46 @@ end
 Remove files provided as a set and any directories which became
 empty by doing so (recursively).
 ]]
-function pkg_cleanup_files(files)
+function pkg_cleanup_files(files, rm_configs)
 	for f in pairs(files) do
 		-- Make sure there are no // in there, which would confuse the directory cleaning code
 		f = f:gsub("/+", "/")
-		path = root_dir .. f
-		DBG("Removing file " .. path)
-		local ok, err = pcall(function () os.remove(path) end)
-		-- If it failed because the file didn't exist, that's OK. Mostly.
-		if not ok then
-			local tp = stat(path)
-			if tp then
-				error(err)
-			else
-				WARN("Not removing " .. path .. " since it is not there")
+		local path = root_dir .. f
+		local hash = rm_configs[f]
+		if hash and config_modified(path, hash) then
+			DBG("Not removing config " .. f .. ", as it has been modified")
+		else
+			DBG("Removing file " .. path)
+			local ok, err = pcall(function () os.remove(path) end)
+			-- If it failed because the file didn't exist, that's OK. Mostly.
+			if not ok then
+				local tp = stat(path)
+				if tp then
+					error(err)
+				else
+					WARN("Not removing " .. path .. " since it is not there")
+				end
 			end
-		end
-		-- Now, go through the levels of f, looking if they may be removed
-		-- Iterator for the chunking of the path
-		function get_parent()
-			local parent = f:match("^(.+)/[^/]+")
-			f = parent
-			return f
-		end
-		for parent in get_parent do
-			if next(ls(root_dir .. parent)) then
-				DBG("Directory " .. root_dir .. parent .. " not empty, keeping in place")
-				-- It is not empty
-				break
-			else
-				DBG("Removing empty directory " .. root_dir .. parent)
-				local ok, err = pcall(function () os.remove(root_dir .. parent) end)
-				if not ok then
-					-- It is an error, but we don't want to give up on the rest of the operation because of that
-					ERROR("Failed to removed empty " .. parent .. ", ignoring")
+			-- Now, go through the levels of f, looking if they may be removed
+			-- Iterator for the chunking of the path
+			function get_parent()
+				local parent = f:match("^(.+)/[^/]+")
+				f = parent
+				return f
+			end
+			for parent in get_parent do
+				if next(ls(root_dir .. parent)) then
+					DBG("Directory " .. root_dir .. parent .. " not empty, keeping in place")
+					-- It is not empty
 					break
+				else
+					DBG("Removing empty directory " .. root_dir .. parent)
+					local ok, err = pcall(function () os.remove(root_dir .. parent) end)
+					if not ok then
+						-- It is an error, but we don't want to give up on the rest of the operation because of that
+						ERROR("Failed to removed empty " .. parent .. ", ignoring")
+						break
+					end
 				end
 			end
 		end
@@ -765,6 +790,31 @@ function control_cleanup(status)
 				end
 			end
 		end
+	end
+end
+
+--[[
+Decide if the config file has been modified. The hash is of the original.
+It can handle original hash of md5 and sha1.
+
+Returns true or false if it was modified. If the file can't be read, nil
+is returned.
+]]
+function config_modified(file, hash)
+	local len = hash:len()
+	local hasher
+	if len == 32 then
+		hasher = md5
+	elseif len == 64 then
+		hasher = sha256
+	else
+		error("Can not determine hash algorithm to use for hash " .. hash)
+	end
+	local content = utils.slurp(file)
+	if content then
+		return hasher(content) ~= hash:lower()
+	else
+		return nil
 	end
 end
 

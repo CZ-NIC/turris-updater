@@ -30,6 +30,7 @@ local next = next
 local error = error
 local pcall = pcall
 local assert = assert
+local pairs = pairs
 local unpack = unpack
 local io = io
 local table = table
@@ -56,7 +57,7 @@ local function script(errors_collected, name, suffix, ...)
 end
 
 -- Stages of the transaction. Each one is written into the journal, with its results.
-local function pkg_unpack(operations)
+local function pkg_unpack(operations, status)
 	local dir_cleanups = {}
 	--[[
 	Set of packages from the current system we want to remove.
@@ -78,12 +79,32 @@ local function pkg_unpack(operations)
 			local files, dirs, configs, control = backend.pkg_examine(pkg_dir)
 			to_remove[control.Package] = true
 			to_install[control.Package] = files
+			--[[
+			We need to check if config files has been modified. If they were,
+			they should not be overwritten.
+
+			We do so by comparing them to the version packed in previous version.
+			If there's no previous version, we use the current version instead.
+			That is for the case where the package has been removed and we want
+			to install it again ‒ if there's a config file present, we don't want
+			to overwrite it. We currently don't store info about orphaned config
+			files, because opkg doesn't do that either, but that may change some day.
+
+			If the file is not present, it is installed no matter what.
+			]]
+			local old_configs
+			if status[control.Package] then
+				old_configs = status[control.Package].Conffiles or {}
+			else
+				old_configs = configs or {}
+			end
 			table.insert(plan, {
 				op = "install",
 				dir = pkg_dir,
 				files = files,
 				dirs = dirs,
 				configs = configs,
+				old_configs = old_configs,
 				control = control
 			})
 		else
@@ -103,9 +124,11 @@ local function pkg_collision_check(status, to_remove, to_install)
 end
 
 local function pkg_move(status, plan, errors_collected)
+	local all_configs = {}
 	-- Go through the list once more and perform the prepared operations
 	for _, op in ipairs(plan) do
 		if op.op == "install" then
+			utils.table_merge(all_configs, op.old_configs)
 			-- Unfortunately, we need to merge the control files first, otherwise the maintainer scripts won't run. They expect to live in the info dir when they are run. And we need to run the preinst script before merging the files.
 			backend.pkg_merge_control(op.dir .. "/control", op.control.Package, op.control.files)
 			if status[op.control.Package] then
@@ -114,25 +137,26 @@ local function pkg_move(status, plan, errors_collected)
 			else
 				script(errors_collected, op.control.Package, "preinst", "install", op.control.Version)
 			end
-			backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.configs)
+			backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.old_configs)
 			status[op.control.Package] = op.control
 		end
 		-- Ignore others, at least for now.
 	end
-	return status, errors_collected
+	return status, errors_collected, all_configs
 end
 
-local function pkg_scripts(status, plan, removes, to_install, errors_collected)
+local function pkg_scripts(status, plan, removes, to_install, errors_collected, all_configs)
 	for _, op in ipairs(plan) do
 		if op.op == "install" then
 			script(errors_collected, op.control.Package, "postinst", "configure")
 		elseif op.op == "remove" and not to_install[op.name] then
+			utils.table_merge(all_configs, status[op.name].Conffiles or {})
 			status[op.name] = nil
 			script(errors_collected, op.name, "prerm", "remove")
 		end
 	end
 	-- Clean up the files from removed or upgraded packages
-	backend.pkg_cleanup_files(removes)
+	backend.pkg_cleanup_files(removes, all_configs)
 	for _, op in ipairs(plan) do
 		if op.op == "remove" and not to_install[op.name] then
 			script(errors_collected, op.name, "postrm", "remove")
@@ -187,14 +211,15 @@ local function perform_internal(operations, journal_status, lfile)
 			backend.dir_ensure(created)
 		end
 		-- Look at what the current status looks like.
-		local to_remove, to_install, plan, new_dir_cleanups = step(journal.UNPACKED, pkg_unpack, true, operations)
+		local to_remove, to_install, plan, new_dir_cleanups = step(journal.UNPACKED, pkg_unpack, true, operations, status)
 		dir_cleanups = new_dir_cleanups
 		-- Drop the operations. This way, if we are tail-called, then the package buffers may be garbage-collected
 		operations = nil
 		-- Check for collisions
 		local removes = step(journal.CHECKED, pkg_collision_check, false, status, to_remove, to_install)
-		status, errors_collected = step(journal.MOVED, pkg_move, true, status, plan, errors_collected)
-		status, errors_collected = step(journal.SCRIPTS, pkg_scripts, true, status, plan, removes, to_install, errors_collected)
+		local all_configs
+		status, errors_collected, all_configs = step(journal.MOVED, pkg_move, true, status, plan, errors_collected)
+		status, errors_collected = step(journal.SCRIPTS, pkg_scripts, true, status, plan, removes, to_install, errors_collected, all_configs)
 	end)
 	-- Make sure the temporary dirs are removed even if it fails. This will probably be slightly different with working journal.
 	utils.cleanup_dirs(dir_cleanups)

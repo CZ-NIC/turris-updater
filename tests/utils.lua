@@ -67,3 +67,14 @@ function test_clone()
 	assert_not_equal(input.z, output.z)
 	assert_equal("xyz", U.clone("xyz"))
 end
+
+function test_table_merge()
+	local t1 = {}
+	local t2 = {a = 1, b = 2}
+	U.table_merge(t1, t2)
+	assert_table_equal(t2, t1)
+	U.table_merge(t1, {})
+	assert_table_equal(t2, t1)
+	U.table_merge(t1, {b = 3, c = 4})
+	assert_table_equal({a = 1, b = 3, c = 4}, t1)
+end

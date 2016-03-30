@@ -77,6 +77,11 @@ function test_env()
 	assert_equal("42", os.getenv("TEST_ENV"))
 end
 
+function test_hashes()
+	assert_equal("5d41402abc4b2a76b9719d911017c592", md5("hello"))
+	assert_equal("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824", sha256("hello"))
+end
+
 function teardown()
 	utils.cleanup_dirs(tmp_dirs)
 	tmp_dirs = {}

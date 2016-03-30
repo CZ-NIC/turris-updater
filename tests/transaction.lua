@@ -27,12 +27,18 @@ module("transaction-tests", package.seeall, lunit.testcase)
 
 local test_status = {
 	["pkg-rem"] = {
-		Package = "pkg-rem"
+		Package = "pkg-rem",
+		Conffiles = {
+			remconf = "12345678901234567890123456789012"
+		}
 	},
 	["pkg-name"] = {
 		Package = "pkg-name",
 		Canary = true,
-		Version = "0"
+		Version = "0",
+		Conffiles = {
+			c = "12345678901234567890123456789012"
+		}
 	}
 }
 local intro = {
@@ -166,11 +172,11 @@ function test_perform_empty()
 		},
 		{
 			f = "journal.write",
-			p = {journal.MOVED, test_status, {}}
+			p = {journal.MOVED, test_status, {}, {}}
 		},
 		{
 			f = "backend.pkg_cleanup_files",
-			p = {{}}
+			p = {{}, {}}
 		},
 		{
 			f = "journal.write",
@@ -234,7 +240,8 @@ function test_perform_ok()
 						dir = "pkg_dir",
 						dirs = { d = true },
 						files = { f = true },
-						op = "install"
+						op = "install",
+						old_configs = { c = "12345678901234567890123456789012" }
 					},
 					{ name = "pkg-rem", op = "remove" }
 				},
@@ -266,7 +273,7 @@ function test_perform_ok()
 		},
 		{
 			f = "backend.pkg_merge_files",
-			p = {"pkg_dir/data", {d = true}, {f = true}, {c = "1234567890123456"}}
+			p = {"pkg_dir/data", {d = true}, {f = true}, {c = "12345678901234567890123456789012"}}
 		},
 		{
 			f = "journal.write",
@@ -280,10 +287,12 @@ function test_perform_ok()
 						files = { f = true }
 					},
 					["pkg-rem"] = {
-						Package = "pkg-rem"
+						Package = "pkg-rem",
+						Conffiles = { remconf = "12345678901234567890123456789012" }
 					}
 				},
-				{}
+				{},
+				{c = "12345678901234567890123456789012"}
 			}
 		},
 		{
@@ -296,7 +305,7 @@ function test_perform_ok()
 		},
 		{
 			f = "backend.pkg_cleanup_files",
-			p = {{d2 = true}}
+			p = {{d2 = true}, {c = "12345678901234567890123456789012", remconf = "12345678901234567890123456789012"}}
 		},
 		{
 			f = "backend.script_run",
@@ -367,7 +376,8 @@ function test_perform_collision()
 						dir = "<pkg1dir>",
 						dirs = { d = true },
 						files = { f = true },
-						op = "install"
+						op = "install",
+						old_configs = { c = "1234567890123456" }
 					},
 					{
 						configs = { c = "1234567890123456" },
@@ -375,7 +385,8 @@ function test_perform_collision()
 						dir = "<pkg2dir>",
 						dirs = { d = true },
 						files = { f = true },
-						op = "install"
+						op = "install",
+						old_configs = { c = "1234567890123456" }
 					}
 				},
 				{"<pkg1dir>", "<pkg2dir>"}

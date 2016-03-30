@@ -16,7 +16,9 @@ libupdater_MODULES := \
 	events \
 	journal \
 	locks \
-	util
+	util \
+	md5 \
+	sha256
 libupdater_PKG_CONFIGS := $(LUA_NAME) libevent
 
 DOCS += $(addprefix src/lib/,lua_funcs journal)

@@ -324,7 +324,7 @@ function test_pkg_unpack()
 /usr/share/updater/keys
 /usr/bin]]), dirs)
 	assert_table_equal({
-		["/etc/config/updater"] = "30843ef73412c8f6b4212c00724a1cc8"
+		["/etc/config/updater"] = "b5cf279732a87011eadfe522a0c163b98682bef2919afc4f96330f9f103a3230"
 	}, conffiles)
 	-- We want to take it out, the time changes every time
 	assert_not_nil(control["Installed-Time"])
@@ -352,7 +352,13 @@ function test_pkg_unpack()
 	]]
 	dirs["/usr/share/updater/hashes"] = nil
 	dirs["/etc/cron.d"] = nil
-	B.pkg_merge_files(path .. "/data", dirs, files, conffiles)
+	-- Prepare a config file that was modified by a user
+	mkdir(test_root .. "/etc")
+	mkdir(test_root .. "/etc/config")
+	io.open(test_root .. "/etc/config/updater", "w"):close()
+	B.pkg_merge_files(path .. "/data", dirs, files, {
+		["/etc/config/updater"] = "12345678901234567890123456789012"
+	})
 	-- The original directory disappeared.
 	assert_table_equal({
 		["control"] = "d"
@@ -365,6 +371,7 @@ function test_pkg_unpack()
 ./etc
 ./etc/config
 ./etc/config/updater
+./etc/config/updater-opkg
 ./etc/init.d
 ./etc/init.d/updater
 ./etc/ssl
@@ -384,9 +391,28 @@ function test_pkg_unpack()
 ./usr/share/updater/keys/standby.pem
 ]]), lines2set(stdout))
 	end, function () chdir(test_root) end, nil, -1, -1, "/usr/bin/find"))
+	-- Delete the backed-up file, it is not tracked
+	os.remove(test_root .. "/etc/config/updater-opkg")
 	-- Now try clearing the package. When we list all the files, it should remove the directories as well.
-	B.pkg_cleanup_files(files)
+	B.pkg_cleanup_files(files, {})
 	assert_table_equal({}, ls(test_root))
+end
+
+function test_cleanup_files_config()
+	local test_root = mkdtemp()
+	table.insert(tmp_dirs, test_root)
+	-- Create an empty testing file
+	local fname = test_root .. "/config"
+	io.open(fname, "w"):close()
+	B.root_dir = test_root
+	-- First try with a non-matching hash ‒ the file has been modified
+	B.pkg_cleanup_files({["/config"] = true}, {["/config"] = "12345678901234567890123456789012"})
+	-- It is left there
+	assert_equal("r", stat(fname))
+	-- But when it matches, it is removed
+	B.pkg_cleanup_files({["/config"] = true}, {["/config"] = "d41d8cd98f00b204e9800998ecf8427e"})
+	-- The file disappeared
+	assert_nil(stat(fname))
 end
 
 -- Test the collision_check function
@@ -660,6 +686,22 @@ function test_root_dir_set()
 	assert_equal("/dir/usr/lib/opkg/info/", B.info_dir)
 	assert_equal("/dir/usr/share/updater/unpacked", B.pkg_temp_dir)
 	assert_equal("/dir/usr/share/updater/journal", journal.path)
+end
+
+function test_config_modified()
+	-- Bad length of the hash, no matter what file:
+	assert_error(function() B.config_modified("/file/does/not/exist", "1234") end)
+	-- If a file doesn't exist, it returns nil
+	assert_nil(B.config_modified("/file/does/not/exist", "12345678901234567890123456789012"))
+	-- We test on a non-config file, but it the same.
+	local file = (os.getenv("S") or ".") .. "/tests/data/updater.ipk"
+	assert_false(B.config_modified(file, "182171ccacfc32a9f684479509ac471a"))
+	assert(B.config_modified(file, "282171ccacfc32a9f684479509ac471b"))
+	assert_false(B.config_modified(file, "4f54362b30f53ae6862b11ff34d22a8d4510ed2b3e757b1f285dbd1033666e55"))
+	assert(B.config_modified(file, "5f54362b30f53ae6862b11ff34d22a8d4510ed2b3e757b1f285dbd1033666e56"))
+	-- Case insensitive checks
+	assert_false(B.config_modified(file, "182171CCACFC32A9F684479509AC471A"))
+	assert_false(B.config_modified(file, "4F54362B30F53AE6862B11FF34D22A8D4510ED2B3E757B1F285DBD1033666E55"))
 end
 
 function setup()
