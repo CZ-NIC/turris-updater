@@ -50,7 +50,7 @@ get_list() {
 get_list_pack() {
 	(
 		echo "$GENERATION$REVISION"
-		if [ "$ID" != "unknown-id" ] ; then
+		if [ "$ID" != "unknown-id" ] && [ -z "$(uci -q get updater.override.branch)" ] ; then
 			SERIAL="$(echo "$ID" | sed -e 's/........//')"
 		else
 			SERIAL="$ID"
@@ -165,8 +165,22 @@ do_remove() {
 }
 
 do_restart() {
-	echo 'Updater restart requested on abnormal run, terminating instead' | my_logger -p daemon.warn
-	exit 0
+	echo 'Restarting updater' | my_logger -p daemon.info
+	# If we are not full fledged updater, we want to start full fledged one
+	if [ "$(basename "$0")" == updater.sh ]; then
+		exec "$0" -r "Restarted" -n "$@"
+	else
+		# We want procd to let finish bootup if we are restarting in resume updater
+		# So we fork here and update state files to somehow correct values
+		# And as network might not be up yet, let's wait for 10 minutes
+		echo initial sleep >"$STATE_FILE"
+		"`dirname "$0"`/updater.sh" -w 600 -r "Restarted" -n "$@" 2> /tmp/updater-trace &
+		echo $! >"$PID_FILE"
+		# We don't want to release locks, delete PID files or cleanup anything
+		# Restart shouldn't be visible to the outside world and child will cleanup
+		trap - EXIT INT QUIT TERM ABRT
+		exit 0
+	fi
 }
 
 do_install() {
@@ -193,14 +207,14 @@ do_install() {
 			echo 'cooldown' >"$STATE_FILE"
 			sleep "$COOLDOWN"
 		fi
-		if has_flag "$3" U ; then
-			do_restart
-		fi
-		rm "$PKG_DIR/$PACKAGE.ipk"
+		rm -f "$PKG_DIR/$PACKAGE.ipk"
 		echo 'examine' >"$STATE_FILE"
 		echo "$(date '+%F %T %Z'): installed $PACKAGE-$VERSION" >>/usr/share/updater/updater-log
 		touch /tmp/updater-check-hashes
 		rm -f /usr/share/updater/hashes/"$PACKAGE---"*.json
+		if has_flag "$3" U ; then
+			do_restart
+		fi
 	fi
 }
 
@@ -213,7 +227,11 @@ prepare_plan() {
 	# interpreted as regexp. But we want to distinguish packages that have the same
 	# suffix, therefore we anchor the left end by extra ^ (which should never be part
 	# of package name) and with the ' - ' at the right end.
-	opkg list-installed | sed -e 's/^/^/g' >"$TMP_DIR/list-installed"
+	opkg list-installed 2>/tmp/updater-err | sed -e 's/^/^/g' >"$TMP_DIR/list-installed"
+	if [ ! -s "$TMP_DIR/list-installed" ] ; then
+		echo "Failed to get list of installed packages" | my_logger -p daemon.error
+		false
+	fi
 	# The EXTRA is unused. It is just placeholder to eat whatever extra columns there might be in future.
 	while read PACKAGE VERSION FLAGS HASH EXTRA ; do
 		if should_uninstall "$PACKAGE" "$VERSION" "$FLAGS" ; then

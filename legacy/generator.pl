@@ -218,12 +218,19 @@ for my $list (@lists) {
 	}
 }
 
+# Escape a string so it can be fed to lua
+sub lua_escape($) {
+	my ($text) = @_;
+	$text =~ s/'/\\'/g;
+	return $text;
+}
+
 if (@lists) {
 	open my $list_file, '>:utf8', "$output_dir/definitions" or die "Couldn't write definitions: $!\n";
 	print $list_file "lists = {\n", (join ",\n", map {
 		my ($name) = /^([^.]+)/;
 		if (exists $list_defs{$name}) {
-			"['$name'] = {\n" . (join ",\n", map { "    $_ = '$list_defs{$name}->{$_}'" } sort keys %{$list_defs{$name}}) . "\n}"
+			"['$name'] = {\n" . (join ",\n", map { "    $_ = '" . lua_escape($list_defs{$name}->{$_}) . "'" } sort keys %{$list_defs{$name}}) . "\n}"
 		} else {
 			();
 		}
