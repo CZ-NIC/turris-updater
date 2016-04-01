@@ -38,6 +38,27 @@ STATE_FILE="$STATE_DIR/state"
 LOG_FILE="$STATE_DIR/log2"
 PLAN_FILE="$STATE_DIR/plan"
 LOCK_DIR="$STATE_DIR/lock"
+QUEUE=""
+
+do_journal() {
+	# Run leftover journal, if there's any. And delete it if it is still there.
+	if [ -f /usr/share/updater/journal ] ; then
+		echo "Recovering journal" | my_logger -p daemon.warning
+		opkg-trans -s dbg -e dbg -j || true
+		if [ -f /usr/share/updater/journal ] ; then
+			echo "Journal is still there. Dropping and hoping for the best" | my_logger -p daemon.error
+			rm -f /usr/share/updater/journal
+		fi
+	fi
+}
+
+do_commit() {
+	if [ "$QUEUE" ] ; then
+		echo "Running transaction $QUEUE" | my_logger -p daemon.info
+		opkg-trans -s dbg -e dbg $QUEUE
+		QUEUE=""
+	fi
+}
 
 get_list() {
 	if grep ' MISSING$' "/tmp/updater-lists/status" | grep -qF "$1 " ; then
@@ -152,19 +173,14 @@ do_remove() {
 	echo 'remove' >"$STATE_FILE"
 	echo "R $PACKAGE" >>"$LOG_FILE"
 	echo "Removing package $PACKAGE" | my_logger -p daemon.info
-	my_opkg --force-depends --force-removal-of-essential-packages remove "$PACKAGE" || die "Failed to remove $PACKAGE"
-	if has_flag "$2" C ; then
-		# Let the system settle little bit before continuing
-		# Like reconnecting things that changed.
-		echo 'cooldown' >"$STATE_FILE"
-		sleep "$COOLDOWN"
-	fi
+	QUEUE="$QUEUE -r $PACKAGE"
 	echo 'examine' >"$STATE_FILE"
 	echo "$(date '+%F %T %Z'): removed $PACKAGE" >>/usr/share/updater/updater-log
 	rm -f /usr/share/updater/hashes/"$PACKAGE"---*.json
 }
 
 do_restart() {
+	do_commit
 	echo 'Restarting updater' | my_logger -p daemon.info
 	# If we are not full fledged updater, we want to start full fledged one
 	if [ "$(basename "$0")" == updater.sh ]; then
@@ -194,20 +210,10 @@ do_install() {
 		echo 'install' >"$STATE_FILE"
 		echo "I $PACKAGE $VERSION" >>"$LOG_FILE"
 		echo "Installing/upgrading $PACKAGE version $VERSION" | my_logger -p daemon.info
-		# Don't do deps and such, just follow the script. The conf disables checking signatures, in case the opkg packages are there.
-		my_opkg --force-downgrade --nodeps --conf /dev/null --offline-root / install "$PKG_DIR/$PACKAGE.ipk" || die "Failed to install $PACKAGE"
-		my_opkg --conf /dev/null flag unpacked "$PACKAGE" || die "Failed to flag $PACKAGE"
-		my_opkg --conf /dev/null configure "$PACKAGE" || die "Failed to configure $PACKAGE"
+		QUEUE="$QUEUE -a $PKG_DIR/$PACKAGE.ipk"
 		if has_flag "$3" B ; then
 			RESTART_REQUESTED=true
 		fi
-		if has_flag "$3" C ; then
-			# Let the system settle little bit before continuing
-			# Like reconnecting things that changed.
-			echo 'cooldown' >"$STATE_FILE"
-			sleep "$COOLDOWN"
-		fi
-		rm -f "$PKG_DIR/$PACKAGE.ipk"
 		echo 'examine' >"$STATE_FILE"
 		echo "$(date '+%F %T %Z'): installed $PACKAGE-$VERSION" >>/usr/share/updater/updater-log
 		touch /tmp/updater-check-hashes
@@ -261,6 +267,7 @@ prepare_plan() {
 
 run_plan() {
 	. "$1"
+	do_commit
 	rm "$1"
 }
 

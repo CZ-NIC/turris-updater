@@ -34,3 +34,4 @@ LIB_DIR="$(dirname "$0")"
 . "$LIB_DIR/updater-worker.sh"
 
 do_remove "$1"
+do_commit

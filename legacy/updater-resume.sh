@@ -55,6 +55,8 @@ PID_FILE="$STATE_DIR/pid"
 echo 'startup' >"$STATE_FILE"
 echo "$$" >"$PID_FILE"
 
+do_journal
+
 RESTART_REQUESTED=false
 run_plan "$BASE_PLAN_FILE"
 
