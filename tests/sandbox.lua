@@ -46,3 +46,26 @@ function test_context_new()
 		assert_table_equal({sec_level = level}, context)
 	end
 end
+
+-- Create contexts by inheriting it from a parent
+function test_context_inherit()
+	local c1 = sandbox.new('Full')
+	local c2 = sandbox.new(nil, c1)
+	assert_equal(c1, c2.parent)
+	assert_equal('Full', c2.sec_level)
+	c2.parent = nil
+	-- The environments are separate instances, but look the same
+	assert_not_equal(c1.env, c2.env)
+	assert_table_equal(c1, c2)
+	c2 = sandbox.new(nil, c1)
+	c2.test_field = "value"
+	local c3 = sandbox.new('Remote', c2)
+	assert_equal(c2, c3.parent)
+	assert_equal('Remote', c3.sec_level)
+	assert_nil(c3.env.io)
+	assert_equal("value", c3.test_field)
+	-- The lower-level permissions don't add anything to the higher ones.
+	for k in pairs(c3.env) do
+		assert(c2.env[k] ~= nil)
+	end
+end

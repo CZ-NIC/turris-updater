@@ -12,7 +12,11 @@ function assert_table_equal(t1, t2, tables)
 		return
 	end
 	if not tables then
-		tables = DataDumper({t1, t2})
+		local ok
+		ok, tables = pcall(DataDumper, {t1, t2})
+		if not ok then
+			tables = "Can't dump :-("
+		end
 	end
 	lunit.assert_table(t1)
 	lunit.assert_table(t2)
