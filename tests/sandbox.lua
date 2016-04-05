@@ -69,3 +69,42 @@ function test_context_inherit()
 		assert(c2.env[k] ~= nil)
 	end
 end
+
+-- Test running chunks in the sandbox
+function test_sandbox_run()
+	local chunk_ok = [[call()]]
+	local chunk_io = [[io.open("/dev/zero")]]
+	local chunk_parse = [[this is invalid lua code!!!!]]
+	local chunk_runtime = [[error("Error!")]]
+	local function test_do(chunk, sec_level, expected, result_called)
+		local called
+		local function call()
+			called = true
+		end
+		local result = sandbox.run_sandboxed(chunk, "Chunk name", sec_level, nil, nil, function (context)
+			context.env.call = call
+		end)
+		assert_table_equal(expected, result)
+		assert_equal(result_called, called)
+	end
+	-- We can add a function and it can access the local upvalues
+	test_do(chunk_ok, "Restricted", nil, true)
+	test_do(chunk_ok, "Full", nil, true)
+	-- Some things are possible in some security levels but not on others
+	test_do(chunk_io, "Restricted", {
+		tp = "error",
+		reason = "runtime",
+		msg = "[string \"Chunk name\"]:1: attempt to index global 'io' (a nil value)"
+	})
+	test_do(chunk_io, "Full", nil)
+	test_do(chunk_parse, "Full", {
+		tp = "error",
+		reason = "compilation",
+		msg = "[string \"Chunk name\"]:1: '=' expected near 'is'"
+	})
+	test_do(chunk_runtime, "Full", {
+		tp = "error",
+		reason = "runtime",
+		msg = "[string \"Chunk name\"]:1: Error!"
+	})
+end

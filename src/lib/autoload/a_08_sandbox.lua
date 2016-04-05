@@ -24,6 +24,10 @@ the configuration scripts to be run in.
 
 local G = _G
 local pairs = pairs
+local type = type
+local loadstring = loadstring
+local setfenv = setfenv
+local pcall = pcall
 local utils = require "utils"
 
 module "sandbox"
@@ -114,6 +118,8 @@ function new(sec_level, parent)
 			end
 		end
 	end
+	-- Pretend it is an environment
+	result.env._G = result.env
 	return result
 end
 
@@ -158,7 +164,7 @@ function run_sandboxed(chunk, name, sec_level, parent, context_merge, context_mo
 	utils.table_merge(context, context_merge or {})
 	context_mod = context_mod or function () end
 	context_mod(context)
-	local func = setfenv(func, context.env)
+	local func = setfenv(chunk, context.env)
 	local ok, err = pcall(func)
 	if not ok then
 		if type(err) == "table" and err.tp == "error" then
