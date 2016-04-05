@@ -30,21 +30,21 @@ module "sandbox"
 
 -- Functions available in the restricted level
 local rest_available_funcs = {
-	table,
-	string,
-	math,
-	assert,
-	error,
-	ipairs,
-	next,
-	pairs,
-	pcall,
-	select,
-	tonumber,
-	tostring,
-	type,
-	unpack,
-	xpcall
+	"table",
+	"string",
+	"math",
+	"assert",
+	"error",
+	"ipairs",
+	"next",
+	"pairs",
+	"pcall",
+	"select",
+	"tonumber",
+	"tostring",
+	"type",
+	"unpack",
+	"xpcall"
 }
 
 -- Functions to be injected into an environment in the given security level
@@ -99,8 +99,8 @@ function new(sec_level, parent)
 	for n, v in pairs(parent or {}) do
 		result[n] = v
 	end
-	parent = parent or {}
 	result.parent = parent
+	parent = parent or {}
 	sec_level = sec_level or parent.sec_level
 	result.sec_level = sec_level
 	-- Construct a new environment
