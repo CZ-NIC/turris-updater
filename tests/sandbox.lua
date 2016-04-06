@@ -43,7 +43,7 @@ function test_context_new()
 			assert_nil(context.env.io)
 		end
 		context.env = nil
-		assert_table_equal({sec_level = level}, context)
+		assert_table_equal({sec_level = level, tp = "context"}, context)
 	end
 end
 

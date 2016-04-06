@@ -33,3 +33,16 @@ Currently defined reasons are:
 
 Other reasons are going to appear in the future. Also, other fields
 may appear, depending on the needs of given reason.
+
+Known object types
+------------------
+
+This is just list of the known types with a very brief descriptions
+what they do.
+
+error::
+  See above.
+context::
+  These are the sandbox contexts. Each config script gets its own and
+  they can be inherited (in a different way than object inheritance ‒
+  this is hierarchy of configs that include each other).

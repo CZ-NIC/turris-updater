@@ -120,6 +120,7 @@ function new(sec_level, parent)
 	end
 	-- Pretend it is an environment
 	result.env._G = result.env
+	result.tp = "context"
 	return result
 end
 
