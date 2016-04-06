@@ -138,3 +138,31 @@ function test_level()
 		msg = "No such level Does not exist"
 	}, err)
 end
+
+-- Test the morphers act somewhat sane (or in the limits of their design insanity)
+function test_morpher()
+	local function mofun(...)
+		local result = {...}
+		return {...}
+	end
+	local function morpher (...)
+		return sandbox.morpher(mofun, ...)
+	end
+	local m1 = morpher "a" "b" "c"
+	-- It's not yet morphed
+	assert(getmetatable(m1))
+	-- But when we try to index it, we get the value
+	assert_equal("a", m1[1])
+	-- And now it is morphed
+	assert_nil(getmetatable(m1))
+	assert_table_equal({"a", "b", "c"}, m1)
+	-- It works if we call it as a normal function (and acts the same as the previous morpher)
+	local m2 = morpher("a", "b", "c")
+	assert(getmetatable(m2))
+	assert_equal("a", m2[1])
+	assert_table_equal({"a", "b", "c"}, m1)
+	-- Try to morph explicitly
+	local m3 = morpher "a" "b" "c"
+	m3:morph()
+	assert_table_equal({"a", "b", "c"}, m3)
+end

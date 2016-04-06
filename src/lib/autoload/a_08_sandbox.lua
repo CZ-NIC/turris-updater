@@ -32,6 +32,10 @@ local setmetatable = setmetatable
 local getmetatable = getmetatable
 local tostring = tostring
 local error = error
+local unpack = unpack
+local assert = assert
+local next = next
+local DBG = DBG
 local utils = require "utils"
 
 module "sandbox"
@@ -74,6 +78,7 @@ function morpher(func, ...)
 	so the data is actually passed here in local variables.
 	]]
 	local result = {}
+	local name = tostring(result)
 	-- Accumulate some more parameters into the parameter list
 	local function call(table, ...)
 		local new_params = {...}
@@ -88,15 +93,17 @@ function morpher(func, ...)
 			params[i + index_pos] = v
 		end
 		index_pos = index_pos + #new_params
+		DBG("Added ", #new_params, " parameters to ", name)
 		-- Pass the morpher further, to allow more calls
 		return table
 	end
 	local function morph()
 		-- We don't support multiple results yet. We may do so in future somehow, if needed.
-		local func_result = func(context, unpack(params))
+		local func_result = func(unpack(params))
 		assert(type(func_result) == "table")
 		-- Get rid of the old meta table
 		setmetatable(result, nil)
+		DBG("Morphing ", name)
 		-- The table should actually be empty
 		assert(not next(result))
 		-- Copy the new values into the target
@@ -133,6 +140,7 @@ function morpher(func, ...)
 			return tostring(table)
 		end
 	}
+	DBG("Creating morpher ", name, " with ", #params, " parameters")
 	return setmetatable(result, meta)
 end
 
