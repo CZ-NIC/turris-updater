@@ -6,13 +6,27 @@ function launch(test)
 	return stats.errors, stats.failed
 end
 
-function assert_table_equal(t1, t2, tables)
+function assert_table_equal(t1, t2, tables, checked)
 	if t1 == t2 then
 		-- The exact same instance
 		return
 	end
+	-- Some pretty print of errors
 	if not tables then
-		tables = DataDumper({t1, t2})
+		local ok
+		ok, tables = pcall(DataDumper, {t1, t2})
+		if not ok then
+			tables = "Can't dump :-("
+		end
+	end
+	-- Avoid infinite recursion
+	if checked then
+		if checked[t1] then
+			return
+		end
+		checked[t1] = true
+	else
+		checked = {}
 	end
 	lunit.assert_table(t1)
 	lunit.assert_table(t2)
@@ -31,7 +45,7 @@ function assert_table_equal(t1, t2, tables)
 	for k, v in pairs(t1) do
 		local v2 = t2[k]
 		if type(v) == "table" and type(v2) == "table" then
-			assert_table_equal(v, v2, tables)
+			assert_table_equal(v, v2, tables, checked)
 		end
 	end
 end

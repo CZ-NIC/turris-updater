@@ -78,3 +78,13 @@ function test_table_merge()
 	U.table_merge(t1, {b = 3, c = 4})
 	assert_table_equal({a = 1, b = 3, c = 4}, t1)
 end
+
+function test_exception()
+	local e = U.exception("I have my reasons", "Error message")
+	assert_table_equal({
+		tp = "error",
+		reason = "I have my reasons",
+		msg = "Error message"
+	}, e)
+	assert_equal("Error message", tostring(e))
+end

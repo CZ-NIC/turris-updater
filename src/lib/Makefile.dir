@@ -23,4 +23,7 @@ libupdater_PKG_CONFIGS := $(LUA_NAME) libevent
 # Workaround, lua.pc doesn't containd -ldl, even when it uses dlopen
 libupdater_SO_LIBS += dl
 
-DOCS += $(addprefix src/lib/,lua_funcs journal)
+LIB_DOCS := \
+	journal \
+	objects
+DOCS += $(addprefix src/lib/,lua_funcs $(LIB_DOCS))

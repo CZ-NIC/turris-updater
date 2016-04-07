@@ -1,0 +1,55 @@
+Objects
+=======
+
+While Lua has native support for objects (mostly by a syntax sugar, by
+placing functions inside the table and taking a table as the first
+argument), there are some small pieces missing.
+
+To recognize the type of object an, we place a „tp“ field into each.
+It contains a string with the name of the object type.
+
+Errors, exceptions, etc
+-----------------------
+
+Lua has the `error`-`pcall` mechanism, that is very similar to
+`throw`-`try`-`catch` in many other languages. However, the string
+that is used conventionally there is not very machine friendly.
+Therefore, we define the object type `"error"` and throw these when
+appropriate.
+
+An error object would look something like this:
+
+  {
+	  tp = "error",
+	  reason = <reason>,
+	  msg = <human readable message>
+  }
+
+Currently defined reasons are:
+
+ * compile: When parsing of lua chunk fails.
+ * runtime: Any generic error from running lua. The msg is the error
+   string.
+ * bad value: A value has been passed that doesn't fit somewhere.
+
+Other reasons are going to appear in the future. Also, other fields
+may appear, depending on the needs of given reason.
+
+It is recommended to create them with utils.exception, since that one
+provides meta table with `tostring` event.
+
+Known object types
+------------------
+
+This is just list of the known types with a very brief descriptions
+what they do.
+
+error::
+  See above.
+context::
+  These are the sandbox contexts. Each config script gets its own and
+  they can be inherited (in a different way than object inheritance ‒
+  this is hierarchy of configs that include each other).
+level::
+  A context's security level. They are objects so they can be easily
+  compared, but don't do much by themselves.
