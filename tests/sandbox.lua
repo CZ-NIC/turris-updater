@@ -165,4 +165,17 @@ function test_morpher()
 	local m3 = morpher "a" "b" "c"
 	m3:morph()
 	assert_table_equal({"a", "b", "c"}, m3)
+	-- If we run two morphers in a row, the first should get morphed
+	local m4 = morpher "a"
+	local m5 = morpher "b"
+	assert_nil(getmetatable(m4))
+	m5:morph()
+	-- When we run morpher in a sandbox, that morpher is morphed by the end of the chunk
+	local context;
+	assert_nil(sandbox.run_sandboxed([[m = morpher "a"]], "Chunk name", "Restricted", nil, nil, function (c)
+		context = c
+		context.env.morpher = morpher;
+	end))
+	assert_nil(getmetatable(context.env.m))
+	assert_table_equal({"a"}, context.env.m)
 end

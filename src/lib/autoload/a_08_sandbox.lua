@@ -53,6 +53,9 @@ The result of the function call is then copied into the original result, so
 it can still be used and preserves its address.
 ]]
 
+-- The currently active morpher, so we can morph it as soon as we know we're done with it.
+local active_morpher = nil
+
 --[[
 Return a morpher object calling the given function when done. The function
 is called with any additional parameters passed here, concatenated with
@@ -67,6 +70,9 @@ into the environment, instead of
 morpher(func, context)
 ]]
 function morpher(func, ...)
+	if active_morpher then
+		active_morpher:morph()
+	end
 	local params = {...}
 	local index_pos = #params
 	--[[
@@ -97,7 +103,9 @@ function morpher(func, ...)
 		-- Pass the morpher further, to allow more calls
 		return table
 	end
-	local function morph()
+	local function morph(result)
+		-- The morpher is no longer active
+		active_morpher = nil
 		-- We don't support multiple results yet. We may do so in future somehow, if needed.
 		local func_result = func(unpack(params))
 		assert(type(func_result) == "table")
@@ -128,19 +136,20 @@ function morpher(func, ...)
 				-- Allow direct morphing by a request (shouldn't be much needed externally)
 				return morph
 			end
-			morph()
+			morph(table)
 			return table[key]
 		end,
 		__newindex = function (table, key, value)
-			morph()
+			morph(table)
 			table[key] = value
 		end,
 		__tostring = function (table)
-			morph()
+			morph(table)
 			return tostring(table)
 		end
 	}
 	DBG("Creating morpher ", name, " with ", #params, " parameters")
+	active_morpher = result
 	return setmetatable(result, meta)
 end
 
@@ -305,6 +314,7 @@ The <reason> is one of:
    are simply passed.
 ]]
 function run_sandboxed(chunk, name, sec_level, parent, context_merge, context_mod)
+	assert(active_morpher == nil)
 	if type(chunk) == "string" then
 		local err
 		chunk, err = loadstring(chunk, name)
@@ -318,6 +328,11 @@ function run_sandboxed(chunk, name, sec_level, parent, context_merge, context_mo
 	context_mod(context)
 	local func = setfenv(chunk, context.env)
 	local ok, err = pcall(func)
+	if ok and active_morpher then
+		ok, err = pcall(function () active_morpher:morph() end)
+	else
+		active_morpher = nil
+	end
 	if not ok then
 		if type(err) == "table" and err.tp == "error" then
 			return err
