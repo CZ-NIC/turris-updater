@@ -117,11 +117,7 @@ function level(l)
 	elseif type(l) == "table" and l.tp == "level" then
 		return l
 	else
-		return level_values[l] or error({
-			tp = "error",
-			reason = "bad value",
-			msg = "No such level " .. l
-		})
+		return level_values[l] or error(utils.exception("bad value", "No such level " .. l))
 	end
 end
 
@@ -195,11 +191,7 @@ function run_sandboxed(chunk, name, sec_level, parent, context_merge, context_mo
 		local err
 		chunk, err = loadstring(chunk, name)
 		if not chunk then
-			return {
-				tp = "error",
-				reason = "compilation",
-				msg = err
-			}
+			return utils.exception("compilation", err)
 		end
 	end
 	local context = new(sec_level, parent)
@@ -212,11 +204,7 @@ function run_sandboxed(chunk, name, sec_level, parent, context_merge, context_mo
 		if type(err) == "table" and err.tp == "error" then
 			return err
 		else
-			return {
-				tp = "error",
-				reason = "runtime",
-				msg = err
-			}
+			return utils.exception("runtime", err)
 		end
 	end
 end

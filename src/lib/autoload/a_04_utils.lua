@@ -21,6 +21,7 @@ local pairs = pairs
 local next = next
 local error = error
 local type = type
+local setmetatable = setmetatable
 local io = io
 local unpack = unpack
 local events_wait = events_wait
@@ -113,6 +114,21 @@ function table_merge(dest, src)
 	for k, v in pairs(src) do
 		dest[k] = v
 	end
+end
+
+local error_meta = {
+	__tostring = function (err)
+		return err.msg
+	end
+}
+
+-- Generate an exception/error object. It can be further modified, of course.
+function exception(reason, msg)
+	return setmetatable({
+		tp = "error",
+		reason = reason,
+		msg = msg
+	}, error_meta)
 end
 
 return _M
