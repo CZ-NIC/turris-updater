@@ -43,7 +43,7 @@ function test_context_new()
 			assert_nil(context.env.io)
 		end
 		context.env = nil
-		assert_table_equal({sec_level = level, tp = "context"}, context)
+		assert_table_equal({sec_level = sandbox.level(level), tp = "context"}, context)
 	end
 end
 
@@ -52,7 +52,7 @@ function test_context_inherit()
 	local c1 = sandbox.new('Full')
 	local c2 = sandbox.new(nil, c1)
 	assert_equal(c1, c2.parent)
-	assert_equal('Full', c2.sec_level)
+	assert_equal(sandbox.level('Full'), c2.sec_level)
 	c2.parent = nil
 	-- The environments are separate instances, but look the same
 	assert_not_equal(c1.env, c2.env)
@@ -61,7 +61,7 @@ function test_context_inherit()
 	c2.test_field = "value"
 	local c3 = sandbox.new('Remote', c2)
 	assert_equal(c2, c3.parent)
-	assert_equal('Remote', c3.sec_level)
+	assert_equal(sandbox.level('Remote'), c3.sec_level)
 	assert_nil(c3.env.io)
 	assert_equal("value", c3.test_field)
 	-- The lower-level permissions don't add anything to the higher ones.
@@ -107,4 +107,34 @@ function test_sandbox_run()
 		reason = "runtime",
 		msg = "[string \"Chunk name\"]:1: Error!"
 	})
+end
+
+function test_level()
+	-- Creation and comparisons
+	local l1 = sandbox.level("Full")
+	assert_equal("Full", tostring(l1))
+	assert_equal(l1, l1)
+	assert(l1 <= l1)
+	assert_false(l1 ~= l1)
+	assert_false(l1 < l1)
+	local l2 = sandbox.level("Restricted")
+	assert(l2 < l1)
+	assert(l2 <= l1)
+	assert_false(l1 < l2)
+	assert_false(l1 <= l2)
+	assert(l1 > l2)
+	assert(l1 >= l2)
+	-- Level is just passed through if it is already level
+	local l3 = sandbox.level(l2)
+	assert_equal(l2, l3)
+	-- We may pass nil and get nil in return
+	assert_nil(sandbox.level(nil))
+	-- If it doesn't exist, it throws proper error
+	local ok, err = pcall(sandbox.level, "Does not exist")
+	assert_false(ok)
+	assert_table_equal({
+		tp = "error",
+		reason = "bad value",
+		msg = "No such level Does not exist"
+	}, err)
 end

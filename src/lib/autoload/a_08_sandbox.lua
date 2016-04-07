@@ -28,6 +28,8 @@ local type = type
 local loadstring = loadstring
 local setfenv = setfenv
 local pcall = pcall
+local setmetatable = setmetatable
+local error = error
 local utils = require "utils"
 
 module "sandbox"
@@ -85,6 +87,44 @@ utils.table_merge(funcs.Remote, funcs.Restricted)
 utils.table_merge(funcs.Local, funcs.Remote)
 utils.table_merge(funcs.Full, funcs.Local)
 
+local level_meta = {
+	__tostring = function (level)
+		return level.name
+	end,
+	__eq = function (l1, l2)
+		return l1._cmp == l2._cmp
+	end,
+	__lt = function (l1, l2)
+		return l1._cmp < l2._cmp
+	end,
+	__le = function (l1, l2)
+		return l1._cmp <= l2._cmp
+	end
+}
+local level_values = {}
+for i, l in pairs({"Restricted", "Remote", "Local", "Full"}) do
+	level_values[l] = setmetatable({
+		tp = "level",
+		name = l,
+		_cmp = i,
+		f = funcs[l]
+	}, level_meta)
+end
+
+function level(l)
+	if l == nil then
+		return nil
+	elseif type(l) == "table" and l.tp == "level" then
+		return l
+	else
+		return level_values[l] or error({
+			tp = "error",
+			reason = "bad value",
+			msg = "No such level " .. l
+		})
+	end
+end
+
 --[[
 Create a new context. The context inherits everything
 from its parent (if the parent is not nil). The security
@@ -95,6 +135,7 @@ A new environment, corresponding to the security level,
 is constructed and stored in the result as „env“.
 ]]
 function new(sec_level, parent)
+	sec_level = level(sec_level)
 	local result = {}
 	--[[
 	Inherit the properties of the parent context.
@@ -109,7 +150,7 @@ function new(sec_level, parent)
 	result.sec_level = sec_level
 	-- Construct a new environment
 	result.env = {}
-	for n, v in pairs(funcs[sec_level]) do
+	for n, v in pairs(sec_level.f) do
 		if v.mode == "inject" then
 			result.env[n] = v.value
 		elseif v.mode == "wrap" then
