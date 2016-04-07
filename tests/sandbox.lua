@@ -178,4 +178,12 @@ function test_morpher()
 	end))
 	assert_nil(getmetatable(context.env.m))
 	assert_table_equal({"a"}, context.env.m)
+	-- Test these don't break when nested in allowed ways (doesn't work with parenthenless form)
+	local m6 = morpher("a", morpher("b", morpher("c")))
+	m6:morph()
+	assert_table_equal({"a", {"b", {"c"}}}, m6)
+	local m7 = morpher "a"
+	local m8 = morpher {"b", m7}
+	m8:morph()
+	assert_table_equal({{"b", {"a"}}}, m8)
 end
