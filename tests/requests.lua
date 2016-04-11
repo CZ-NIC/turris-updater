@@ -20,6 +20,7 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 require 'lunit'
 -- The request parts are inside sandbox. Therefore, we use the sandbox as an entry point.
 local sandbox = require "sandbox"
+local requests = require "requests"
 local utils = require "utils"
 
 module("requests-tests", package.seeall, lunit.testcase)
@@ -34,15 +35,22 @@ local function run_sandbox_fun(func_code, level)
 end
 
 function test_package()
+	local p1 = run_sandbox_fun "Package 'pkg_name'"
 	assert_table_equal({
 		tp = "package",
 		name = "pkg_name"
-	}, run_sandbox_fun "Package 'pkg_name'")
+	}, p1)
+	local p2 = run_sandbox_fun "Package 'pkg_name' {replan = true, reboot = true}"
 	assert_table_equal({
 		tp = "package",
 		name = "pkg_name",
 		replan = true,
 		reboot = true
-	}, run_sandbox_fun "Package 'pkg_name' {replan = true, reboot = true}")
+	}, p2)
 	assert_table_equal(utils.exception("bad value", "There's no extra option typo for a package"), sandbox.run_sandboxed("Package 'pkg_name' {typo = true}", "Test chunk", "Restricted"))
+	assert_table_equal({p1, p2}, requests.known_packages)
+end
+
+function teardown()
+	requests.known_packages = {}
 end

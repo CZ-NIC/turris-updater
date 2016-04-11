@@ -25,6 +25,7 @@ the configuration scripts to be run in.
 local pairs = pairs
 local type = type
 local error = error
+local table = table
 local utils = require "utils"
 
 module "requests"
@@ -48,6 +49,14 @@ local allowed_package_extras = utils.map({
 	"pubkey",
 	"ca"
 }, function (i, name) return name, true end)
+
+--[[
+We simply store all package promises, so they can be taken
+into account when generating the real packages. Note that
+there might be multiple package promises for a single package.
+We just store them in an array for future processing.
+]]
+known_packages = {}
 
 --[[
 This package is just a promise of a real package in the future. It holds the
@@ -78,6 +87,7 @@ function package(context, pkg, extra)
 	end
 	result.name = pkg
 	result.tp = "package"
+	table.insert(known_packages, result)
 	return result
 end
 
