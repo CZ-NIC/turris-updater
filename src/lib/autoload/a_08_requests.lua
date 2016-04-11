@@ -22,6 +22,61 @@ This module prepares and manipulates contexts and environments for
 the configuration scripts to be run in.
 ]]
 
+local pairs = pairs
+local utils = require "utils"
+
 module "requests"
+
+-- Create a set of allowed names of extra options.
+local allowed_package_extras = utils.map({
+	"virtual",
+	"deps",
+	"order-after",
+	"order-before",
+	"pre-inst",
+	"post-inst",
+	"pre-rm",
+	"post-rm",
+	"reboot",
+	"replan",
+	"abi-change",
+	"content",
+	"verification",
+	"sig",
+	"pubkey",
+	"ca"
+}, function (i, name) return name, true end)
+
+--[[
+This package is just a promise of a real package in the future. It holds the
+name and possibly some additional info for the package. Once we go through
+the requests (Install and Uninstall), we gather all package objects with the
+same name and merge them somehow together, and look it up in a repository (or
+repositories). Then a real package is created from that. But the configuration
+language never sees these (they are created after the configuration scripts
+has been run).
+
+The package has no methods, it's just a stupid structure.
+]]
+function package(pkg, extra)
+	if type(pkg) == "table" and pkg.tp == "package" then
+		-- It is already a package object
+		if extra then
+			error(utils.exception("bad value", "Can't amend already created package with extra parameters"))
+			-- TODO: Or do we want to be able to do so?
+		end
+		return pkg
+	end
+	local result = extra or {}
+	-- Minimal typo verification. Further verification is done when actually using the package.
+	for name in pairs(result) do
+		if not allowed_package_extras[name] then
+			error(utils.exception("bad value", "There's no extra option " .. name .. " for a package"))
+		end
+	end
+	result.name = pkg
+	result.tp = "package"
+	return result
+end
 
 return _M
