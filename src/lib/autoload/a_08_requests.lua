@@ -23,6 +23,8 @@ the configuration scripts to be run in.
 ]]
 
 local pairs = pairs
+local type = type
+local error = error
 local utils = require "utils"
 
 module "requests"
@@ -58,7 +60,7 @@ has been run).
 
 The package has no methods, it's just a stupid structure.
 ]]
-function package(pkg, extra)
+function package(context, pkg, extra)
 	if type(pkg) == "table" and pkg.tp == "package" then
 		-- It is already a package object
 		if extra then
