@@ -138,3 +138,52 @@ function test_level()
 		msg = "No such level Does not exist"
 	}, err)
 end
+
+-- Test the morphers act somewhat sane (or in the limits of their design insanity)
+function test_morpher()
+	local function mofun(...)
+		local result = {...}
+		return {...}
+	end
+	local function morpher (...)
+		return sandbox.morpher(mofun, ...)
+	end
+	local m1 = morpher "a" "b" "c"
+	-- It's not yet morphed
+	assert(getmetatable(m1))
+	-- But when we try to index it, we get the value
+	assert_equal("a", m1[1])
+	-- And now it is morphed
+	assert_nil(getmetatable(m1))
+	assert_table_equal({"a", "b", "c"}, m1)
+	-- It works if we call it as a normal function (and acts the same as the previous morpher)
+	local m2 = morpher("a", "b", "c")
+	assert(getmetatable(m2))
+	assert_equal("a", m2[1])
+	assert_table_equal({"a", "b", "c"}, m1)
+	-- Try to morph explicitly
+	local m3 = morpher "a" "b" "c"
+	m3:morph()
+	assert_table_equal({"a", "b", "c"}, m3)
+	-- If we run two morphers in a row, the first should get morphed
+	local m4 = morpher "a"
+	local m5 = morpher "b"
+	assert_nil(getmetatable(m4))
+	m5:morph()
+	-- When we run morpher in a sandbox, that morpher is morphed by the end of the chunk
+	local context;
+	assert_nil(sandbox.run_sandboxed([[m = morpher "a"]], "Chunk name", "Restricted", nil, nil, function (c)
+		context = c
+		context.env.morpher = morpher;
+	end))
+	assert_nil(getmetatable(context.env.m))
+	assert_table_equal({"a"}, context.env.m)
+	-- Test these don't break when nested in allowed ways (doesn't work with parenthenless form)
+	local m6 = morpher("a", morpher("b", morpher("c")))
+	m6:morph()
+	assert_table_equal({"a", {"b", {"c"}}}, m6)
+	local m7 = morpher "a"
+	local m8 = morpher {"b", m7}
+	m8:morph()
+	assert_table_equal({{"b", {"a"}}}, m8)
+end

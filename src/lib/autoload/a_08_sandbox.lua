@@ -29,10 +29,131 @@ local loadstring = loadstring
 local setfenv = setfenv
 local pcall = pcall
 local setmetatable = setmetatable
+local getmetatable = getmetatable
+local tostring = tostring
 local error = error
+local unpack = unpack
+local assert = assert
+local next = next
+local DBG = DBG
 local utils = require "utils"
 
 module "sandbox"
+
+-- WARNING: BEGIN_MAGIC (read the design morphers documentation)
+
+--[[
+In short, morphers allow creating functions that can be called like:
+
+function "Param" "Param" { x = 1, y = 2 }
+
+They do so by accumulating the parameters through several separate function
+calls and then doing the real call before use or when another morpher is called.
+The result of the function call is then copied into the original result, so
+it can still be used and preserves its address.
+]]
+
+-- The currently active morpher, so we can morph it as soon as we know we're done with it.
+local active_morpher = nil
+
+--[[
+Return a morpher object calling the given function when done. The function
+is called with any additional parameters passed here, concatenated with
+the parameters accumulated later on.
+
+Tip for use: The result is single use only. So, plug something like
+function (...)
+	return morpher(func, context, ...)
+end
+
+into the environment, instead of
+morpher(func, context)
+]]
+function morpher(func, ...)
+	if active_morpher then
+		active_morpher:morph()
+	end
+	local params = {...}
+	local index_pos = #params
+	--[[
+	We provide an empty table with meta table. This way,
+	the __index and __newindex events happen every time,
+	no matter what field is requested.
+
+	The meta table contains references to closures,
+	so the data is actually passed here in local variables.
+	]]
+	local result = {}
+	local name = tostring(result)
+	-- Accumulate some more parameters into the parameter list
+	local function call(table, ...)
+		local new_params = {...}
+		--[[
+		Just append the new parameters, by shifting
+		the index by the appropriate number. We don't
+		need (slightly slower) ipairs, since we don't
+		need to copy them in order, they'll end up at
+		the correct place.
+		]]
+		for i, v in pairs(new_params) do
+			params[i + index_pos] = v
+		end
+		index_pos = index_pos + #new_params
+		DBG("Added ", #new_params, " parameters to ", name)
+		-- Pass the morpher further, to allow more calls
+		return table
+	end
+	local function morph(result)
+		-- The morpher is no longer active
+		active_morpher = nil
+		-- We don't support multiple results yet. We may do so in future somehow, if needed.
+		local func_result = func(unpack(params))
+		assert(type(func_result) == "table")
+		-- Get rid of the old meta table
+		setmetatable(result, nil)
+		DBG("Morphing ", name)
+		-- The table should actually be empty
+		assert(not next(result))
+		-- Copy the new values into the target
+		utils.table_merge(result, func_result)
+		-- Copy the meta table of the function result, if any
+		setmetatable(result, getmetatable(func_result))
+		-- return the table we morphed into, just for good order.
+		return result
+	end
+	local meta = {
+		-- We accumulate the parameters by repeatedly invoking this behind the scenes
+		__call = call,
+		--[[
+		Selection of operations. They first morph into the result
+		and propagate the operation further.
+
+		More operations are possible, we just don't think they'd be needed. If they
+		are, they may be simply added.
+		]]
+		__index = function (table, key)
+			if key == "morph" then
+				-- Allow direct morphing by a request (shouldn't be much needed externally)
+				return morph
+			end
+			morph(table)
+			return table[key]
+		end,
+		__newindex = function (table, key, value)
+			morph(table)
+			table[key] = value
+		end,
+		__tostring = function (table)
+			morph(table)
+			return tostring(table)
+		end
+	}
+	DBG("Creating morpher ", name, " with ", #params, " parameters")
+	active_morpher = result
+	return setmetatable(result, meta)
+end
+
+-- END_MAGIC
 
 -- Functions available in the restricted level
 local rest_available_funcs = {
@@ -151,8 +272,14 @@ function new(sec_level, parent)
 			result.env[n] = v.value
 		elseif v.mode == "wrap" then
 			result.env[n] = function(...)
-				return v(result, ...)
+				return v.value(result, ...)
 			end
+		elseif v.mode == "morpher" then
+			result.env[n] = function(...)
+				return morpher(v.value, result, ...)
+			end
+		else
+			DIE("Unknown environment func mode " .. v.mode)
 		end
 	end
 	-- Pretend it is an environment
@@ -187,6 +314,7 @@ The <reason> is one of:
    are simply passed.
 ]]
 function run_sandboxed(chunk, name, sec_level, parent, context_merge, context_mod)
+	assert(active_morpher == nil)
 	if type(chunk) == "string" then
 		local err
 		chunk, err = loadstring(chunk, name)
@@ -200,6 +328,11 @@ function run_sandboxed(chunk, name, sec_level, parent, context_merge, context_mo
 	context_mod(context)
 	local func = setfenv(chunk, context.env)
 	local ok, err = pcall(func)
+	if ok and active_morpher then
+		ok, err = pcall(function () active_morpher:morph() end)
+	else
+		active_morpher = nil
+	end
 	if not ok then
 		if type(err) == "table" and err.tp == "error" then
 			return err
