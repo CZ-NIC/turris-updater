@@ -219,6 +219,28 @@ START_TEST(command_io) {
 }
 END_TEST
 
+static void download_done_callback(struct wait_id id __attribute__((unused)), void *data __attribute__((unused)), int status, size_t out_size __attribute__((unused)), const char *out) {
+	ck_assert_uint_eq(0, status);
+	char *res = strstr(out, "Not for your eyes");
+	ck_assert(res);
+}
+
+START_TEST(command_download) {
+	size_t cnt = 5;
+	struct wait_id ids[cnt];
+
+	struct events *events = events_new();
+	download_slot_count_set(events, 2);
+
+	for (size_t i = 0; i < cnt; i++) {
+		ids[i] = download(events, download_done_callback, NULL, "https://api.turris.cz/index.html", NULL, NULL);
+	}
+
+	events_wait(events, cnt, ids);
+	events_destroy(events);
+}
+END_TEST
+
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Event loop");
 	TCase *children = tcase_create("children");
@@ -239,6 +261,7 @@ Suite *gen_test_suite(void) {
 	tcase_add_loop_test(commands, command_start_noio, 0, 10);
 	tcase_add_test(commands, command_timeout);
 	tcase_add_loop_test(commands, command_io, 0, 10);
+	tcase_add_test(commands, command_download);
 	suite_add_tcase(result, commands);
 	return result;
 }
