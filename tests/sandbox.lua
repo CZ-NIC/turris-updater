@@ -148,7 +148,7 @@ end
 
 -- Test the morphers act somewhat sane (or in the limits of their design insanity)
 function test_morpher()
-	local function mofun(...)
+	local function mofun(res_addr, ...)
 		local result = {...}
 		return {...}
 	end

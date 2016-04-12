@@ -51,7 +51,9 @@ function "Param" "Param" { x = 1, y = 2 }
 They do so by accumulating the parameters through several separate function
 calls and then doing the real call before use or when another morpher is called.
 The result of the function call is then copied into the original result, so
-it can still be used and preserves its address.
+it can still be used and preserves its address. The table into which the result will
+be copied is passed as the first parameter. Don't modify it, it is simply a hint
+at what address the result shall live eventually.
 ]]
 
 -- The currently active morpher, so we can morph it as soon as we know we're done with it.
@@ -108,7 +110,7 @@ function morpher(func, ...)
 		-- The morpher is no longer active
 		active_morpher = nil
 		-- We don't support multiple results yet. We may do so in future somehow, if needed.
-		local func_result = func(unpack(params))
+		local func_result = func(result, unpack(params))
 		assert(type(func_result) == "table")
 		-- Get rid of the old meta table
 		setmetatable(result, nil)

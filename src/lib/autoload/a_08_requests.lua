@@ -69,7 +69,7 @@ has been run).
 
 The package has no methods, it's just a stupid structure.
 ]]
-function package(context, pkg, extra)
+function package(result_addr, context, pkg, extra)
 	local result = extra or {}
 	-- Minimal typo verification. Further verification is done when actually using the package.
 	for name in pairs(result) do
