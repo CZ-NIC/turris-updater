@@ -31,7 +31,7 @@ local utils = require "utils"
 module "requests"
 
 -- Create a set of allowed names of extra options.
-local allowed_package_extras = utils.map({
+local allowed_package_extras = utils.arr2set({
 	"virtual",
 	"deps",
 	"order-after",
@@ -48,7 +48,7 @@ local allowed_package_extras = utils.map({
 	"sig",
 	"pubkey",
 	"ca"
-}, function (i, name) return name, true end)
+})
 
 --[[
 We simply store all package promises, so they can be taken
