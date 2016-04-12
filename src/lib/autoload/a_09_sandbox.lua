@@ -37,6 +37,7 @@ local assert = assert
 local next = next
 local DBG = DBG
 local utils = require "utils"
+local requests = require "requests"
 
 module "sandbox"
 
@@ -186,7 +187,10 @@ local funcs = {
 
 	},
 	Restricted = {
-
+		Package = {
+			mode = "morpher",
+			value = requests.package
+		}
 	}
 }
 

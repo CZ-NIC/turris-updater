@@ -25,6 +25,7 @@ LUA_TESTS := \
 	events \
 	interpreter \
 	journal \
+	requests \
 	sandbox \
 	transaction \
 	utils

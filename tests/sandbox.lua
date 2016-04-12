@@ -54,8 +54,15 @@ function test_context_inherit()
 	assert_equal(c1, c2.parent)
 	assert_equal(sandbox.level('Full'), c2.sec_level)
 	c2.parent = nil
-	-- The environments are separate instances, but look the same
-	assert_not_equal(c1.env, c2.env)
+	-- The environments are separate instances, but look the same (though some functions are generated, so they can't be compared directly)
+	local function env_sanitize(context)
+		return utils.map(context.env, function (n, v)
+			return n, type(v)
+		end)
+	end
+	assert_not_equal(env_sanitize(c1), env_sanitize(c2))
+	c1.env = nil
+	c2.env = nil
 	assert_table_equal(c1, c2)
 	c2 = sandbox.new(nil, c1)
 	c2.test_field = "value"
