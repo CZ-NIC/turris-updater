@@ -70,14 +70,6 @@ has been run).
 The package has no methods, it's just a stupid structure.
 ]]
 function package(context, pkg, extra)
-	if type(pkg) == "table" and pkg.tp == "package" then
-		-- It is already a package object
-		if extra then
-			error(utils.exception("bad value", "Can't amend already created package with extra parameters"))
-			-- TODO: Or do we want to be able to do so?
-		end
-		return pkg
-	end
 	local result = extra or {}
 	-- Minimal typo verification. Further verification is done when actually using the package.
 	for name in pairs(result) do
@@ -89,6 +81,20 @@ function package(context, pkg, extra)
 	result.tp = "package"
 	table.insert(known_packages, result)
 	return result
+end
+
+--[[
+Either create a new package of that name (if string is passed) or
+pass the provided package.
+]]
+
+function package_wrap(context, pkg)
+	if type(pkg) == "table" and pkg.tp == "package" then
+		-- It is already a package object
+		return pkg
+	else
+		return package(context, pkg)
+	end
 end
 
 return _M
