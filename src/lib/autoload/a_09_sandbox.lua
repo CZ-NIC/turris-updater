@@ -192,6 +192,10 @@ local funcs = {
 		Package = {
 			mode = "morpher",
 			value = requests.package
+		},
+		Repository = {
+			mode = "morpher",
+			value = requests.repository
 		}
 	}
 }

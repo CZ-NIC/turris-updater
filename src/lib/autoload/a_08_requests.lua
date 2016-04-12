@@ -93,7 +93,56 @@ function package_wrap(context, pkg)
 		-- It is already a package object
 		return pkg
 	else
-		return package(context, pkg)
+		return package(nil, context, pkg)
+	end
+end
+
+-- List of allowed extra options for a Repository command
+local allowed_repository_extras = utils.arr2set({
+	"subdirs",
+	"index",
+	"ignore",
+	"priority",
+	"verification",
+	"sig",
+	"pubkey",
+	"ca"
+})
+
+--[[
+The repositories we already created. If there are multiple repos of the
+same name, we are allowed to provide any of them. Therefore, this is
+indexed by their names.
+]]
+known_repositories = {}
+
+--[[
+Promise of a future repository. The repository shall be downloaded after
+all the configuration scripts are run, parsed and used as a source of
+packages. Then it shall mutate into a parsed repository object, but
+until then, it is just a stupid data structure without any methods.
+]]
+function repository(result_addr, context, name, uri, extra)
+	local result = extra or {}
+	-- Catch possible typos
+	for name in pairs(result) do
+		if not allowed_repository_extras[name] then
+			error(utils.exception("bad value", "There's no extra option " .. name .. " for a repository"))
+		end
+	end
+	result.uri = uri
+	result.name = name
+	result.tp = "repository"
+	known_repositories[name] = result_addr
+	return result
+end
+
+-- Either return the repo, if it is one already, or look it up. Nil if it doesn't exist.
+function repository_get(repo)
+	if type(repo) == "table" and (repo.tp == "repository" or repo.tp == "parsed-repository") then
+		return repo
+	else
+		return known_repositories[repo]
 	end
 end
 
