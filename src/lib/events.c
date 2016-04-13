@@ -462,7 +462,7 @@ static struct download_data *download_find_waiting(struct events *events) {
 	return NULL;
 }
 
-static struct wait_id download_run(struct events *events, struct download_data *download);
+static void download_run(struct events *events, struct download_data *download);
 
 static ssize_t download_index_lookup(struct events *events, uint64_t id) {
 	for (size_t i = 0; i < events->download_count; i++) {
@@ -504,10 +504,10 @@ static void download_done(struct wait_id id, void *data, int status, enum comman
 	// Is some download waiting for download slot?
 	struct download_data *waiting = download_find_waiting(events);
 	if (waiting)
-		waiting->underlying_command = download_run(events, waiting);
+		download_run(events, waiting);
 }
 
-static struct wait_id download_run(struct events *events, struct download_data *download) {
+static void download_run(struct events *events, struct download_data *download) {
 	const size_t max_params = 7;
 	const char *params[max_params];
 	size_t build_i = 0;
@@ -527,8 +527,7 @@ static struct wait_id download_run(struct events *events, struct download_data *
 
 	events->downloads_running++;
 	download->waiting = false;
-
-	return run_command_a(events, download_done, NULL, download, 0, NULL, -1, -1, "/usr/bin/curl", params);
+	download->underlying_command = run_command_a(events, download_done, NULL, download, 0, NULL, -1, -1, "/usr/bin/curl", params);
 }
 
 struct wait_id download(struct events *events, download_callback_t callback, void *data, const char *url, const char *cacert, const char *crl) {
@@ -548,7 +547,7 @@ struct wait_id download(struct events *events, download_callback_t callback, voi
 	events->downloads[events->download_count++] = res;
 
 	if (events->downloads_running <= events->downloads_max)
-		res->underlying_command = download_run(events, res);
+		download_run(events, res);
 
 	struct wait_id id = (struct wait_id) {
 		.type = WT_DOWNLOAD,
