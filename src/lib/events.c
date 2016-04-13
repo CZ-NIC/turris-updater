@@ -493,10 +493,11 @@ static void download_done(struct wait_id id, void *data, int status, enum comman
 	events->downloads[my_index] = events->downloads[--events->download_count];
 
 	// Prepare data for callback and call it
+	int http_status = (status == 0) ? 200 : 500;
 	size_t res_size = (status == 0) ? out_size : err_size;
 	const char *res_data = (status == 0) ? out : err;
 
-	d->callback(id, d->udata, status, res_size, res_data);
+	d->callback(id, d->udata, http_status, res_size, res_data);
 
 	download_free(d);
 

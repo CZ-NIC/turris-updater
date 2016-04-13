@@ -109,10 +109,12 @@ typedef void (*post_fork_callback_t)(void *data);
 /*
  * A callback called after download finished.
  *
- * Status is error code of curl (for further processing by "client"
+ * Status is similar to HTTP status itself. Anyway, there are only two
+ * values currently. 200 for successful download and 500 for error.
+ * It will be more  in future.
  *
  * Out_size is the size of output and out is the output itself.
- * Output contains downloaded data (for status == 0) or curl's error message
+ * Output contains downloaded data (for status == 200) or error message
  * otherwise.
  */
 typedef void (*download_callback_t)(struct wait_id id, void *data, int status, size_t out_size, const char *out );

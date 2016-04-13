@@ -220,7 +220,7 @@ START_TEST(command_io) {
 END_TEST
 
 static void download_done_callback(struct wait_id id __attribute__((unused)), void *data __attribute__((unused)), int status, size_t out_size __attribute__((unused)), const char *out) {
-	ck_assert_uint_eq(0, status);
+	ck_assert_uint_eq(200, status);
 	char *res = strstr(out, "Not for your eyes");
 	ck_assert(res);
 }
