@@ -19,6 +19,7 @@
 
 #include "ctest.h"
 #include "../src/lib/interpreter.h"
+#include "../src/lib/util.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -199,7 +200,7 @@ START_INTERPRETER_TEST(call_echo)
 	ck_assert_str_eq(s, "hello");
 END_INTERPRETER_TEST
 
-static void check_mkdtemp(struct interpreter *interpreter, const char *error, size_t results) {
+static void check_mkdtemp(struct interpreter *interpreter, const char *error, size_t results, const char *tmpdir) {
 	ck_assert_msg(!error, "Failed to run the mkdtemp function: %s", error);
 	ck_assert_uint_eq(1, results);
 	char *dname;
@@ -208,8 +209,12 @@ static void check_mkdtemp(struct interpreter *interpreter, const char *error, si
 	ck_assert_msg(d, "Failed to open the temp directory: %s", strerror(errno));
 	closedir(d);
 	ck_assert_int_eq(rmdir(dname), 0);
-	const char *prefix = "/tmp/updater-";
-	ck_assert(strncmp("/tmp/updater-", dname, strlen(prefix)) == 0);
+	if (!tmpdir)
+		tmpdir = getenv("TMPDIR");
+	if (!tmpdir)
+		tmpdir = "/tmp";
+	const char *prefix = aprintf("%s/updater-", tmpdir);
+	ck_assert(strncmp(prefix, dname, strlen(prefix)) == 0);
 }
 
 START_INTERPRETER_TEST(test_mkdtemp) {
@@ -219,11 +224,11 @@ START_INTERPRETER_TEST(test_mkdtemp) {
 	size_t results;
 	// Try it with default directory
 	const char *error = interpreter_call(interpreter, "mkdtemp", &results, "");
-	check_mkdtemp(interpreter, error, results);
+	check_mkdtemp(interpreter, error, results, NULL);
 	mark_point();
 	// Try explicitly specifying the /tmp directory and see it doesn't vomit
 	error = interpreter_call(interpreter, "mkdtemp", &results, "s", "/tmp");
-	check_mkdtemp(interpreter, error, results);
+	check_mkdtemp(interpreter, error, results, "/tmp");
 	mark_point();
 	// This should fail, but softly
 	error = interpreter_call(interpreter, "mkdtemp", &results, "s", "/dir/does/not/exist");

@@ -46,10 +46,12 @@ valgrind: valgrind-c-$(1)
 .PHONY: test-c-$(1) valgrind-c-$(1)
 
 test-c-$(1): $(O)/bin/ctest-$(1)
-	SUPPRESS_LOG=1 $(O)/bin/ctest-$(1)
+	mkdir -p $(O)/testdir
+	SUPPRESS_LOG=1 TMPDIR=$(abspath $(O)/testdir) $(O)/bin/ctest-$(1)
 
 valgrind-c-$(1): $(O)/bin/ctest-$(1)
-	CK_FORK=no SUPPRESS_LOG=1 $(VALGRIND) $(O)/bin/ctest-$(1)
+	mkdir -p $(O)/testdir
+	CK_FORK=no SUPPRESS_LOG=1 TMPDIR=$(abspath $(O)/testdir) $(VALGRIND) $(O)/bin/ctest-$(1)
 
 endef
 
@@ -60,10 +62,12 @@ valgrind: valgrind-lua-$(1)
 .PHONY: test-lua-$(1) valgrind-lua-$(1)
 
 test-lua-$(1): $(O)/bin/lulaunch $(S)/tests/$(1).lua
-	SUPPRESS_LOG=1 S=$(S) $(O)/bin/lulaunch $(S)/tests/$(1).lua
+	mkdir -p $(O)/testdir
+	SUPPRESS_LOG=1 S=$(S) TMPDIR=$(abspath $(O)/testdir) $(O)/bin/lulaunch $(S)/tests/$(1).lua
 
 valgrind-lua-$(1): $(O)/bin/lulaunch $(S)/tests/$(1).lua
-	SUPPRESS_LOG=1 S=$(S) $(VALGRIND) $(O)/bin/lulaunch $(S)/tests/$(1).lua
+	mkdir -p $(O)/testdir
+	SUPPRESS_LOG=1 S=$(S) TMPDIR=$(abspath $(O)/testdir) $(VALGRIND) $(O)/bin/lulaunch $(S)/tests/$(1).lua
 
 endef
 

@@ -28,12 +28,14 @@ set -e
 
 set -e
 
-TMP_DIR="$(mktemp -d)"
-#trap 'rm -rf "$TMP_DIR"' SIGHUP SIGINT SIGQUIT SIGABRT SIGALRM SIGTERM SIGILL SIGPIPE EXIT
-ROOT_DIR="$TMP_DIR"/root
-DEFINITION="$2"
 : ${O:=$(pwd)}
 : ${S:=$(pwd)}
+export TMPDIR="$O/testdir"
+mkdir -p "$TMPDIR"
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' SIGHUP SIGINT SIGQUIT SIGABRT SIGALRM SIGTERM SIGILL SIGPIPE EXIT
+ROOT_DIR="$TMP_DIR"/root
+DEFINITION="$2"
 DATA_DIR="$S"/tests/data
 
 # Prepare the root directory for the run
