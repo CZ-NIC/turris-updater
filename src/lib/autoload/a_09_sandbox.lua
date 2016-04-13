@@ -50,10 +50,13 @@ function "Param" "Param" { x = 1, y = 2 }
 
 They do so by accumulating the parameters through several separate function
 calls and then doing the real call before use or when another morpher is called.
-The result of the function call is then copied into the original result, so
-it can still be used and preserves its address. The table into which the result will
-be copied is passed as the first parameter. Don't modify it, it is simply a hint
-at what address the result shall live eventually.
+The function shall return the data in a table passed to it as a first parameter.
+That table is empty and it can be filled with whatever object, possibly with
+a meta table.
+
+That table is actually the same one as the morpher object that accumulated the
+parameters, but it has been gutted now, so the same address is shared
+by the real result.
 ]]
 
 -- The currently active morpher, so we can morph it as soon as we know we're done with it.
@@ -107,20 +110,15 @@ function morpher(func, ...)
 		return table
 	end
 	local function morph(result)
+		DBG("Morphing ", name)
 		-- The morpher is no longer active
 		active_morpher = nil
-		-- We don't support multiple results yet. We may do so in future somehow, if needed.
-		local func_result = func(result, unpack(params))
-		assert(type(func_result) == "table")
 		-- Get rid of the old meta table
 		setmetatable(result, nil)
-		DBG("Morphing ", name)
 		-- The table should actually be empty
 		assert(not next(result))
-		-- Copy the new values into the target
-		utils.table_merge(result, func_result)
-		-- Copy the meta table of the function result, if any
-		setmetatable(result, getmetatable(func_result))
+		-- We don't support multiple results yet. We may do so in future somehow, if needed.
+		func(result, unpack(params))
 		-- return the table we morphed into, just for good order.
 		return result
 	end

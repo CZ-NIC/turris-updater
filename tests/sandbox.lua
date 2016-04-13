@@ -148,9 +148,8 @@ end
 
 -- Test the morphers act somewhat sane (or in the limits of their design insanity)
 function test_morpher()
-	local function mofun(res_addr, ...)
-		local result = {...}
-		return {...}
+	local function mofun(result, ...)
+		utils.table_merge(result, {...})
 	end
 	local function morpher (...)
 		return sandbox.morpher(mofun, ...)

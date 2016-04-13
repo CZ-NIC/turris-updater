@@ -31,6 +31,7 @@ local function run_sandbox_fun(func_code, level)
 	local err = sandbox.run_sandboxed(chunk, "Test chunk", level or "Restricted", nil, nil, function (context)
 		env = context.env
 	end)
+	print(DataDumper(err))
 	assert_nil(err)
 	return env.result
 end
