@@ -560,6 +560,10 @@ struct wait_id download(struct events *events, download_callback_t callback, voi
 	return id;
 }
 
+void download_slot_count_set(struct events *events, size_t count) {
+	events->downloads_max = count;
+}
+
 static struct watched_command *command_lookup(struct events *events, struct watched_command *command, pid_t pid) {
 	/*
 	 * Check that such pointer is registered in the events structure

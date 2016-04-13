@@ -146,6 +146,10 @@ struct wait_id run_command_a(struct events *events, command_callback_t callback,
  * cacert or crl respectively.
  */
 struct wait_id download(struct events *events, download_callback_t callback, void *data, const char *url, const char *cacert, const char *crl) __attribute__((nonnull(1, 2, 4)));
+/*
+ * Set the number of maximum parallel downloads
+ */
+void download_slot_count_set(struct events *event, size_t count) __attribute__((nonnull(1)));
 
 // Disable an event set up before.
 void watch_cancel(struct events *events, struct wait_id id);
