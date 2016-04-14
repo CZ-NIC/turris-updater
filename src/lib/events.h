@@ -48,8 +48,10 @@ struct wait_id {
 	enum wait_type type;
 	pid_t pid;
 	uint64_t id; // Currently used by downloads, but it is recyclable for further code
-	struct watched_command *command;
-	struct download_data *download;
+	union {
+		struct watched_command *command;
+		struct download_data *download;
+	} pointers;
 };
 
 // Create a new events structure.

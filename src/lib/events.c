@@ -249,7 +249,7 @@ static struct wait_id command_id(struct watched_command *command) {
 	memset(&result, 0, sizeof result);
 	result.type = WT_COMMAND;
 	result.pid = command->pid;
-	result.command = command;
+	result.pointers.command = command;
 	return result;
 }
 
@@ -552,7 +552,9 @@ struct wait_id download(struct events *events, download_callback_t callback, voi
 	struct wait_id id = (struct wait_id) {
 		.type = WT_DOWNLOAD,
 		.id = events->download_next_id,
-		.download = res
+		.pointers = {
+			.download = res
+		}
 	};
 
 	events->download_next_id++;
@@ -584,7 +586,7 @@ void watch_cancel(struct events *events, struct wait_id id) {
 			break;
 		}
 		case WT_COMMAND: {
-			struct watched_command *c = command_lookup(events, id.command, id.pid);
+			struct watched_command *c = command_lookup(events, id.pointers.command, id.pid);
 			if (c)
 				command_free(c);
 			break;
@@ -593,7 +595,7 @@ void watch_cancel(struct events *events, struct wait_id id) {
 			struct download_data *d = download_lookup(events, id.id);
 			if (d) {
 				if (!d->waiting)
-					watch_cancel(events, id.download->underlying_command);
+					watch_cancel(events, id.pointers.download->underlying_command);
 				download_free(d);
 			}
 			break;
@@ -631,7 +633,7 @@ void events_wait(struct events *events, size_t nid, struct wait_id *ids) {
 					found = child_lookup(events, ids->pid);
 					break;
 				case WT_COMMAND:
-					found = command_lookup(events, ids->command, ids->pid);
+					found = command_lookup(events, ids->pointers.command, ids->pid);
 					break;
 				case WT_DOWNLOAD:
 					found = download_lookup(events, ids->id);
