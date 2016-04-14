@@ -508,11 +508,14 @@ static void download_done(struct wait_id id, void *data, int status, enum comman
 }
 
 static void download_run(struct events *events, struct download_data *download) {
-	const size_t max_params = 7;
+	const size_t max_params = 10;
 	const char *params[max_params];
 	size_t build_i = 0;
 
-	params[build_i++] = "--compress";
+	params[build_i++] = "--compressed";
+	params[build_i++] = "--silent";
+	params[build_i++] = "--show-error";
+	params[build_i++] = "--fail";
 	if (download->cacert) {
 		params[build_i++] = "--cacert";
 		params[build_i++] = download->cacert;
@@ -540,7 +543,7 @@ struct wait_id download(struct events *events, download_callback_t callback, voi
 		.id = events->download_next_id,
 		.callback = callback,
 		.udata = data,
-		.url = url ? strdup(url) : NULL,
+		.url = strdup(url),
 		.cacert = cacert ? strdup(cacert) : NULL,
 		.crl = crl ? strdup(crl) : NULL,
 		.waiting = true

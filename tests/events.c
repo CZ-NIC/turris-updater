@@ -19,6 +19,7 @@
 
 #include "ctest.h"
 #include "../src/lib/events.h"
+#include "../src/lib/util.h"
 
 #include <unistd.h>
 #include <stdint.h>
@@ -221,22 +222,31 @@ END_TEST
 
 static void download_done_callback(struct wait_id id __attribute__((unused)), void *data __attribute__((unused)), int status, size_t out_size __attribute__((unused)), const char *out) {
 	ck_assert_uint_eq(200, status);
-	char *res = strstr(out, "Not for your eyes");
+	const char *res = strstr(out, "Not for your eyes");
 	ck_assert(res);
 }
 
+static void download_failed_callback(struct wait_id id __attribute__((unused)), void *data __attribute__((unused)), int status, size_t out_size __attribute__((unused)), const char *out __attribute__((unused))) {
+	ck_assert_uint_eq(500, status);
+}
+
 START_TEST(command_download) {
-	size_t cnt = 5;
-	struct wait_id ids[cnt];
+	const char *s_dir = getenv("S");
+	if (!s_dir)
+		s_dir = ".";
+	const char *cert_file = aprintf("%s/tests/data/updater.pem", s_dir);
+	const size_t cnt = 5;
+	struct wait_id ids[cnt * 2];
 
 	struct events *events = events_new();
 	download_slot_count_set(events, 2);
 
 	for (size_t i = 0; i < cnt; i++) {
-		ids[i] = download(events, download_done_callback, NULL, "https://api.turris.cz/index.html", NULL, NULL);
+		ids[i] = download(events, download_done_callback, NULL, "https://api.turris.cz/index.html", cert_file, NULL);
+		ids[i + cnt] = download(events, download_failed_callback, NULL, "https://api.turris.cz/does_not_exist.dat", cert_file, NULL);
 	}
 
-	events_wait(events, cnt, ids);
+	events_wait(events, cnt * 2, ids);
 	events_destroy(events);
 }
 END_TEST
