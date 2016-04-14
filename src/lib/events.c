@@ -656,10 +656,13 @@ void events_destroy(struct events *events) {
 		event_free(events->child_event);
 	if (events->child_kick_event)
 		event_free(events->child_kick_event);
+	while (events->download_count)
+		download_free(events->downloads[0]);
 	while (events->command_count)
 		command_free(events->commands[0]);
 	event_base_free(events->base);
 	free(events->children);
 	free(events->commands);
+	free(events->downloads);
 	free(events);
 }
