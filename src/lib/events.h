@@ -147,7 +147,8 @@ struct wait_id run_command_a(struct events *events, command_callback_t callback,
  * Download data specified by HTTP or HTTPS url.
  *
  * Optionally, check certificate and revocation list specified by parameters
- * cacert or crl respectively.
+ * cacert or crl respectively (paths to .pem files). If no certificate is specified,
+ * insecure https connections are allowed.
  */
 struct wait_id download(struct events *events, download_callback_t callback, void *data, const char *url, const char *cacert, const char *crl) __attribute__((nonnull(1, 2, 4)));
 /*

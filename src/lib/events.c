@@ -516,6 +516,8 @@ static void download_run(struct events *events, struct download_data *download) 
 	if (download->cacert) {
 		params[build_i++] = "--cacert";
 		params[build_i++] = download->cacert;
+	} else {
+		params[build_i++] = "--insecure";
 	}
 	if (download->crl) {
 		params[build_i++] = "--crlfile";
