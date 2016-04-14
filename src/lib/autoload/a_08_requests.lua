@@ -31,7 +31,7 @@ local utils = require "utils"
 module "requests"
 
 -- Create a set of allowed names of extra options.
-local allowed_package_extras = utils.map({
+local allowed_package_extras = utils.arr2set({
 	"virtual",
 	"deps",
 	"order-after",
@@ -48,7 +48,7 @@ local allowed_package_extras = utils.map({
 	"sig",
 	"pubkey",
 	"ca"
-}, function (i, name) return name, true end)
+})
 
 --[[
 We simply store all package promises, so they can be taken
@@ -69,18 +69,18 @@ has been run).
 
 The package has no methods, it's just a stupid structure.
 ]]
-function package(context, pkg, extra)
-	local result = extra or {}
+function package(result, context, pkg, extra)
+	extra = extra or {}
 	-- Minimal typo verification. Further verification is done when actually using the package.
-	for name in pairs(result) do
+	for name in pairs(extra) do
 		if not allowed_package_extras[name] then
 			error(utils.exception("bad value", "There's no extra option " .. name .. " for a package"))
 		end
 	end
+	utils.table_merge(result, extra)
 	result.name = pkg
 	result.tp = "package"
 	table.insert(known_packages, result)
-	return result
 end
 
 --[[
@@ -93,7 +93,59 @@ function package_wrap(context, pkg)
 		-- It is already a package object
 		return pkg
 	else
-		return package(context, pkg)
+		return package(nil, context, pkg)
+	end
+end
+
+-- List of allowed extra options for a Repository command
+local allowed_repository_extras = utils.arr2set({
+	"subdirs",
+	"index",
+	"ignore",
+	"priority",
+	"verification",
+	"sig",
+	"pubkey",
+	"ca"
+})
+
+--[[
+The repositories we already created. If there are multiple repos of the
+same name, we are allowed to provide any of them. Therefore, this is
+indexed by their names.
+]]
+known_repositories = {}
+-- One with all the repositories, even if there are name collisions
+known_repositories_all = {}
+
+--[[
+Promise of a future repository. The repository shall be downloaded after
+all the configuration scripts are run, parsed and used as a source of
+packages. Then it shall mutate into a parsed repository object, but
+until then, it is just a stupid data structure without any methods.
+]]
+function repository(result, context, name, uri, extra)
+	extra = extra or {}
+	-- Catch possible typos
+	for name in pairs(extra) do
+		if not allowed_repository_extras[name] then
+			error(utils.exception("bad value", "There's no extra option " .. name .. " for a repository"))
+		end
+	end
+	utils.table_merge(result, extra)
+	result.uri = uri
+	result.name = name
+	result.tp = "repository"
+	known_repositories[name] = result
+	table.insert(known_repositories_all, result)
+end
+
+-- Either return the repo, if it is one already, or look it up. Nil if it doesn't exist.
+function repository_get(repo)
+	if type(repo) == "table" and (repo.tp == "repository" or repo.tp == "parsed-repository") then
+		return repo
+	else
+		return known_repositories[repo]
 	end
 end
 

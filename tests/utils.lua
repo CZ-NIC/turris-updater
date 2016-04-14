@@ -53,6 +53,10 @@ function test_set2arr()
 	assert_table_equal({"a", "b", "c"}, result)
 end
 
+function test_arr2set()
+	assert_table_equal({a = true, b = true}, U.arr2set({"a", "b"}))
+end
+
 function test_clone()
 	local input = {
 		x = 1,

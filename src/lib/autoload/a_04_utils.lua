@@ -66,6 +66,10 @@ function set2arr(set)
 	end)
 end
 
+function arr2set(arr)
+	return map(arr, function (i, name) return name, true end)
+end
+
 -- Run rm -rf on all dirs in the provided table
 function cleanup_dirs(dirs)
 	if next(dirs) then
