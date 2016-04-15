@@ -241,6 +241,15 @@ static void do_flush(lua_State *L, const char *handle) {
 	lua_pop(L, 2);
 }
 
+// Push the provided wait ID onto the top of the lua stack
+static void push_wid(lua_State *L, const struct wait_id *id) {
+	struct wait_id *lid = lua_newuserdata(L, sizeof *lid);
+	*lid = *id;
+	// Set meta table. Empty one, but make sure we can recognize our data.
+	luaL_newmetatable(L, WAIT_ID_META);
+	lua_setmetatable(L, -2);
+}
+
 static int lua_run_command(lua_State *L) {
 	// Flush the lua output (it seems to buffered separately)
 	do_flush(L, "stdout");
@@ -274,12 +283,60 @@ static int lua_run_command(lua_State *L) {
 	if (lua_isstring(L, 3))
 		input = lua_tolstring(L, 3, &input_size);
 	struct wait_id id = run_command_a(events, command_terminated, command_postfork, data, input_size, input, term_timeout, kill_timeout, command, args);
-	struct wait_id *lid = lua_newuserdata(L, sizeof id);
-	// Set meta table. Empty one, but make sure we can recognize our data.
-	luaL_newmetatable(L, WAIT_ID_META);
-	lua_setmetatable(L, -2);
-	*lid = id;
+	push_wid(L, &id);
 	// Return 1 value ‒ the wait_id
+	return 1;
+}
+
+struct lua_download_data {
+	lua_State *L;
+	char *callback;
+};
+
+static void download_callback(struct wait_id id __attribute__((unused)), void *data, int status, size_t out_size, const char *out) {
+	struct lua_download_data *d = data;
+	struct lua_State *L = d->L;
+	ASSERT(L);
+	// This may be called from C code with a dirty stack
+	luaL_checkstack(L, 4, "Not enough stack space to call download callback");
+	int handler = push_err_handler(L);
+	// Get the lua function.
+	ASSERT(d->callback);
+	extract_registry_value(L, d->callback);
+	/*
+	 * We terminated the command, we won't need it any more.
+	 * Make sure we don't leak even if the lua throws or whatever.
+	 */
+	free(d);
+	lua_pushinteger(L, status);
+	lua_pushlstring(L, out, out_size);
+	int result = lua_pcall(L, 2, 0, handler);
+	ASSERT_MSG(!result, "%s", lua_tostring(L, -1));
+}
+
+static int lua_download(lua_State *L) {
+	// Flush the lua output (it seems to buffered separately)
+	do_flush(L, "stdout");
+	do_flush(L, "stderr");
+	// Extract params
+	luaL_checktype(L, 1, LUA_TFUNCTION);
+	const char *url = luaL_checkstring(L, 2);
+	const char *cacert = NULL;
+	if (!lua_isnil(L, 3))
+		cacert = luaL_checkstring(L, 3);
+	const char *crl = NULL;
+	if (!lua_isnil(L, 4))
+		crl = luaL_checkstring(L, 4);
+	// Handle the callback
+	struct lua_download_data *data = malloc(sizeof *data);
+	data->L = L;
+	data->callback = register_value(L, 1);
+	// Run the download
+	struct events *events = extract_registry(L, "events");
+	ASSERT(events);
+	struct wait_id id = download(events, download_callback, data, url, cacert, crl);
+	// Return the ID
+	push_wid(L, &id);
 	return 1;
 }
 
@@ -573,6 +630,7 @@ struct injected_func {
 static const struct injected_func injected_funcs[] = {
 	{ lua_log, "log" },
 	{ lua_run_command, "run_command" },
+	{ lua_download, "download" },
 	{ lua_events_wait, "events_wait" },
 	/*
 	 * Note: watch_cancel is not provided, because it would be hell to
