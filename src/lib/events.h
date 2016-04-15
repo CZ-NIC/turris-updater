@@ -23,13 +23,16 @@
 #define UPDATER_EVENTS_H
 
 #include <unistd.h>
+#include <stdint.h>
 
 struct events;
 struct watched_command *command;
+struct download_data;
 
 enum wait_type {
 	WT_CHILD,
-	WT_COMMAND
+	WT_COMMAND,
+	WT_DOWNLOAD
 };
 /*
  * A structure used as an ID for manipulation of events. The user of this module
@@ -44,7 +47,11 @@ enum wait_type {
 struct wait_id {
 	enum wait_type type;
 	pid_t pid;
-	struct watched_command *command;
+	uint64_t id; // Currently used by downloads, but it is recyclable for further code
+	union {
+		struct watched_command *command;
+		struct download_data *download;
+	} pointers;
 };
 
 // Create a new events structure.
@@ -102,6 +109,18 @@ typedef void (*command_callback_t)(struct wait_id id, void *data, int status, en
  */
 typedef void (*post_fork_callback_t)(void *data);
 /*
+ * A callback called after download finished.
+ *
+ * Status is similar to HTTP status itself. Anyway, there are only two
+ * values currently. 200 for successful download and 500 for error.
+ * It will be more  in future.
+ *
+ * Out_size is the size of output and out is the output itself.
+ * Output contains downloaded data (for status == 200) or error message
+ * otherwise.
+ */
+typedef void (*download_callback_t)(struct wait_id id, void *data, int status, size_t out_size, const char *out );
+/*
  * Run an external command, pass it input, gather its output
  * and after it terminated, run the callback with the outputs
  * and exit status.
@@ -124,6 +143,22 @@ typedef void (*post_fork_callback_t)(void *data);
 struct wait_id run_command(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, const char *command, ...) __attribute__((nonnull(1, 2, 9)));
 // Exactly the same as run_command, but with array for parameters.
 struct wait_id run_command_a(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, const char *command, const char **params) __attribute__((nonnull(1, 2, 9)));
+/*
+ * Download data specified by HTTP or HTTPS url.
+ *
+ * Optionally, check certificate and revocation list specified by parameters
+ * cacert or crl respectively (paths to .pem files). If no certificate is specified,
+ * insecure https connections are allowed.
+ */
+struct wait_id download(struct events *events, download_callback_t callback, void *data, const char *url, const char *cacert, const char *crl) __attribute__((nonnull(1, 2, 4)));
+/*
+ * Set the number of maximum parallel downloads
+ *
+ * If the value is set to a smaller number than currently running downloads
+ * the downloads are finished as usual. New download from queue is started
+ * when a free download slot is available.
+ */
+void download_slot_count_set(struct events *event, size_t count) __attribute__((nonnull(1)));
 
 // Disable an event set up before.
 void watch_cancel(struct events *events, struct wait_id id);

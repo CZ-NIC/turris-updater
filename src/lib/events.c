@@ -34,6 +34,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#define DOWNLOAD_SLOTS 5
+
 struct watched_child {
 	pid_t pid;
 	child_callback_t callback;
@@ -59,6 +61,23 @@ struct watched_command {
 	struct bufferevent *output_buffer, *error_buffer, *input_buffer;
 };
 
+struct download_data {
+	struct events *events;
+	uint64_t id;
+	/*
+	 * The item underlying_command exists during active download.
+	 * It is empty for downloads in download queue
+	 */
+	struct wait_id underlying_command;
+	download_callback_t callback;
+	void *udata;
+	char *url;
+	char *cacert;
+	char *crl;
+	// True for downloads in queue. False for active downloads.
+	bool waiting;
+};
+
 struct events {
 	struct event_base *base;
 	struct watched_child *children;
@@ -66,6 +85,10 @@ struct events {
 	struct event *child_event, *child_kick_event;
 	struct watched_command **commands;
 	size_t command_count, command_alloc;
+	struct download_data **downloads;
+	size_t download_count, download_alloc;
+	size_t downloads_running, downloads_max;
+	uint64_t download_next_id;
 };
 
 struct events *events_new(void) {
@@ -84,6 +107,7 @@ struct events *events_new(void) {
 	};
 	ASSERT_MSG(result->base, "Failed to allocate the libevent event loop");
 	event_config_free(config);
+	result->downloads_max = DOWNLOAD_SLOTS;
 	return result;
 }
 
@@ -225,7 +249,7 @@ static struct wait_id command_id(struct watched_command *command) {
 	memset(&result, 0, sizeof result);
 	result.type = WT_COMMAND;
 	result.pid = command->pid;
-	result.command = command;
+	result.pointers.command = command;
 	return result;
 }
 
@@ -420,6 +444,133 @@ struct wait_id run_command_a(struct events *events, command_callback_t callback,
 	}
 }
 
+static void download_free(struct download_data *download) {
+	free(download->url);
+	free(download->cacert);
+	free(download->crl);
+	free(download);
+}
+
+static struct download_data *download_find_waiting(struct events *events) {
+	if (events->downloads_running <= events->downloads_max) {
+		for (size_t i = 0; i < events->download_count; i++) {
+			if (events->downloads[i]->waiting)
+				return events->downloads[i];
+		}
+	}
+
+	return NULL;
+}
+
+static void download_run(struct events *events, struct download_data *download);
+
+static ssize_t download_index_lookup(struct events *events, uint64_t id) {
+	for (size_t i = 0; i < events->download_count; i++) {
+		if (events->downloads[i]->id == id)
+			return i;
+	}
+
+	return -1;
+}
+
+static struct download_data *download_lookup(struct events *events, uint64_t id) {
+	ssize_t index = download_index_lookup(events, id);
+
+	// -1 ~ not found
+	return (index == -1) ? NULL : events->downloads[index];
+}
+
+static void download_done(struct wait_id id, void *data, int status, enum command_kill_status killed __attribute__((unused)), size_t out_size, const char *out, size_t err_size, const char *err) {
+
+	struct download_data *d = data;
+	struct events *events = d->events;
+
+	// Kill this download; free the download slot and remove it from active downloads
+	events->downloads_running--;
+	ssize_t my_index = download_index_lookup(events, d->id);
+	// At this point should exists at least one process - this one
+	ASSERT(my_index != -1);
+	events->downloads[my_index] = events->downloads[--events->download_count];
+
+	// Prepare data for callback and call it
+	int http_status = (status == 0) ? 200 : 500;
+	size_t res_size = (status == 0) ? out_size : err_size;
+	const char *res_data = (status == 0) ? out : err;
+
+	d->callback(id, d->udata, http_status, res_size, res_data);
+
+	download_free(d);
+
+	// Is some download waiting for download slot?
+	struct download_data *waiting = download_find_waiting(events);
+	if (waiting)
+		download_run(events, waiting);
+}
+
+static void download_run(struct events *events, struct download_data *download) {
+	const size_t max_params = 10;
+	const char *params[max_params];
+	size_t build_i = 0;
+
+	params[build_i++] = "--compressed";
+	params[build_i++] = "--silent";
+	params[build_i++] = "--show-error";
+	params[build_i++] = "--fail";
+	if (download->cacert) {
+		params[build_i++] = "--cacert";
+		params[build_i++] = download->cacert;
+	} else {
+		params[build_i++] = "--insecure";
+	}
+	if (download->crl) {
+		params[build_i++] = "--crlfile";
+		params[build_i++] = download->crl;
+	}
+	params[build_i++] = download->url;
+	params[build_i++] = NULL;
+	ASSERT(build_i <= max_params);
+
+	events->downloads_running++;
+	download->waiting = false;
+	download->underlying_command = run_command_a(events, download_done, NULL, download, 0, NULL, -1, -1, "/usr/bin/curl", params);
+}
+
+struct wait_id download(struct events *events, download_callback_t callback, void *data, const char *url, const char *cacert, const char *crl) {
+	ENSURE_FREE(downloads, download_count, download_alloc);
+	struct download_data *res = malloc(sizeof *res);
+	*res = (struct download_data) {
+		.events = events,
+		.id = events->download_next_id,
+		.callback = callback,
+		.udata = data,
+		.url = strdup(url),
+		.cacert = cacert ? strdup(cacert) : NULL,
+		.crl = crl ? strdup(crl) : NULL,
+		.waiting = true
+	};
+
+	events->downloads[events->download_count++] = res;
+
+	if (events->downloads_running <= events->downloads_max)
+		download_run(events, res);
+
+	struct wait_id id = (struct wait_id) {
+		.type = WT_DOWNLOAD,
+		.id = events->download_next_id,
+		.pointers = {
+			.download = res
+		}
+	};
+
+	events->download_next_id++;
+
+	return id;
+}
+
+void download_slot_count_set(struct events *events, size_t count) {
+	events->downloads_max = count;
+}
+
 static struct watched_command *command_lookup(struct events *events, struct watched_command *command, pid_t pid) {
 	/*
 	 * Check that such pointer is registered in the events structure
@@ -440,9 +591,18 @@ void watch_cancel(struct events *events, struct wait_id id) {
 			break;
 		}
 		case WT_COMMAND: {
-			struct watched_command *c = command_lookup(events, id.command, id.pid);
+			struct watched_command *c = command_lookup(events, id.pointers.command, id.pid);
 			if (c)
 				command_free(c);
+			break;
+		}
+		case WT_DOWNLOAD: {
+			struct download_data *d = download_lookup(events, id.id);
+			if (d) {
+				if (!d->waiting)
+					watch_cancel(events, id.pointers.download->underlying_command);
+				download_free(d);
+			}
 			break;
 		}
 	}
@@ -478,7 +638,10 @@ void events_wait(struct events *events, size_t nid, struct wait_id *ids) {
 					found = child_lookup(events, ids->pid);
 					break;
 				case WT_COMMAND:
-					found = command_lookup(events, ids->command, ids->pid);
+					found = command_lookup(events, ids->pointers.command, ids->pid);
+					break;
+				case WT_DOWNLOAD:
+					found = download_lookup(events, ids->id);
 					break;
 			}
 			if (found)
@@ -500,10 +663,13 @@ void events_destroy(struct events *events) {
 		event_free(events->child_event);
 	if (events->child_kick_event)
 		event_free(events->child_kick_event);
+	while (events->download_count)
+		download_free(events->downloads[0]);
 	while (events->command_count)
 		command_free(events->commands[0]);
 	event_base_free(events->base);
 	free(events->children);
 	free(events->commands);
+	free(events->downloads);
 	free(events);
 }
