@@ -320,12 +320,13 @@ static int lua_download(lua_State *L) {
 	do_flush(L, "stderr");
 	// Extract params
 	luaL_checktype(L, 1, LUA_TFUNCTION);
+	int pcount = lua_gettop(L);
 	const char *url = luaL_checkstring(L, 2);
 	const char *cacert = NULL;
-	if (!lua_isnil(L, 3))
+	if (pcount >= 3 && !lua_isnil(L, 3))
 		cacert = luaL_checkstring(L, 3);
 	const char *crl = NULL;
-	if (!lua_isnil(L, 4))
+	if (pcount >= 4 && !lua_isnil(L, 4))
 		crl = luaL_checkstring(L, 4);
 	// Handle the callback
 	struct lua_download_data *data = malloc(sizeof *data);
