@@ -820,6 +820,9 @@ function config_modified(file, hash)
 	end
 	local content = utils.slurp(file)
 	if content then
+		local got = hasher(content):lower()
+		hash = hash:lower()
+		DBG("Hashes: " .. got .. " " .. hash)
 		return hasher(content):lower() ~= hash:lower()
 	else
 		return nil
