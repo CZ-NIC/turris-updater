@@ -139,6 +139,8 @@ present in the default config.
    (including the revision, generation and ID).  This CGI script then returns bundle
    of package lists.
  * `updater.override.hash_url`: The directory where hash descriptions live.
+ * `updater.override.disable`: If set to `true`, the updater won't do anything.
+   Not recommended.
 
 The generator script
 ====================

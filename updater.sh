@@ -54,6 +54,11 @@ BASE_URL=$(uci -q get updater.override.base_url || echo "https://api.turris.cz/u
 HASH_URL=$(uci -q get updater.override.hash_url || echo "https://api.turris.cz/hashes/")
 BASE_URL="$BASE_URL$GENERATION$REVISION"
 LIST_REQ=$(uci -q get updater.override.list_req_url || echo "https://api.turris.cz/getlists.cgi")
+DISABLED=$(uci -q get updater.override.disable || echo false)
+if $DISABLED ; then
+	echo "Updater disabled" | my_logger -p daemon.warning
+	exit 0
+fi
 GENERIC_LIST_URL="$BASE_URL/lists/generic"
 SPECIFIC_LIST_URL="$BASE_URL/lists/$ID"
 PACKAGE_URL="$BASE_URL/packages"
