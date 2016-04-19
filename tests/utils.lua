@@ -92,3 +92,10 @@ function test_exception()
 	}, e)
 	assert_equal("Error message", tostring(e))
 end
+
+function test_multi_index()
+	assert_nil(U.multi_index("xxx", "idx"))
+	assert_nil(U.multi_index({}, "idx"))
+	assert_nil(U.multi_index({idx = {[4] = "xxx"}}, "idx", 5))
+	assert_equal("xxx", U.multi_index({idx = {[4] = "xxx"}}, "idx", 4))
+end

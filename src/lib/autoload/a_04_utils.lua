@@ -18,6 +18,7 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
 local pairs = pairs
+local ipairs = ipairs
 local next = next
 local error = error
 local type = type
@@ -133,6 +134,22 @@ function exception(reason, msg)
 		reason = reason,
 		msg = msg
 	}, error_meta)
+end
+
+--[[
+If you call multi_index(table, idx1, idx2, idx3), it tries
+to return table[idx1][idx2][idx3]. But if it finds anything
+that is not a table on the way, nil is returned.
+]]
+function multi_index(table, ...)
+	for i, idx in ipairs({...}) do
+		if type(table) ~= "table" then
+			return nil
+		else
+			table = table[idx]
+		end
+	end
+	return table
 end
 
 return _M
