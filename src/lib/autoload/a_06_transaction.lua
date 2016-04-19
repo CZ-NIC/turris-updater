@@ -135,7 +135,7 @@ local function pkg_move(status, plan, errors_collected)
 			utils.table_merge(all_configs, op.old_configs)
 			-- Unfortunately, we need to merge the control files first, otherwise the maintainer scripts won't run. They expect to live in the info dir when they are run. And we need to run the preinst script before merging the files.
 			backend.pkg_merge_control(op.dir .. "/control", op.control.Package, op.control.files)
-			if status[op.control.Package] then
+			if utils.multi_index(status, op.control.Package, "Status", 3) == "installed" then
 				-- There's a previous version. So this is an upgrade.
 				script(errors_collected, op.control.Package, "preinst", "upgrade", status[op.control.Package].Version)
 			else
@@ -155,7 +155,19 @@ local function pkg_scripts(status, plan, removes, to_install, errors_collected, 
 			script(errors_collected, op.control.Package, "postinst", "configure")
 		elseif op.op == "remove" and not to_install[op.name] then
 			utils.table_merge(all_configs, status[op.name].Conffiles or {})
-			status[op.name] = nil
+			local cfiles = status[op.name].Conffiles or {}
+			for f in pairs(cfiles) do
+				local path, modified = backend.pkg_config_info(f, cfiles)
+				if not modified then
+					cfiles[f] = nil
+				end
+			end
+			if next(cfiles) then
+				-- Keep the package info there, with the relevant modified configs
+				status[op.name].Status = {"install", "user", "not-installed"}
+			else
+				status[op.name] = nil
+			end
 			script(errors_collected, op.name, "prerm", "remove")
 		end
 	end

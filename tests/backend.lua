@@ -619,13 +619,19 @@ function test_control_cleanup()
 
 	The control_cleanup doesn't care about the content of the packages, so be lazy a bit.
 	]]
+	local function pkg_gen(name)
+		return {
+			Package = name,
+			Status = {"install", "user", "installed"}
+		}
+	end
 	B.control_cleanup({
-		pkg1 = true,
-		pkg2 = true
+		pkg1 = pkg_gen "pkg1",
+		pkg2 = pkg_gen "pkg2"
 	})
 	assert_table_equal(all_files, ls(test_dir))
 	-- Drop the things belonging to pkg2
-	B.control_cleanup({ pkg1 = true })
+	B.control_cleanup({ pkg1 = pkg_gen "pkg1" })
 	all_files["pkg2.control"] = nil
 	all_files["pkg2.xyz.abc"] = nil
 	assert_table_equal(all_files, ls(test_dir))

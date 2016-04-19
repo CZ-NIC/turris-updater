@@ -30,7 +30,8 @@ local test_status = {
 		Package = "pkg-rem",
 		Conffiles = {
 			remconf = "12345678901234567890123456789012"
-		}
+		},
+		Status = {"install", "user", "installed"}
 	},
 	["pkg-name"] = {
 		Package = "pkg-name",
@@ -38,7 +39,8 @@ local test_status = {
 		Version = "0",
 		Conffiles = {
 			c = "12345678901234567890123456789012"
-		}
+		},
+		Status = {"install", "user", "installed"}
 	}
 }
 local intro = {
@@ -121,7 +123,7 @@ local function mocks_install()
 	mock_gen("backend.dir_ensure")
 	mock_gen("backend.status_parse", function () return utils.clone(test_status) end)
 	mock_gen("backend.pkg_unpack", function () return "pkg_dir" end)
-	mock_gen("backend.pkg_examine", function () return {f = true}, {d = true}, {c = "1234567890123456"}, {Package = "pkg-name", files = {f = true}, Conffiles = {c = "1234567890123456"}, Version = "1"} end)
+	mock_gen("backend.pkg_examine", function () return {f = true}, {d = true}, {c = "1234567890123456"}, {Package = "pkg-name", files = {f = true}, Conffiles = {c = "1234567890123456"}, Version = "1", Status = {"install", "user", "installed"}} end)
 	mock_gen("backend.collision_check", function () return {}, {}  end)
 	mock_gen("backend.pkg_merge_files")
 	mock_gen("backend.pkg_cleanup_files")
@@ -134,6 +136,9 @@ local function mocks_install()
 		else
 			return true, ""
 		end
+	end)
+	mock_gen("backend.pkg_config_info", function (f, configs)
+		return f, false
 	end)
 	mock_gen("utils.cleanup_dirs")
 	mock_gen("journal.fresh")
@@ -210,7 +215,8 @@ function test_perform_ok()
 		Package = "pkg-name",
 		Conffiles = { c = "1234567890123456" },
 		Version = "1",
-		files = { f = true }
+		files = { f = true },
+		Status = {"install", "user", "installed"}
 	}
 	status_mod["pkg-rem"] = nil
 	local expected = tables_join(intro, {
@@ -235,7 +241,8 @@ function test_perform_ok()
 							Conffiles = { c = "1234567890123456" },
 							Package = "pkg-name",
 							Version = "1",
-							files = { f = true }
+							files = { f = true },
+							Status = {"install", "user", "installed"}
 						},
 						dir = "pkg_dir",
 						dirs = { d = true },
@@ -284,11 +291,13 @@ function test_perform_ok()
 						Conffiles = { c = "1234567890123456" },
 						Package = "pkg-name",
 						Version = "1",
-						files = { f = true }
+						files = { f = true },
+						Status = {"install", "user", "installed"}
 					},
 					["pkg-rem"] = {
 						Package = "pkg-rem",
-						Conffiles = { remconf = "12345678901234567890123456789012" }
+						Conffiles = { remconf = "12345678901234567890123456789012" },
+						Status = {"install", "user", "installed"}
 					}
 				},
 				{},
@@ -298,6 +307,10 @@ function test_perform_ok()
 		{
 			f = "backend.script_run",
 			p = {"pkg-name", "postinst", "configure"}
+		},
+		{
+			f = "backend.pkg_config_info",
+			p = {"remconf", { remconf = "12345678901234567890123456789012" } }
 		},
 		{
 			f = "backend.script_run",
@@ -320,7 +333,8 @@ function test_perform_ok()
 						Conffiles = { c = "1234567890123456" },
 						Package = "pkg-name",
 						Version = "1",
-						files = { f = true }
+						files = { f = true },
+						Status = {"install", "user", "installed"}
 					}
 				},
 				{ ["pkg-name"] = { ["postinst"] = "Fake failed postinst" } }
@@ -469,7 +483,8 @@ function test_recover_late()
 							Conffiles = { c = "1234567890123456" },
 							Package = "pkg-name",
 							Version = "1",
-							files = { f = true }
+							files = { f = true },
+							Status = {"install", "user", "instatalled"}
 						},
 						dir = "pkg_dir",
 						dirs = { d = true },
@@ -487,7 +502,8 @@ function test_recover_late()
 						Conffiles = { c = "1234567890123456" },
 						Package = "pkg-name",
 						Version = "1",
-						files = { f = true }
+						files = { f = true },
+						Status = {"install", "user", "installed"}
 					},
 					["pkg-rem"] = {
 						Package = "pkg-rem"
@@ -501,7 +517,8 @@ function test_recover_late()
 						Conffiles = { c = "1234567890123456" },
 						Package = "pkg-name",
 						Version = "1",
-						files = { f = true }
+						files = { f = true },
+						Status = {"install", "user", "installed"}
 					}
 				},
 				{ ["pkg-name"] = { ["postinst"] = "Fake failed postinst" } }
@@ -518,7 +535,8 @@ function test_recover_late()
 		Package = "pkg-name",
 		Conffiles = { c = "1234567890123456" },
 		Version = "1",
-		files = { f = true }
+		files = { f = true },
+		Status = {"install", "user", "installed"}
 	}
 	status_mod["pkg-rem"] = nil
 	local intro_mod = utils.clone(intro)
