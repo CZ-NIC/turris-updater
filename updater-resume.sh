@@ -69,6 +69,7 @@ if $RESTART_REQUESTED ; then
 	BASE_PLAN_FILE=
 	# Send the logs from update before we lose them by reboot
 	logsend.sh -n
+	sync
 	/sbin/reboot
 	EXIT_CODE=0
 	exit
