@@ -23,6 +23,7 @@ the configuration scripts to be run in.
 ]]
 
 local pairs = pairs
+local ipairs = ipairs
 local type = type
 local error = error
 local table = table
@@ -147,6 +148,59 @@ function repository_get(repo)
 	else
 		return known_repositories[repo]
 	end
+end
+
+local allowed_install_extras = utils.arr2set({
+	"priority",
+	"version",
+	"repository",
+	"reinstall",
+	"critical"
+})
+
+content_requests = {}
+
+local function content_request(context, cmd, allowed, ...)
+	local batch = {}
+	local function submit(extras)
+		for _, pkg in ipairs(batch) do
+			pkg = package_wrap(context, pkg)
+			local request = {
+				package = pkg,
+				tp = cmd
+			}
+			for name, opt in pairs(extras) do
+				if not allowed[name] then
+					error(utils.exception("bad value", "There's no extra option " .. name .. " for " .. cmd .. " request"));
+				else
+					request[name] = opt
+				end
+			end
+			table.instert(content_requests, request)
+		end
+	end
+	for _, val in ipairs(...) do
+		if type(val) == "table" and val.tp ~= "package" then
+			submit(val)
+		else
+			table.insert(batch, val)
+		end
+	end
+	submit({})
+end
+
+function install(result, context, ...)
+	return content_request(context, "install", allowed_install_extras, ...)
+end
+
+local allowed_uninstall_extras = utils.arr2set({
+	"priority"
+})
+
+uninstall_requests = {}
+
+function uninstall(result, context, ...)
+	return content_request(context, "uninstall", allowed_uninstall_extras, ...)
 end
 
 return _M
