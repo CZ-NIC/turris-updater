@@ -808,6 +808,7 @@ Returns true or false if it was modified. If the file can't be read, nil
 is returned.
 ]]
 function config_modified(file, hash)
+	DBG("Checking if file " .. file .. " is modified against " .. hash)
 	local len = hash:len()
 	local hasher
 	if len == 32 then
@@ -819,7 +820,10 @@ function config_modified(file, hash)
 	end
 	local content = utils.slurp(file)
 	if content then
-		return hasher(content) ~= hash:lower()
+		local got = hasher(content):lower()
+		hash = hash:lower()
+		DBG("Hashes: " .. got .. " " .. hash)
+		return hasher(content):lower() ~= hash:lower()
 	else
 		return nil
 	end
