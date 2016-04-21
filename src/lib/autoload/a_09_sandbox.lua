@@ -194,6 +194,14 @@ local funcs = {
 		Repository = {
 			mode = "morpher",
 			value = requests.repository
+		},
+		Install = {
+			mode = "morpher",
+			value = requests.install
+		},
+		Uninstall = {
+			mode = "morpher",
+			value = requests.uninstall
 		}
 	}
 }

@@ -94,7 +94,9 @@ function package_wrap(context, pkg)
 		-- It is already a package object
 		return pkg
 	else
-		return package(nil, context, pkg)
+		local result = {}
+		package(result, context, pkg)
+		return result
 	end
 end
 
@@ -176,10 +178,11 @@ local function content_request(context, cmd, allowed, ...)
 					request[name] = opt
 				end
 			end
-			table.instert(content_requests, request)
+			table.insert(content_requests, request)
 		end
+		batch = {}
 	end
-	for _, val in ipairs(...) do
+	for _, val in ipairs({...}) do
 		if type(val) == "table" and val.tp ~= "package" then
 			submit(val)
 		else
