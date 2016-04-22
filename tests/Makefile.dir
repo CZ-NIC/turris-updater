@@ -7,7 +7,7 @@ locks_LOCAL_LIBS += updater
 
 $(O)/tests/check-compiled/compiled:
 	mkdir -p $(O)/tests/check-compiled
-	cd $(O)/tests/check-compiled && cmake $(abspath $(S))/tests/check
+	cd $(O)/tests/check-compiled && cmake $(abspath $(S))/tests/check -DHAVE_SUBUNIT=0
 	+make -C $(O)/tests/check-compiled
 	touch $(O)/tests/check-compiled/compiled
 
