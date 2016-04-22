@@ -200,8 +200,6 @@ local allowed_uninstall_extras = utils.arr2set({
 	"priority"
 })
 
-uninstall_requests = {}
-
 function uninstall(result, context, ...)
 	return content_request(context, "uninstall", allowed_uninstall_extras, ...)
 end
