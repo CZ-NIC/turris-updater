@@ -19,3 +19,4 @@ tags
 # Test stuff
 tests/check-compiled
 tests/arguments
+testdir
