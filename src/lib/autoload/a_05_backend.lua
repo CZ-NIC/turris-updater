@@ -815,6 +815,16 @@ function config_modified(file, hash)
 		hasher = md5
 	elseif len == 64 then
 		hasher = sha256
+	elseif len > 32 and len < 64 then
+		--[[
+		Something produces (produced?) truncated hashes in the status file.
+		Handle them. This is likely already fixed, but we don't want to
+		crash on system that still have these broken hashes around.
+		]]
+		hasher = function (content)
+			WARN("Truncated sha256 hash seen, using bug compat mode")
+			return sha256(content):sub(1, len)
+		end
 	else
 		error("Can not determine hash algorithm to use for hash " .. hash)
 	end

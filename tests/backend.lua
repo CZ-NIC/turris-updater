@@ -703,6 +703,11 @@ function test_config_modified()
 	-- Case insensitive checks
 	assert_false(B.config_modified(file, "182171CCACFC32A9F684479509AC471A"))
 	assert_false(B.config_modified(file, "4F54362B30F53AE6862B11FF34D22A8D4510ED2B3E757B1F285DBD1033666E55"))
+	-- Truncated sha256
+	assert_false(B.config_modified(file, "4F54362B30F53AE6862B11FF34D22A8D4510ED2B3E757B1F285DBD10336"))
+	assert_false(B.config_modified(file, "4F54362B30F53AE6862B11FF34D22A8D4510ED2B3E757B1F"))
+	assert(B.config_modified(file, "5f54362b30f53ae6862b11ff34d22a8d4510ed2b3e757b1f285dbd1033666e"))
+	assert(B.config_modified(file, "5f54362b30f53ae6862b11ff34d22a8d4510ed2b3e757b1f285db"))
 end
 
 function setup()
