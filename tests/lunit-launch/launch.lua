@@ -50,6 +50,16 @@ function assert_table_equal(t1, t2, tables, checked)
 	end
 end
 
+function assert_exception(func, reason, msg)
+	local ok, err = pcall(func)
+	lunit.assert_false(ok, "It hasn't failed")
+	lunit.assert_equal("error", err.tp, "Not an exception")
+	lunit.assert_equal(reason, err.reason, "Failed with a wrong reason " .. (err.reason or err))
+	if msg then
+		lunit.assert_equal(msg, err.msg, "Failed with a wrong message " .. (err.msg or msg))
+	end
+end
+
 mocks_called = {}
 local mocks_origs = {}
 
