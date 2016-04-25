@@ -690,17 +690,22 @@ function pkg_merge_control(dir, name, files)
 	events_wait(unpack(events))
 end
 
+function pkg_config_info(f, configs)
+	-- Make sure there are no // in there, which would confuse the directory cleaning code
+	f = f:gsub("/+", "/")
+	local path = root_dir .. f
+	local hash = configs[f]
+	return path, hash and config_modified(path, hash)
+end
+
 --[[
 Remove files provided as a set and any directories which became
 empty by doing so (recursively).
 ]]
 function pkg_cleanup_files(files, rm_configs)
 	for f in pairs(files) do
-		-- Make sure there are no // in there, which would confuse the directory cleaning code
-		f = f:gsub("/+", "/")
-		local path = root_dir .. f
-		local hash = rm_configs[f]
-		if hash and config_modified(path, hash) then
+		local path, config_mod = pkg_config_info(f, rm_configs)
+		if config_mod then
 			DBG("Not removing config " .. f .. ", as it has been modified")
 		else
 			DBG("Removing file " .. path)
@@ -789,7 +794,7 @@ function control_cleanup(status)
 			local pname = file:match("^([^%.]+)%.")
 			if not pname then
 				WARN("Control file " .. file .. " has a wrong name format")
-			elseif not status[pname] then
+			elseif utils.multi_index(status, pname, "Status", 3) ~= "installed" then
 				DBG("Removing control file " .. file)
 				local _, err = os.remove(info_dir .. "/" .. file)
 				if err then
