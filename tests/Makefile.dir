@@ -28,7 +28,8 @@ LUA_TESTS := \
 	requests \
 	sandbox \
 	transaction \
-	utils
+	utils \
+	uri
 
 define DO_C_TEST
 
