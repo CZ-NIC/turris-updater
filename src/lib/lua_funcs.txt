@@ -76,6 +76,23 @@ Currently, there's no way to cancel running command from lua, since
 that would make the wrapper code needlessly complex (while there seems
 to be no need to cancel them currently).
 
+The other event is `download`:
+
+  function callback(status, content)
+    if status == 200 then
+      print("Downloaded: " .. content)
+    else
+      print("Download failed (" .. content .. ")")
+    end
+  end
+
+  local id = download(callback, "https://example.org/file", "/path/to/cert", "/path/to/crl")
+
+  events_wait(id)
+
+The example is mostly self-explanatory and again, this acts very
+similar to the C version.
+
 Filesystem manipulation
 -----------------------
 

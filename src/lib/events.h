@@ -109,18 +109,6 @@ typedef void (*command_callback_t)(struct wait_id id, void *data, int status, en
  */
 typedef void (*post_fork_callback_t)(void *data);
 /*
- * A callback called after download finished.
- *
- * Status is similar to HTTP status itself. Anyway, there are only two
- * values currently. 200 for successful download and 500 for error.
- * It will be more  in future.
- *
- * Out_size is the size of output and out is the output itself.
- * Output contains downloaded data (for status == 200) or error message
- * otherwise.
- */
-typedef void (*download_callback_t)(struct wait_id id, void *data, int status, size_t out_size, const char *out );
-/*
  * Run an external command, pass it input, gather its output
  * and after it terminated, run the callback with the outputs
  * and exit status.
@@ -143,6 +131,19 @@ typedef void (*download_callback_t)(struct wait_id id, void *data, int status, s
 struct wait_id run_command(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, const char *command, ...) __attribute__((nonnull(1, 2, 9)));
 // Exactly the same as run_command, but with array for parameters.
 struct wait_id run_command_a(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, const char *command, const char **params) __attribute__((nonnull(1, 2, 9)));
+
+/*
+ * A callback called after download finished.
+ *
+ * Status is similar to HTTP status itself. Anyway, there are only two
+ * values currently. 200 for successful download and 500 for error.
+ * It will be more  in future.
+ *
+ * Out_size is the size of output and out is the output itself.
+ * Output contains downloaded data (for status == 200) or error message
+ * otherwise.
+ */
+typedef void (*download_callback_t)(struct wait_id id, void *data, int status, size_t out_size, const char *out);
 /*
  * Download data specified by HTTP or HTTPS url.
  *
