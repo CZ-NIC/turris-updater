@@ -31,7 +31,6 @@ local function run_sandbox_fun(func_code, level)
 	local err = sandbox.run_sandboxed(chunk, "Test chunk", level or "Restricted", nil, nil, function (context)
 		env = context.env
 	end)
-	print(DataDumper(err))
 	assert_nil(err)
 	return env.result
 end
@@ -78,7 +77,37 @@ function test_repository()
 	assert_nil(requests.repository_get("does-not-exist"))
 end
 
+function test_install_uninstall()
+	local err = sandbox.run_sandboxed([[
+		Install "pkg1" "pkg2" {priority = 45} "pkg3" {priority = 14} "pkg4" "pkg5"
+		Uninstall "pkg6" {priority = 75} "pkg7"
+		Install "pkg8"
+	]], "Test chunk", "Restricted")
+	local function req(num, mode, prio)
+		return {
+			tp = mode,
+			package = {
+				tp = "package",
+				name = "pkg" .. num
+			},
+			priority = prio
+		}
+	end
+	assert_table_equal({
+		req(1, "install", 45),
+		req(2, "install", 45),
+		req(3, "install", 14),
+		req(4, "install"),
+		req(5, "install"),
+		req(6, "uninstall", 75),
+		req(7, "uninstall"),
+		req(8, "install")
+	}, requests.content_requests)
+	assert_nil(err)
+end
+
 function teardown()
 	requests.known_packages = {}
 	requests.known_repositories = {}
+	requests.content_requests = {}
 end

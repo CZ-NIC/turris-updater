@@ -7,7 +7,7 @@ locks_LOCAL_LIBS += updater
 
 $(O)/tests/check-compiled/compiled:
 	mkdir -p $(O)/tests/check-compiled
-	cd $(O)/tests/check-compiled && cmake $(abspath $(S))/tests/check
+	cd $(O)/tests/check-compiled && cmake $(abspath $(S))/tests/check -DHAVE_SUBUNIT=0
 	+make -C $(O)/tests/check-compiled
 	touch $(O)/tests/check-compiled/compiled
 
@@ -47,11 +47,11 @@ valgrind: valgrind-c-$(1)
 
 test-c-$(1): $(O)/bin/ctest-$(1)
 	mkdir -p $(O)/testdir
-	SUPPRESS_LOG=1 TMPDIR=$(abspath $(O)/testdir) $(O)/bin/ctest-$(1)
+	SUPPRESS_LOG=1 S=$(S) TMPDIR=$(abspath $(O)/testdir) $(O)/bin/ctest-$(1)
 
 valgrind-c-$(1): $(O)/bin/ctest-$(1)
 	mkdir -p $(O)/testdir
-	CK_FORK=no SUPPRESS_LOG=1 TMPDIR=$(abspath $(O)/testdir) $(VALGRIND) $(O)/bin/ctest-$(1)
+	CK_FORK=no SUPPRESS_LOG=1 S=$(S) TMPDIR=$(abspath $(O)/testdir) $(VALGRIND) $(O)/bin/ctest-$(1)
 
 endef
 
