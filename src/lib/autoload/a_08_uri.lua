@@ -26,6 +26,7 @@ local error = error
 local ipairs = ipairs
 local pairs = pairs
 local tonumber = tonumber
+local tostring = tostring
 local pcall = pcall
 local unpack = unpack
 local setmetatable = setmetatable
@@ -36,7 +37,7 @@ local utils = require "utils"
 
 module "uri"
 
--- TODO: Document the new exception type
+-- TODO: Document the new exception types
 
 local function percent_decode(text)
 	return text:gsub('%%(..)', function (encoded)
@@ -57,7 +58,7 @@ The following function is borrowed from http://lua-users.org/wiki/BaseSixtyFour
 local b='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
 
 -- decoding
-function base64_decode(data)
+local function base64_decode(data)
     data = string.gsub(data, '[^'..b..'=]', '')
     return (data:gsub('.', function(x)
         if (x == '=') then return '' end
@@ -98,8 +99,30 @@ local function handler_data(context, uri, verification, err_cback, done_cback)
 	done_cback(data)
 end
 
+local function handler_file(context, uri, verification, err_cback, done_cback)
+	if not context:level_check("Local") then
+		error(utils.exception("access violation", "At least local level required for file:// URI"))
+	end
+	local fname = uri:match('^file://(.*)')
+	if not fname then
+		return err_cback(utils.exception("malformed URI", "Not a file:// URI"))
+	end
+	local ok
+	ok, fname = pcall(percent_decode, fname)
+	if not ok then
+		return err_cback(utils.exception("malformed URI", "Bad URL encoding"))
+	end
+	local ok, content, err = pcall(utils.slurp, fname)
+	if (not ok) or (not content) then
+		return err_cback(utils.exception("unreachable", tostring(content or err)))
+	end
+	-- TODO: Verification
+	done_cback(content)
+end
+
 local handlers = {
-	data = handler_data
+	data = handler_data,
+	file = handler_file
 }
 
 function wait(...)
@@ -169,7 +192,7 @@ function new(context, uri, verification)
 	It can actually raise an error if that uri is not allowed in the given content.
 	Things like non-existing file is reported through the err_cback
 	]]
-	handler(context, uri, verification, err_cback, done_cback)
+	result.events = {handler(context, uri, verification, err_cback, done_cback)}
 	return result
 end
 

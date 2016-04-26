@@ -32,25 +32,50 @@ function test_invalid()
 	assert_exception(function () return uri(context, "unknown:bad") end, "bad value")
 end
 
+local function check_sync(level, input, output)
+	local context = sandbox.new(level)
+	local uri = uri(context, input)
+	-- No need to wait for this one
+	assert(uri.done)
+	-- But when we do, we get the right data
+	local ok, result = uri:get()
+	assert(ok)
+	assert_equal(output, result)
+	-- When we do it with callback, it gets called and provides the same data
+	local called = false
+	uri:cback(function (ok, result)
+		assert(ok)
+		assert_equal(output, result)
+		called = true
+	end)
+	assert(called)
+end
+
+local function err_sync(level, input, reason)
+	local context = sandbox.new(level)
+	local uri = uri(context, input)
+	-- It fails right avay, synchronously
+	assert(uri.done)
+	-- The error is returned
+	local ok, result = uri:get()
+	assert_false(ok)
+	assert_equal('error', result.tp)
+	assert_equal(reason, result.reason)
+	-- The same goes when requested through the callback
+	local called = false
+	uri:cback(function (ok, result)
+		assert_false(ok)
+		assert_equal('error', result.tp)
+		assert_equal(reason, result.reason)
+		called = true
+	end)
+	assert(called)
+end
+
 -- Test the data scheme
 function test_data()
 	local function check(input, output)
-		local context = sandbox.new("Remote")
-		local uri = uri(context, "data:" .. input)
-		-- No need to wait for this one
-		assert(uri.done)
-		-- But when we do, we get the right data
-		local ok, result = uri:get()
-		assert(ok)
-		assert_equal(output, result)
-		-- When we do it with callback, it gets called and provides the same data
-		local called = false
-		uri:cback(function (ok, result)
-			assert(ok)
-			assert_equal(output, result)
-			called = true
-		end)
-		assert(called)
+		check_sync("Restricted", "data:" .. input, output)
 	end
 	-- Simple case
 	check(",hello", "hello")
@@ -66,24 +91,7 @@ function test_data()
 	check("charset=utf8,hello", "hello")
 	check("charset=utf8;base64,aGVsbG8lMjB3b3JsZA%3D%3D", "hello%20world")
 	local function malformed(input)
-		local context = sandbox.new("Remote")
-		local uri = uri(context, "data:" .. input)
-		-- It fails right avay, synchronously
-		assert(uri.done)
-		-- The error is returned
-		local ok, result = uri:get()
-		assert_false(ok)
-		assert_equal('error', result.tp)
-		assert_equal("malformed URI", result.reason)
-		-- The same goes when requested through the callback
-		local called = false
-		uri:cback(function (ok, result)
-			assert_false(ok)
-			assert_equal('error', result.tp)
-			assert_equal("malformed URI", result.reason)
-			called = true
-		end)
-		assert(called)
+		err_sync("Restricted", "data:" .. input, "malformed URI")
 	end
 	-- Missing comma
 	malformed("data:hello")
@@ -95,4 +103,16 @@ function test_data()
 	OK. The goal is to work with whatever is valid and report
 	if we don't know what to do with what we got.
 	]]
+end
+
+function test_file()
+	check_sync("Local", "file:///dev/null", "")
+	local dir = (os.getenv("S") .. "/") or ''
+	check_sync("Local", "file://" .. dir .. "tests/data/hello.txt", "hello\n")
+	check_sync("Local", "file://" .. dir .. "tests/data/hello%2etxt", "hello\n")
+	local context = sandbox.new("Remote")
+	assert_exception(function () uri(context, "file:///dev/null") end, "access violation")
+	err_sync("Local", "file:something", "malformed URI")
+	err_sync("Local", "file://%ZZ", "malformed URI")
+	err_sync("Local", "file:///does/not/exist", "unreachable")
 end
