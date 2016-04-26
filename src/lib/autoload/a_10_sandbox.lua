@@ -301,6 +301,9 @@ function new(sec_level, parent)
 	-- Pretend it is an environment
 	result.env._G = result.env
 	result.tp = "context"
+	function result:level_check(sec_level)
+		return level(sec_level) <= self.sec_level
+	end
 	return result
 end
 
