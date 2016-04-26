@@ -33,6 +33,7 @@ local setmetatable = setmetatable
 local table = table
 local string = string
 local events_wait = events_wait
+local download = download
 local utils = require "utils"
 
 module "uri"
@@ -120,9 +121,24 @@ local function handler_file(context, uri, verification, err_cback, done_cback)
 	done_cback(content)
 end
 
+-- Actually, both for http and https
+local function handler_http(context, uri, verification, err_cback, done_cback)
+	-- TODO: Check with the context if we are allowed
+	-- TODO: Certificate handling
+	return download(function (status, answer)
+		if status == 200 then
+			done_cback(answer)
+		else
+			err_cback(utils.exception("unreachable", tostring(answer)))
+		end
+	end, uri)
+end
+
 local handlers = {
 	data = handler_data,
-	file = handler_file
+	file = handler_file,
+	http = handler_http,
+	https = handler_http
 }
 
 function wait(...)

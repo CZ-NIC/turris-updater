@@ -116,3 +116,34 @@ function test_file()
 	err_sync("Local", "file://%ZZ", "malformed URI")
 	err_sync("Local", "file:///does/not/exist", "unreachable")
 end
+
+function test_https()
+	local context = sandbox.new("Remote")
+	local u1 = uri(context, "https://api.turris.cz/", {})
+	local u2 = uri(context, "https://api.turris.cz/does/not/exist", {})
+	assert_false(u1.done)
+	assert_false(u2.done)
+	local called1 = false
+	local called2 = false
+	u1:cback(function (ok, content)
+		called1 = true
+		assert(ok)
+		assert(content:match("Not for your eyes"))
+	end)
+	u2:cback(function (ok, err)
+		called2 = true
+		assert_false(ok)
+		assert_equal("error", err.tp)
+		assert_equal("unreachable", err.reason)
+	end)
+	assert_false(called1)
+	assert_false(called2)
+	local ok, content = u1:get()
+	assert(called1)
+	assert(ok)
+	assert(content:match("Not for your eyes"))
+	uri.wait(u1, u2)
+	assert(called2)
+	local ok = u2:get()
+	assert_false(ok)
+end
