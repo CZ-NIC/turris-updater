@@ -25,15 +25,81 @@ the configuration scripts to be run in.
 local error = error
 local ipairs = ipairs
 local pairs = pairs
+local tonumber = tonumber
+local pcall = pcall
 local unpack = unpack
 local setmetatable = setmetatable
 local table = table
+local string = string
+local events_wait = events_wait
 local utils = require "utils"
 
 module "uri"
 
-local handlers = {
+-- TODO: Document the new exception type
 
+local function percent_decode(text)
+	return text:gsub('%%(..)', function (encoded)
+		local cnum = tonumber(encoded, 16)
+		if not cnum then
+			error(utils.exception("bad value", encoded .. " is not a hex number"))
+		end
+		return string.char(cnum)
+	end)
+end
+
+--[[
+The following function is borrowed from http://lua-users.org/wiki/BaseSixtyFour
+-- Lua 5.1+ base64 v3.0 (c) 2009 by Alex Kloss <alexthkloss@web.de>
+-- licensed under the terms of the LGPL2
+]]
+-- character table string
+local b='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+
+-- decoding
+function base64_decode(data)
+    data = string.gsub(data, '[^'..b..'=]', '')
+    return (data:gsub('.', function(x)
+        if (x == '=') then return '' end
+        local r,f='',(b:find(x)-1)
+        for i=6,1,-1 do r=r..(f%2^i-f%2^(i-1)>0 and '1' or '0') end
+        return r;
+    end):gsub('%d%d%d?%d?%d?%d?%d?%d?', function(x)
+        if (#x ~= 8) then return '' end
+        local c=0
+        for i=1,8 do c=c+(x:sub(i,i)=='1' and 2^(8-i) or 0) end
+        return string.char(c)
+    end))
+end
+-- End of borrowed function.
+
+local function handler_data(context, uri, verification, err_cback, done_cback)
+	-- Ignore context or verification here
+	local params, data = uri:match('^data:([^,]*),(.*)')
+	if not data then
+		return err_cback(utils.exception("malformed URI", "It doesn't look like data URI"))
+	end
+	local ok, result = pcall(percent_decode, data)
+	if ok then
+		data = result
+	else
+		return err_cback(utils.exception("malformed URI", "Bad URL encoding"))
+	end
+	params = utils.lines2set(params, ';')
+	if params['base64'] then
+		local ok, result = pcall(base64_decode, data)
+		if ok then
+			data = result
+		else
+			return err_cback(utils.exception("malformed URI", "Bad base64 data"))
+		end
+	end
+	-- Once decoded, this is complete ‒ nothing asynchronous about this URI
+	done_cback(data)
+end
+
+local handlers = {
+	data = handler_data
 }
 
 function wait(...)
@@ -73,7 +139,7 @@ function new(context, uri, verification)
 	end
 	function result:get()
 		wait(self)
-		return self:ok(), self.content or content.err
+		return self:ok(), self.content or self.err
 	end
 	local function dispatch()
 		if result.done then

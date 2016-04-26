@@ -31,3 +31,68 @@ function test_invalid()
 	-- Check it by calling directly uri()
 	assert_exception(function () return uri(context, "unknown:bad") end, "bad value")
 end
+
+-- Test the data scheme
+function test_data()
+	local function check(input, output)
+		local context = sandbox.new("Remote")
+		local uri = uri(context, "data:" .. input)
+		-- No need to wait for this one
+		assert(uri.done)
+		-- But when we do, we get the right data
+		local ok, result = uri:get()
+		assert(ok)
+		assert_equal(output, result)
+		-- When we do it with callback, it gets called and provides the same data
+		local called = false
+		uri:cback(function (ok, result)
+			assert(ok)
+			assert_equal(output, result)
+			called = true
+		end)
+		assert(called)
+	end
+	-- Simple case
+	check(",hello", "hello")
+	-- Something URL-encoded
+	check(",hello%20world", "hello world")
+	-- Something base64-encoded
+	check("base64,aGVsbG8gd29ybGQ=", "hello world")
+	-- We don't damage whatever gets out of base64
+	check("base64,aGVsbG8lMjB3b3JsZA==", "hello%20world")
+	-- And we properly decode before base64
+	check("base64,aGVsbG8lMjB3b3JsZA%3D%3D", "hello%20world")
+	-- Other options about the URI are ignored
+	check("charset=utf8,hello", "hello")
+	check("charset=utf8;base64,aGVsbG8lMjB3b3JsZA%3D%3D", "hello%20world")
+	local function malformed(input)
+		local context = sandbox.new("Remote")
+		local uri = uri(context, "data:" .. input)
+		-- It fails right avay, synchronously
+		assert(uri.done)
+		-- The error is returned
+		local ok, result = uri:get()
+		assert_false(ok)
+		assert_equal('error', result.tp)
+		assert_equal("malformed URI", result.reason)
+		-- The same goes when requested through the callback
+		local called = false
+		uri:cback(function (ok, result)
+			assert_false(ok)
+			assert_equal('error', result.tp)
+			assert_equal("malformed URI", result.reason)
+			called = true
+		end)
+		assert(called)
+	end
+	-- Missing comma
+	malformed("data:hello")
+	-- Bad URL escape
+	malformed("data:,%ZZ")
+	--[[
+	Note: There are other forms of malformed URIs we don't detect.
+	We don't aim at being validating parser of the URIs, so that's
+	OK. The goal is to work with whatever is valid and report
+	if we don't know what to do with what we got.
+	]]
+end
