@@ -338,7 +338,7 @@ function status_dump(status)
 			f:write(pkg_status_dump(pkg), "\n")
 		end
 		f:close()
-		-- Override the resulting file
+		-- Override the resulting file (btrfs guarantees the data is there once we rename it)
 		local _, err = os.rename(tmp_file, status_file)
 	else
 		error("Couldn't write status file " .. tmp_file .. ": " .. err)
