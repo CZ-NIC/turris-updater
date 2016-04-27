@@ -38,8 +38,6 @@ local utils = require "utils"
 
 module "uri"
 
--- TODO: Document the new exception types
-
 local function percent_decode(text)
 	return text:gsub('%%(..)', function (encoded)
 		local cnum = tonumber(encoded, 16)
