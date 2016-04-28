@@ -103,15 +103,22 @@ Make a deep copy of passed data. This does not work on userdata, on functions
 doesn't copy them and uses the original).
 ]]
 function clone(data)
-	if type(data) == "table" then
-		local result = {}
-		for k, v in pairs(data) do
-			result[clone(k)] = clone(v)
+	cloned = {}
+	local function clone_internal(data)
+		if cloned[data] ~= nil then
+			return cloned[data]
+		elseif type(data) == "table" then
+			local result = {}
+			cloned[data] = result
+			for k, v in pairs(data) do
+				result[clone_internal(k)] = clone_internal(v)
+			end
+			return result
+		else
+			return data
 		end
-		return result
-	else
-		return data
 	end
+	return clone_internal(data)
 end
 
 -- Add all elements of src to dest
