@@ -85,15 +85,17 @@ syntax.
 
 The original is stored and all can be returned with mocks_reset()
 ]]
-function mock_gen(name, fun)
+function mock_gen(name, fun, skip_log)
 	-- Make sure there's something to call
 	fun = fun or function() end
 	local f = function (...)
-		table.insert(mocks_called, {
-			f = name,
-			-- Make a copy. Things may change later, we want to preserve the state whet it was called.
-			p = utils.clone({...})
-		})
+		if not skip_log then
+			table.insert(mocks_called, {
+				f = name,
+				-- Make a copy. Things may change later, we want to preserve the state whet it was called.
+				p = utils.clone({...})
+			})
+		end
 		return fun(...)
 	end
 	local orig = mod_insert(name, f)
