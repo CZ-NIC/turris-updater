@@ -31,8 +31,15 @@ function test_context_new()
 	-- We try creating a context for each level.
 	for _, level in pairs({"Full", "Local", "Remote", "Restricted"}) do
 		local context = sandbox.new(level)
+		assert(context:level_check("Restricted"))
+		assert(context:level_check(level))
+		assert(context:level_check(sandbox.level("Restricted")))
+		if level ~= "Full" then
+			assert_false(context:level_check("Full"))
+		end
 		assert_equal("table", type(context))
 		assert_equal("table", type(context.env))
+		assert_equal("function", type(context.level_check))
 		-- There're some common functions in all of them
 		assert_equal(pairs, context.env.pairs)
 		assert_equal(string, context.env.string)
@@ -43,6 +50,7 @@ function test_context_new()
 			assert_nil(context.env.io)
 		end
 		context.env = nil
+		context.level_check = nil
 		assert_table_equal({sec_level = sandbox.level(level), tp = "context"}, context)
 	end
 end
@@ -63,6 +71,8 @@ function test_context_inherit()
 	assert_not_equal(env_sanitize(c1), env_sanitize(c2))
 	c1.env = nil
 	c2.env = nil
+	c1.level_check = nil
+	c2.level_check = nil
 	assert_table_equal(c1, c2)
 	c2 = sandbox.new(nil, c1)
 	c2.test_field = "value"

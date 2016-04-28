@@ -444,7 +444,23 @@ struct wait_id run_command_a(struct events *events, command_callback_t callback,
 	}
 }
 
+static ssize_t download_index_lookup(struct events *events, uint64_t id) {
+	for (size_t i = 0; i < events->download_count; i++) {
+		if (events->downloads[i]->id == id)
+			return i;
+	}
+
+	return -1;
+}
+
 static void download_free(struct download_data *download) {
+	// Kill this download; free the download slot and remove it from active downloads
+	download->events->downloads_running --;
+	ssize_t my_index = download_index_lookup(download->events, download->id);
+	// At this point should exists at least one process - this one
+	ASSERT(my_index != -1);
+	download->events->downloads[my_index] = download->events->downloads[-- download->events->download_count];
+
 	free(download->url);
 	free(download->cacert);
 	free(download->crl);
@@ -464,15 +480,6 @@ static struct download_data *download_find_waiting(struct events *events) {
 
 static void download_run(struct events *events, struct download_data *download);
 
-static ssize_t download_index_lookup(struct events *events, uint64_t id) {
-	for (size_t i = 0; i < events->download_count; i++) {
-		if (events->downloads[i]->id == id)
-			return i;
-	}
-
-	return -1;
-}
-
 static struct download_data *download_lookup(struct events *events, uint64_t id) {
 	ssize_t index = download_index_lookup(events, id);
 
@@ -484,13 +491,6 @@ static void download_done(struct wait_id id, void *data, int status, enum comman
 
 	struct download_data *d = data;
 	struct events *events = d->events;
-
-	// Kill this download; free the download slot and remove it from active downloads
-	events->downloads_running--;
-	ssize_t my_index = download_index_lookup(events, d->id);
-	// At this point should exists at least one process - this one
-	ASSERT(my_index != -1);
-	events->downloads[my_index] = events->downloads[--events->download_count];
 
 	// Prepare data for callback and call it
 	int http_status = (status == 0) ? 200 : 500;
