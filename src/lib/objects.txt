@@ -36,6 +36,12 @@ Currently defined reasons are:
  * unreachable: A resource requested can't be reached.
  * access violation: The used command or URI is available only in
    context with higher security level.
+ * repo broken: A repository is broken. There are two other fields,
+   `repo`, which specifies the name and the URI of the repository and
+   `why`, which is either `missing`, `integrity` or `syntax` (see the
+   language design document).
+ * multiple: Container for possibly multiple errors. It contains field
+   `errors`, which is an array of other exceptions.
 
 Other reasons are going to appear in the future. Also, other fields
 may appear, depending on the needs of given reason.
