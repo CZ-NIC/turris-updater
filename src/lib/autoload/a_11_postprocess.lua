@@ -25,6 +25,9 @@ the configuration scripts to be run in.
 local pairs = pairs
 local tostring = tostring
 local error = error
+local pcall = pcall
+local next = next
+local unpack = unpack
 local table = table
 local string = string
 local events_wait = events_wait
@@ -115,7 +118,7 @@ function get_repos()
 					parse(answer)
 				end
 			end
-			index_uri.cback(downloaded)
+			index_uri:cback(downloaded)
 		end
 		--[[
 		We no longer need to keep the uris in there, we
@@ -130,7 +133,7 @@ function get_repos()
 	-- And extracted
 	events_wait(unpack(extract_events))
 	-- Process any errors
-	local multi = utils.exception('multiple', "Multiple exceptions")
+	local multi = utils.exception('multiple', "Multiple exceptions (" .. #errors .. ")")
 	multi.errors = errors
 	if fatal then
 		error(multi)
