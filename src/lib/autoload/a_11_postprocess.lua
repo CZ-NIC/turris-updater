@@ -33,6 +33,7 @@ local DBG = DBG
 local WARN = WARN
 local ERROR = ERROR
 local utils = require "utils"
+local backend = require "backend"
 local requests = require "requests"
 local uri = require "uri"
 
@@ -78,7 +79,19 @@ function get_repos()
 			end
 			local function parse(content)
 				DBG("Parsing index " .. name)
-
+				local ok, list = pcall(backend.repo_parse, content)
+				if ok then
+					for _, pkg in pairs(list) do
+						-- Compute the URI of each package (but don't download it yet, so don't create the uri object)
+						pkg.uri_raw = repo.repo_uri .. subrepo .. '/' .. pkg.Filename
+					end
+					repo.content[subrepo] = {
+						tp = "pkg-list",
+						list = list
+					}
+				else
+					broken('syntax', utils.exception('repo broken', "Couldn't parse the index of " .. name .. ": " .. tostring(list)))
+				end
 			end
 			local function decompressed(ecode, killed, stdout, stderr)
 				DBG("Decompression of " .. name .. " done")

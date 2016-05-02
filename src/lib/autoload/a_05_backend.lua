@@ -325,6 +325,17 @@ function status_parse()
 	return result
 end
 
+function repo_parse(content)
+	local result = {}
+	for block in block_split(content) do
+		local pkg = block_parse(block)
+		-- Some fields are not present here (conffiles, status), but there are just ignored.
+		pkg = package_postprocess(pkg)
+		result[pkg.Package] = pkg
+	end
+	return result
+end
+
 function status_dump(status)
 	DBG("Writing status file ", status_file)
 	--[[
