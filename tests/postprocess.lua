@@ -95,6 +95,8 @@ local example_output = {
 		tp="parsed-repository"
 	}
 }
+example_output[1].content[""].list["6in4"].repo = example_output[1]
+example_output[1].content[""].list["6rd"].repo = example_output[1]
 
 function test_get_repos_plain()
 	requests.known_repositories_all = {

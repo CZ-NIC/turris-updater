@@ -87,6 +87,7 @@ function get_repos()
 					for _, pkg in pairs(list) do
 						-- Compute the URI of each package (but don't download it yet, so don't create the uri object)
 						pkg.uri_raw = repo.repo_uri .. subrepo .. '/' .. pkg.Filename
+						pkg.repo = repo
 					end
 					repo.content[subrepo] = {
 						tp = "pkg-list",
@@ -141,6 +142,37 @@ function get_repos()
 		return multi
 	else
 		return nil
+	end
+end
+
+local function aggregate(into, what)
+	for name, value in pairs(what) do
+		if not into[name] then
+			into[name] = {candidates = {}, conditions = {}}
+		end
+		table.insert(into[name].candidates, value)
+	end
+end
+
+available_packages = {}
+
+--[[
+Compute the available_packages variable.
+
+It is a table indexed by the name of packages. Each package has candidates ‒
+the sources that can be used to install the package. Also, it has conditions ‒
+list of limiting 'package' objects. Dependencies may also add to the conditions.
+Afterwards, the candidates are filtered according to the conditions and the best
+package of what is left is used.
+]]
+function pkg_aggregate()
+	DBG("Aggregating packages together")
+	for _, repo in pairs(requests.known_repositories_all) do
+		for _, cont in pairs(repo.content) do
+			if type(cont) == 'table' and cont.tp == 'pkg-list' then
+				aggregate(available_packages, cont.list)
+			end
+		end
 	end
 end
 
