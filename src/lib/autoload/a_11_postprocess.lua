@@ -190,12 +190,63 @@ function pkg_aggregate()
 			table.insert(pkg_group.modifiers, pkg)
 		end
 	end
-	-- Check if theres at most one of each virtual package.
 	for name, pkg_group in pairs(available_packages) do
+		-- Check if theres at most one of each virtual package.
 		if pkg_group.virtual and #pkg_group.candidate > 1 then
 			error(utils.exception("inconsistent", "More than one candidate with a virtual package " .. name))
 		end
-		-- TODO: Merge the modifiers together.
+		-- Merge the modifiers together to form single one.
+		local modifier = {
+			tp = 'package',
+			name = name,
+			deps = {},
+			["order-after"] = {},
+			["order-before"] = {},
+			["pre-install"] = {},
+			["pre-remove"] = {},
+			["post-install"] = {},
+			["post-remove"] = {},
+			reboot = false,
+			abi_change = {}
+		}
+		for _, m in pairs(pkg_group.modifiers) do
+			m.final = modifier
+			-- Merge the values in
+			modifier.reboot = modifier.reboot or m.reboot
+			-- Take a single value or a list from the source and merge it into a set in the destination
+			local function set_merge(name)
+				local src = m[name]
+				if type(src) == "table" then
+					for _, v in pairs(src) do
+						modifier[name][v] = true
+					end
+				else
+					modifier[name][src] = true
+				end
+			end
+			-- TODO: We need to make the deps canonical somehow for this to work properly.
+			set_merge("deps")
+			set_merge("order-after")
+			set_merge("order-before")
+			set_merge("pre-install")
+			set_merge("pre-remove")
+			set_merge("post-install")
+			set_merge("post-remove")
+			set_merge("abi_change")
+			local reboot_vals = {
+				[false] = 0,
+				delayed = 1,
+				finished = 2,
+				immediate = 3
+			}
+			-- Pick the highest value for the reboot
+			if (reboot_vals[m.reboot] or 0) > reboot_vals[modifier.reboot] then
+				modifier.reboot = m.reboot
+			end
+		end
+		pkg_group.modifier = modifier
+		-- We merged them together, they are no longer needed separately
+		pkg_group.modifiers = nil
 	end
 end
 
