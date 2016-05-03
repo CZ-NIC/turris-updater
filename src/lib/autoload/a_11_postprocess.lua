@@ -148,7 +148,7 @@ end
 local function aggregate(into, what)
 	for name, value in pairs(what) do
 		if not into[name] then
-			into[name] = {candidates = {}, conditions = {}}
+			into[name] = {candidates = {}, modifiers = {}}
 		end
 		table.insert(into[name].candidates, value)
 	end
@@ -160,10 +160,9 @@ available_packages = {}
 Compute the available_packages variable.
 
 It is a table indexed by the name of packages. Each package has candidates ‒
-the sources that can be used to install the package. Also, it has conditions ‒
-list of limiting 'package' objects. Dependencies may also add to the conditions.
-Afterwards, the candidates are filtered according to the conditions and the best
-package of what is left is used.
+the sources that can be used to install the package. Also, it has modifiers ‒
+list of amending 'package' objects. Afterwards the modifiers are put together
+to form single package object.
 ]]
 function pkg_aggregate()
 	DBG("Aggregating packages together")
@@ -174,6 +173,30 @@ function pkg_aggregate()
 			end
 		end
 	end
+	for _, pkg in pairs(requests.known_packages) do
+		if not available_packages[pkg.name] then
+			available_packages[pkg.name] = {candidates = {}, modifiers = {}}
+		end
+		local pkg_group = available_packages[pkg.name]
+		pkg.group = pkg_group
+		if pkg.virtual then
+			table.insert(pkg_group.candidates, pkg)
+			pkg_group.virtual = true
+		elseif pkg.content then
+			-- If it has content, then it is both modifier AND candidate
+			table.insert(pkg_group.modifiers, pkg)
+			table.insert(pkg_group.candidates, pkg)
+		else
+			table.insert(pkg_group.modifiers, pkg)
+		end
+	end
+	-- Check if theres at most one of each virtual package.
+	for name, pkg_group in pairs(available_packages) do
+		if pkg_group.virtual and #pkg_group.candidate > 1 then
+			error(utils.exception("inconsistent", "More than one candidate with a virtual package " .. name))
+		end
+		-- TODO: Merge the modifiers together.
+	end
 end
 
 function run()
@@ -181,6 +204,7 @@ function run()
 	if repo_errors then
 		WARN("Not all repositories are available")
 	end
+	pkg_aggregate()
 end
 
 return _M
