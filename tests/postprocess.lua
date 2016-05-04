@@ -179,6 +179,109 @@ function test_get_repos_broken_nonfatal()
 	}, requests.known_repositories_all)
 end
 
+function test_pkg_merge()
+	requests.known_repositories_all = {
+		{
+			content = {
+				[""] = {
+					tp = 'pkg-list',
+					list = {
+						xyz = {Package = "xyz"},
+						abc = {Package = "abc"}
+					}
+				}
+			}
+		},
+		{
+			content = {
+				a = {
+					tp = 'pkg-list',
+					list = {
+						abc = {Package = "abc"}
+					}
+				},
+				b = {
+					tp = 'pkg-list',
+					list = {
+						another = {Package = "another"}
+					}
+				},
+				c = utils.exception("Just an exception", "Just an exception")
+			}
+		}
+	}
+	requests.known_packages = {
+		{
+			tp = 'package',
+			["order-after"] = "abc",
+			name = 'xyz',
+			reboot = 'finished',
+			deps = "abc"
+		},
+		{
+			tp = 'package',
+			name = 'xyz',
+			deps = {"another", "xyz"}
+		},
+		{
+			tp = 'package',
+			name = 'virt',
+			virtual = true,
+			deps = {"xyz", "abc"}
+		}
+	}
+	postprocess.pkg_aggregate()
+	-- Build the expected data structure
+	local exp = {
+		abc = {
+			candidates = {{Package = "abc"}, {Package = "abc"}},
+			modifier = {name = "abc"}
+		},
+		another = {
+			candidates = {{Package = "another"}},
+			modifier = {name = "another"}
+		},
+		virt = {
+			candidates = {{tp = "package", name = "virt", deps = {"xyz", "abc"}, virtual = true}},
+			modifier = {name = "virt"},
+			virtual = true
+		},
+		xyz = {
+			candidates = {{Package = "xyz"}},
+			modifier = {
+				name = "xyz",
+				["order-after"] = {abc = true},
+				deps = utils.arr2set({"abc", "another", "xyz"}),
+				reboot = "finished"
+			}
+		}
+	}
+	exp.virt.candidates[1].group = exp.virt
+	-- Fill in default values for the ones that are not mentioned above
+	local modifier_def = {
+		tp = "package",
+		abi_change = {},
+		deps = {},
+		["order-after"] = {},
+		["order-before"] = {},
+		["post-install"] = {},
+		["post-remove"] = {},
+		["pre-install"] = {},
+		["pre-remove"] = {},
+		reboot = false
+	}
+	for _, pkg in pairs(exp) do
+		for name, def in pairs(modifier_def) do
+			if pkg.modifier[name] == nil then
+				pkg.modifier[name] = def
+			end
+		end
+	end
+	assert_table_equal(exp, postprocess.available_packages)
+end
+
 function teardown()
 	requests.known_repositories_all = {}
+	requests.known_packages = {}
+	postprocess.available_packages = {}
 end

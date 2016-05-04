@@ -78,6 +78,7 @@ function package(result, context, pkg, extra)
 		if not allowed_package_extras[name] then
 			error(utils.exception("bad value", "There's no extra option " .. name .. " for a package"))
 		end
+		-- TODO: Validate the types etc of extra options
 	end
 	utils.table_merge(result, extra)
 	result.name = pkg
@@ -135,6 +136,7 @@ function repository(result, context, name, repo_uri, extra)
 		if not allowed_repository_extras[name] then
 			error(utils.exception("bad value", "There's no extra option " .. name .. " for a repository"))
 		end
+		-- TODO: Validate the types etc of extra options
 	end
 	utils.table_merge(result, extra)
 	result.repo_uri = repo_uri

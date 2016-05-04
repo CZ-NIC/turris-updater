@@ -27,6 +27,7 @@ local tostring = tostring
 local error = error
 local pcall = pcall
 local next = next
+local type = type
 local unpack = unpack
 local table = table
 local string = string
@@ -145,15 +146,6 @@ function get_repos()
 	end
 end
 
-local function aggregate(into, what)
-	for name, value in pairs(what) do
-		if not into[name] then
-			into[name] = {candidates = {}, modifiers = {}}
-		end
-		table.insert(into[name].candidates, value)
-	end
-end
-
 available_packages = {}
 
 --[[
@@ -169,7 +161,12 @@ function pkg_aggregate()
 	for _, repo in pairs(requests.known_repositories_all) do
 		for _, cont in pairs(repo.content) do
 			if type(cont) == 'table' and cont.tp == 'pkg-list' then
-				aggregate(available_packages, cont.list)
+				for name, candidate in pairs(cont.list) do
+					if not available_packages[name] then
+						available_packages[name] = {candidates = {}, modifiers = {}}
+					end
+					table.insert(available_packages[name].candidates, candidate)
+				end
 			end
 		end
 	end
@@ -192,7 +189,7 @@ function pkg_aggregate()
 	end
 	for name, pkg_group in pairs(available_packages) do
 		-- Check if theres at most one of each virtual package.
-		if pkg_group.virtual and #pkg_group.candidate > 1 then
+		if pkg_group.virtual and #pkg_group.candidates > 1 then
 			error(utils.exception("inconsistent", "More than one candidate with a virtual package " .. name))
 		end
 		-- Merge the modifiers together to form single one.
@@ -211,12 +208,12 @@ function pkg_aggregate()
 		}
 		for _, m in pairs(pkg_group.modifiers) do
 			m.final = modifier
-			-- Merge the values in
-			modifier.reboot = modifier.reboot or m.reboot
 			-- Take a single value or a list from the source and merge it into a set in the destination
 			local function set_merge(name)
 				local src = m[name]
-				if type(src) == "table" then
+				if src == nil then
+					return
+				elseif type(src) == "table" then
 					for _, v in pairs(src) do
 						modifier[name][v] = true
 					end
@@ -239,8 +236,10 @@ function pkg_aggregate()
 				finished = 2,
 				immediate = 3
 			}
-			-- Pick the highest value for the reboot
-			if (reboot_vals[m.reboot] or 0) > reboot_vals[modifier.reboot] then
+			if m.reboot and not reboot_vals[m.reboot] then
+				ERROR("Invalid reboot value " .. m.reboot .. " on package " .. m.name)
+			elseif (reboot_vals[m.reboot] or 0) > reboot_vals[modifier.reboot] then
+				-- Pick the highest value for the reboot (handle the case when there's no reboot flag)
 				modifier.reboot = m.reboot
 			end
 		end
