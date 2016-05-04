@@ -197,12 +197,12 @@ function pkg_aggregate()
 			tp = 'package',
 			name = name,
 			deps = {},
-			["order-after"] = {},
-			["order-before"] = {},
-			["pre-install"] = {},
-			["pre-remove"] = {},
-			["post-install"] = {},
-			["post-remove"] = {},
+			order_after = {},
+			order_before = {},
+			pre_install = {},
+			pre_remove = {},
+			post_install = {},
+			post_remove = {},
 			reboot = false,
 			abi_change = {}
 		}
@@ -223,12 +223,12 @@ function pkg_aggregate()
 			end
 			-- TODO: We need to make the deps canonical somehow for this to work properly.
 			set_merge("deps")
-			set_merge("order-after")
-			set_merge("order-before")
-			set_merge("pre-install")
-			set_merge("pre-remove")
-			set_merge("post-install")
-			set_merge("post-remove")
+			set_merge("order_after")
+			set_merge("order_before")
+			set_merge("pre_install")
+			set_merge("pre_remove")
+			set_merge("post_install")
+			set_merge("post_remove")
 			set_merge("abi_change")
 			local reboot_vals = {
 				[false] = 0,

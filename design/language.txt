@@ -421,19 +421,19 @@ deps::
   Additional dependencies for the package. The dependencies are merged
   together as if all the sources were put into a table (eg. all of
   them must be fulfilled). There's no way to remove dependencies.
-order-after::
-order-before::
+order_after::
+order_before::
   Usually, all dependencies of a package are installed before the
   package. Sometimes, it may be desirable to break this order and
   these options allow that. Both of them list packages after or before
   which the current package shall be installed, in a table. This
   allows breaking dependency cycles. These options are mere hint, the
   updater may decide to not follow them if it is not possible to
-  satisfy. Note that this has effect only on running the pre-* and
-  post-* scripts and hooks, since all the files of all updated
+  satisfy. Note that this has effect only on running the pre_* and
+  post_* scripts and hooks, since all the files of all updated
   packages are merged into the system together.
-pre-*::
-post-*::
+pre_*::
+post_*::
   A hook to be run after or before a step. The value may be a single
   function or a table of functions. All the functions (from the table
   or merged from multiple `Package` commands) are run, in unspecified
@@ -578,7 +578,7 @@ repository::
   the name corresponds to the time the package has been installed and
   that repository may be unavailable now or the name represent a
   different repository.
-install-time::
+install_time::
   Unix timestamp specifying when the package has been installed, in
   UTC.
 

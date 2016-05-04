@@ -213,7 +213,7 @@ function test_pkg_merge()
 	requests.known_packages = {
 		{
 			tp = 'package',
-			["order-after"] = "abc",
+			order_after = "abc",
 			name = 'xyz',
 			reboot = 'finished',
 			deps = "abc"
@@ -250,7 +250,7 @@ function test_pkg_merge()
 			candidates = {{Package = "xyz"}},
 			modifier = {
 				name = "xyz",
-				["order-after"] = {abc = true},
+				order_after = {abc = true},
 				deps = utils.arr2set({"abc", "another", "xyz"}),
 				reboot = "finished"
 			}
@@ -262,12 +262,12 @@ function test_pkg_merge()
 		tp = "package",
 		abi_change = {},
 		deps = {},
-		["order-after"] = {},
-		["order-before"] = {},
-		["post-install"] = {},
-		["post-remove"] = {},
-		["pre-install"] = {},
-		["pre-remove"] = {},
+		order_after = {},
+		order_before = {},
+		post_install = {},
+		post_remove = {},
+		pre_install = {},
+		pre_remove = {},
 		reboot = false
 	}
 	for _, pkg in pairs(exp) do
