@@ -70,6 +70,13 @@ function test_clone()
 	assert_not_equal(input, output)
 	assert_not_equal(input.z, output.z)
 	assert_equal("xyz", U.clone("xyz"))
+	-- Test recursion inside the data structure
+	local i2 = {x = 1}
+	i2.i2 = i2
+	local o2 = U.clone(i2)
+	assert_table_equal(i2, o2)
+	assert_equal(o2, o2.i2)
+	assert_not_equal(i2, o2)
 end
 
 function test_table_merge()

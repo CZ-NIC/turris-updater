@@ -22,6 +22,7 @@ require 'lunit'
 local sandbox = require "sandbox"
 local requests = require "requests"
 local utils = require "utils"
+local uri = require "uri"
 
 module("requests-tests", package.seeall, lunit.testcase)
 
@@ -31,7 +32,7 @@ local function run_sandbox_fun(func_code, level)
 	local err = sandbox.run_sandboxed(chunk, "Test chunk", level or "Restricted", nil, nil, function (context)
 		env = context.env
 	end)
-	assert_nil(err)
+	assert_nil(err, DataDumper(err))
 	return env.result
 end
 
@@ -57,19 +58,30 @@ function test_repository()
 	assert_table_equal({
 		tp = "repository",
 		name = "test-repo",
-		uri = "http://example.org/repo"
+		repo_uri = "http://example.org/repo",
+		index_uri = {[""] = {u = "http://example.org/repo/Packages.gz"}}
 	}, r1)
 	local r2 = run_sandbox_fun "Repository 'test-repo-2' 'http://example.org/repo-2' {subdirs = {'a', 'b'}}"
 	assert_table_equal({
 		tp = "repository",
 		name = "test-repo-2",
-		uri = "http://example.org/repo-2",
-		subdirs = {'a', 'b'}
+		repo_uri = "http://example.org/repo-2",
+		subdirs = {'a', 'b'},
+		index_uri = {["/a"] = {u = "http://example.org/repo-2/a/Packages.gz"}, ["/b"] = {u = "http://example.org/repo-2/b/Packages.gz"}}
 	}, r2)
+	local r3 = run_sandbox_fun "Repository 'test-repo-other' 'http://example.org/repo-other' {index = 'https://example.org/repo-other/Packages.gz'}"
+	assert_table_equal({
+		tp = "repository",
+		name = "test-repo-other",
+		repo_uri = "http://example.org/repo-other",
+		index = "https://example.org/repo-other/Packages.gz",
+		index_uri = {[""] = {u = "https://example.org/repo-other/Packages.gz"}}
+	}, r3)
 	assert_table_equal(utils.exception("bad value", "There's no extra option typo for a repository"), sandbox.run_sandboxed("Repository 'test-repo' 'http://example.org/repo' {typo = true}", "Test chunk", "Restricted"))
 	assert_table_equal({
 		["test-repo"] = r1,
-		["test-repo-2"] = r2
+		["test-repo-2"] = r2,
+		["test-repo-other"] = r3
 	}, requests.known_repositories)
 	assert_equal(r2, requests.repository_get("test-repo-2"))
 	assert_equal(r2, requests.repository_get(r2))
@@ -106,8 +118,14 @@ function test_install_uninstall()
 	assert_nil(err)
 end
 
+function setup()
+	-- Don't download stuff now
+	mock_gen("uri.new", function (context, u) return {u = u} end, true)
+end
+
 function teardown()
 	requests.known_packages = {}
 	requests.known_repositories = {}
 	requests.content_requests = {}
+	mocks_reset()
 end

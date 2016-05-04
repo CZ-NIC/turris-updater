@@ -3,7 +3,7 @@ Lua injections
 
 We inject several functions into the lua global environment. Since
 there's no good place to document them (like .h files for C code),
-they are listed here
+they are listed here.
 
 Logging
 -------

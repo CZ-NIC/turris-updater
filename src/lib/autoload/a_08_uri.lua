@@ -164,6 +164,7 @@ function new(context, uri, verification)
 	local result = {
 		tp = "uri",
 		done = false,
+		uri = uri,
 		callbacks = {},
 		events = {}
 	}

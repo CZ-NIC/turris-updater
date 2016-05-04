@@ -28,6 +28,7 @@ local type = type
 local error = error
 local table = table
 local utils = require "utils"
+local uri = require "uri"
 
 module "requests"
 
@@ -127,7 +128,7 @@ all the configuration scripts are run, parsed and used as a source of
 packages. Then it shall mutate into a parsed repository object, but
 until then, it is just a stupid data structure without any methods.
 ]]
-function repository(result, context, name, uri, extra)
+function repository(result, context, name, repo_uri, extra)
 	extra = extra or {}
 	-- Catch possible typos
 	for name in pairs(extra) do
@@ -136,7 +137,25 @@ function repository(result, context, name, uri, extra)
 		end
 	end
 	utils.table_merge(result, extra)
-	result.uri = uri
+	result.repo_uri = repo_uri
+	--[[
+	Start the download. This way any potential access violation is reported
+	right away. It also allows for some parallel downloading while we process
+	the configs.
+
+	Pass result as the validation parameter, as all validation info would be
+	part of the extra.
+	]]
+	if extra.subdirs then
+		result.index_uri = {}
+		for _, sub in pairs(extra.subdirs) do
+			sub = "/" .. sub
+			result.index_uri[sub] = uri(context, repo_uri .. sub .. '/Packages.gz', result)
+		end
+	else
+		local u = result.index or repo_uri .. '/Packages.gz'
+		result.index_uri = {[""] = uri(context, u, result)}
+	end
 	result.name = name
 	result.tp = "repository"
 	known_repositories[name] = result
