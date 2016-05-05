@@ -183,3 +183,56 @@ function test_deps()
 	}
 	assert_table_equal(expected, result)
 end
+
+--[[
+A dependency doesn't exist. It should fail.
+]]
+function test_missing_dep()
+	local pkgs = {
+		pkg = {
+			candidates = {{Package = 'pkg', Depends = {'nothere'}}},
+			modifier = {
+				deps = {}
+			}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg',
+				group = pkgs.pkg
+			}
+		}
+	}
+	assert_exception(function () deps.required_pkgs(pkgs, requests) end, 'inconsistent')
+end
+
+-- It is able to detect a circular dependency and doesn't stack overflow
+function test_circular_deps()
+	local pkgs = {
+		pkg1 = {
+			candidates = {{Package = 'pkg1', Depends = {'pkg2'}}},
+			modifier = {
+				deps = {}
+			}
+		},
+		pkg2 = {
+			candidates = {{Package = 'pkg2'}},
+			modifier = {
+				deps = {pkg1 = true}
+			}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1'
+			}
+		}
+	}
+	assert_exception(function () deps.required_pkgs(pkgs, requests) end, 'inconsistent')
+end

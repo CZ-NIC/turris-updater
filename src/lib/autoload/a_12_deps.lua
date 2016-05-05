@@ -25,9 +25,13 @@ the configuration scripts to be run in.
 local ipairs = ipairs
 local pairs = pairs
 local type = type
+local tostring = tostring
+local error = error
 local table = table
 local DataDumper = DataDumper
 local DIE = DIE
+local DBG = DBG
+local utils = utils
 
 module "deps"
 
@@ -56,9 +60,13 @@ like package versions, alternative dependencies, blocks or enforced order. If th
 are multiple candidates to install, it just picks one of them at random.
 ]]
 function required_pkgs(pkgs, requests)
+	-- These are already scheduled to be installed
 	local to_install = {}
+	-- These are being processed right now. It helps to detect circular dependencies.
+	local processed = {}
 	local plan = {}
 	local function schedule(req)
+		DBG("Require " .. (req.name or req))
 		local candidates = nil
 		if type(req) == 'table' and req.tp == 'package' then
 			candidates = req.group or pkgs[req.name]
@@ -68,6 +76,7 @@ function required_pkgs(pkgs, requests)
 			-- Can Not Happen
 			DIE("Unknown pkg request " .. DataDumper(req))
 		end
+		DBG("Candidates: " .. tostring(candidates))
 		if not candidates then
 			error(utils.exception('inconsistent', "Package " .. req .. " is not available"))
 		end
@@ -75,8 +84,17 @@ function required_pkgs(pkgs, requests)
 			-- This one is already scheduled
 			return
 		end
+		if processed[candidates] then
+			--[[
+			TODO: Consider if we may be able to break the cycle,
+			with order_before and stuff. Also, consider if we may
+			want to break the cycle even without it, at a random place.
+			Also, if it is not broken, provide a better error message.
+			]]
+			error(utils.exception('inconsistent', "Circular dependency containing " .. req))
+		end
+		processed[candidates] = true
 		-- TODO: Take care of standalone packages and virtual packages somehow.
-		-- TODO: Handle circular dependencies
 		local src = candidates.candidates[1]
 		local mod = candidates.modifier
 		-- Require the dependencies
@@ -91,6 +109,7 @@ function required_pkgs(pkgs, requests)
 			package = src,
 			modifier = mod
 		}
+		processed[candidates] = nil
 		to_install[candidates] = r
 		table.insert(plan, r)
 	end
