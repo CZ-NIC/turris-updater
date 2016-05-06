@@ -27,6 +27,7 @@ local ipairs = ipairs
 local type = type
 local error = error
 local require = require
+local tostring = tostring
 local table = table
 local utils = require "utils"
 local uri = require "uri"
@@ -235,8 +236,10 @@ function script(result, context, name, script_uri, extra)
 	end
 	-- Resolve circular dependency between this module and sandbox
 	local sandbox = require "sandbox"
+	if extra.security and not context:level_check(extra.security) then
+		error(utils.exception("access violation", "Attempt to raise security level from " .. tostring(context.sec_level) .. " to " .. extra.security))
+	end
 	-- TODO handle restrict option
-	-- TODO handle security levels!
 	sandbox.run_sandboxed(content, name, extra.security, context)
 	-- Return a dummy handle, just as a formality
 	result.tp = script

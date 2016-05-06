@@ -123,7 +123,7 @@ function test_script()
 	mocks_reset()
 	-- The URI contains 'Install "pkg"'
 	local err = sandbox.run_sandboxed([[
-		Script "test-script" "data:base64,;SW5zdGFsbCAicGtnIgo=" { security = 'Restricted' }
+		Script "test-script" "data:base64,SW5zdGFsbCAicGtnIgo=" { security = 'Restricted' }
 	]], "Test chunk", "Restricted")
 	assert_nil(err, DataDumper(err))
 	assert_table_equal({
@@ -135,6 +135,15 @@ function test_script()
 			}
 		}
 	}, requests.content_requests)
+end
+
+-- Check we are not allowed to raise the security level by running a script
+function test_script_raise_level()
+	mocks_reset()
+	local err = sandbox.run_sandboxed([[
+		Script "test-script" "data:," { security = 'Full' }
+	]], "Test chunk", "Restricted")
+	assert_table_equal(utils.exception("access violation", "Attempt to raise security level from Restricted to Full"), err)
 end
 
 function setup()
