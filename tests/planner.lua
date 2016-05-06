@@ -19,9 +19,9 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 
 require 'lunit'
 
-local deps = require 'deps'
+local planner = require 'planner'
 
-module("deps-tests", package.seeall, lunit.testcase)
+module("planner-tests", package.seeall, lunit.testcase)
 
 --[[
 Test installation plan generation when there are no
@@ -59,21 +59,23 @@ function test_no_deps()
 			}
 		}
 	}
-	local result = deps.required_pkgs(pkgs, requests)
+	local result = planner.required_pkgs(pkgs, requests)
 	local expected = {
 		{
 			action = "require",
 			package = {Package = 'pkg1', Depends = {}},
 			modifier = {
 				deps = {}
-			}
+			},
+			name = "pkg1"
 		},
 		{
 			action = "require",
 			package = {Package = 'pkg2'},
 			modifier = {
 				deps = {}
-			}
+			},
+			name = "pkg2"
 		}
 	}
 	assert_table_equal(expected, result)
@@ -143,42 +145,47 @@ function test_deps()
 			}
 		}
 	}
-	local result = deps.required_pkgs(pkgs, requests)
+	local result = planner.required_pkgs(pkgs, requests)
 	local expected = {
 		{
 			action = "require",
 			package = {Package = 'dep1', Depends = {}, Version = 1},
 			modifier = {
 				deps = {}
-			}
+			},
+			name = "dep1"
 		},
 		{
 			action = "require",
 			package = {Package = 'pkg1', Depends = {}},
 			modifier = {
 				deps = {dep1 = true}
-			}
+			},
+			name = "pkg1"
 		},
 		{
 			action = "require",
 			package = {Package = 'dep2'},
 			modifier = {
 				deps = {}
-			}
+			},
+			name = "dep2"
 		},
 		{
 			action = "require",
 			package = {Package = 'dep3'},
 			modifier = {
 				deps = {dep1 = true}
-			}
+			},
+			name = "dep3"
 		},
 		{
 			action = "require",
 			package = {Package = 'pkg2', Depends = {'dep2', 'dep3'}},
 			modifier = {
 				deps = {}
-			}
+			},
+			name = "pkg2"
 		}
 	}
 	assert_table_equal(expected, result)
@@ -206,7 +213,7 @@ function test_missing_dep()
 			}
 		}
 	}
-	assert_exception(function () deps.required_pkgs(pkgs, requests) end, 'inconsistent')
+	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent')
 end
 
 -- It is able to detect a circular dependency and doesn't stack overflow
@@ -234,5 +241,89 @@ function test_circular_deps()
 			}
 		}
 	}
-	assert_exception(function () deps.required_pkgs(pkgs, requests) end, 'inconsistent')
+	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent')
+end
+
+function test_filter_required()
+	local status = {
+		pkg1 = {
+			Version = "1"
+		},
+		pkg2 = {
+			Version = "2"
+		},
+		pkg3 = {
+			Version = "3"
+		},
+		pkg4 = {
+			Version = "4"
+		},
+		pkg5 = {
+			Version = "5"
+		}
+	}
+	local requests = {
+		{
+			-- Installed, but requires an upgrade
+			action = "require",
+			name = "pkg1",
+			package = {
+				Version = "2"
+			}
+		},
+		{
+			-- Installed in the right version
+			action = "require",
+			name = "pkg2",
+			package = {
+				Version = "2"
+			}
+		},
+		{
+			-- Installed, but we explicitly want to reinstall
+			action = "reinstall",
+			name = "pkg3",
+			package = {
+				Version = "3"
+			}
+		},
+		{
+			-- Installed and we want to remove it
+			action = "remove",
+			name = "pkg4",
+			package = {
+				Version = "4"
+			}
+		},
+		-- The pkg5 is not mentioned, it shall be uninstalled at the end
+		{
+			-- Not installed and we want it
+			action = "require",
+			name = "pkg6",
+			package = {
+				Version = "6"
+			}
+		}
+	}
+	local result = planner.filter_required(status, requests)
+	local expected = {
+		requests[1],
+		{
+			action = "require",
+			name = "pkg3",
+			package = {
+				Version = "3"
+			}
+		},
+		requests[4],
+		requests[5],
+		{
+			action = "remove",
+			name = "pkg5",
+			package = {
+				Version = "5"
+			}
+		}
+	}
+	assert_table_equal(expected, result)
 end
