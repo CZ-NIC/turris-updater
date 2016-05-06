@@ -202,6 +202,10 @@ local funcs = {
 		Uninstall = {
 			mode = "morpher",
 			value = requests.uninstall
+		},
+		Script = {
+			mode = "morpher",
+			value = requests.script
 		}
 	}
 }

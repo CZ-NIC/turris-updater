@@ -118,6 +118,25 @@ function test_install_uninstall()
 	assert_nil(err)
 end
 
+function test_script()
+	-- We actually don't want any mocks here, let uri work as expected
+	mocks_reset()
+	-- The URI contains 'Install "pkg"'
+	local err = sandbox.run_sandboxed([[
+		Script "test-script" "data:base64,;SW5zdGFsbCAicGtnIgo=" { security = 'Restricted' }
+	]], "Test chunk", "Restricted")
+	assert_nil(err, DataDumper(err))
+	assert_table_equal({
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg'
+			}
+		}
+	}, requests.content_requests)
+end
+
 function setup()
 	-- Don't download stuff now
 	mock_gen("uri.new", function (context, u) return {u = u} end, true)
