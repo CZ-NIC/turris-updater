@@ -22,10 +22,10 @@ C_TESTS := \
 
 LUA_TESTS := \
 	backend \
-	deps \
 	events \
 	interpreter \
 	journal \
+	planner \
 	postprocess \
 	requests \
 	sandbox \

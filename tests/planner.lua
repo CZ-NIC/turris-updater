@@ -19,9 +19,9 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 
 require 'lunit'
 
-local deps = require 'deps'
+local planner = require 'planner'
 
-module("deps-tests", package.seeall, lunit.testcase)
+module("planner-tests", package.seeall, lunit.testcase)
 
 --[[
 Test installation plan generation when there are no
@@ -59,7 +59,7 @@ function test_no_deps()
 			}
 		}
 	}
-	local result = deps.required_pkgs(pkgs, requests)
+	local result = planner.required_pkgs(pkgs, requests)
 	local expected = {
 		{
 			action = "require",
@@ -145,7 +145,7 @@ function test_deps()
 			}
 		}
 	}
-	local result = deps.required_pkgs(pkgs, requests)
+	local result = planner.required_pkgs(pkgs, requests)
 	local expected = {
 		{
 			action = "require",
@@ -213,7 +213,7 @@ function test_missing_dep()
 			}
 		}
 	}
-	assert_exception(function () deps.required_pkgs(pkgs, requests) end, 'inconsistent')
+	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent')
 end
 
 -- It is able to detect a circular dependency and doesn't stack overflow
@@ -241,7 +241,7 @@ function test_circular_deps()
 			}
 		}
 	}
-	assert_exception(function () deps.required_pkgs(pkgs, requests) end, 'inconsistent')
+	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent')
 end
 
 function test_filter_required()
@@ -305,7 +305,7 @@ function test_filter_required()
 			}
 		}
 	}
-	local result = deps.filter_required(status, requests)
+	local result = planner.filter_required(status, requests)
 	local expected = {
 		requests[1],
 		{

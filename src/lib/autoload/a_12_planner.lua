@@ -33,7 +33,7 @@ local DIE = DIE
 local DBG = DBG
 local utils = utils
 
-module "deps"
+module "planner"
 
 --[[
 Take list of available packages (in the format of pkg candidate groups
