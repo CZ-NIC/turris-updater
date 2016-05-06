@@ -27,6 +27,7 @@ local tostring = tostring
 local error = error
 local pcall = pcall
 local next = next
+local type = type
 local unpack = unpack
 local table = table
 local string = string
@@ -87,6 +88,7 @@ function get_repos()
 					for _, pkg in pairs(list) do
 						-- Compute the URI of each package (but don't download it yet, so don't create the uri object)
 						pkg.uri_raw = repo.repo_uri .. subrepo .. '/' .. pkg.Filename
+						pkg.repo = repo
 					end
 					repo.content[subrepo] = {
 						tp = "pkg-list",
@@ -144,11 +146,115 @@ function get_repos()
 	end
 end
 
+available_packages = {}
+
+--[[
+Compute the available_packages variable.
+
+It is a table indexed by the name of packages. Each package has candidates ‒
+the sources that can be used to install the package. Also, it has modifiers ‒
+list of amending 'package' objects. Afterwards the modifiers are put together
+to form single package object.
+]]
+function pkg_aggregate()
+	DBG("Aggregating packages together")
+	for _, repo in pairs(requests.known_repositories_all) do
+		for _, cont in pairs(repo.content) do
+			if type(cont) == 'table' and cont.tp == 'pkg-list' then
+				for name, candidate in pairs(cont.list) do
+					if not available_packages[name] then
+						available_packages[name] = {candidates = {}, modifiers = {}}
+					end
+					table.insert(available_packages[name].candidates, candidate)
+				end
+			end
+		end
+	end
+	for _, pkg in pairs(requests.known_packages) do
+		if not available_packages[pkg.name] then
+			available_packages[pkg.name] = {candidates = {}, modifiers = {}}
+		end
+		local pkg_group = available_packages[pkg.name]
+		pkg.group = pkg_group
+		if pkg.virtual then
+			table.insert(pkg_group.candidates, pkg)
+			pkg_group.virtual = true
+		elseif pkg.content then
+			-- If it has content, then it is both modifier AND candidate
+			table.insert(pkg_group.modifiers, pkg)
+			table.insert(pkg_group.candidates, pkg)
+		else
+			table.insert(pkg_group.modifiers, pkg)
+		end
+	end
+	for name, pkg_group in pairs(available_packages) do
+		-- Check if theres at most one of each virtual package.
+		if pkg_group.virtual and #pkg_group.candidates > 1 then
+			error(utils.exception("inconsistent", "More than one candidate with a virtual package " .. name))
+		end
+		-- Merge the modifiers together to form single one.
+		local modifier = {
+			tp = 'package',
+			name = name,
+			deps = {},
+			order_after = {},
+			order_before = {},
+			pre_install = {},
+			pre_remove = {},
+			post_install = {},
+			post_remove = {},
+			reboot = false,
+			abi_change = {}
+		}
+		for _, m in pairs(pkg_group.modifiers) do
+			m.final = modifier
+			-- Take a single value or a list from the source and merge it into a set in the destination
+			local function set_merge(name)
+				local src = m[name]
+				if src == nil then
+					return
+				elseif type(src) == "table" then
+					for _, v in pairs(src) do
+						modifier[name][v] = true
+					end
+				else
+					modifier[name][src] = true
+				end
+			end
+			-- TODO: We need to make the deps canonical somehow for this to work properly.
+			set_merge("deps")
+			set_merge("order_after")
+			set_merge("order_before")
+			set_merge("pre_install")
+			set_merge("pre_remove")
+			set_merge("post_install")
+			set_merge("post_remove")
+			set_merge("abi_change")
+			local reboot_vals = {
+				[false] = 0,
+				delayed = 1,
+				finished = 2,
+				immediate = 3
+			}
+			if m.reboot and not reboot_vals[m.reboot] then
+				ERROR("Invalid reboot value " .. m.reboot .. " on package " .. m.name)
+			elseif (reboot_vals[m.reboot] or 0) > reboot_vals[modifier.reboot] then
+				-- Pick the highest value for the reboot (handle the case when there's no reboot flag)
+				modifier.reboot = m.reboot
+			end
+		end
+		pkg_group.modifier = modifier
+		-- We merged them together, they are no longer needed separately
+		pkg_group.modifiers = nil
+	end
+end
+
 function run()
 	local repo_errors = get_repos()
 	if repo_errors then
 		WARN("Not all repositories are available")
 	end
+	pkg_aggregate()
 end
 
 return _M

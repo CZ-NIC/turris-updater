@@ -40,6 +40,8 @@ Currently defined reasons are:
    `repo`, which specifies the name and the URI of the repository and
    `why`, which is either `missing`, `integrity` or `syntax` (see the
    language design document).
+ * inconsistent: The user is being inconsistent in the requests and
+   specifies things that just can't make sense together.
  * multiple: Container for possibly multiple errors. It contains field
    `errors`, which is an array of other exceptions.
 
@@ -70,3 +72,6 @@ repository::
   Specification of (yet unparsed) repository.
 parsed-repository::
   A repository that is already downloaded and parsed.
+pkg-list::
+  List of packages produced by a repository. Used mostly as an
+  intermediate product during repository processing.
