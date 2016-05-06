@@ -66,7 +66,8 @@ function required_pkgs(pkgs, requests)
 	local processed = {}
 	local plan = {}
 	local function schedule(req)
-		DBG("Require " .. (req.name or req))
+		local name = req.name or req
+		DBG("Require " .. name)
 		local candidates = nil
 		if type(req) == 'table' and req.tp == 'package' then
 			candidates = req.group or pkgs[req.name]
@@ -107,7 +108,8 @@ function required_pkgs(pkgs, requests)
 		local r = {
 			action = "require",
 			package = src,
-			modifier = mod
+			modifier = mod,
+			name = name
 		}
 		processed[candidates] = nil
 		to_install[candidates] = r
@@ -122,6 +124,66 @@ function required_pkgs(pkgs, requests)
 		end
 	end
 	return plan
+end
+
+--[[
+Go through the list of requests on the input. Pass the needed ones through
+and leave the extra (eg. requiring already installed package) out. Add
+requests to remove not required packages.
+]]
+function filter_required(status, requests)
+	local installed = {}
+	for pkg, desc in pairs(status) do
+		installed[pkg] = desc.Version or ""
+	end
+	local unused = utils.clone(installed)
+	local result = {}
+	-- Go through the requests and look which ones are needed and which ones are satisfied
+	for _, request in ipairs(requests) do
+		local installed_version = installed[request.name]
+		-- TODO: Handle virtual and stand-alone packages
+		local requested_version = request.package.Version or ""
+		if request.action == "require" then
+			if not installed_version or installed_version ~= requested_version then
+				DBG("Want to install/upgrade " .. request.name)
+				table.insert(result, request)
+			else
+				DBG("Package " .. request.name .. " already installed")
+			end
+			unused[request.name] = nil
+		elseif request.action == "reinstall" then
+			-- Make a shallow copy and change the action requested
+			local new_req = {}
+			for k, v in pairs(request) do
+				new_req[k] = v
+			end
+			new_req.action = "require"
+			DBG("Want to reinstall " .. request.name)
+			table.insert(result, new_req)
+			unused[request.name] = nil
+		elseif request.action == "remove" then
+			if installed[request.name] then
+				DBG("Want to remove " .. request.name)
+				table.insert(result, request)
+			else
+				DBG("Package " .. request.name .. " not installed, ignoring request to remove")
+			end
+			unused[request.name] = nil
+		else
+			DIE("Unknown action " .. request.action)
+		end
+	end
+	-- Go through the packages that are installed and nobody mentioned them and mark them for removal
+	-- TODO: Order them according to dependencies
+	for pkg in pairs(unused) do
+		DBG("Want to remove left-over package " .. pkg)
+		table.insert(result, {
+			action = "remove",
+			name = pkg,
+			package = status[pkg]
+		})
+	end
+	return result
 end
 
 return _M
