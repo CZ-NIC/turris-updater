@@ -17,11 +17,6 @@ You should have received a copy of the GNU General Public License
 along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
---[[
-This module prepares and manipulates contexts and environments for
-the configuration scripts to be run in.
-]]
-
 local pairs = pairs
 local tostring = tostring
 local error = error
@@ -44,6 +39,7 @@ local uri = require "uri"
 module "postprocess"
 
 function get_repos()
+	DBG("Getting repos")
 	--[[
 	The repository index downloads are already in progress since
 	the repository objects have been created. We now register

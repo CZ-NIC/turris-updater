@@ -17,11 +17,6 @@ You should have received a copy of the GNU General Public License
 along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
---[[
-This module prepares and manipulates contexts and environments for
-the configuration scripts to be run in.
-]]
-
 local ipairs = ipairs
 local pairs = pairs
 local type = type

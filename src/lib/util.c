@@ -35,7 +35,7 @@ static const struct level_info levels[] = {
 	[LL_DIE] = { "\x1b[31;1mDIE\x1b[0m", "DIE", LOG_CRIT },
 	[LL_ERROR] = { "\x1b[31mERROR\x1b[0m", "ERROR", LOG_ERR },
 	[LL_WARN] = { "\x1b[35mWARN\x1b[0m", "WARN", LOG_WARNING },
-	[LL_INFO] = { "\x1b[37INFO\x1b[0m", "INFO", LOG_INFO },
+	[LL_INFO] = { "\x1b[34mINFO\x1b[0m", "INFO", LOG_INFO },
 	[LL_DBG] = { "DEBUG", "DBG", LOG_DEBUG },
 	[LL_UNKNOWN] = { "????", "UNKNOWN", LOG_WARNING }
 };

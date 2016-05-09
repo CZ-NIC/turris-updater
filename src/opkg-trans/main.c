@@ -72,7 +72,6 @@ int main(int argc, char *argv[]) {
 			case COT_HELP:
 				fputs(help, stderr);
 				break;
-				// Some not implemented operations
 			case COT_INSTALL: {
 				const char *err = interpreter_call(interpreter, "transaction.queue_install", NULL, "s", op->parameter);
 				ASSERT_MSG(!err, "%s", err);
