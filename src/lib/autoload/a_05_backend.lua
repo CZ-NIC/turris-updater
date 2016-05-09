@@ -329,9 +329,11 @@ function repo_parse(content)
 	local result = {}
 	for block in block_split(content) do
 		local pkg = block_parse(block)
-		-- Some fields are not present here (conffiles, status), but there are just ignored.
-		pkg = package_postprocess(pkg)
-		result[pkg.Package] = pkg
+		if next(pkg) then -- Problems with empty indices...
+			-- Some fields are not present here (conffiles, status), but there are just ignored.
+			pkg = package_postprocess(pkg)
+			result[pkg.Package] = pkg
+		end
 	end
 	return result
 end

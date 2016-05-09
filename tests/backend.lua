@@ -716,6 +716,29 @@ function test_config_modified()
 	assert(B.config_modified(file, "5f54362b30f53ae6862b11ff34d22a8d4510ed2b3e757b1f285db"))
 end
 
+function test_repo_parse()
+	assert_table_equal({
+		["base-files"] = {
+			Package = "base-files",
+			Version = "160-r49274",
+			Depends = {"libc", "netifd", "procd", "jsonfilter"}
+		},
+		["block-mount"] = {
+			Package = "block-mount",
+			Version = "2015-05-24-09027fc86babc3986027a0e677aca1b6999a9e14",
+			Depends = {"libc", "ubox", "libubox", "libuci"}
+		}
+	}, B.repo_parse([[
+Package: base-files
+Version: 160-r49274
+Depends: libc, netifd, procd, jsonfilter
+
+Package: block-mount
+Version: 2015-05-24-09027fc86babc3986027a0e677aca1b6999a9e14
+Depends: libc, ubox, libubox, libuci
+]]))
+end
+
 function setup()
 	local sdir = os.getenv("S") or "."
 	-- Use a shortened version of a real status file for tests
