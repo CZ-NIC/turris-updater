@@ -26,6 +26,8 @@ local pairs = pairs
 local ipairs = ipairs
 local type = type
 local error = error
+local require = require
+local tostring = tostring
 local table = table
 local utils = require "utils"
 local uri = require "uri"
@@ -36,15 +38,15 @@ module "requests"
 local allowed_package_extras = utils.arr2set({
 	"virtual",
 	"deps",
-	"order-after",
-	"order-before",
-	"pre-inst",
-	"post-inst",
-	"pre-rm",
-	"post-rm",
+	"order_after",
+	"order_before",
+	"pre_inst",
+	"post_inst",
+	"pre_rm",
+	"post_rm",
 	"reboot",
 	"replan",
-	"abi-change",
+	"abi_change",
 	"content",
 	"verification",
 	"sig",
@@ -223,6 +225,26 @@ local allowed_uninstall_extras = utils.arr2set({
 
 function uninstall(result, context, ...)
 	return content_request(context, "uninstall", allowed_uninstall_extras, ...)
+end
+
+function script(result, context, name, script_uri, extra)
+	local u = uri(context, script_uri, extra)
+	local ok, content = u:get()
+	if not ok then
+		-- If couldn't get the script, propagate the error
+		error(content)
+	end
+	-- Resolve circular dependency between this module and sandbox
+	local sandbox = require "sandbox"
+	if extra.security and not context:level_check(extra.security) then
+		error(utils.exception("access violation", "Attempt to raise security level from " .. tostring(context.sec_level) .. " to " .. extra.security))
+	end
+	-- TODO handle restrict option
+	sandbox.run_sandboxed(content, name, extra.security, context)
+	-- Return a dummy handle, just as a formality
+	result.tp = script
+	result.name = name
+	result.uri = script_uri
 end
 
 return _M

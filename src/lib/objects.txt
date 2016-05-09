@@ -75,3 +75,6 @@ parsed-repository::
 pkg-list::
   List of packages produced by a repository. Used mostly as an
   intermediate product during repository processing.
+script::
+  Return value of the `Script` command. This is mostly a dummy handle,
+  since morphers require to have a return value.

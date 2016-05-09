@@ -118,6 +118,52 @@ function test_install_uninstall()
 	assert_nil(err)
 end
 
+function test_script()
+	-- We actually don't want any mocks here, let uri work as expected
+	mocks_reset()
+	-- The URI contains 'Install "pkg"'
+	local err = sandbox.run_sandboxed([[
+		Script "test-script" "data:base64,SW5zdGFsbCAicGtnIgo=" { security = 'Restricted' }
+	]], "Test chunk", "Restricted")
+	assert_nil(err, DataDumper(err))
+	assert_table_equal({
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg'
+			}
+		}
+	}, requests.content_requests)
+end
+
+-- Check we are not allowed to raise the security level by running a script
+function test_script_raise_level()
+	mocks_reset()
+	local err = sandbox.run_sandboxed([[
+		Script "test-script" "data:," { security = 'Full' }
+	]], "Test chunk", "Restricted")
+	assert_table_equal(utils.exception("access violation", "Attempt to raise security level from Restricted to Full"), err)
+end
+
+-- Test all the transitions between security levels. Some shall error, some not.
+function test_script_level_transition()
+	mocks_reset()
+	local levels = {'Full', 'Local', 'Remote', 'Restricted'}
+	for i, from in ipairs(levels) do
+		for j, to in ipairs(levels) do
+			local err = sandbox.run_sandboxed([[
+				Script "test-script" "data:," { security = ']] .. to .. [[' }
+			]], "Test chunk", from)
+			if i > j then
+				assert_table_equal(utils.exception("access violation", "Attempt to raise security level from " .. from .. " to " .. to), err)
+			else
+				assert_nil(err)
+			end
+		end
+	end
+end
+
 function setup()
 	-- Don't download stuff now
 	mock_gen("uri.new", function (context, u) return {u = u} end, true)
