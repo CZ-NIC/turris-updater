@@ -367,4 +367,8 @@ function queue_install(filename)
 	end
 end
 
+function queue_install_downloaded(data)
+	table.insert(queue, {op = "install", data = data})
+end
+
 return _M
