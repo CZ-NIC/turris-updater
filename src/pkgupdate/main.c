@@ -23,6 +23,19 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
+
+static bool results_interpret(struct interpreter *interpreter, size_t result_count) {
+	bool result = true;
+	if (result_count >= 2) {
+		char *msg;
+		ASSERT(interpreter_collect_results(interpreter, "-s", &msg) == -1);
+		ERROR("%s", msg);
+	}
+	if (result_count >= 1)
+		ASSERT(interpreter_collect_results(interpreter, "b", &result) == -1);
+	return result;
+}
 
 /*
  * The launcher of updater. Currently, everything is hardcoded here.
@@ -48,10 +61,15 @@ int main(int argc __attribute__((unused)), char *argv[]) {
 	// Decide what packages need to be downloaded and handled
 	const char *err = interpreter_call(interpreter, "updater.prepare", NULL, "s", argv[1]);
 	ASSERT_MSG(!err, "%s", err);
-	// For now we want to confirm by the user.
-	fprintf(stderr, "Press return to continue, CTRL+C to abort\n");
-	getchar();
-	//bool trans_ok = true;
-	// TODO: The transaction
-	return 0;
+	// TODO: Proper argument parsing
+	if (!argv[2] || strcmp(argv[2], "--batch") != 0) {
+		// For now we want to confirm by the user.
+		fprintf(stderr, "Press return to continue, CTRL+C to abort\n");
+		getchar();
+	}
+	size_t result_count;
+	err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
+	ASSERT_MSG(!err, "%s", err);
+	bool trans_ok = results_interpret(interpreter, result_count);
+	return trans_ok ? 0 : 1;
 }
