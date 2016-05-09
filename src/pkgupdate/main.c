@@ -71,5 +71,7 @@ int main(int argc __attribute__((unused)), char *argv[]) {
 	err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
 	ASSERT_MSG(!err, "%s", err);
 	bool trans_ok = results_interpret(interpreter, result_count);
+	interpreter_destroy(interpreter);
+	events_destroy(events);
 	return trans_ok ? 0 : 1;
 }
