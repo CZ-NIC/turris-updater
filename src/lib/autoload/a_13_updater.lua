@@ -20,6 +20,8 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 local error = error
 local ipairs = ipairs
 local INFO = INFO
+local md5 = md5
+local sha256 = sha256
 local sandbox = require "sandbox"
 local uri = require "uri"
 local postprocess = require "postprocess"
@@ -64,7 +66,18 @@ function prepare(entrypoint)
 			local ok, data = task.real_uri:get()
 			if ok then
 				INFO("Queue install of " .. task.name .. "/" .. task.package.repo.name .. "/" .. task.package.Version)
-				-- TODO: Check hashes
+				if task.package.MD5Sum then
+					local sum = md5(data)
+					if sum ~= task.package.MD5Sum then
+						error("corruption", "The md5 sum of " .. task.name .. " does not match")
+					end
+				end
+				if task.package.SHA256Sum then
+					local sum = sha256(data)
+					if sum ~= task.package.SHA256Sum then
+						error("corruption", "The sha256 sum of " .. task.name .. " does not match")
+					end
+				end
 				transaction.queue_install_downloaded(data)
 			else
 				error(data)
