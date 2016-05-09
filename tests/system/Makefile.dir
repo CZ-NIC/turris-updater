@@ -1,9 +1,12 @@
 
-SYS_TESTS := \
+TRANS_SYS_TESTS := \
 	help \
 	install \
 	remove \
 	remove-nonexistent
+
+UPD_SYS_TESTS := \
+	plan
 
 .PHONY: test-sys valgrind-sys check
 
@@ -23,4 +26,5 @@ valgrind-sys-$(1)-$(2): $(O)/bin/$(1)
 
 endef
 
-$(eval $(foreach TEST,$(SYS_TESTS),$(call DO_SYS_TEST,opkg-trans,$(TEST))))
+$(eval $(foreach TEST,$(TRANS_SYS_TESTS),$(call DO_SYS_TEST,opkg-trans,$(TEST))))
+$(eval $(foreach TEST,$(UPD_SYS_TESTS),$(call DO_SYS_TEST,pkgupdate,$(TEST))))
