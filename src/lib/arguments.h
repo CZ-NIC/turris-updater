@@ -68,4 +68,16 @@ struct cmd_op {
  */
 struct cmd_op *cmd_args_parse(int argc, char *argv[]) __attribute__((nonnull)) __attribute__((returns_nonnull));
 
+/*
+ * Deep-copy the arguments. They can be used in the reexec() function.
+ */
+void args_backup(int argc, const char **argv);
+// Free the backup of arguments.
+void arg_backup_clear();
+/*
+ * Exec the same binary with the same arguments, effectively
+ * restarting the whole process.
+ */
+void reexec() __attribute__((noreturn));
+
 #endif

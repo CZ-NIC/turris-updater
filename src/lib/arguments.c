@@ -24,6 +24,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
+#include <errno.h>
 
 static void result_extend(size_t *count, struct cmd_op **result, enum cmd_op_type type, const char *param) {
 	*result = realloc(*result, ++ (*count) * sizeof **result);
@@ -114,4 +116,29 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[]) {
 	}
 	result_extend(&res_count, &result, COT_EXIT, NULL);
 	return result;
+}
+
+static int back_argc;
+static char **back_argv;
+
+void args_backup(int argc, const char **argv) {
+	back_argc = argc;
+	back_argv = malloc((argc + 1) * sizeof *back_argv);
+	back_argv[argc] = NULL;
+	for (int i = 0; i < argc; i ++)
+		back_argv[i] = strdup(argv[i]);
+}
+
+void arg_backup_clear() {
+	for (int i = 0; i < back_argc; i ++)
+		free(back_argv[i]);
+	free(back_argv);
+	back_argv = NULL;
+	back_argc = 0;
+}
+
+void reexec() {
+	ASSERT_MSG(back_argv, "No arguments backed up");
+	execvp(back_argv[0], back_argv);
+	DIE("Failed to reexec %s: %s", back_argv[0], strerror(errno));
 }
