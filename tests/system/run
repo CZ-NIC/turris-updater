@@ -34,7 +34,7 @@ export TMPDIR="$O/testdir"
 mkdir -p "$TMPDIR"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' SIGHUP SIGINT SIGQUIT SIGABRT SIGALRM SIGTERM SIGILL SIGPIPE EXIT
-ROOT_DIR="$TMP_DIR"/root
+export ROOT_DIR="$TMP_DIR"/root
 DEFINITION="$2"
 DATA_DIR="$S"/tests/data
 
@@ -42,6 +42,9 @@ DATA_DIR="$S"/tests/data
 cp -ar "$DEFINITION"/input "$TMP_DIR"/root
 # Drop the .keep files, they are a hack for git to preserve directories
 cp -ar "$DEFINITION"/output "$TMP_DIR"/output
+if [ -f "$DEFINITION"/setup ] ; then
+	. "$DEFINITION"/setup
+fi
 find "$TMP_DIR" -type f -name .keep -exec rm {} \;
 # Launch it
 eval $LAUNCHER "$O"/bin/"$1" $(cat "$DEFINITION"/params)

@@ -1,2 +1,2 @@
-SRC_SUBDIRS := lib opkg-trans
+SRC_SUBDIRS := lib opkg-trans pkgupdate
 include $(patsubst %,$(S)/src/%/Makefile.dir,$(SRC_SUBDIRS))

@@ -1,0 +1,6 @@
+Package: libgcc
+Version: 4.8-linaro-3
+Status: install user installed
+Architecture: mpc85xx
+Installed-Time: 0
+

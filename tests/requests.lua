@@ -55,6 +55,7 @@ end
 
 function test_repository()
 	local r1 = run_sandbox_fun "Repository 'test-repo' 'http://example.org/repo'"
+	r1.context = nil
 	assert_table_equal({
 		tp = "repository",
 		name = "test-repo",
@@ -62,6 +63,7 @@ function test_repository()
 		index_uri = {[""] = {u = "http://example.org/repo/Packages.gz"}}
 	}, r1)
 	local r2 = run_sandbox_fun "Repository 'test-repo-2' 'http://example.org/repo-2' {subdirs = {'a', 'b'}}"
+	r2.context = nil
 	assert_table_equal({
 		tp = "repository",
 		name = "test-repo-2",
@@ -70,6 +72,7 @@ function test_repository()
 		index_uri = {["/a"] = {u = "http://example.org/repo-2/a/Packages.gz"}, ["/b"] = {u = "http://example.org/repo-2/b/Packages.gz"}}
 	}, r2)
 	local r3 = run_sandbox_fun "Repository 'test-repo-other' 'http://example.org/repo-other' {index = 'https://example.org/repo-other/Packages.gz'}"
+	r3.context = nil
 	assert_table_equal({
 		tp = "repository",
 		name = "test-repo-other",

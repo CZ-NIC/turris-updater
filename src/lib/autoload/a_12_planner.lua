@@ -17,11 +17,6 @@ You should have received a copy of the GNU General Public License
 along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
---[[
-This module prepares and manipulates contexts and environments for
-the configuration scripts to be run in.
-]]
-
 local ipairs = ipairs
 local pairs = pairs
 local type = type
@@ -67,16 +62,9 @@ function required_pkgs(pkgs, requests)
 	local plan = {}
 	local function schedule(req)
 		local name = req.name or req
+		name = name:match('^%S+')
 		DBG("Require " .. name)
-		local candidates = nil
-		if type(req) == 'table' and req.tp == 'package' then
-			candidates = req.group or pkgs[req.name]
-		elseif type(req) == 'string' then
-			candidates = pkgs[req]
-		else
-			-- Can Not Happen
-			DIE("Unknown pkg request " .. DataDumper(req))
-		end
+		local candidates = req.group or pkgs[name]
 		DBG("Candidates: " .. tostring(candidates))
 		if not candidates then
 			error(utils.exception('inconsistent', "Package " .. req .. " is not available"))

@@ -142,6 +142,8 @@ function repository(result, context, name, repo_uri, extra)
 	end
 	utils.table_merge(result, extra)
 	result.repo_uri = repo_uri
+	-- FIXME: This needs to be hidden so it can't be manipulated from inside the sandbox (possibly other fields as well)
+	result.context = context
 	--[[
 	Start the download. This way any potential access violation is reported
 	right away. It also allows for some parallel downloading while we process

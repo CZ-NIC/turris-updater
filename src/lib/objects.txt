@@ -44,6 +44,8 @@ Currently defined reasons are:
    specifies things that just can't make sense together.
  * multiple: Container for possibly multiple errors. It contains field
    `errors`, which is an array of other exceptions.
+ * corruption: Some kind of integrity check is broken on something
+   (an URI validation failed, package hash doesn't match, etc).
 
 Other reasons are going to appear in the future. Also, other fields
 may appear, depending on the needs of given reason.

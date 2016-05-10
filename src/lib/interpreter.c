@@ -770,6 +770,7 @@ const char *interpreter_autoload(struct interpreter *interpreter) {
 		const char *underscore = rindex(el->name, '_');
 		// Use the part after the last underscore as the name
 		const char *name = underscore ? underscore + 1 : el->name;
+		DBG("Including module %s", name);
 		const char *err = interpreter_include(interpreter, (const char *) el->data, el->size, name);
 		if (err)
 			return err;

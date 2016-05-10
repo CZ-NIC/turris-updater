@@ -9,6 +9,7 @@
 *.html
 *.so
 /src/opkg-trans/opkg-trans
+/src/pkgupdate/pkgupdate
 # Stuff dump core all over the place.
 core
 vgcore.*
