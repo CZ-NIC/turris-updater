@@ -73,6 +73,8 @@ int main(int argc, char *argv[]) {
 	err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
 	ASSERT_MSG(!err, "%s", err);
 	bool trans_ok = results_interpret(interpreter, result_count);
+	err = interpreter_call(interpreter, "updater.cleanup", NULL, "");
+	ASSERT_MSG(!err, "%s", err);
 	interpreter_destroy(interpreter);
 	events_destroy(events);
 	arg_backup_clear();
