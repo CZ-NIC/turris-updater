@@ -25,6 +25,7 @@
 #include "md5.h"
 #include "sha256.h"
 #include "locks.h"
+#include "arguments.h"
 
 #include <lua.h>
 #include <lualib.h>
@@ -623,6 +624,11 @@ static int lua_sha256(lua_State *L) {
 	return 1;
 }
 
+static int lua_reexec(lua_State *L __attribute__((unused))) {
+	reexec();
+	return 0;
+}
+
 struct injected_func {
 	int (*func)(lua_State *);
 	const char *name;
@@ -648,7 +654,8 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_sync, "sync" },
 	{ lua_setenv, "setenv" },
 	{ lua_md5, "md5" },
-	{ lua_sha256, "sha256" }
+	{ lua_sha256, "sha256" },
+	{ lua_reexec, "reexec" }
 };
 
 struct interpreter *interpreter_create(struct events *events) {
