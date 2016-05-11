@@ -28,6 +28,7 @@ local pairs = pairs
 local tonumber = tonumber
 local tostring = tostring
 local pcall = pcall
+local type = type
 local unpack = unpack
 local setmetatable = setmetatable
 local table = table
@@ -73,8 +74,7 @@ local function base64_decode(data)
 end
 -- End of borrowed function.
 
-local function handler_data(context, uri, verification, err_cback, done_cback)
-	-- Ignore context or verification here
+local function handler_data(uri, err_cback, done_cback)
 	local params, data = uri:match('^data:([^,]*),(.*)')
 	if not data then
 		return err_cback(utils.exception("malformed URI", "It doesn't look like data URI"))
@@ -98,10 +98,7 @@ local function handler_data(context, uri, verification, err_cback, done_cback)
 	done_cback(data)
 end
 
-local function handler_file(context, uri, verification, err_cback, done_cback)
-	if not context:level_check("Local") then
-		error(utils.exception("access violation", "At least local level required for file:// URI"))
-	end
+local function handler_file(uri, err_cback, done_cback)
 	local fname = uri:match('^file://(.*)')
 	if not fname then
 		return err_cback(utils.exception("malformed URI", "Not a file:// URI"))
@@ -115,28 +112,44 @@ local function handler_file(context, uri, verification, err_cback, done_cback)
 	if (not ok) or (not content) then
 		return err_cback(utils.exception("unreachable", tostring(content or err)))
 	end
-	-- TODO: Verification
 	done_cback(content)
 end
 
 -- Actually, both for http and https
-local function handler_http(context, uri, verification, err_cback, done_cback)
-	-- TODO: Check with the context if we are allowed
-	-- TODO: Certificate handling
+local function handler_http(uri, err_cback, done_cback, ca)
 	return download(function (status, answer)
 		if status == 200 then
 			done_cback(answer)
 		else
 			err_cback(utils.exception("unreachable", tostring(answer)))
 		end
-	end, uri)
+	end, uri, ca)
 end
 
 local handlers = {
-	data = handler_data,
-	file = handler_file,
-	http = handler_http,
-	https = handler_http
+	data = {
+		handler = handler_data,
+		immediate = true,
+		def_verif = 'none',
+		sec_level = 'Restricted'
+	},
+	file = {
+		handler = handler_file,
+		immediate = true,
+		def_verif = 'none',
+		sec_level = 'Local'
+	},
+	http = {
+		handler = handler_http,
+		def_verif = 'sig',
+		sec_level = 'Restricted'
+	},
+	https = {
+		handler = handler_http,
+		can_check_cert = true,
+		def_verif = 'both',
+		sec_level = 'Restricted'
+	}
 }
 
 function wait(...)
@@ -160,6 +173,38 @@ function new(context, uri, verification)
 	if not handler then
 		error(utils.exception("bad value", "Unknown URI schema " .. schema))
 	end
+	if not context:level_check(handler.sec_level) then
+		error(utils.exception("access violation", "At least " .. handler.sec_level .. " level required for " .. schema .. " URI"))
+	end
+	-- TODO: Check restricted URIs
+	-- Some auxiliary functions
+	verification = verification or {}
+	local function ver_lookup(field, default)
+		if verification[field] ~= nil then
+			return verification[field]
+		elseif context[field] ~= nil then
+			return context[field]
+		else
+			return default
+		end
+	end
+	local vermode = ver_lookup('verification', handler.def_verif)
+	local do_cert = handler.can_check_cert and (vermode == 'both' or vermode == 'cert')
+	local use_ca
+	if do_cert then
+		local ca = ver_lookup('ca')
+		if type(ca) == 'string' and ca:match('^file://') then
+			-- FIXME: It might not be allowed to use this from the verification (but it would from the context)
+			use_ca = ca:match('^file://(.*)')
+		elseif type(ca) == 'string' then
+			error(utils.exception('not implemented', "Currently only file:// URIs are supported for CA"))
+		elseif type(ca) == 'table' then
+			error(utils.exception('not implemented', "Multiple CA files are not supported yet"))
+		else
+			error(utils.exception('bad value', "The ca must be either string or table, not " .. type(ca)))
+		end
+	end
+	-- TODO: CRL
 	-- Prepare the result and callbacks into the handler
 	local result = {
 		tp = "uri",
@@ -207,7 +252,7 @@ function new(context, uri, verification)
 	It can actually raise an error if that uri is not allowed in the given content.
 	Things like non-existing file is reported through the err_cback
 	]]
-	result.events = {handler(context, uri, verification, err_cback, done_cback)}
+	result.events = {handler.handler(uri, err_cback, done_cback, use_ca)}
 	return result
 end
 

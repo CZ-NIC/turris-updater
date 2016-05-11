@@ -20,6 +20,7 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 require "lunit"
 local uri = require "uri"
 local sandbox = require "sandbox"
+local dir = (os.getenv("S") .. "/") or ''
 
 module("uri-tests", package.seeall, lunit.testcase)
 
@@ -107,7 +108,6 @@ end
 
 function test_file()
 	check_sync("Local", "file:///dev/null", "")
-	local dir = (os.getenv("S") .. "/") or ''
 	check_sync("Local", "file://" .. dir .. "tests/data/hello.txt", "hello\n")
 	check_sync("Local", "file://" .. dir .. "tests/data/hello%2etxt", "hello\n")
 	local context = sandbox.new("Remote")
@@ -119,8 +119,8 @@ end
 
 function test_https()
 	local context = sandbox.new("Remote")
-	local u1 = uri(context, "https://api.turris.cz/", {})
-	local u2 = uri(context, "https://api.turris.cz/does/not/exist", {})
+	local u1 = uri(context, "https://api.turris.cz/", {verification = 'none'})
+	local u2 = uri(context, "https://api.turris.cz/does/not/exist", {verification = 'none'})
 	assert_false(u1.done)
 	assert_false(u2.done)
 	local called1 = false
@@ -146,4 +146,26 @@ function test_https()
 	assert(called2)
 	local ok = u2:get()
 	assert_false(ok)
+end
+
+function test_https_cert()
+	local context = sandbox.new("Remote")
+	local ca_file = "file://" .. dir .. "tests/data/updater.pem"
+	-- It should succeed with the correct CA
+	local u1 = uri(context, "https://api.turris.cz/", {verification = "cert", ca = ca_file})
+	-- But should fail with a wrong one
+	local u2 = uri(context, "https://api.turris.cz/", {verification = "cert", ca = "file:///dev/null"})
+	local ok1 = u1:get()
+	assert(ok1)
+	local ok2 = u2:get()
+	assert_false(ok2)
+	-- Check we can put the verification stuff into the context
+	context.ca = ca_file
+	context.verification = "cert"
+	u1 = uri(context, "https://api.turris.cz/")
+	u2 = uri(context, "https://api.turris.cz/", {ca = "file:///dev/null"})
+	ok1 = u1:get()
+	ok2 = u2:get()
+	assert(ok1)
+	assert_false(ok2)
 end
