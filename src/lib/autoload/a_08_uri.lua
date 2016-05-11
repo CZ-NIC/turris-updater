@@ -196,6 +196,7 @@ function new(context, uri, verification)
 	local result = {
 		tp = "uri",
 		done = false,
+		done_primary = false,
 		uri = uri,
 		callbacks = {},
 		events = {}
@@ -212,6 +213,7 @@ function new(context, uri, verification)
 	local function give_up(err)
 		result.done = true
 		result.err = err
+		result.events = {}
 		cleanup()
 		return result
 	end
@@ -239,7 +241,10 @@ function new(context, uri, verification)
 				for _, curi in ipairs(uris) do
 					local u = new(context, curi, {verification = 'none'})
 					local ok, content = u:get()
-					if not ok then return give_up(content) end
+					if not ok then
+						give_up(content)
+						return nil
+					end
 					f:write(content)
 				end
 			else
@@ -249,6 +254,9 @@ function new(context, uri, verification)
 			return fname
 		end
 		use_ca = pem_get(ca, ca_context)
+		if not use_ca then
+			return use_ca
+		end
 		local crl, crl_sec_check = ver_lookup('crl')
 		if crl then
 			local crl_context
@@ -263,6 +271,32 @@ function new(context, uri, verification)
 				crl_context = ca_context
 			end
 			use_crl = pem_get(crl, crl_context)
+			if not use_crl then
+				return result
+			end
+		end
+	end
+	local do_sig = vermode == 'both' or vermode == 'sig'
+	local sig_data
+	local sig_pubkeys = {}
+	local sub_uris = {}
+	if do_sig then
+		-- As we check the signature after we download everything, just schedule it now
+		local sig_uri = verification.sig or uri .. ".sig"
+		sig_data = new(sig_uri, context, {verification = 'none'})
+		table.insert(sub_uris, sig_data)
+		local pubkeys = ver_lookup('pubkey')
+		if type(pubkeys) == 'string' then
+			pubkeys = {pubkeys}
+		end
+		if type(pubkeys) == 'table' then
+			for _, uri in ipairs(pubkeys) do
+				local u = new(context, sig_uri, {verification = 'none'})
+				table.insert(sub_uris, u)
+				table.insert(sig_pubkeys, u)
+			end
+		else
+			error(utils.exception('bad value', "The pubkey must be either string or table, not " .. type(uris)))
 		end
 	end
 	-- Prepare the result and callbacks into the handler
@@ -277,9 +311,15 @@ function new(context, uri, verification)
 		wait(self)
 		return self:ok(), self.content or self.err
 	end
+	local wait_sub_uris = #sub_uris
 	local function dispatch()
+		if result.done_primary and wait_sub_uris == 0 then
+			result.done = true
+			-- TODO: The validation
+		end
 		if result.done then
 			cleanup()
+			result.events = {}
 			for _, cback in ipairs(result.callbacks) do
 				cback(result:get())
 			end
@@ -291,18 +331,27 @@ function new(context, uri, verification)
 		dispatch()
 	end
 	local function err_cback(err)
-		result.done = true
+		result.done_primary = true
 		result.err = err
-		result.events = {}
 		dispatch()
 	end
 	local function done_cback(content)
-		result.done = true
+		result.done_primary = true
 		result.content = content
-		result.events = {}
 		dispatch()
 	end
 	result.events = {handler.handler(uri, err_cback, done_cback, use_ca, use_crl)}
+	-- Wait for the sub uris and include them in our events
+	local function sub_cback()
+		wait_sub_uris = wait_sub_uris - 1
+		dispatch()
+	end
+	for _, subu in ipairs(sub_uris) do
+		subu:cback(sub_cback)
+		for _, e in ipairs(subu.events) do
+			table.insert(result.events, e)
+		end
+	end
 	return result
 end
 
