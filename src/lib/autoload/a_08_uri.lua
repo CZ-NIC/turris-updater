@@ -29,9 +29,13 @@ local tonumber = tonumber
 local tostring = tostring
 local pcall = pcall
 local type = type
+local require = require
 local unpack = unpack
 local setmetatable = setmetatable
 local table = table
+local os = os
+local io = io
+local file = file
 local string = string
 local events_wait = events_wait
 local download = download
@@ -116,14 +120,14 @@ local function handler_file(uri, err_cback, done_cback)
 end
 
 -- Actually, both for http and https
-local function handler_http(uri, err_cback, done_cback, ca)
+local function handler_http(uri, err_cback, done_cback, ca, crl)
 	return download(function (status, answer)
 		if status == 200 then
 			done_cback(answer)
 		else
 			err_cback(utils.exception("unreachable", tostring(answer)))
 		end
-	end, uri, ca)
+	end, uri, ca, crl)
 end
 
 local handlers = {
@@ -177,35 +181,18 @@ function new(context, uri, verification)
 		error(utils.exception("access violation", "At least " .. handler.sec_level .. " level required for " .. schema .. " URI"))
 	end
 	-- TODO: Check restricted URIs
-	-- Some auxiliary functions
+	-- Prepare verification
 	verification = verification or {}
+	-- Try to find out verification parameter, in the verification argument, in the context or use a default. Should it be checked as URI (if it is uri)?
 	local function ver_lookup(field, default)
 		if verification[field] ~= nil then
-			return verification[field]
+			return verification[field], true
 		elseif context[field] ~= nil then
-			return context[field]
+			return context[field], false
 		else
-			return default
+			return default, false
 		end
 	end
-	local vermode = ver_lookup('verification', handler.def_verif)
-	local do_cert = handler.can_check_cert and (vermode == 'both' or vermode == 'cert')
-	local use_ca
-	if do_cert then
-		local ca = ver_lookup('ca')
-		if type(ca) == 'string' and ca:match('^file://') then
-			-- FIXME: It might not be allowed to use this from the verification (but it would from the context)
-			use_ca = ca:match('^file://(.*)')
-		elseif type(ca) == 'string' then
-			error(utils.exception('not implemented', "Currently only file:// URIs are supported for CA"))
-		elseif type(ca) == 'table' then
-			error(utils.exception('not implemented', "Multiple CA files are not supported yet"))
-		else
-			error(utils.exception('bad value', "The ca must be either string or table, not " .. type(ca)))
-		end
-	end
-	-- TODO: CRL
-	-- Prepare the result and callbacks into the handler
 	local result = {
 		tp = "uri",
 		done = false,
@@ -213,6 +200,72 @@ function new(context, uri, verification)
 		callbacks = {},
 		events = {}
 	}
+	local tmp_files = {}
+	-- Called when everything is done, to remove some temporary files (will not be needed once we move to libcurl)
+	local function cleanup()
+		for _, fname in ipairs(tmp_files) do
+			os.remove(fname)
+		end
+		tmp_files = {}
+	end
+	-- Soft failure during the preparation
+	local function give_up(err)
+		result.done = true
+		result.err = err
+		cleanup()
+		return result
+	end
+	local vermode = ver_lookup('verification', handler.def_verif)
+	local do_cert = handler.can_check_cert and (vermode == 'both' or vermode == 'cert')
+	local use_ca, use_crl
+	if do_cert then
+		local ca, ca_sec_check = ver_lookup('ca')
+		local ca_context
+		if ca_sec_check then
+			ca_context = context
+		else
+			-- The ca URI comes from within the context, so it is already checked for security level - allow it through
+			local sandbox = require "sandbox"
+			ca_context = sandbox.new('Full', context)
+		end
+		local function pem_get(uris, context)
+			local fname = os.tmpname()
+			table.insert(tmp_files, fname)
+			local f = io.open(fname, "w")
+			if type(uris) == 'string' then
+				uris = {uris}
+			end
+			if type(uris) == 'table' then
+				for _, curi in ipairs(uris) do
+					local u = new(context, curi, {verification = 'none'})
+					local ok, content = u:get()
+					if not ok then return give_up(content) end
+					f:write(content)
+				end
+			else
+				error(utils.exception('bad value', "The ca and crl must be either string or table, not " .. type(uris)))
+			end
+			f:close()
+			return fname
+		end
+		use_ca = pem_get(ca, ca_context)
+		local crl, crl_sec_check = ver_lookup('crl')
+		if crl then
+			local crl_context
+			if crl_sec_check then
+				crl_context = context
+			elseif ca_sec_check then
+				-- The CA used the provided context, but we don't want it
+				local sandbox = require "sandbox"
+				crl_context = sandbox.new('Full', context)
+			else
+				-- The CA created its own context, reuse that one
+				crl_context = ca_context
+			end
+			use_crl = pem_get(crl, crl_context)
+		end
+	end
+	-- Prepare the result and callbacks into the handler
 	function result:ok()
 		if self.done then
 			return self.err == nil
@@ -226,6 +279,7 @@ function new(context, uri, verification)
 	end
 	local function dispatch()
 		if result.done then
+			cleanup()
 			for _, cback in ipairs(result.callbacks) do
 				cback(result:get())
 			end
@@ -248,11 +302,7 @@ function new(context, uri, verification)
 		result.events = {}
 		dispatch()
 	end
-	--[[
-	It can actually raise an error if that uri is not allowed in the given content.
-	Things like non-existing file is reported through the err_cback
-	]]
-	result.events = {handler.handler(uri, err_cback, done_cback, use_ca)}
+	result.events = {handler.handler(uri, err_cback, done_cback, use_ca, use_crl)}
 	return result
 end
 

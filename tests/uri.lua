@@ -149,16 +149,20 @@ function test_https()
 end
 
 function test_https_cert()
-	local context = sandbox.new("Remote")
+	local context = sandbox.new("Local")
 	local ca_file = "file://" .. dir .. "tests/data/updater.pem"
 	-- It should succeed with the correct CA
 	local u1 = uri(context, "https://api.turris.cz/", {verification = "cert", ca = ca_file})
 	-- But should fail with a wrong one
 	local u2 = uri(context, "https://api.turris.cz/", {verification = "cert", ca = "file:///dev/null"})
+	-- We may specify the ca as a table of possibilities
+	local u3 = uri(context, "https://api.turris.cz/", {verification = "cert", ca = {"file:///dev/null", ca_file}})
 	local ok1 = u1:get()
 	assert(ok1)
 	local ok2 = u2:get()
 	assert_false(ok2)
+	local ok3 = u3:get()
+	assert(ok3)
 	-- Check we can put the verification stuff into the context
 	context.ca = ca_file
 	context.verification = "cert"
@@ -168,4 +172,7 @@ function test_https_cert()
 	ok2 = u2:get()
 	assert(ok1)
 	assert_false(ok2)
+	-- It refuses local URIs inside the ca field if refered from the wrong context
+	context = sandbox.new("Restricted")
+	assert_exception(function () uri(context, "https://api.turris.cz/", {verification = "cert", ca = ca_file}) end, "access violation")
 end
