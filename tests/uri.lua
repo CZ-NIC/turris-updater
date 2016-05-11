@@ -176,3 +176,36 @@ function test_https_cert()
 	context = sandbox.new("Restricted")
 	assert_exception(function () uri(context, "https://api.turris.cz/", {verification = "cert", ca = ca_file}) end, "access violation")
 end
+
+function test_sig()
+	local context = sandbox.new("Restricted")
+	local key_ok = 'data:,ok'
+	local key_bad = 'data:,bad'
+	local key_broken = 'data:'
+	local sig = 'data:,sig'
+	mock_gen("uri.signature_check", function (content, key, signature)
+		if key == 'ok' then
+			return true
+		else
+			return false
+		end
+	end)
+	local function ck(key, sig)
+		local ok, content = uri(context, "data:,data", {verification = 'sig', sig = sig, pubkey = key}):get()
+		return ok
+	end
+	assert(ck(key_ok, sig))
+	assert_false(ck(key_bad, sig))
+	assert_false(ck(key_broken, sig))
+	-- Check one correct key is enough
+	assert(ck({key_bad, key_broken, key_ok}, sig))
+	-- Check the default sig uri (it actually works with data uri in a strange way
+	assert(ck(key_ok))
+	assert_table_equal({
+		{f = "uri.signature_check", p = {"data", "ok", "sig"}},
+		{f = "uri.signature_check", p = {"data", "bad", "sig"}},
+		{f = "uri.signature_check", p = {"data", "bad", "sig"}},
+		{f = "uri.signature_check", p = {"data", "ok", "sig"}},
+		{f = "uri.signature_check", p = {"data", "ok", "data.sig"}}
+	}, mocks_called)
+end

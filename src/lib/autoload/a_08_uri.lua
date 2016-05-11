@@ -168,6 +168,28 @@ function wait(...)
 	events_wait(unpack(events))
 end
 
+local function tmpstore(content)
+	local fname = os.tmpname()
+	local f = io.open(fname, "w")
+	f:write(content)
+	f:close()
+	return fname
+end
+
+function signature_check(content, key, signature)
+	local ok
+	local fcontent = tmpstore(content)
+	local fkey = tmpstore(key)
+	local fsig = tmpstore(signature)
+	events_wait(run_command(function (ecode)
+		ok = (ecode == 0)
+	end, nil, nil, -1, -1, '/usr/bin/usign', '-V', '-p', fkey, '-x', fsig, '-m', fcontent))
+	os.remove(fcontent)
+	os.remove(fkey)
+	os.remove(fsig)
+	return ok
+end
+
 function new(context, uri, verification)
 	local schema = uri:match('^(%a+):')
 	if not schema then
@@ -283,7 +305,7 @@ function new(context, uri, verification)
 	if do_sig then
 		-- As we check the signature after we download everything, just schedule it now
 		local sig_uri = verification.sig or uri .. ".sig"
-		sig_data = new(sig_uri, context, {verification = 'none'})
+		sig_data = new(context, sig_uri, {verification = 'none'})
 		table.insert(sub_uris, sig_data)
 		local pubkeys = ver_lookup('pubkey')
 		if type(pubkeys) == 'string' then
@@ -291,7 +313,7 @@ function new(context, uri, verification)
 		end
 		if type(pubkeys) == 'table' then
 			for _, uri in ipairs(pubkeys) do
-				local u = new(context, sig_uri, {verification = 'none'})
+				local u = new(context, uri, {verification = 'none'})
 				table.insert(sub_uris, u)
 				table.insert(sig_pubkeys, u)
 			end
@@ -313,9 +335,49 @@ function new(context, uri, verification)
 	end
 	local wait_sub_uris = #sub_uris
 	local function dispatch()
-		if result.done_primary and wait_sub_uris == 0 then
+		if result.done_primary and wait_sub_uris == 0 and not result.done then
 			result.done = true
-			-- TODO: The validation
+			if do_sig and result.err == nil then
+				local ok, signature = sig_data:get()
+				if ok then
+					local found = false
+					local key_broken = false
+					local function sigval(content)
+						for _, key in ipairs(sig_pubkeys) do
+							local ok, k = key:get()
+							if ok then
+								if signature_check(content, k, signature) then
+									found = true
+									break
+								end
+							else
+								key_broken = true
+							end
+						end
+					end
+					sigval(result.content)
+					if not found and result.content:sub(1, 2) == string.char(0x1F, 0x8B) then
+						-- Try once more with gzip decompressed
+						function gzip_done(ecode, killed, stdout)
+							if ecode == 0 then
+								sigval(stdout)
+							end
+						end
+						events_wait(run_command(gzip_done, nil, result.content, -1, -1, '/bin/gzip', '-c', '-d'))
+					end
+					if not found then
+						local msg = "Signature validation failed"
+						if key_broken then
+							msg = msg .. " (some keys are missing)"
+						end
+						result.err = utils.exception("corruption", msg)
+						result.content = nil
+					end
+				else
+					result.err = signature
+					result.content = nil
+				end
+			end
 		end
 		if result.done then
 			cleanup()
