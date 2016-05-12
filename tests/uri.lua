@@ -209,3 +209,9 @@ function test_sig()
 		{f = "uri.signature_check", p = {"data", "ok", "data.sig"}}
 	}, mocks_called)
 end
+
+-- Check invalid verification mode (a typo) is rejected
+function test_vermode()
+	local context = sandbox.new("Restricted")
+	assert_exception(function () uri(context, "data:,data", {verification = 'typo'}) end, 'bad value')
+end

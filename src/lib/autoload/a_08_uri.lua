@@ -190,6 +190,8 @@ function signature_check(content, key, signature)
 	return ok
 end
 
+local allowed_verifications = utils.arr2set({'none', 'cert', 'sig', 'both'})
+
 function new(context, uri, verification)
 	local schema = uri:match('^(%a+):')
 	if not schema then
@@ -240,6 +242,9 @@ function new(context, uri, verification)
 		return result
 	end
 	local vermode = ver_lookup('verification', handler.def_verif)
+	if not allowed_verifications[vermode] then
+		error(utils.exception('bad value', "Unknown verification mode " .. vermode))
+	end
 	local do_cert = handler.can_check_cert and (vermode == 'both' or vermode == 'cert')
 	local use_ca, use_crl
 	if do_cert then
