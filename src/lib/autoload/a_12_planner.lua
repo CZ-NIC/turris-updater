@@ -64,7 +64,7 @@ function required_pkgs(pkgs, requests)
 		local name = req.name or req
 		name = name:match('^%S+')
 		DBG("Require " .. name)
-		local candidates = req.group or pkgs[name]
+		local candidates = utils.private(req).group or pkgs[name]
 		DBG("Candidates: " .. tostring(candidates))
 		if not candidates then
 			error(utils.exception('inconsistent', "Package " .. req .. " is not available"))

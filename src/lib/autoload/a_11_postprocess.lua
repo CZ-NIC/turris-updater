@@ -66,7 +66,7 @@ function get_repos()
 	for _, repo in pairs(requests.known_repositories_all) do
 		repo.tp = 'parsed-repository'
 		repo.content = {}
-		for subrepo, index_uri in pairs(repo.index_uri) do
+		for subrepo, index_uri in pairs(utils.private(repo).index_uri) do
 			local name = repo.name .. "/" .. index_uri.uri
 			table.insert(uris, index_uri)
 			local function broken(why, extra)
@@ -123,7 +123,7 @@ function get_repos()
 		wait for them here and after all is done, we want
 		the contents to be garbage collected.
 		]]
-		repo.index_uri = nil
+		utils.private(repo).index_uri = nil
 	end
 	-- Make sure everything is downloaded
 	uri.wait(unpack(uris))
@@ -171,7 +171,7 @@ function pkg_aggregate()
 			available_packages[pkg.name] = {candidates = {}, modifiers = {}}
 		end
 		local pkg_group = available_packages[pkg.name]
-		pkg.group = pkg_group
+		utils.private(pkg).group = pkg_group
 		if pkg.virtual then
 			table.insert(pkg_group.candidates, pkg)
 			pkg_group.virtual = true
