@@ -192,7 +192,8 @@ end
 
 local allowed_verifications = utils.arr2set({'none', 'cert', 'sig', 'both'})
 
-function new(context, uri, verification)
+-- Parse the uri and throw an error or return the handler for it
+function parse(context, uri)
 	local schema = uri:match('^(%a+):')
 	if not schema then
 		error(utils.exception("bad value", "Malformed URI " .. uri))
@@ -204,6 +205,11 @@ function new(context, uri, verification)
 	if not context:level_check(handler.sec_level) then
 		error(utils.exception("access violation", "At least " .. handler.sec_level .. " level required for " .. schema .. " URI"))
 	end
+	return handler
+end
+
+function new(context, uri, verification)
+	local handler = parse(context, uri)
 	-- TODO: Check restricted URIs
 	-- Prepare verification
 	verification = verification or {}
