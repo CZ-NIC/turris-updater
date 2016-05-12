@@ -81,6 +81,39 @@ function test_no_deps()
 	assert_table_equal(expected, result)
 end
 
+function test_reinstall()
+	local pkgs = {
+		pkg1 = {
+			candidates = {{Package = 'pkg1'}},
+			modifier = {
+				deps = {}
+			}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1'
+			},
+			reinstall = true
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		{
+			action = "reinstall",
+			package = {Package = 'pkg1'},
+			modifier = {
+				deps = {},
+			},
+			name = 'pkg1'
+		}
+	}
+	assert_table_equal(expected, result)
+end
+
 --[[
 Find some deps. Some are from the modifier, some from the candidate.
 There may be multiple candidates. Also, check each dep is brought in
