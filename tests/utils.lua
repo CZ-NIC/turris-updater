@@ -106,3 +106,15 @@ function test_multi_index()
 	assert_nil(U.multi_index({idx = {[4] = "xxx"}}, "idx", 5))
 	assert_equal("xxx", U.multi_index({idx = {[4] = "xxx"}}, "idx", 4))
 end
+
+function test_private()
+	local t = {}
+	U.private(t).x = 42
+	assert_equal(42, U.private(t).x)
+	-- Try to confuse it with "private" field
+	U.private(t).private = "private"
+	assert_equal("private", U.private(t).private)
+	-- It is not visible from the outside
+	assert_table_equal({}, t)
+	assert_nil(t.private)
+end
