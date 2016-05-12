@@ -310,7 +310,9 @@ function new(context, uri, verification)
 	if do_sig then
 		-- As we check the signature after we download everything, just schedule it now
 		local sig_uri = verification.sig or uri .. ".sig"
-		sig_data = new(context, sig_uri, {verification = 'none'})
+		local veri = 'none'
+		if do_cert then veri = 'cert' end -- If the main resource checks cert, the .sig should too
+		sig_data = new(context, sig_uri, {verification = 'cert'})
 		table.insert(sub_uris, sig_data)
 		local pubkeys = ver_lookup('pubkey')
 		if type(pubkeys) == 'string' then
