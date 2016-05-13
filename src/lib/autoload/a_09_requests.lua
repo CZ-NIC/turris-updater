@@ -31,6 +31,7 @@ local tostring = tostring
 local table = table
 local utils = require "utils"
 local uri = require "uri"
+local DBG = DBG
 
 module "requests"
 
@@ -265,6 +266,7 @@ local script_insert_options = {
 }
 
 function script(result, context, name, script_uri, extra)
+	DBG("Running script " .. name)
 	for name in pairs(extra) do
 		if allowed_script_extras[name] == nil then
 			error(utils.exception("bad value", "There's no extra option " .. name .. " for the Script command"))
