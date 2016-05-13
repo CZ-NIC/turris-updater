@@ -1,0 +1,23 @@
+#!/bin/sh /etc/rc.common
+
+START=85
+
+status() {
+	return 0
+}
+
+start() {
+	opkg-trans -e dbg -s dbg -j || true
+}
+
+stop() {
+	:
+}
+
+restart() {
+	:
+}
+
+reload() {
+	:
+}
