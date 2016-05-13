@@ -19,6 +19,7 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 
 require 'lunit'
 local sandbox = require 'sandbox'
+local utils = require 'utils'
 
 module("sandbox-tests", package.seeall, lunit.testcase)
 
@@ -46,8 +47,12 @@ function test_context_new()
 		-- Some are just in some of the contexts
 		if level == "Full" then
 			assert_equal(io, context.env.io)
+			assert_equal(utils, context.env.utils)
+			assert_equal(getmetatable, context.env.getmetatable)
 		else
 			assert_nil(context.env.io)
+			assert_nil(context.env.utils)
+			assert_nil(context.env.getmetatable)
 		end
 		context.env = nil
 		context.level_check = nil
@@ -91,6 +96,8 @@ end
 function test_sandbox_run()
 	local chunk_ok = [[call()]]
 	local chunk_io = [[io.open("/dev/zero")]]
+	local chunk_meta = [[getmetatable({})]]
+	local chunk_private = [[utils.private({})]]
 	local chunk_parse = [[this is invalid lua code!!!!]]
 	local chunk_runtime = [[error("Error!")]]
 	local function test_do(chunk, sec_level, expected, result_called)
@@ -114,6 +121,18 @@ function test_sandbox_run()
 		msg = "[string \"Chunk name\"]:1: attempt to index global 'io' (a nil value)"
 	})
 	test_do(chunk_io, "Full", nil)
+	test_do(chunk_private, "Local", {
+		tp = "error",
+		reason = "runtime",
+		msg = "[string \"Chunk name\"]:1: attempt to index global 'utils' (a nil value)"
+	})
+	test_do(chunk_private, "Full", nil)
+	test_do(chunk_meta, "Local", {
+		tp = "error",
+		reason = "runtime",
+		msg = "[string \"Chunk name\"]:1: attempt to call global 'getmetatable' (a nil value)"
+	})
+	test_do(chunk_meta, "Full", nil)
 	test_do(chunk_parse, "Full", {
 		tp = "error",
 		reason = "compilation",
