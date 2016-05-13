@@ -60,7 +60,7 @@ function required_pkgs(pkgs, requests)
 	-- These are being processed right now. It helps to detect circular dependencies.
 	local processed = {}
 	local plan = {}
-	local function schedule(req)
+	local function schedule(req, action)
 		local name = req.name or req
 		name = name:match('^%S+')
 		DBG("Require " .. name)
@@ -94,7 +94,7 @@ function required_pkgs(pkgs, requests)
 			schedule(d)
 		end
 		local r = {
-			action = "require",
+			action = action or "require",
 			package = src,
 			modifier = mod,
 			name = name
@@ -105,8 +105,12 @@ function required_pkgs(pkgs, requests)
 	end
 	for _, req in ipairs(requests) do
 		if req.tp == 'install' then
-			-- TODO: Handle special stuff, like reinstall, repository...
-			schedule(req.package)
+			-- TODO: Handle special stuff, like repository...
+			if req.reinstall then
+				schedule(req.package, "reinstall")
+			else
+				schedule(req.package)
+			end
 		elseif req.tp == 'uninstall' then
 			error(utils.exception('not implemented', "Uninstall command not handled yet"))
 		end
