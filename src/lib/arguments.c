@@ -24,6 +24,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
+#include <errno.h>
 
 static void result_extend(size_t *count, struct cmd_op **result, enum cmd_op_type type, const char *param) {
 	*result = realloc(*result, ++ (*count) * sizeof **result);
@@ -114,4 +116,42 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[]) {
 	}
 	result_extend(&res_count, &result, COT_EXIT, NULL);
 	return result;
+}
+
+static int back_argc;
+static char **back_argv;
+static char *orig_wd;
+
+void args_backup(int argc, const char **argv) {
+	back_argc = argc;
+	back_argv = malloc((argc + 1) * sizeof *back_argv);
+	back_argv[argc] = NULL;
+	for (int i = 0; i < argc; i ++)
+		back_argv[i] = strdup(argv[i]);
+	size_t s = 0;
+	char *result = NULL;
+	do {
+		s += 1000;
+		orig_wd = realloc(orig_wd, s);
+		result = getcwd(orig_wd, s);
+	} while (result == NULL && errno == ERANGE); // Need more space?
+}
+
+void arg_backup_clear() {
+	for (int i = 0; i < back_argc; i ++)
+		free(back_argv[i]);
+	free(back_argv);
+	free(orig_wd);
+	back_argv = NULL;
+	back_argc = 0;
+	orig_wd = NULL;
+}
+
+void reexec() {
+	ASSERT_MSG(back_argv, "No arguments backed up");
+	// Try restoring the working directory to the original, but don't insist
+	if (orig_wd)
+		chdir(orig_wd);
+	execvp(back_argv[0], back_argv);
+	DIE("Failed to reexec %s: %s", back_argv[0], strerror(errno));
 }

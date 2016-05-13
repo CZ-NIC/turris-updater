@@ -22,6 +22,7 @@ local ipairs = ipairs
 local INFO = INFO
 local md5 = md5
 local sha256 = sha256
+local reexec = reexec
 local sandbox = require "sandbox"
 local uri = require "uri"
 local postprocess = require "postprocess"
@@ -31,6 +32,8 @@ local backend = require "backend"
 local transaction = require "transaction"
 
 module "updater"
+
+local cleanup_actions = {}
 
 function prepare(entrypoint)
 	-- Get the top-level script
@@ -82,12 +85,21 @@ function prepare(entrypoint)
 			else
 				error(data)
 			end
+			if task.modifier.replan then
+				cleanup_actions.replan = true
+			end
 		elseif task.action == "remove" then
 			INFO("Queue removal of " .. task.name)
 			transaction.queue_remove(task.name)
 		else
 			DIE("Unknown action " .. task.action)
 		end
+	end
+end
+
+function cleanup()
+	if cleanup_actions.replan then
+		reexec()
 	end
 end
 

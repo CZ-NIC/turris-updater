@@ -20,6 +20,7 @@
 #include "../lib/events.h"
 #include "../lib/interpreter.h"
 #include "../lib/util.h"
+#include "../lib/arguments.h"
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -41,10 +42,11 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
  * The launcher of updater. Currently, everything is hardcoded here.
  * That shall change soon, but we need something to test with.
  */
-int main(int argc __attribute__((unused)), char *argv[]) {
+int main(int argc, char *argv[]) {
 	// Some setup of the machinery
 	log_stderr_level(LL_DBG);
 	log_syslog_level(LL_DBG);
+	args_backup(argc, (const char **)argv);
 	struct events *events = events_new();
 	struct interpreter *interpreter = interpreter_create(events);
 	const char *error = interpreter_autoload(interpreter);
@@ -71,7 +73,10 @@ int main(int argc __attribute__((unused)), char *argv[]) {
 	err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
 	ASSERT_MSG(!err, "%s", err);
 	bool trans_ok = results_interpret(interpreter, result_count);
+	err = interpreter_call(interpreter, "updater.cleanup", NULL, "");
+	ASSERT_MSG(!err, "%s", err);
 	interpreter_destroy(interpreter);
 	events_destroy(events);
+	arg_backup_clear();
 	return trans_ok ? 0 : 1;
 }

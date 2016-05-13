@@ -269,7 +269,8 @@ function test_filter_required()
 			name = "pkg1",
 			package = {
 				Version = "2"
-			}
+			},
+			modifier = {}
 		},
 		{
 			-- Installed in the right version
@@ -277,7 +278,8 @@ function test_filter_required()
 			name = "pkg2",
 			package = {
 				Version = "2"
-			}
+			},
+			modifier = {}
 		},
 		{
 			-- Installed, but we explicitly want to reinstall
@@ -285,7 +287,8 @@ function test_filter_required()
 			name = "pkg3",
 			package = {
 				Version = "3"
-			}
+			},
+			modifier = {}
 		},
 		{
 			-- Installed and we want to remove it
@@ -302,7 +305,8 @@ function test_filter_required()
 			name = "pkg6",
 			package = {
 				Version = "6"
-			}
+			},
+			modifier = {}
 		}
 	}
 	local result = planner.filter_required(status, requests)
@@ -313,7 +317,8 @@ function test_filter_required()
 			name = "pkg3",
 			package = {
 				Version = "3"
-			}
+			},
+			modifier = {}
 		},
 		requests[4],
 		requests[5],
@@ -326,4 +331,32 @@ function test_filter_required()
 		}
 	}
 	assert_table_equal(expected, result)
+end
+
+-- Test we don't schedule anything after a replan package
+function test_replan()
+	local requests = {
+		{
+			action = "require",
+			name = "pkg1",
+			package = {
+				Version = "1"
+			},
+			modifier = {
+				replan = true
+			}
+		},
+		{
+			action = "require",
+			name = "pkg2",
+			package = {
+				Version = "13",
+			},
+			modifier = {}
+		}
+	}
+	local result = planner.filter_required({}, requests)
+	assert_table_equal({
+		requests[1]
+	}, result)
 end

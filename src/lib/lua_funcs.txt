@@ -204,3 +204,8 @@ DataDumper(variable)::
 setenv(name, value)::
   Set the environment variable with the given name to the given value.
   Errors in case of failure, otherwise returns nothing.
+
+reexec()::
+  Try to run the program from the beginning, preserving the command
+  line arguments and working directory. It depends on being set up
+  properly at the start of the program.

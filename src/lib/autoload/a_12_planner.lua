@@ -171,6 +171,15 @@ function filter_required(status, requests)
 			package = status[pkg]
 		})
 	end
+	-- If we are requested to replan after some package, wipe the rest of the plan
+	local wipe = false
+	for i, request in ipairs(result) do
+		if wipe then
+			result[i] = nil
+		elseif request.action == "require" and request.modifier.replan then
+			wipe = true
+		end
+	end
 	return result
 end
 

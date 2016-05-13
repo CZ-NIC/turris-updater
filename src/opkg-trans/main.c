@@ -54,6 +54,7 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 }
 
 int main(int argc, char *argv[]) {
+	args_backup(argc, (const char **)argv);
 	struct events *events = events_new();
 	// Parse the arguments
 	struct cmd_op *ops = cmd_args_parse(argc, argv);
@@ -127,6 +128,7 @@ int main(int argc, char *argv[]) {
 	}
 	interpreter_destroy(interpreter);
 	events_destroy(events);
+	arg_backup_clear();
 	if (exit_type == COT_EXIT) {
 		if (trans_ok)
 			return 0;
