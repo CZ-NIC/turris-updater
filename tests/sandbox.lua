@@ -43,7 +43,7 @@ function test_context_new()
 		assert_equal("function", type(context.level_check))
 		-- There're some common functions in all of them
 		assert_equal(pairs, context.env.pairs)
-		assert_equal(string, context.env.string)
+		assert_table_equal(string, context.env.string)
 		-- Some are just in some of the contexts
 		if level == "Full" then
 			assert_equal(io, context.env.io)
@@ -221,4 +221,22 @@ function test_morpher()
 	local m8 = morpher {"b", m7}
 	m8:morph()
 	assert_table_equal({{"b", {"a"}}}, m8)
+end
+
+-- Check the sandbox can't damage a system library
+function test_syslib()
+	-- Store the original
+	local l = string.lower
+	mock_gen("string.lower", function (...) return l(...) end)
+	local result = sandbox.run_sandboxed([[string.lower = function () return "hello" end]], "Chunk name", "Local")
+	assert_nil(result)
+	local str = "HI"
+	assert_equal("hi", str:lower())
+	-- Everything is allowed inside the full security level
+	local result = sandbox.run_sandboxed([[string.lower = function () return "hello" end]], "Chunk name", "Full")
+	assert_equal("hello", str:lower())
+end
+
+function teardown()
+	mocks_reset()
 end
