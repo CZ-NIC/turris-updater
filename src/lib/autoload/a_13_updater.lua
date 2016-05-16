@@ -23,6 +23,7 @@ local INFO = INFO
 local md5 = md5
 local sha256 = sha256
 local reexec = reexec
+local utils = require "utils"
 local sandbox = require "sandbox"
 local uri = require "uri"
 local postprocess = require "postprocess"
@@ -60,7 +61,7 @@ function prepare(entrypoint)
 	]]
 	for _, task in ipairs(tasks) do
 		if task.action == "require" then
-			task.real_uri = uri(task.package.repo.context, task.package.uri_raw, task.package.repo)
+			task.real_uri = uri(utils.private(task.package.repo).context, task.package.uri_raw, task.package.repo)
 		end
 	end
 	-- Now push all data into the transaction

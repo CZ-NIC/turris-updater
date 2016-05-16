@@ -21,6 +21,7 @@ require 'lunit'
 
 local requests = require "requests"
 local postprocess = require "postprocess"
+local utils = require "utils"
 
 module("postprocess-tests", package.seeall, lunit.testcase)
 
@@ -28,16 +29,16 @@ local function repo_fake(name, uri, ok, content)
 	local result =  {
 		tp = "repository",
 		name = name,
-		repo_uri = uri,
-		index_uri = {
-			[""] = {
-				tp = "uri",
-				uri = uri .. "/Packages",
-				cback = function(self, cback)
-					cback(ok, content)
-				end,
-				events = {}
-			}
+		repo_uri = uri
+	}
+	utils.private(result).index_uri = {
+		[""] = {
+			tp = "uri",
+			uri = uri .. "/Packages",
+			cback = function(self, cback)
+				cback(ok, content)
+			end,
+			events = {}
 		}
 	}
 	return result
@@ -256,7 +257,6 @@ function test_pkg_merge()
 			}
 		}
 	}
-	exp.virt.candidates[1].group = exp.virt
 	-- Fill in default values for the ones that are not mentioned above
 	local modifier_def = {
 		tp = "package",
@@ -278,6 +278,7 @@ function test_pkg_merge()
 		end
 	end
 	assert_table_equal(exp, postprocess.available_packages)
+	assert_table_equal(utils.private(postprocess.available_packages.virt.candidates[1]).group, exp.virt)
 end
 
 function teardown()

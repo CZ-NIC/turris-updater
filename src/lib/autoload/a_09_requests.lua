@@ -142,8 +142,7 @@ function repository(result, context, name, repo_uri, extra)
 	end
 	utils.table_merge(result, extra)
 	result.repo_uri = repo_uri
-	-- FIXME: This needs to be hidden so it can't be manipulated from inside the sandbox (possibly other fields as well)
-	result.context = context
+	utils.private(result).context = context
 	--[[
 	Start the download. This way any potential access violation is reported
 	right away. It also allows for some parallel downloading while we process
@@ -153,14 +152,14 @@ function repository(result, context, name, repo_uri, extra)
 	part of the extra.
 	]]
 	if extra.subdirs then
-		result.index_uri = {}
+		utils.private(result).index_uri = {}
 		for _, sub in pairs(extra.subdirs) do
 			sub = "/" .. sub
-			result.index_uri[sub] = uri(context, repo_uri .. sub .. '/Packages.gz', result)
+			utils.private(result).index_uri[sub] = uri(context, repo_uri .. sub .. '/Packages.gz', result)
 		end
 	else
 		local u = result.index or repo_uri .. '/Packages.gz'
-		result.index_uri = {[""] = uri(context, u, result)}
+		utils.private(result).index_uri = {[""] = uri(context, u, result)}
 	end
 	result.name = name
 	result.tp = "repository"

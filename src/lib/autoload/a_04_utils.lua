@@ -23,6 +23,7 @@ local next = next
 local error = error
 local type = type
 local setmetatable = setmetatable
+local getmetatable = getmetatable
 local io = io
 local unpack = unpack
 local events_wait = events_wait
@@ -157,6 +158,25 @@ function multi_index(table, ...)
 		end
 	end
 	return table
+end
+
+--[[
+Provide a hidden table on a given table. It uses a meta table
+(and it expects the thing doesn't have one!).
+
+If there's no hidden table yet, one is created. Otherwise,
+the current one is returned.
+]]
+function private(tab)
+	local meta = getmetatable(tab)
+	if not meta then
+		meta = {}
+		setmetatable(tab, meta)
+	end
+	if not meta.private then
+		meta.private = {}
+	end
+	return meta.private
 end
 
 return _M

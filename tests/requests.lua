@@ -55,31 +55,37 @@ end
 
 function test_repository()
 	local r1 = run_sandbox_fun "Repository 'test-repo' 'http://example.org/repo'"
-	r1.context = nil
 	assert_table_equal({
 		tp = "repository",
 		name = "test-repo",
-		repo_uri = "http://example.org/repo",
-		index_uri = {[""] = {u = "http://example.org/repo/Packages.gz"}}
+		repo_uri = "http://example.org/repo"
 	}, r1)
+	utils.private(r1).context = nil
+	assert_table_equal({
+		index_uri = {[""] = {u = "http://example.org/repo/Packages.gz"}}
+	}, utils.private(r1))
 	local r2 = run_sandbox_fun "Repository 'test-repo-2' 'http://example.org/repo-2' {subdirs = {'a', 'b'}}"
-	r2.context = nil
 	assert_table_equal({
 		tp = "repository",
 		name = "test-repo-2",
 		repo_uri = "http://example.org/repo-2",
-		subdirs = {'a', 'b'},
-		index_uri = {["/a"] = {u = "http://example.org/repo-2/a/Packages.gz"}, ["/b"] = {u = "http://example.org/repo-2/b/Packages.gz"}}
+		subdirs = {'a', 'b'}
 	}, r2)
+	utils.private(r2).context = nil
+	assert_table_equal({
+		index_uri = {["/a"] = {u = "http://example.org/repo-2/a/Packages.gz"}, ["/b"] = {u = "http://example.org/repo-2/b/Packages.gz"}}
+	}, utils.private(r2))
 	local r3 = run_sandbox_fun "Repository 'test-repo-other' 'http://example.org/repo-other' {index = 'https://example.org/repo-other/Packages.gz'}"
-	r3.context = nil
 	assert_table_equal({
 		tp = "repository",
 		name = "test-repo-other",
 		repo_uri = "http://example.org/repo-other",
-		index = "https://example.org/repo-other/Packages.gz",
-		index_uri = {[""] = {u = "https://example.org/repo-other/Packages.gz"}}
+		index = "https://example.org/repo-other/Packages.gz"
 	}, r3)
+	utils.private(r3).context = nil
+	assert_table_equal({
+		index_uri = {[""] = {u = "https://example.org/repo-other/Packages.gz"}}
+	}, utils.private(r3))
 	assert_table_equal(utils.exception("bad value", "There's no extra option typo for a repository"), sandbox.run_sandboxed("Repository 'test-repo' 'http://example.org/repo' {typo = true}", "Test chunk", "Restricted"))
 	assert_table_equal({
 		["test-repo"] = r1,
