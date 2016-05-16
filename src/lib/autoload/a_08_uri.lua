@@ -168,9 +168,15 @@ function wait(...)
 	events_wait(unpack(events))
 end
 
-local function tmpstore(content)
+local function tempfile()
 	local fname = os.tmpname()
-	local f = io.open(fname, "w")
+	local f, err = io.open(fname, "w")
+	if not f then DIE(err) end
+	return fname, f
+end
+
+local function tmpstore(content)
+	local fname, f = tempfile()
 	f:write(content)
 	f:close()
 	return fname
@@ -264,9 +270,8 @@ function new(context, uri, verification)
 			ca_context = sandbox.new('Full', context)
 		end
 		local function pem_get(uris, context)
-			local fname = os.tmpname()
+			local fname, f = tempfile()
 			table.insert(tmp_files, fname)
-			local f = io.open(fname, "w")
 			if type(uris) == 'string' then
 				uris = {uris}
 			end
