@@ -82,10 +82,13 @@ function required_pkgs(pkgs, requests)
 			]]
 			error(utils.exception('inconsistent', "Circular dependency containing " .. req))
 		end
-		processed[candidates] = true
 		-- TODO: Take care of standalone packages and virtual packages somehow.
 		local src = candidates.candidates[1]
 		local mod = candidates.modifier
+		processed[candidates] = true
+		if not src or not mod then
+			error(utils.exception('inconsistent', "Package " .. name .. " does not exist"))
+		end
 		-- Require the dependencies
 		for d in pairs(mod.deps) do
 			schedule(d)
