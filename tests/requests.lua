@@ -196,6 +196,15 @@ function test_script_pass_validation()
 	-- TODO: Any idea how to steal the internal context and look into it?
 end
 
+function test_script_err_propagate()
+	mocks_reset()
+	local err = sandbox.run_sandboxed([[
+		Script "test-script" "data:,error()"
+	]], "Test chunk", "Restricted")
+	assert_table(err)
+	assert_equal("error", err.tp)
+end
+
 function setup()
 	-- Don't download stuff now
 	mock_gen("uri.new", function (context, u) return {u = u} end, true)
