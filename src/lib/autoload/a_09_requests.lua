@@ -194,6 +194,7 @@ local function content_request(context, cmd, allowed, ...)
 	local function submit(extras)
 		for _, pkg in ipairs(batch) do
 			pkg = package_wrap(context, pkg)
+			DBG("Request " .. cmd .. " of " .. (pkg.name or pkg))
 			local request = {
 				package = pkg,
 				tp = cmd

@@ -113,6 +113,8 @@ function required_pkgs(pkgs, requests)
 			end
 		elseif req.tp == 'uninstall' then
 			error(utils.exception('not implemented', "Uninstall command not handled yet"))
+		else
+			error(utils.exception('bad value', "Unknown type " .. tostring(req.tp)))
 		end
 	end
 	return plan
