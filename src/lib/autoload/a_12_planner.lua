@@ -131,7 +131,9 @@ requests to remove not required packages.
 function filter_required(status, requests)
 	local installed = {}
 	for pkg, desc in pairs(status) do
-		installed[pkg] = desc.Version or ""
+		if not desc.Status or desc.Status[3] == "installed" then
+			installed[pkg] = desc.Version or ""
+		end
 	end
 	local unused = utils.clone(installed)
 	local result = {}
