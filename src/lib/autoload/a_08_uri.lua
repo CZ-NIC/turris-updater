@@ -28,9 +28,14 @@ local pairs = pairs
 local tonumber = tonumber
 local tostring = tostring
 local pcall = pcall
+local type = type
+local require = require
 local unpack = unpack
 local setmetatable = setmetatable
 local table = table
+local os = os
+local io = io
+local file = file
 local string = string
 local events_wait = events_wait
 local download = download
@@ -73,8 +78,7 @@ local function base64_decode(data)
 end
 -- End of borrowed function.
 
-local function handler_data(context, uri, verification, err_cback, done_cback)
-	-- Ignore context or verification here
+local function handler_data(uri, err_cback, done_cback)
 	local params, data = uri:match('^data:([^,]*),(.*)')
 	if not data then
 		return err_cback(utils.exception("malformed URI", "It doesn't look like data URI"))
@@ -98,10 +102,7 @@ local function handler_data(context, uri, verification, err_cback, done_cback)
 	done_cback(data)
 end
 
-local function handler_file(context, uri, verification, err_cback, done_cback)
-	if not context:level_check("Local") then
-		error(utils.exception("access violation", "At least local level required for file:// URI"))
-	end
+local function handler_file(uri, err_cback, done_cback)
 	local fname = uri:match('^file://(.*)')
 	if not fname then
 		return err_cback(utils.exception("malformed URI", "Not a file:// URI"))
@@ -115,28 +116,44 @@ local function handler_file(context, uri, verification, err_cback, done_cback)
 	if (not ok) or (not content) then
 		return err_cback(utils.exception("unreachable", tostring(content or err)))
 	end
-	-- TODO: Verification
 	done_cback(content)
 end
 
 -- Actually, both for http and https
-local function handler_http(context, uri, verification, err_cback, done_cback)
-	-- TODO: Check with the context if we are allowed
-	-- TODO: Certificate handling
+local function handler_http(uri, err_cback, done_cback, ca, crl)
 	return download(function (status, answer)
 		if status == 200 then
 			done_cback(answer)
 		else
 			err_cback(utils.exception("unreachable", tostring(answer)))
 		end
-	end, uri)
+	end, uri, ca, crl)
 end
 
 local handlers = {
-	data = handler_data,
-	file = handler_file,
-	http = handler_http,
-	https = handler_http
+	data = {
+		handler = handler_data,
+		immediate = true,
+		def_verif = 'none',
+		sec_level = 'Restricted'
+	},
+	file = {
+		handler = handler_file,
+		immediate = true,
+		def_verif = 'none',
+		sec_level = 'Local'
+	},
+	http = {
+		handler = handler_http,
+		def_verif = 'sig',
+		sec_level = 'Restricted'
+	},
+	https = {
+		handler = handler_http,
+		can_check_cert = true,
+		def_verif = 'both',
+		sec_level = 'Restricted'
+	}
 }
 
 function wait(...)
@@ -151,7 +168,38 @@ function wait(...)
 	events_wait(unpack(events))
 end
 
-function new(context, uri, verification)
+local function tempfile()
+	local fname = os.tmpname()
+	local f, err = io.open(fname, "w")
+	if not f then DIE(err) end
+	return fname, f
+end
+
+local function tmpstore(content)
+	local fname, f = tempfile()
+	f:write(content)
+	f:close()
+	return fname
+end
+
+function signature_check(content, key, signature)
+	local ok
+	local fcontent = tmpstore(content)
+	local fkey = tmpstore(key)
+	local fsig = tmpstore(signature)
+	events_wait(run_command(function (ecode)
+		ok = (ecode == 0)
+	end, nil, nil, -1, -1, '/usr/bin/usign', '-V', '-p', fkey, '-x', fsig, '-m', fcontent))
+	os.remove(fcontent)
+	os.remove(fkey)
+	os.remove(fsig)
+	return ok
+end
+
+local allowed_verifications = utils.arr2set({'none', 'cert', 'sig', 'both'})
+
+-- Parse the uri and throw an error or return the handler for it
+function parse(context, uri)
 	local schema = uri:match('^(%a+):')
 	if not schema then
 		error(utils.exception("bad value", "Malformed URI " .. uri))
@@ -160,14 +208,138 @@ function new(context, uri, verification)
 	if not handler then
 		error(utils.exception("bad value", "Unknown URI schema " .. schema))
 	end
-	-- Prepare the result and callbacks into the handler
+	if not context:level_check(handler.sec_level) then
+		error(utils.exception("access violation", "At least " .. handler.sec_level .. " level required for " .. schema .. " URI"))
+	end
+	return handler
+end
+
+function new(context, uri, verification)
+	local handler = parse(context, uri)
+	-- TODO: Check restricted URIs
+	-- Prepare verification
+	verification = verification or {}
+	-- Try to find out verification parameter, in the verification argument, in the context or use a default. Should it be checked as URI (if it is uri)?
+	local function ver_lookup(field, default)
+		if verification[field] ~= nil then
+			return verification[field], true
+		elseif context[field] ~= nil then
+			return context[field], false
+		else
+			return default, false
+		end
+	end
 	local result = {
 		tp = "uri",
 		done = false,
+		done_primary = false,
 		uri = uri,
 		callbacks = {},
 		events = {}
 	}
+	local tmp_files = {}
+	-- Called when everything is done, to remove some temporary files (will not be needed once we move to libcurl)
+	local function cleanup()
+		for _, fname in ipairs(tmp_files) do
+			os.remove(fname)
+		end
+		tmp_files = {}
+	end
+	-- Soft failure during the preparation
+	local function give_up(err)
+		result.done = true
+		result.err = err
+		result.events = {}
+		cleanup()
+		return result
+	end
+	local vermode = ver_lookup('verification', handler.def_verif)
+	if not allowed_verifications[vermode] then
+		error(utils.exception('bad value', "Unknown verification mode " .. vermode))
+	end
+	local do_cert = handler.can_check_cert and (vermode == 'both' or vermode == 'cert')
+	local use_ca, use_crl
+	if do_cert then
+		local ca, ca_sec_check = ver_lookup('ca')
+		local ca_context
+		if ca_sec_check then
+			ca_context = context
+		else
+			-- The ca URI comes from within the context, so it is already checked for security level - allow it through
+			local sandbox = require "sandbox"
+			ca_context = sandbox.new('Full', context)
+		end
+		local function pem_get(uris, context)
+			local fname, f = tempfile()
+			table.insert(tmp_files, fname)
+			if type(uris) == 'string' then
+				uris = {uris}
+			end
+			if type(uris) == 'table' then
+				for _, curi in ipairs(uris) do
+					local u = new(context, curi, {verification = 'none'})
+					local ok, content = u:get()
+					if not ok then
+						give_up(content)
+						return nil
+					end
+					f:write(content)
+				end
+			else
+				error(utils.exception('bad value', "The ca and crl must be either string or table, not " .. type(uris)))
+			end
+			f:close()
+			return fname
+		end
+		use_ca = pem_get(ca, ca_context)
+		if not use_ca then
+			return use_ca
+		end
+		local crl, crl_sec_check = ver_lookup('crl')
+		if crl then
+			local crl_context
+			if crl_sec_check then
+				crl_context = context
+			elseif ca_sec_check then
+				-- The CA used the provided context, but we don't want it
+				local sandbox = require "sandbox"
+				crl_context = sandbox.new('Full', context)
+			else
+				-- The CA created its own context, reuse that one
+				crl_context = ca_context
+			end
+			use_crl = pem_get(crl, crl_context)
+			if not use_crl then
+				return result
+			end
+		end
+	end
+	local do_sig = vermode == 'both' or vermode == 'sig'
+	local sig_data
+	local sig_pubkeys = {}
+	local sub_uris = {}
+	if do_sig then
+		-- As we check the signature after we download everything, just schedule it now
+		local sig_uri = verification.sig or uri .. ".sig"
+		local veri = 'none'
+		if do_cert then veri = 'cert' end -- If the main resource checks cert, the .sig should too
+		sig_data = new(context, sig_uri, {verification = 'cert'})
+		table.insert(sub_uris, sig_data)
+		local pubkeys = ver_lookup('pubkey')
+		if type(pubkeys) == 'string' then
+			pubkeys = {pubkeys}
+		end
+		if type(pubkeys) == 'table' then
+			for _, uri in ipairs(pubkeys) do
+				local u = new(context, uri, {verification = 'none'})
+				table.insert(sub_uris, u)
+				table.insert(sig_pubkeys, u)
+			end
+		else
+			error(utils.exception('bad value', "The pubkey must be either string or table, not " .. type(uris)))
+		end
+	end
+	-- Prepare the result and callbacks into the handler
 	function result:ok()
 		if self.done then
 			return self.err == nil
@@ -179,8 +351,55 @@ function new(context, uri, verification)
 		wait(self)
 		return self:ok(), self.content or self.err
 	end
+	local wait_sub_uris = #sub_uris
 	local function dispatch()
+		if result.done_primary and wait_sub_uris == 0 and not result.done then
+			result.done = true
+			if do_sig and result.err == nil then
+				local ok, signature = sig_data:get()
+				if ok then
+					local found = false
+					local key_broken = false
+					local function sigval(content)
+						for _, key in ipairs(sig_pubkeys) do
+							local ok, k = key:get()
+							if ok then
+								if signature_check(content, k, signature) then
+									found = true
+									break
+								end
+							else
+								key_broken = true
+							end
+						end
+					end
+					sigval(result.content)
+					if not found and result.content:sub(1, 2) == string.char(0x1F, 0x8B) then
+						-- Try once more with gzip decompressed
+						function gzip_done(ecode, killed, stdout)
+							if ecode == 0 then
+								sigval(stdout)
+							end
+						end
+						events_wait(run_command(gzip_done, nil, result.content, -1, -1, '/bin/gzip', '-c', '-d'))
+					end
+					if not found then
+						local msg = "Signature validation failed"
+						if key_broken then
+							msg = msg .. " (some keys are missing)"
+						end
+						result.err = utils.exception("corruption", msg)
+						result.content = nil
+					end
+				else
+					result.err = signature
+					result.content = nil
+				end
+			end
+		end
 		if result.done then
+			cleanup()
+			result.events = {}
 			for _, cback in ipairs(result.callbacks) do
 				cback(result:get())
 			end
@@ -192,22 +411,27 @@ function new(context, uri, verification)
 		dispatch()
 	end
 	local function err_cback(err)
-		result.done = true
+		result.done_primary = true
 		result.err = err
-		result.events = {}
 		dispatch()
 	end
 	local function done_cback(content)
-		result.done = true
+		result.done_primary = true
 		result.content = content
-		result.events = {}
 		dispatch()
 	end
-	--[[
-	It can actually raise an error if that uri is not allowed in the given content.
-	Things like non-existing file is reported through the err_cback
-	]]
-	result.events = {handler(context, uri, verification, err_cback, done_cback)}
+	result.events = {handler.handler(uri, err_cback, done_cback, use_ca, use_crl)}
+	-- Wait for the sub uris and include them in our events
+	local function sub_cback()
+		wait_sub_uris = wait_sub_uris - 1
+		dispatch()
+	end
+	for _, subu in ipairs(sub_uris) do
+		subu:cback(sub_cback)
+		for _, e in ipairs(subu.events) do
+			table.insert(result.events, e)
+		end
+	end
 	return result
 end
 

@@ -173,6 +173,29 @@ function test_script_level_transition()
 	end
 end
 
+function test_script_pass_validation()
+	mocks_reset()
+	local function bad(opts, msg, exctype)
+		local err = sandbox.run_sandboxed([[
+			Script "test-script" "data:," { security = 'Restricted']] .. opts .. [[ }
+		]], "Test chunk", "Restricted")
+		assert_table_equal(utils.exception(exctype or "bad value", msg), err)
+	end
+	-- Bad extra option
+	bad(", invalid = true", "There's no extra option invalid for the Script command")
+	-- Bad uri inside something
+	bad(", verification = 'sig', pubkey = 'invalid://'", "Unknown URI schema invalid")
+	-- Even when not used
+	bad(", pubkey = 'invalid://'", "Unknown URI schema invalid")
+	-- We don't allow this URI in the given context (even if it is not directly used)
+	bad(", pubkey = 'file:///dev/null'", "At least Local level required for file URI", "access violation")
+	-- But we allow it if there's a high enough level
+	assert_nil(sandbox.run_sandboxed([[
+		Script "test-script" "data:," { security = 'Restricted', pubkey = 'file:///dev/null' }
+	]], "Test chunk", "Local"))
+	-- TODO: Any idea how to steal the internal context and look into it?
+end
+
 function setup()
 	-- Don't download stuff now
 	mock_gen("uri.new", function (context, u) return {u = u} end, true)

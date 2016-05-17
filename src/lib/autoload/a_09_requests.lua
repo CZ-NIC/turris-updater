@@ -51,7 +51,8 @@ local allowed_package_extras = utils.arr2set({
 	"verification",
 	"sig",
 	"pubkey",
-	"ca"
+	"ca",
+	"crl"
 })
 
 --[[
@@ -113,7 +114,8 @@ local allowed_repository_extras = utils.arr2set({
 	"verification",
 	"sig",
 	"pubkey",
-	"ca"
+	"ca",
+	"crl"
 })
 
 --[[
@@ -228,7 +230,46 @@ function uninstall(result, context, ...)
 	return content_request(context, "uninstall", allowed_uninstall_extras, ...)
 end
 
+local allowed_script_extras = utils.arr2set({
+	"security",
+	"restrict",
+	"verification",
+	"sig",
+	"pubkey",
+	"ca",
+	"crl"
+})
+
+local function uri_validate(name, value, context)
+	if type(value) == 'string' then
+		value = {value}
+	end
+	if type(value) ~= 'table' then
+		error('bad value', name .. " must be string or table")
+	end
+	for _, u in ipairs(value) do
+		uri.parse(context, u)
+	end
+end
+
+--[[
+We want to insert these options into the new context, if they exist.
+The value may be a function, then it is used to validate the value
+from the extra options.
+]]
+local script_insert_options = {
+	restrict = true,
+	pubkey = uri_validate,
+	ca = uri_validate,
+	crl = uri_validate
+}
+
 function script(result, context, name, script_uri, extra)
+	for name in pairs(extra) do
+		if allowed_script_extras[name] == nil then
+			error(utils.exception("bad value", "There's no extra option " .. name .. " for the Script command"))
+		end
+	end
 	local u = uri(context, script_uri, extra)
 	local ok, content = u:get()
 	if not ok then
@@ -241,7 +282,17 @@ function script(result, context, name, script_uri, extra)
 		error(utils.exception("access violation", "Attempt to raise security level from " .. tostring(context.sec_level) .. " to " .. extra.security))
 	end
 	-- TODO handle restrict option
-	sandbox.run_sandboxed(content, name, extra.security, context)
+	-- Insert the data related to validation, so scripts inside can reuse the info
+	local merge = {}
+	for name, check in pairs(script_insert_options) do
+		if extra[name] ~= nil then
+			if type(check) == 'function' then
+				check(name, extra[name], context)
+			end
+			merge[name] = utils.clone(extra[name])
+		end
+	end
+	sandbox.run_sandboxed(content, name, extra.security, context, merge)
 	-- Return a dummy handle, just as a formality
 	result.tp = script
 	result.name = name

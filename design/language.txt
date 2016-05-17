@@ -166,6 +166,10 @@ pubkey::
 ca::
   An URI or table of URIs with trusted SSL certificate authorities, in
   PEM format. Similar notes as with `pubkey` apply.
+crl::
+  An URI or table of URIs with CRLs relevant to the server. If not
+  set, CRL is not checked. Note that the `crl` field is also
+  inherited, therefore you may want to reset it manually to nil.
 
 The file signature is verified using the `usign` utility.
 
@@ -254,6 +258,7 @@ verification::
 sig::
 pubkey::
 ca::
+crl::
   Options to verify the script integrity.
 
 Repository
@@ -317,6 +322,7 @@ verification::
 sig::
 pubkey::
 ca::
+crl::
   Options to verify the index integrity.
 
 Uninstall
@@ -473,6 +479,7 @@ verification::
 sig::
 pubkey::
 ca::
+crl::
   Options to verify the package integrity, if the content option is
   specified. These are ignored in virtual packages and packages from a
   repository.
