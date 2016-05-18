@@ -287,9 +287,13 @@ function new(sec_level, parent)
 	result.sec_level = sec_level
 	-- Construct a new environment
 	result.env = {}
+	local inject = utils.clone
+	if sec_level >= level("Full") then
+		inject = function (...) return ... end
+	end
 	for n, v in pairs(sec_level.f) do
 		if v.mode == "inject" then
-			result.env[n] = v.value
+			result.env[n] = inject(v.value)
 		elseif v.mode == "wrap" then
 			result.env[n] = function(...)
 				return v.value(result, ...)
