@@ -61,7 +61,15 @@ function prepare(entrypoint)
 	]]
 	for _, task in ipairs(tasks) do
 		if task.action == "require" then
-			task.real_uri = uri(utils.private(task.package.repo).context, task.package.uri_raw, task.package.repo)
+			-- Strip sig verification off, packages from repos don't have their own .sig files, but they are checked by hashes in the (already checked) index.
+			local veriopts = utils.shallow_copy(task.package.repo)
+			local veri = veriopts.verification or utils.private(task.package.repo).context.verification
+			if veri == 'both' then
+				veriopts.verification = 'cert'
+			elseif veri == 'sig' then
+				veriopts.verification = 'none'
+			end
+			task.real_uri = uri(utils.private(task.package.repo).context, task.package.uri_raw, veriopts)
 		end
 	end
 	-- Now push all data into the transaction

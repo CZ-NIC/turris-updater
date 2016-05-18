@@ -122,6 +122,19 @@ function clone(data)
 	return clone_internal(data)
 end
 
+-- Make a shallow copy of passed data structure. Same limitations as with clone.
+function shallow_copy(data)
+	if type(data) == 'table' then
+		local result = {}
+		for k, v in pairs(data) do
+			result[k] = v
+		end
+		return result
+	else
+		return data
+	end
+end
+
 -- Add all elements of src to dest
 function table_merge(dest, src)
 	for k, v in pairs(src) do

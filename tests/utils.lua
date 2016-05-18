@@ -79,6 +79,20 @@ function test_clone()
 	assert_not_equal(i2, o2)
 end
 
+function test_shallow_copy()
+	local input = {
+		x = 1,
+		y = 2,
+		z = {
+			a = 3
+		}
+	}
+	local output = U.shallow_copy(input)
+	assert_table_equal(input, output)
+	assert_not_equal(input, output)
+	assert_equal(input.z, output.z)
+end
+
 function test_table_merge()
 	local t1 = {}
 	local t2 = {a = 1, b = 2}
