@@ -238,6 +238,7 @@ function pkg_aggregate()
 				-- Pick the highest value for the reboot (handle the case when there's no reboot flag)
 				modifier.reboot = m.reboot
 			end
+			modifier.replan = modifier.replan or m.replan
 		end
 		pkg_group.modifier = modifier
 		-- We merged them together, they are no longer needed separately

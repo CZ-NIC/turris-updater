@@ -222,6 +222,7 @@ function test_pkg_merge()
 		{
 			tp = 'package',
 			name = 'xyz',
+			replan = true,
 			deps = {"another", "xyz"}
 		},
 		{
@@ -253,7 +254,8 @@ function test_pkg_merge()
 				name = "xyz",
 				order_after = {abc = true},
 				deps = utils.arr2set({"abc", "another", "xyz"}),
-				reboot = "finished"
+				reboot = "finished",
+				replan = true
 			}
 		}
 	}
