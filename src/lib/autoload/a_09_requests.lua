@@ -295,7 +295,7 @@ function script(result, context, name, script_uri, extra)
 			merge[name] = utils.clone(extra[name])
 		end
 	end
-	local err = sandbox.run_sandboxed(content, name, extra.security, context)
+	local err = sandbox.run_sandboxed(content, name, extra.security, context, merge)
 	if err then
 		if not err.origin then
 			err.oririn = script_uri
