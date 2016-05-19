@@ -58,18 +58,20 @@ function test_repository()
 	assert_table_equal({
 		tp = "repository",
 		name = "test-repo",
-		repo_uri = "http://example.org/repo"
+		repo_uri = "http://example.org/repo",
+		priority = 50
 	}, r1)
 	utils.private(r1).context = nil
 	assert_table_equal({
 		index_uri = {[""] = {u = "http://example.org/repo/Packages.gz"}}
 	}, utils.private(r1))
-	local r2 = run_sandbox_fun "Repository 'test-repo-2' 'http://example.org/repo-2' {subdirs = {'a', 'b'}}"
+	local r2 = run_sandbox_fun "Repository 'test-repo-2' 'http://example.org/repo-2' {subdirs = {'a', 'b'}, priority = 60}"
 	assert_table_equal({
 		tp = "repository",
 		name = "test-repo-2",
 		repo_uri = "http://example.org/repo-2",
-		subdirs = {'a', 'b'}
+		subdirs = {'a', 'b'},
+		priority = 60
 	}, r2)
 	utils.private(r2).context = nil
 	assert_table_equal({
@@ -80,7 +82,8 @@ function test_repository()
 		tp = "repository",
 		name = "test-repo-other",
 		repo_uri = "http://example.org/repo-other",
-		index = "https://example.org/repo-other/Packages.gz"
+		index = "https://example.org/repo-other/Packages.gz",
+		priority = 50
 	}, r3)
 	utils.private(r3).context = nil
 	assert_table_equal({

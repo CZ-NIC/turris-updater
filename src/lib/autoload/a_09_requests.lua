@@ -163,6 +163,7 @@ function repository(result, context, name, repo_uri, extra)
 		local u = result.index or repo_uri .. '/Packages.gz'
 		utils.private(result).index_uri = {[""] = uri(context, u, result)}
 	end
+	result.priority = result.priority or 50
 	result.name = name
 	result.tp = "repository"
 	known_repositories[name] = result
