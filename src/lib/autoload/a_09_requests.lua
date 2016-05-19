@@ -127,6 +127,9 @@ known_repositories = {}
 -- One with all the repositories, even if there are name collisions
 known_repositories_all = {}
 
+-- Order of the repositories as they are parsed
+repo_serial = 1
+
 --[[
 Promise of a future repository. The repository shall be downloaded after
 all the configuration scripts are run, parsed and used as a source of
@@ -164,6 +167,8 @@ function repository(result, context, name, repo_uri, extra)
 		utils.private(result).index_uri = {[""] = uri(context, u, result)}
 	end
 	result.priority = result.priority or 50
+	result.serial = repo_serial
+	repo_serial = repo_serial + 1
 	result.name = name
 	result.tp = "repository"
 	known_repositories[name] = result
