@@ -23,12 +23,29 @@ local type = type
 local tostring = tostring
 local error = error
 local table = table
-local DataDumper = DataDumper
 local DIE = DIE
 local DBG = DBG
+local WARN = WARN
 local utils = utils
 
 module "planner"
+
+--[[
+Choose the best candidate to install.
+]]
+function candidate_choose(candidates, name)
+	-- First choose the candidates from the repositories with the highest priority
+	candidates = utils.filter_best(candidates, function (c) return c.repo.priority end, function (_1, _2) return _1 > _2 end)
+	-- Then according to package versions
+	-- FIXME: The function for comparing versions doesn't work
+	candidates = utils.filter_best(candidates, function (c) return c.Version end, function (_1, _2) return _1 > _2 end)
+	-- Then according to the repo order
+	candidates = utils.filter_best(candidates, function (c) return c.repo.serial end, function (_1, _2) return _1 < _2 end)
+	if #candidates > 1 then
+		WARN("Multiple best candidates for " .. name)
+	end
+	return candidates[1]
+end
 
 --[[
 Take list of available packages (in the format of pkg candidate groups
@@ -51,8 +68,7 @@ constructed from package objects during the aggregation, holding additional proc
 info (hooks, etc).
 
 TODO: The current version is very tentative and minimal. It ignores any specialities
-like package versions, alternative dependencies, blocks or enforced order. If there
-are multiple candidates to install, it just picks one of them at random.
+like package versions, alternative dependencies, blocks or enforced order.
 ]]
 function required_pkgs(pkgs, requests)
 	-- These are already scheduled to be installed
@@ -84,7 +100,7 @@ function required_pkgs(pkgs, requests)
 		end
 		processed[candidates] = true
 		-- TODO: Take care of standalone packages and virtual packages somehow.
-		local src = candidates.candidates[1]
+		local src = candidate_choose(candidates.candidates, name)
 		local mod = candidates.modifier
 		-- Require the dependencies
 		for d in pairs(mod.deps) do
