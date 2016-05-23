@@ -392,14 +392,23 @@ static struct bufferevent *output_setup(struct event_base *base, int fd, struct 
 	return result;
 }
 
+static void nonblock(int fd) {
+	int flags = fcntl(fd, F_GETFL, 0);
+	ASSERT_MSG(flags >= 0, "Failed to get FD flags: %s", strerror(errno));
+	ASSERT_MSG(fcntl(fd, F_SETFL, flags | O_NONBLOCK) >= 0, "Failed to set FD flags: %s", strerror(errno));
+}
+
 static struct wait_id register_command(struct events *events, command_callback_t callback, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, int in_pipe[2], int out_pipe[2], int err_pipe[2], pid_t child) {
-	// TODO: Close the remote ends of the pipes
+	// Close the remote ends of the pipes
 	ASSERT(close(in_pipe[0]) != -1);
 	ASSERT(close(out_pipe[1]) != -1);
 	ASSERT(close(err_pipe[1]) != -1);
 	ASSERT_MSG(fcntl(in_pipe[1], F_SETFD, (long)FD_CLOEXEC) != -1, "Failed to set close on exec on commands stdin pipe: %s", strerror(errno));
+	nonblock(in_pipe[1]);
 	ASSERT_MSG(fcntl(out_pipe[0], F_SETFD, (long)FD_CLOEXEC) != -1, "Failed to set close on exec on commands stdout pipe: %s", strerror(errno));
+	nonblock(out_pipe[0]);
 	ASSERT_MSG(fcntl(err_pipe[0], F_SETFD, (long)FD_CLOEXEC) != -1, "Failed to set close on exec on commands stderr pipe: %s", strerror(errno));
+	nonblock(err_pipe[0]);
 	struct watched_command *command = malloc(sizeof *command);
 	*command = (struct watched_command) {
 		.events = events,
@@ -429,9 +438,9 @@ static struct wait_id register_command(struct events *events, command_callback_t
 struct wait_id run_command_a(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, const char *command, const char **params) {
 	DBG("Running command %s", command);
 	int in_pipe[2], out_pipe[2], err_pipe[2];
-	ASSERT_MSG(pipe(in_pipe) != -1, "Failed to create stdin pipe for %s: %s", command, strerror(errno));
-	ASSERT_MSG(pipe(out_pipe) != -1, "Failed to create stdout pipe for %s: %s", command, strerror(errno));
-	ASSERT_MSG(pipe(err_pipe) != -1, "Failed to create stderr pipe for %s: %s", command, strerror(errno));
+	ASSERT_MSG(socketpair(PF_LOCAL, SOCK_STREAM, 0, in_pipe) != -1, "Failed to create stdin pipe for %s: %s", command, strerror(errno));
+	ASSERT_MSG(socketpair(PF_LOCAL, SOCK_STREAM, 0, out_pipe) != -1, "Failed to create stdout pipe for %s: %s", command, strerror(errno));
+	ASSERT_MSG(socketpair(PF_LOCAL, SOCK_STREAM, 0, err_pipe) != -1, "Failed to create stderr pipe for %s: %s", command, strerror(errno));
 	pid_t child = fork();
 	switch (child) {
 		case -1:
