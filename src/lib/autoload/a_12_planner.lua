@@ -26,7 +26,8 @@ local table = table
 local DIE = DIE
 local DBG = DBG
 local WARN = WARN
-local utils = utils
+local utils = require "utils"
+local backend = require "backend"
 
 module "planner"
 
@@ -37,8 +38,7 @@ function candidate_choose(candidates, name)
 	-- First choose the candidates from the repositories with the highest priority
 	candidates = utils.filter_best(candidates, function (c) return c.repo.priority end, function (_1, _2) return _1 > _2 end)
 	-- Then according to package versions
-	-- FIXME: The function for comparing versions doesn't work
-	candidates = utils.filter_best(candidates, function (c) return c.Version end, function (_1, _2) return _1 > _2 end)
+	candidates = utils.filter_best(candidates, function (c) return c.Version end, function (_1, _2) return backend.version_cmp(_1, _2) == 1 end)
 	-- Then according to the repo order
 	candidates = utils.filter_best(candidates, function (c) return c.repo.serial end, function (_1, _2) return _1 < _2 end)
 	if #candidates > 1 then

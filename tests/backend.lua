@@ -739,6 +739,15 @@ Depends: libc, ubox, libubox, libuci
 ]]))
 end
 
+function test_version_cmp()
+	assert_equal(0, B.version_cmp("1.2.3", "1.2.3"))
+	assert_equal(-1, B.version_cmp("1.2.3", "1.2.4"))
+	assert_equal(1, B.version_cmp("1.3.3", "1.2.4"))
+	assert_equal(-1, B.version_cmp("1.2.3", "1.2.3-2"))
+	assert_equal(-1, B.version_cmp("1.2.3a", "1.2.3c"))
+	assert_equal(1, B.version_cmp("1.10", "1.2"))
+end
+
 function setup()
 	local sdir = os.getenv("S") or "."
 	-- Use a shortened version of a real status file for tests

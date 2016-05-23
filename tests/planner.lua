@@ -125,8 +125,8 @@ function test_deps()
 	local pkgs = {
 		dep1 = {
 			candidates = {
-				{Package = 'dep1', Depends = {}, Version = 1, repo = def_repo},
-				{Package = 'dep1', Depends = {}, Version = 2, repo = def_repo}
+				{Package = 'dep1', Depends = {}, Version = "1", repo = def_repo},
+				{Package = 'dep1', Depends = {}, Version = "2", repo = def_repo}
 			},
 			modifier = {
 				deps = {}
@@ -184,7 +184,7 @@ function test_deps()
 	local expected = {
 		{
 			action = "require",
-			package = {Package = 'dep1', Depends = {}, Version = 2, repo = def_repo},
+			package = {Package = 'dep1', Depends = {}, Version = "2", repo = def_repo},
 			modifier = {
 				deps = {}
 			},
@@ -408,29 +408,29 @@ end
 function test_candidate_choose()
 	local t1 = {
 		{
-			Version = 1,
+			Version = "1",
 			repo = def_repo
 		},
 		{
-			Version = 3,
+			Version = "3",
 			repo = def_repo
 		},
 		{
-			Version = 2,
+			Version = "2",
 			repo = def_repo
 		}
 	}
 	assert_equal(t1[2], planner.candidate_choose(t1, "test"))
 	local t2 = {
 		{
-			Version = 2,
+			Version = "2",
 			repo = {
 				priority = 40,
 				serial = 1
 			}
 		},
 		{
-			Version = 1,
+			Version = "1",
 			repo = {
 				priority = 50,
 				serial = 2
@@ -440,14 +440,14 @@ function test_candidate_choose()
 	assert_equal(t2[2], planner.candidate_choose(t2, "test"))
 	local t3 = {
 		{
-			Version = 1,
+			Version = "1",
 			repo = {
 				priority = 50,
 				serial = 2
 			}
 		},
 		{
-			Version = 1,
+			Version = "1",
 			repo = {
 				priority = 50,
 				serial = 1
@@ -457,11 +457,11 @@ function test_candidate_choose()
 	assert_equal(t3[2], planner.candidate_choose(t3, "test"))
 	local t4 = {
 		{
-			Version = 1,
+			Version = "1",
 			repo = def_repo
 		},
 		{
-			Version = 1,
+			Version = "1",
 			repo = def_repo
 		}
 	}
