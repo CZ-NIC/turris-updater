@@ -741,7 +741,10 @@ function pkg_cleanup_files(files, rm_configs)
 				return f
 			end
 			for parent in get_parent do
-				if next(ls(root_dir .. parent)) then
+				local ok, entries = pcall(ls, root_dir .. parent)
+				if not ok then
+					DBG("Directory " .. root_dir .. parent .. " is already gone")
+				elseif next(entries) then
 					DBG("Directory " .. root_dir .. parent .. " not empty, keeping in place")
 					-- It is not empty
 					break
