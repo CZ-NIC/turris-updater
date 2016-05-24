@@ -220,6 +220,36 @@ START_TEST(command_io) {
 }
 END_TEST
 
+const size_t bsize = 1024 * 1024;
+
+static void stuff_terminated(struct wait_id id __attribute__((unused)), void *data __attribute__((unused)), int status, enum command_kill_status killed, size_t out_size, const char *out __attribute__((unused)), size_t err_size __attribute__((unused)), const char *err __attribute__((unused))) {
+	ck_assert_uint_eq(0, WEXITSTATUS(status));
+	ck_assert_uint_eq(CK_TERMINATED, killed);
+	ck_assert_uint_eq(bsize, out_size);
+}
+
+/*
+ * A test where we try to stuff a LOT of data into the external processes.
+ * It was discovered this sometimes causes a deadlock, because it does
+ * a blocking write (and the program can't read, because it is also blocked
+ * on write).
+ */
+START_TEST(command_stuff) {
+	struct events *events = events_new();
+	const size_t count = 10;
+	struct command_info infos[count];
+	memset(infos, 0, sizeof infos);
+	struct wait_id ids[count];
+	char *buffer = malloc(bsize);
+	memset(buffer, 0, bsize);
+	for (size_t i = 0; i < count; i ++)
+		ids[i] = run_command(events, stuff_terminated, NULL, &infos[i], bsize, buffer, 1000, 5000, "/bin/cat", NULL);
+	events_wait(events, count, ids);
+	events_destroy(events);
+	free(buffer);
+}
+END_TEST
+
 static void download_done_callback(struct wait_id id __attribute__((unused)), void *data __attribute__((unused)), int status, size_t out_size __attribute__((unused)), const char *out) {
 	ck_assert_uint_eq(200, status);
 	const char *res = strstr(out, "Not for your eyes");
@@ -272,6 +302,7 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(commands, command_timeout);
 	tcase_add_loop_test(commands, command_io, 0, 10);
 	tcase_add_test(commands, command_download);
+	tcase_add_loop_test(commands, command_stuff, 0, 10);
 	suite_add_tcase(result, commands);
 	return result;
 }
