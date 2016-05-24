@@ -23,6 +23,8 @@ local planner = require 'planner'
 
 module("planner-tests", package.seeall, lunit.testcase)
 
+local def_repo = {priority = 50, serial = 1}
+
 --[[
 Test installation plan generation when there are no
 dependencies.
@@ -30,13 +32,13 @@ dependencies.
 function test_no_deps()
 	local pkgs = {
 		pkg1 = {
-			candidates = {{Package = 'pkg1', Depends = {}}},
+			candidates = {{Package = 'pkg1', Depends = {}, repo = def_repo}},
 			modifier = {
 				deps = {}
 			}
 		},
 		pkg2 = {
-			candidates = {{Package = 'pkg2'}},
+			candidates = {{Package = 'pkg2', repo = def_repo}},
 			modifier = {
 				deps = {}
 			}
@@ -63,7 +65,7 @@ function test_no_deps()
 	local expected = {
 		{
 			action = "require",
-			package = {Package = 'pkg1', Depends = {}},
+			package = {Package = 'pkg1', Depends = {}, repo = def_repo},
 			modifier = {
 				deps = {}
 			},
@@ -71,7 +73,7 @@ function test_no_deps()
 		},
 		{
 			action = "require",
-			package = {Package = 'pkg2'},
+			package = {Package = 'pkg2', repo = def_repo},
 			modifier = {
 				deps = {}
 			},
@@ -84,7 +86,7 @@ end
 function test_reinstall()
 	local pkgs = {
 		pkg1 = {
-			candidates = {{Package = 'pkg1'}},
+			candidates = {{Package = 'pkg1', repo = def_repo}},
 			modifier = {
 				deps = {}
 			}
@@ -104,7 +106,7 @@ function test_reinstall()
 	local expected = {
 		{
 			action = "reinstall",
-			package = {Package = 'pkg1'},
+			package = {Package = 'pkg1', repo = def_repo},
 			modifier = {
 				deps = {},
 			},
@@ -123,39 +125,39 @@ function test_deps()
 	local pkgs = {
 		dep1 = {
 			candidates = {
-				{Package = 'dep1', Depends = {}, Version = 1},
-				{Package = 'dep1', Depends = {}, Version = 2}
+				{Package = 'dep1', Depends = {}, Version = "1", repo = def_repo},
+				{Package = 'dep1', Depends = {}, Version = "2", repo = def_repo}
 			},
 			modifier = {
 				deps = {}
 			}
 		},
 		dep2 = {
-			candidates = {{Package = 'dep2'}},
+			candidates = {{Package = 'dep2', repo = def_repo}},
 			modifier = {
 				deps = {}
 			}
 		},
 		dep3 = {
-			candidates = {{Package = 'dep3'}},
+			candidates = {{Package = 'dep3', repo = def_repo}},
 			modifier = {
 				deps = {dep1 = true}
 			}
 		},
 		unused = {
-			candidates = {{Package = 'unused'}},
+			candidates = {{Package = 'unused', repo = def_repo}},
 			modifier = {
 				deps = {dep1 = true}
 			}
 		},
 		pkg1 = {
-			candidates = {{Package = 'pkg1', Depends = {}}},
+			candidates = {{Package = 'pkg1', Depends = {}, repo = def_repo}},
 			modifier = {
 				deps = {dep1 = true}
 			}
 		},
 		pkg2 = {
-			candidates = {{Package = 'pkg2', Depends = {'dep2', 'dep3'}}},
+			candidates = {{Package = 'pkg2', Depends = {'dep2', 'dep3'}, repo = def_repo}},
 			modifier = {
 				deps = {}
 			}
@@ -182,7 +184,7 @@ function test_deps()
 	local expected = {
 		{
 			action = "require",
-			package = {Package = 'dep1', Depends = {}, Version = 1},
+			package = {Package = 'dep1', Depends = {}, Version = "2", repo = def_repo},
 			modifier = {
 				deps = {}
 			},
@@ -190,7 +192,7 @@ function test_deps()
 		},
 		{
 			action = "require",
-			package = {Package = 'pkg1', Depends = {}},
+			package = {Package = 'pkg1', Depends = {}, repo = def_repo},
 			modifier = {
 				deps = {dep1 = true}
 			},
@@ -198,7 +200,7 @@ function test_deps()
 		},
 		{
 			action = "require",
-			package = {Package = 'dep2'},
+			package = {Package = 'dep2', repo = def_repo},
 			modifier = {
 				deps = {}
 			},
@@ -206,7 +208,7 @@ function test_deps()
 		},
 		{
 			action = "require",
-			package = {Package = 'dep3'},
+			package = {Package = 'dep3', repo = def_repo},
 			modifier = {
 				deps = {dep1 = true}
 			},
@@ -214,7 +216,7 @@ function test_deps()
 		},
 		{
 			action = "require",
-			package = {Package = 'pkg2', Depends = {'dep2', 'dep3'}},
+			package = {Package = 'pkg2', Depends = {'dep2', 'dep3'}, repo = def_repo},
 			modifier = {
 				deps = {}
 			},
@@ -230,7 +232,7 @@ A dependency doesn't exist. It should fail.
 function test_missing_dep()
 	local pkgs = {
 		pkg = {
-			candidates = {{Package = 'pkg', Depends = {'nothere'}}},
+			candidates = {{Package = 'pkg', Depends = {'nothere'}, repo = def_repo}},
 			modifier = {
 				deps = {}
 			}
@@ -253,13 +255,13 @@ end
 function test_circular_deps()
 	local pkgs = {
 		pkg1 = {
-			candidates = {{Package = 'pkg1', Depends = {'pkg2'}}},
+			candidates = {{Package = 'pkg1', Depends = {'pkg2'}, repo = def_repo}},
 			modifier = {
 				deps = {}
 			}
 		},
 		pkg2 = {
-			candidates = {{Package = 'pkg2'}},
+			candidates = {{Package = 'pkg2', repo = def_repo}},
 			modifier = {
 				deps = {pkg1 = true}
 			}
@@ -301,7 +303,8 @@ function test_filter_required()
 			action = "require",
 			name = "pkg1",
 			package = {
-				Version = "2"
+				Version = "2",
+				repo = def_repo
 			},
 			modifier = {}
 		},
@@ -310,7 +313,8 @@ function test_filter_required()
 			action = "require",
 			name = "pkg2",
 			package = {
-				Version = "2"
+				Version = "2",
+				repo = def_repo
 			},
 			modifier = {}
 		},
@@ -319,7 +323,8 @@ function test_filter_required()
 			action = "reinstall",
 			name = "pkg3",
 			package = {
-				Version = "3"
+				Version = "3",
+				repo = def_repo
 			},
 			modifier = {}
 		},
@@ -328,7 +333,8 @@ function test_filter_required()
 			action = "remove",
 			name = "pkg4",
 			package = {
-				Version = "4"
+				Version = "4",
+				repo = def_repo
 			}
 		},
 		-- The pkg5 is not mentioned, it shall be uninstalled at the end
@@ -337,7 +343,8 @@ function test_filter_required()
 			action = "require",
 			name = "pkg6",
 			package = {
-				Version = "6"
+				Version = "6",
+				repo = def_repo
 			},
 			modifier = {}
 		}
@@ -349,7 +356,8 @@ function test_filter_required()
 			action = "require",
 			name = "pkg3",
 			package = {
-				Version = "3"
+				Version = "3",
+				repo = def_repo
 			},
 			modifier = {}
 		},
@@ -360,6 +368,7 @@ function test_filter_required()
 			name = "pkg5",
 			package = {
 				Version = "5"
+				-- No repo field here, this comes from the status, there are no repositories
 			}
 		}
 	}
@@ -373,7 +382,8 @@ function test_replan()
 			action = "require",
 			name = "pkg1",
 			package = {
-				Version = "1"
+				Version = "1",
+				repo = def_repo
 			},
 			modifier = {
 				replan = true
@@ -384,6 +394,7 @@ function test_replan()
 			name = "pkg2",
 			package = {
 				Version = "13",
+				repo = def_repo
 			},
 			modifier = {}
 		}
@@ -392,4 +403,67 @@ function test_replan()
 	assert_table_equal({
 		requests[1]
 	}, result)
+end
+
+function test_candidate_choose()
+	local t1 = {
+		{
+			Version = "1",
+			repo = def_repo
+		},
+		{
+			Version = "3",
+			repo = def_repo
+		},
+		{
+			Version = "2",
+			repo = def_repo
+		}
+	}
+	assert_equal(t1[2], planner.candidate_choose(t1, "test"))
+	local t2 = {
+		{
+			Version = "2",
+			repo = {
+				priority = 40,
+				serial = 1
+			}
+		},
+		{
+			Version = "1",
+			repo = {
+				priority = 50,
+				serial = 2
+			}
+		}
+	}
+	assert_equal(t2[2], planner.candidate_choose(t2, "test"))
+	local t3 = {
+		{
+			Version = "1",
+			repo = {
+				priority = 50,
+				serial = 2
+			}
+		},
+		{
+			Version = "1",
+			repo = {
+				priority = 50,
+				serial = 1
+			}
+		}
+	}
+	assert_equal(t3[2], planner.candidate_choose(t3, "test"))
+	local t4 = {
+		{
+			Version = "1",
+			repo = def_repo
+		},
+		{
+			Version = "1",
+			repo = def_repo
+		}
+	}
+	assert_equal(t4[1], planner.candidate_choose(t4, "test"))
 end

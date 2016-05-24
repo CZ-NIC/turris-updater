@@ -192,4 +192,36 @@ function private(tab)
 	return meta.private
 end
 
+--[[
+Go through the array, call the property function on each item and compare
+them using the cmp function. Return array of only the values that are the
+best possible (there may be multiple, in case of equivalence).
+
+The cmp returns true in case the first argument is better than the second.
+Equality is compared using ==.
+
+Assumes the array is non-empty. The order of values is preserved.
+]]
+function filter_best(arr, property, cmp)
+	-- Start with empty array, the first item has the same property as the first item, so it gets inserted right away
+	local best = {}
+	local best_idx = 1
+	local best_prop = property(arr[1])
+	for _, v in ipairs(arr) do
+		local prop = property(v)
+		if prop == best_prop then
+			-- The same as the currently best
+			best[best_idx] = v
+			best_idx = best_idx + 1
+		elseif cmp(prop, best_prop) then
+			-- We have a better one ‒ replace all candidates
+			best_prop = prop
+			best = {v}
+			best_idx = 2
+		end
+		-- Otherwise it's worse, so just ignore it
+	end
+	return best
+end
+
 return _M

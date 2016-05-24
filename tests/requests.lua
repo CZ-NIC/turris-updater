@@ -54,22 +54,27 @@ function test_package()
 end
 
 function test_repository()
+	requests.repo_serial = 1
 	local r1 = run_sandbox_fun "Repository 'test-repo' 'http://example.org/repo'"
 	assert_table_equal({
 		tp = "repository",
 		name = "test-repo",
-		repo_uri = "http://example.org/repo"
+		repo_uri = "http://example.org/repo",
+		priority = 50,
+		serial = 1
 	}, r1)
 	utils.private(r1).context = nil
 	assert_table_equal({
 		index_uri = {[""] = {u = "http://example.org/repo/Packages.gz"}}
 	}, utils.private(r1))
-	local r2 = run_sandbox_fun "Repository 'test-repo-2' 'http://example.org/repo-2' {subdirs = {'a', 'b'}}"
+	local r2 = run_sandbox_fun "Repository 'test-repo-2' 'http://example.org/repo-2' {subdirs = {'a', 'b'}, priority = 60}"
 	assert_table_equal({
 		tp = "repository",
 		name = "test-repo-2",
 		repo_uri = "http://example.org/repo-2",
-		subdirs = {'a', 'b'}
+		subdirs = {'a', 'b'},
+		priority = 60,
+		serial = 2
 	}, r2)
 	utils.private(r2).context = nil
 	assert_table_equal({
@@ -80,7 +85,9 @@ function test_repository()
 		tp = "repository",
 		name = "test-repo-other",
 		repo_uri = "http://example.org/repo-other",
-		index = "https://example.org/repo-other/Packages.gz"
+		index = "https://example.org/repo-other/Packages.gz",
+		priority = 50,
+		serial = 3
 	}, r3)
 	utils.private(r3).context = nil
 	assert_table_equal({
@@ -96,6 +103,7 @@ function test_repository()
 	assert_equal(r2, requests.repository_get(r2))
 	assert_nil(requests.repository_get(nil))
 	assert_nil(requests.repository_get("does-not-exist"))
+	assert_equal(4, requests.repo_serial)
 end
 
 function test_install_uninstall()

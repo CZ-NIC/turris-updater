@@ -132,3 +132,18 @@ function test_private()
 	assert_table_equal({}, t)
 	assert_nil(t.private)
 end
+
+function test_filter_best()
+	local input = {
+		{1, 1},
+		{4, 3},
+		{4, 7},
+		{3, 12},
+		{5, 8},
+		{4, 12},
+		{5, 2}
+	}
+	assert_table_equal({{5, 8}, {5, 2}}, U.filter_best(input, function (x) return x[1] end, function (_1, _2) return _1 > _2 end))
+	assert_table_equal({{3, 12}, {4, 12}}, U.filter_best(input, function (x) return x[2] end, function (_1, _2) return _1 > _2 end))
+	assert_table_equal({{1, 1}}, U.filter_best(input, function (x) return x[1] end, function (_1, _2) return _1 < _2 end))
+end
