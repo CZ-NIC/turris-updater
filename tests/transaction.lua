@@ -350,7 +350,7 @@ function test_perform_collision()
 	mock_gen("backend.collision_check", function () return {f = {["<pkg1name>"] = "new", ["<pkg2name>"] = "new", ["other"] = "existing"}}, {} end)
 	mock_gen("backend.pkg_unpack", function (data) return data:gsub("data", "dir") end)
 	mock_gen("backend.pkg_examine", function (dir) return {f = true}, {d = true}, {c = "1234567890123456"}, {Package = dir:gsub("dir", "name")} end)
-	assert_error(function() T.perform({
+	local ok, err = pcall(T.perform, {
 		{
 			op = "install",
 			data = "<pkg1data>"
@@ -359,7 +359,11 @@ function test_perform_collision()
 			op = "install",
 			data = "<pkg2data>"
 		}
-	}) end)
+	})
+	assert_false(ok)
+	-- We can't really check for equality, because the order is not guaranteed. So we check for some snippets
+	assert(err:match("Collisions"))
+	assert(err:match("f: .*other %(existing%)"))
 	local expected = tables_join(intro, {
 		{
 			f = "backend.pkg_unpack",

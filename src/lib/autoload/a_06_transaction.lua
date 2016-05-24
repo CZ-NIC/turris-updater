@@ -121,8 +121,16 @@ end
 local function pkg_collision_check(status, to_remove, to_install)
 	local collisions, removes = backend.collision_check(status, to_remove, to_install)
 	if next(collisions) then
-		-- TODO: Format the error message about collisions
-		error("Collisions happened")
+		--[[
+		Collisions:
+		• /a/file: pkg1 (new), pkg2 (existing)
+		• /b/file: pkg1 (new), pkg2 (existing), pkg3 (new)
+		]]
+		error("Collisions:\n" .. table.concat(utils.set2arr(utils.map(collisions, function (file, packages)
+			return "• " .. file .. ": " .. table.concat(utils.set2arr(utils.map(packages, function (package, tp)
+				return package .. " (" .. tp .. ")", true
+			end)), ", "), true
+		end)), "\n"))
 	end
 	return removes
 end
