@@ -85,7 +85,7 @@ function required_pkgs(pkgs, requests)
 		DBG("Candidates: " .. tostring(candidates))
 		if not candidates or not candidates.candidates or not next(candidates.candidates) then
 			-- It either doesn't exist at all, or was mentioned in Install and got created empty.
-			error(utils.exception('inconsistent', "Package " .. req .. " is not available"))
+			error(utils.exception('inconsistent', "Package " .. name .. " is not available"))
 		end
 		if to_install[candidates] then
 			-- This one is already scheduled
@@ -98,7 +98,7 @@ function required_pkgs(pkgs, requests)
 			want to break the cycle even without it, at a random place.
 			Also, if it is not broken, provide a better error message.
 			]]
-			error(utils.exception('inconsistent', "Circular dependency containing " .. req))
+			error(utils.exception('inconsistent', "Circular dependency containing " .. name))
 		end
 		-- TODO: Take care of standalone packages and virtual packages somehow.
 		local src = candidate_choose(candidates.candidates, name)
