@@ -349,10 +349,14 @@ end
 Run transaction of the queued operations.
 ]]
 function perform_queue()
-	-- Ensure we reset the queue by running it. And also that we allow the garbage collector to collect the data in there.
-	local queue_cp = queue
-	queue = {}
-	return errors_format(perform(queue_cp))
+	if next(queue) then
+		-- Ensure we reset the queue by running it. And also that we allow the garbage collector to collect the data in there.
+		local queue_cp = queue
+		queue = {}
+		return errors_format(perform(queue_cp))
+	else
+		return true
+	end
 end
 
 -- Just like recover, but with the result formatted.
