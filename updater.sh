@@ -150,7 +150,12 @@ mkdir -p "$TMP_DIR"
 get-api-crl
 
 # Update opkg repositories. Not needed by updater itself, just a convenience for the user.
-opkg update || true
+LAST_UPDATE="$(cat /tmp/opkg-update-timestamp 2> /dev/null || true)"
+DATE_NOW="$(date +%s)"
+if [ -z "$LAST_UPDATE" ] || [ $(expr $DATE_NOW - $LAST_UPDATE) -gt 86400 ]; then
+	opkg update || true
+	date +%s > /tmp/opkg-update-timestamp
+fi
 
 echo 'get list' >"$STATE_FILE"
 get_list_pack base core $(uci get updater.pkglists.lists) definitions
