@@ -22,6 +22,7 @@ local pairs = pairs
 local type = type
 local tostring = tostring
 local error = error
+local next = next
 local table = table
 local DIE = DIE
 local DBG = DBG
@@ -82,7 +83,8 @@ function required_pkgs(pkgs, requests)
 		DBG("Require " .. name)
 		local candidates = utils.private(req).group or pkgs[name]
 		DBG("Candidates: " .. tostring(candidates))
-		if not candidates then
+		if not candidates or not candidates.candidates or not next(candidates.candidates) then
+			-- It either doesn't exist at all, or was mentioned in Install and got created empty.
 			error(utils.exception('inconsistent', "Package " .. req .. " is not available"))
 		end
 		if to_install[candidates] then
