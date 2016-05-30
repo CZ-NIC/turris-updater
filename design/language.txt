@@ -390,6 +390,15 @@ critical::
   network. Other packages may stop working if the update is
   interrupted at the wrong time (for example by a power outage), but
   would be fixed by another finished updater run.
+ignore::
+  Ignore certain errors regarding the installation request. Note that
+  errors related to the package itself are modified by the `Package`
+  command. This takes an array of strings, each string represents one
+  category of errors to ignore.
+  missing;;
+    Don't fail on the package not being available. The package
+    wouldn't be installed if not available, but the run of the updater
+    wouldn't be aborted.
 
 Note that a package may be required to be installed or uninstalled
 multiple times (for example by multiple scripts). All such
@@ -483,6 +492,19 @@ crl::
   Options to verify the package integrity, if the content option is
   specified. These are ignored in virtual packages and packages from a
   repository.
+ignore::
+  Ignore listed categories of errors. This takes an array of strings,
+  each string meaning one category to ignore.
+  deps;;
+    Don't error on missing dependencies. Simply install the package
+    without satisfying the dependency.
+  validation;;
+    Install the package despite it failing validation (eg. when having
+    different checksum).
+  installation;;
+    Don't report errors of installation in this package as an error
+    and don't abort the rest of the installation process even if it is
+    in an early stage.
 
 StoreFlags
 ~~~~~~~~~~
