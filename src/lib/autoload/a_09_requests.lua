@@ -54,7 +54,8 @@ local allowed_package_extras = utils.arr2set({
 	"sig",
 	"pubkey",
 	"ca",
-	"crl"
+	"crl",
+	"ignore"
 })
 
 --[[
@@ -191,7 +192,8 @@ local allowed_install_extras = utils.arr2set({
 	"version",
 	"repository",
 	"reinstall",
-	"critical"
+	"critical",
+	"ignore"
 })
 
 content_requests = {}
