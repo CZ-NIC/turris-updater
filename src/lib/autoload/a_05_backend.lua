@@ -600,7 +600,7 @@ end
 --[[
 Merge the given package into the live system and remove the temporary directory.
 
-The confis parameter describes the previous version of the package, not
+The configs parameter describes the previous version of the package, not
 the current one.
 ]]
 function pkg_merge_files(dir, dirs, files, configs)

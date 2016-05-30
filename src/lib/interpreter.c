@@ -427,28 +427,26 @@ static void mv_result(struct wait_id id __attribute__((unused)), void *data, int
 static int lua_move(lua_State *L) {
 	const char *old = luaL_checkstring(L, 1);
 	const char *new = luaL_checkstring(L, 2);
-	int result = rename(old, new);
-	if (result == -1) {
-		if (errno == EXDEV) {
-			/*
-			 * TODO:
-			 * We need to support cross-device move. But that one is a hell
-			 * to implement (because it might be a symlink, block or character
-			 * device, we need to support file permissions, etc. We use
-			 * external mv for now instead, we may want to reconsider later.
-			 */
-			struct events *events = extract_registry(L, "events");
-			ASSERT(events);
-			struct mv_result_data mv_result_data = { .err = NULL };
-			struct wait_id id = run_command(events, mv_result, NULL, &mv_result_data, 0, NULL, -1, -1, "/bin/mv", old, new, NULL);
-			events_wait(events, 1, &id);
-			if (mv_result_data.status) {
-				lua_pushfstring(L, "Failed to X-dev move '%s' to '%s': %s (ecode %d)", old, new, mv_result_data.err, mv_result_data.status);
-				free(mv_result_data.err);
-				return lua_error(L);
-			}
-		} else
-			return luaL_error(L, "Failed to move '%s' to '%s': %s", old, new, strerror(errno));
+	/*
+	 * TODO:
+	 * We need to support cross-device move. But that one is a hell
+	 * to implement (because it might be a symlink, block or character
+	 * device, we need to support file permissions, etc. We use
+	 * external mv for now instead, we may want to reconsider later.
+	 *
+	 * Also, musl seems to have a bug of not overwriting one symlink by
+	 * another, which can cause strange errors, including not booting
+	 * up the kernel.
+	 */
+	struct events *events = extract_registry(L, "events");
+	ASSERT(events);
+	struct mv_result_data mv_result_data = { .err = NULL };
+	struct wait_id id = run_command(events, mv_result, NULL, &mv_result_data, 0, NULL, -1, -1, "/bin/mv", "-f", old, new, NULL);
+	events_wait(events, 1, &id);
+	if (mv_result_data.status) {
+		lua_pushfstring(L, "Failed to X-dev move '%s' to '%s': %s (ecode %d)", old, new, mv_result_data.err, mv_result_data.status);
+		free(mv_result_data.err);
+		return lua_error(L);
 	}
 	return 0;
 }
