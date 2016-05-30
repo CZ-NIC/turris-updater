@@ -32,6 +32,7 @@ local table = table
 local utils = require "utils"
 local uri = require "uri"
 local DBG = DBG
+local WARN = WARN
 
 module "requests"
 
@@ -245,7 +246,8 @@ local allowed_script_extras = utils.arr2set({
 	"sig",
 	"pubkey",
 	"ca",
-	"crl"
+	"crl",
+	"ignore"
 })
 
 local function uri_validate(name, value, context)
@@ -282,6 +284,13 @@ function script(result, context, name, script_uri, extra)
 	local u = uri(context, script_uri, extra)
 	local ok, content = u:get()
 	if not ok then
+		if utils.arr2set(extra.ignore or {})["missing"] then
+			WARN("Script " .. name .. " not found, but ignoring its absence as requested")
+			result.tp = "script"
+			result.name = name
+			result.ignored = true
+			return
+		end
 		-- If couldn't get the script, propagate the error
 		error(content)
 	end
@@ -309,7 +318,7 @@ function script(result, context, name, script_uri, extra)
 		error(err)
 	end
 	-- Return a dummy handle, just as a formality
-	result.tp = script
+	result.tp = "script"
 	result.name = name
 	result.uri = script_uri
 end

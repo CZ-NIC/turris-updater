@@ -154,6 +154,15 @@ function test_script()
 	}, requests.content_requests)
 end
 
+function test_script_missing()
+	mocks_reset()
+	local err = sandbox.run_sandboxed([[
+		Script "test-script" "file:///does/not/exist" { ignore = {"missing"}, security = "local" }
+	]], "Test chunk", "Local")
+	-- It doesn't produce an error, even when the script doesn't exist
+	assert_nil(err, DataDumper(err))
+end
+
 -- Check we are not allowed to raise the security level by running a script
 function test_script_raise_level()
 	mocks_reset()
