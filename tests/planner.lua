@@ -496,4 +496,51 @@ function test_missing_install()
 		}
 	}
 	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		{
+			action = "require",
+			package = {Package = 'pkg1', Depends = {}, repo = def_repo},
+			modifier = {
+				deps = {}
+			},
+			name = "pkg1"
+		}
+	}
+	assert_table_equal(expected, result)
+end
+
+function test_missing_dep()
+	local pkgs = {
+		pkg1 = {
+			candidates = {{Package = 'pkg1', Depends = {'pkg2'}, repo = def_repo}},
+			modifier = {
+				deps = {},
+				ignore = {"deps"}
+			},
+			name = "pkg1"
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1',
+				group = pkgs.pkg1
+			}
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		{
+			action = "require",
+			package = {Package = 'pkg1', Depends = {'pkg2'}, repo = def_repo},
+			modifier = {
+				deps = {},
+				ignore = {"deps"}
+			},
+			name = "pkg1"
+		}
+	}
+	assert_table_equal(expected, result)
 end

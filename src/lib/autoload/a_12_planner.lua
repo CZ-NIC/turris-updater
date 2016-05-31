@@ -111,12 +111,18 @@ function required_pkgs(pkgs, requests)
 		if not src or not mod then
 			error(utils.exception('inconsistent', "Package " .. name .. " does not exist"))
 		end
+		local allow_missing_deps = utils.arr2set(mod.ignore or {})["deps"]
+		local function dep(d)
+			if not schedule(d, nil, allow_missing_deps) then
+				WARN("Dependency " .. (d.name or d) .. " of " .. name .. " is missing, ignoring as requested")
+			end
+		end
 		-- Require the dependencies
 		for d in pairs(mod.deps) do
-			schedule(d)
+			dep(d)
 		end
 		for _, d in ipairs(src.Depends or {}) do
-			schedule(d)
+			dep(d)
 		end
 		local r = {
 			action = action or "require",
