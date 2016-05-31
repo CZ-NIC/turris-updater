@@ -77,15 +77,19 @@ function required_pkgs(pkgs, requests)
 	-- These are being processed right now. It helps to detect circular dependencies.
 	local processed = {}
 	local plan = {}
-	local function schedule(req, action)
+	local function schedule(req, action, dispensable)
 		local name = req.name or req
 		name = name:match('^%S+')
 		DBG("Require " .. name)
 		local candidates = utils.private(req).group or pkgs[name]
 		DBG("Candidates: " .. tostring(candidates))
 		if not candidates or not candidates.candidates or not next(candidates.candidates) then
-			-- It either doesn't exist at all, or was mentioned in Install and got created empty.
-			error(utils.exception('inconsistent', "Package " .. name .. " is not available"))
+			if dispensable then
+				return false
+			else
+				-- It either doesn't exist at all, or was mentioned in Install and got created empty.
+				error(utils.exception('inconsistent', "Package " .. name .. " is not available"))
+			end
 		end
 		if to_install[candidates] then
 			-- This one is already scheduled
@@ -123,14 +127,20 @@ function required_pkgs(pkgs, requests)
 		processed[candidates] = nil
 		to_install[candidates] = r
 		table.insert(plan, r)
+		return true
 	end
 	for _, req in ipairs(requests) do
 		if req.tp == 'install' then
 			-- TODO: Handle special stuff, like repository...
+			local dispensable = utils.arr2set(req.ignore or {})["missing"]
+			local found
 			if req.reinstall then
-				schedule(req.package, "reinstall")
+				found = schedule(req.package, "reinstall", dispensable)
 			else
-				schedule(req.package)
+				found = schedule(req.package, nil, dispensable)
+			end
+			if not found then
+				WARN("Package " .. (req.package.name or req.package) .. " can't be installed, no candidate found")
 			end
 		elseif req.tp == 'uninstall' then
 			error(utils.exception('not implemented', "Uninstall command not handled yet"))

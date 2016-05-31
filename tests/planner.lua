@@ -467,3 +467,33 @@ function test_candidate_choose()
 	}
 	assert_equal(t4[1], planner.candidate_choose(t4, "test"))
 end
+
+function test_missing_install()
+	local pkgs = {
+		pkg1 = {
+			candidates = {{Package = 'pkg1', Depends = {}, repo = def_repo}},
+			modifier = {
+				deps = {}
+			}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1',
+				group = pkgs.pkg1
+			}
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg2'
+			},
+			ignore = {'missing'}
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+end
