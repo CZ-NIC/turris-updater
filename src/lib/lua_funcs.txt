@@ -24,6 +24,8 @@ DBG(msg, msg, ...)::
 DIE(msg, msg, ...)::
   In addition to outputting the message on the ``DIE`` level, it also
   terminates the application with error exit code.
+state_dump(msg)::
+  Dump the given message into `/tmp/update-state/state`.
 
 Asynchronous events
 -------------------

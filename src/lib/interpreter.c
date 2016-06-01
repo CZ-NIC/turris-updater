@@ -122,6 +122,12 @@ static int lua_log(lua_State *L) {
 	return 0;
 }
 
+static int lua_state_dump(lua_State *L) {
+	const char *state = luaL_checkstring(L, 1);
+	state_dump(state);
+	return 0;
+}
+
 /*
  * Put a value from the stack (at index) into our own table in the registry.
  * Return the index under which it is stored in there. The returned value allocated
@@ -634,6 +640,7 @@ struct injected_func {
 
 static const struct injected_func injected_funcs[] = {
 	{ lua_log, "log" },
+	{ lua_state_dump, "state_dump" },
 	{ lua_run_command, "run_command" },
 	{ lua_download, "download" },
 	{ lua_events_wait, "events_wait" },

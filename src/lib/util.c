@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
+#include <errno.h>
 #include <syslog.h>
 
 struct level_info {
@@ -44,6 +45,16 @@ static enum log_level syslog_level = LL_DISABLE;
 static enum log_level stderr_level = LL_WARN;
 static bool syslog_opened = false;
 
+void state_dump(const char *msg) {
+	FILE *f = fopen("/tmp/update-state/state", "w");
+	if (f) {
+		fprintf(f, "%s\n", msg);
+		fclose(f);
+	} else {
+		WARN("Could not dump state: %s", strerror(errno));
+	}
+}
+
 void log_internal(enum log_level level, const char *file, size_t line, const char *func, const char *format, ...) {
 	bool do_syslog = (level <= syslog_level);
 	bool do_stderr = (level <= stderr_level);
@@ -64,6 +75,14 @@ void log_internal(enum log_level level, const char *file, size_t line, const cha
 	}
 	if (do_stderr)
 		fprintf(stderr, "%s:%s:%zu (%s):%s\n", levels[level].prefix, file, line, func, msg);
+	if (level == LL_DIE) {
+		state_dump("error");
+		FILE *f = fopen("/tmp/update-state/last_error", "w");
+		if (f) {
+			fprintf(f, "%s\n", msg);
+			fclose(f);
+		}
+	}
 }
 
 void log_syslog_level(enum log_level level) {

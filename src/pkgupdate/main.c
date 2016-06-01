@@ -46,6 +46,7 @@ int main(int argc, char *argv[]) {
 	// Some setup of the machinery
 	log_stderr_level(LL_DBG);
 	log_syslog_level(LL_DBG);
+	state_dump("startup");
 	args_backup(argc, (const char **)argv);
 	struct events *events = events_new();
 	struct interpreter *interpreter = interpreter_create(events);
@@ -78,5 +79,11 @@ int main(int argc, char *argv[]) {
 	interpreter_destroy(interpreter);
 	events_destroy(events);
 	arg_backup_clear();
-	return trans_ok ? 0 : 1;
+	if (trans_ok) {
+		state_dump("done");
+		return 0;
+	} else {
+		state_dump("error");
+		return 1;
+	}
 }

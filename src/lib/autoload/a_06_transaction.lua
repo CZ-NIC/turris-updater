@@ -40,6 +40,7 @@ local journal = require "journal"
 local locks = require "locks"
 local DBG = DBG
 local WARN = WARN
+local state_dump = state_dump
 
 module "transaction"
 
@@ -140,6 +141,7 @@ local function pkg_move(status, plan, errors_collected)
 	-- Go through the list once more and perform the prepared operations
 	for _, op in ipairs(plan) do
 		if op.op == "install" then
+			state_dump("install")
 			utils.table_merge(all_configs, op.old_configs)
 			-- Unfortunately, we need to merge the control files first, otherwise the maintainer scripts won't run. They expect to live in the info dir when they are run. And we need to run the preinst script before merging the files.
 			backend.pkg_merge_control(op.dir .. "/control", op.control.Package, op.control.files)
@@ -180,6 +182,7 @@ local function pkg_scripts(status, plan, removes, to_install, errors_collected, 
 		end
 	end
 	-- Clean up the files from removed or upgraded packages
+	state_dump("remove")
 	backend.pkg_cleanup_files(removes, all_configs)
 	for _, op in ipairs(plan) do
 		if op.op == "remove" and not to_install[op.name] then
