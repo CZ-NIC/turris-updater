@@ -5,17 +5,42 @@ get-api-crl
 STATE_DIR=/tmp/update-state
 LOCK_DIR="$STATE_DIR/lock"
 EXIT_CODE=1
+BACKGROUND=false
+BACKGROUNDED=false
 
-# Prepare a state directory and lock
-mkdir -p /tmp/update-state
-trap 'rm -rf "$LOCK_DIR"; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
-if ! mkdir "$LOCK_DIR" ; then
-	echo "Already running" >&2
-	echo "Already running" | my_logger -p daemon.warning
-	EXIT_CODE=0
+while [ "$1" ] ; do
+	case "$1" in
+		-b)
+			BACKGROUND=true
+			;;
+		-r)
+			BACKGROUNDED=true
+			;;
+		*)
+			echo "Unknown parameter $1. Continuing anyway, as a compatibility measure for the old updater."
+			;;
+	esac
+	shift
+done
+
+if ! $BACKGROUNDED ; then
+	# Prepare a state directory and lock
+	mkdir -p /tmp/update-state
+	if ! mkdir "$LOCK_DIR" ; then
+		echo "Already running" >&2
+		echo "Already running" | logger -p daemon.warning
+		EXIT_CODE=0
+		exit
+	fi
+	cat /dev/null >"$STATE_DIR"/log2
+fi
+if $BACKGROUND ; then
+	"$0" -r >/dev/null 2>&1 &
+	# Make sure the PID is of the process actually doing the work
+	echo $!>"$PID_FILE"
 	exit
 fi
-cat /dev/null >"$STATE_DIR"/log2
+trap 'rm -rf "$LOCK_DIR"; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
 
 # Run the actual updater
 UPDATER_ENABLE_STATE_LOG=true pkgupdate file:///etc/updater/entry.lua --batch
