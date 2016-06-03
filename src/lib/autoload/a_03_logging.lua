@@ -29,3 +29,11 @@ function DIE(...)
 	log('DIE', ...)
 	os.exit(1)
 end
+
+function log_event(action, package)
+	local f = io.open("/tmp/update-state/log2", "a")
+	if f then
+		f:write(action, " ", package, "\n")
+		f:close()
+	end
+end

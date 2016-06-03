@@ -24,6 +24,7 @@ local md5 = md5
 local sha256 = sha256
 local reexec = reexec
 local state_dump = state_dump
+local log_event = log_event
 local utils = require "utils"
 local sandbox = require "sandbox"
 local uri = require "uri"
@@ -73,6 +74,9 @@ function prepare(entrypoint)
 				veriopts.verification = 'none'
 			end
 			task.real_uri = uri(utils.private(task.package.repo).context, task.package.uri_raw, veriopts)
+			task.real_uri:cback(function()
+				log_event('D', task.name .. " " .. task.package.Version)
+			end)
 		end
 	end
 	-- Now push all data into the transaction
