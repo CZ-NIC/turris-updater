@@ -82,7 +82,7 @@ function package(result, context, pkg, extra)
 	-- Minimal typo verification. Further verification is done when actually using the package.
 	for name in pairs(extra) do
 		if not allowed_package_extras[name] then
-			error(utils.exception("bad value", "There's no extra option " .. name .. " for a package"))
+			WARN("There's no extra option " .. name .. " for a package")
 		end
 		-- TODO: Validate the types etc of extra options
 	end
@@ -144,7 +144,7 @@ function repository(result, context, name, repo_uri, extra)
 	-- Catch possible typos
 	for name in pairs(extra) do
 		if not allowed_repository_extras[name] then
-			error(utils.exception("bad value", "There's no extra option " .. name .. " for a repository"))
+			WARN("There's no extra option " .. name .. " for a repository")
 		end
 		-- TODO: Validate the types etc of extra options
 	end
@@ -210,7 +210,7 @@ local function content_request(context, cmd, allowed, ...)
 			}
 			for name, opt in pairs(extras) do
 				if not allowed[name] then
-					error(utils.exception("bad value", "There's no extra option " .. name .. " for " .. cmd .. " request"));
+					WARN("There's no extra option " .. name .. " for " .. cmd .. " request")
 				else
 					request[name] = opt
 				end
@@ -280,7 +280,7 @@ function script(result, context, name, script_uri, extra)
 	DBG("Running script " .. name)
 	for name in pairs(extra) do
 		if allowed_script_extras[name] == nil then
-			error(utils.exception("bad value", "There's no extra option " .. name .. " for the Script command"))
+			WARN("There's no extra option " .. name .. " for the Script command")
 		end
 	end
 	local u = uri(context, script_uri, extra)
