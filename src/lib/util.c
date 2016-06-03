@@ -46,12 +46,15 @@ static enum log_level stderr_level = LL_WARN;
 static bool syslog_opened = false;
 
 void state_dump(const char *msg) {
-	FILE *f = fopen("/tmp/update-state/state", "w");
-	if (f) {
-		fprintf(f, "%s\n", msg);
-		fclose(f);
-	} else {
-		WARN("Could not dump state: %s", strerror(errno));
+	const char *enable = getenv("UPDATER_ENABLE_STATE_LOG");
+	if (enable && strcmp("true", enable) == 0) {
+		FILE *f = fopen("/tmp/update-state/state", "w");
+		if (f) {
+			fprintf(f, "%s\n", msg);
+			fclose(f);
+		} else {
+			WARN("Could not dump state: %s", strerror(errno));
+		}
 	}
 }
 

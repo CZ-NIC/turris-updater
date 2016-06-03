@@ -18,7 +18,7 @@ fi
 cat /dev/null >"$STATE_DIR"/log2
 
 # Run the actual updater
-pkgupdate file:///etc/updater/entry.lua --batch
+UPDATER_ENABLE_STATE_LOG=true pkgupdate file:///etc/updater/entry.lua --batch
 # Evaluate what has run
 EXIT_CODE="$?"
 STATE=$(cat "$STATE_DIR"/state)
