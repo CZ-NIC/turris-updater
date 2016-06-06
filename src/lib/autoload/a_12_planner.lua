@@ -93,7 +93,7 @@ function required_pkgs(pkgs, requests)
 		end
 		if to_install[candidates] then
 			-- This one is already scheduled
-			return
+			return true
 		end
 		if processed[candidates] then
 			--[[
