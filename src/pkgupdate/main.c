@@ -32,6 +32,7 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 		char *msg;
 		ASSERT(interpreter_collect_results(interpreter, "-s", &msg) == -1);
 		ERROR("%s", msg);
+		err_dump(msg);
 	}
 	if (result_count >= 1)
 		ASSERT(interpreter_collect_results(interpreter, "b", &result) == -1);

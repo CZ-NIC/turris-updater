@@ -58,6 +58,17 @@ void state_dump(const char *msg) {
 	}
 }
 
+void err_dump(const char *msg) {
+	const char *enable = getenv("UPDATER_ENABLE_STATE_LOG");
+	if (enable && strcmp("true", enable) == 0) {
+		FILE *f = fopen("/tmp/update-state/last_error", "w");
+		if (f) {
+			fprintf(f, "%s\n", msg);
+			fclose(f);
+		}
+	}
+}
+
 void log_internal(enum log_level level, const char *file, size_t line, const char *func, const char *format, ...) {
 	bool do_syslog = (level <= syslog_level);
 	bool do_stderr = (level <= stderr_level);
@@ -80,11 +91,7 @@ void log_internal(enum log_level level, const char *file, size_t line, const cha
 		fprintf(stderr, "%s:%s:%zu (%s):%s\n", levels[level].prefix, file, line, func, msg);
 	if (level == LL_DIE) {
 		state_dump("error");
-		FILE *f = fopen("/tmp/update-state/last_error", "w");
-		if (f) {
-			fprintf(f, "%s\n", msg);
-			fclose(f);
-		}
+		err_dump(msg);
 	}
 }
 
