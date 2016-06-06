@@ -49,7 +49,6 @@ function test_package()
 		replan = true,
 		reboot = true
 	}, p2)
-	assert_table_equal(utils.exception("bad value", "There's no extra option typo for a package"), sandbox.run_sandboxed("Package 'pkg_name' {typo = true}", "Test chunk", "Restricted"))
 	assert_table_equal({p1, p2}, requests.known_packages)
 end
 
@@ -93,7 +92,6 @@ function test_repository()
 	assert_table_equal({
 		index_uri = {[""] = {u = "https://example.org/repo-other/Packages.gz"}}
 	}, utils.private(r3))
-	assert_table_equal(utils.exception("bad value", "There's no extra option typo for a repository"), sandbox.run_sandboxed("Repository 'test-repo' 'http://example.org/repo' {typo = true}", "Test chunk", "Restricted"))
 	assert_table_equal({
 		["test-repo"] = r1,
 		["test-repo-2"] = r2,
@@ -198,8 +196,6 @@ function test_script_pass_validation()
 		]], "Test chunk", "Restricted")
 		assert_table_equal(utils.exception(exctype or "bad value", msg), err)
 	end
-	-- Bad extra option
-	bad(", invalid = true", "There's no extra option invalid for the Script command")
 	-- Bad uri inside something
 	bad(", verification = 'sig', pubkey = 'invalid://'", "Unknown URI schema invalid")
 	-- Even when not used
