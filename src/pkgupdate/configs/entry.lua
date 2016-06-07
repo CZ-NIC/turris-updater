@@ -13,6 +13,7 @@ if uci_ok then
 	end
 	branch = cursor:get("updater", "override", "branch")
 	if branch then
+		WARN("Branch overriden to " .. branch)
 		branch = "-" .. branch
 	end
 	lists = cursor:get("updater", "pkglists", "lists")
