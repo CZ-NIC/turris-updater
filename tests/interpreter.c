@@ -20,6 +20,7 @@
 #include "ctest.h"
 #include "../src/lib/interpreter.h"
 #include "../src/lib/util.h"
+#include "../src/lib/events.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -84,7 +85,8 @@ START_TEST(loading) {
 	 * having it auto-detected.
 	 */
 	struct loading_case *c = &loading_cases[_i / 2];
-	struct interpreter *interpreter = interpreter_create(NULL);
+	struct events *events = events_new();
+	struct interpreter *interpreter = interpreter_create(events);
 	if (c->autoload)
 		ck_assert_msg(!interpreter_autoload(interpreter), "Error autoloading");
 	mark_point();
@@ -97,18 +99,21 @@ START_TEST(loading) {
 	}
 	mark_point();
 	interpreter_destroy(interpreter);
+	events_destroy(events);
 }
 END_TEST
 
 #define START_INTERPRETER_TEST(NAME) \
 	START_TEST(NAME) { \
-		struct interpreter *interpreter = interpreter_create(NULL); \
+		struct events *events = events_new(); \
+		struct interpreter *interpreter = interpreter_create(events); \
 		ck_assert_msg(!interpreter_autoload(interpreter), "Error autoloading"); \
 		mark_point();
 
 #define END_INTERPRETER_TEST \
 		mark_point(); \
 		interpreter_destroy(interpreter); \
+		events_destroy(events); \
 	} \
 	END_TEST
 

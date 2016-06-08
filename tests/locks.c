@@ -19,6 +19,7 @@
 
 #include "../src/lib/interpreter.h"
 #include "../src/lib/util.h"
+#include "../src/lib/events.h"
 
 #include <string.h>
 #include <unistd.h>
@@ -35,7 +36,8 @@
  */
 
 int main(int argc __attribute__((unused)), char *argv[] __attribute__((unused))) {
-	struct interpreter *interpreter = interpreter_create(NULL);
+	struct events *events = events_new();
+	struct interpreter *interpreter = interpreter_create(events);
 	interpreter_autoload(interpreter);
 	const char *err = interpreter_call(interpreter, "mkdtemp", NULL, "");
 	ASSERT_MSG(!err, "%s", err);
@@ -57,6 +59,7 @@ int main(int argc __attribute__((unused)), char *argv[] __attribute__((unused)))
 		err = interpreter_call(interpreter, "get_lock", NULL, "ss", "l2", f2);
 		ASSERT_MSG(!err, "%s", err);
 		interpreter_destroy(interpreter);
+		events_destroy(events);
 		return 0;
 	}
 	int status;
@@ -72,10 +75,12 @@ int main(int argc __attribute__((unused)), char *argv[] __attribute__((unused)))
 		err = interpreter_call(interpreter, "get_lock", NULL, "ss", "extra", f1);
 		ASSERT_MSG(!err, "%s", err);
 		interpreter_destroy(interpreter);
+		events_destroy(events);
 		return 0;
 	}
 	ASSERT(wait(&status) == pid);
 	ASSERT(status == 0);
 	interpreter_destroy(interpreter);
+	events_destroy(events);
 	return 0;
 }

@@ -25,6 +25,8 @@ module("sandbox-tests", package.seeall, lunit.testcase)
 
 -- Test creating brand new contexts (no inheritance)
 function test_context_new()
+	-- Set a state variable override for testing. Check it propagates.
+	sandbox.state_vars.model = 'test'
 	-- If we specify no parent and no security level, it fails
 	assert_error(sandbox.new)
 	-- If we specify an invalid security level, it fails
@@ -54,6 +56,7 @@ function test_context_new()
 			assert_nil(context.env.utils)
 			assert_nil(context.env.getmetatable)
 		end
+		assert_equal("test", context.env.model)
 		context.env = nil
 		context.level_check = nil
 		assert_table_equal({sec_level = sandbox.level(level), tp = "context"}, context)
