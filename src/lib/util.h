@@ -47,6 +47,11 @@ void log_internal(enum log_level level, const char *file, size_t line, const cha
 
 enum log_level log_level_get(const char *str) __attribute__((nonnull));
 
+// In the full updater mode, dump current state into /tmp/update-state/state
+void state_dump(const char *msg) __attribute__((nonnull));
+// In the full updater mode, dump the error into /tmp/update-state/error
+void err_dump(const char *msg) __attribute__((nonnull));
+
 void log_syslog_level(enum log_level level);
 void log_syslog_name(const char *name);
 void log_stderr_level(enum log_level level);

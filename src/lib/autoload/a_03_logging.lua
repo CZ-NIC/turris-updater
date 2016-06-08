@@ -29,3 +29,13 @@ function DIE(...)
 	log('DIE', ...)
 	os.exit(1)
 end
+
+function log_event(action, package)
+	if os.getenv("UPDATER_ENABLE_STATE_LOG") == "true" then
+		local f = io.open("/tmp/update-state/log2", "a")
+		if f then
+			f:write(action, " ", package, "\n")
+			f:close()
+		end
+	end
+end

@@ -23,6 +23,8 @@ local INFO = INFO
 local md5 = md5
 local sha256 = sha256
 local reexec = reexec
+local state_dump = state_dump
+local log_event = log_event
 local utils = require "utils"
 local sandbox = require "sandbox"
 local uri = require "uri"
@@ -42,12 +44,14 @@ function prepare(entrypoint)
 	local ep_uri = uri(tlc, entrypoint)
 	local ok, tls = ep_uri:get()
 	if not ok then error(tls) end
+	state_dump("get list")
 	--[[
 	Run the top level script with full privileges.
 	The script shall be part of updater anyway.
 	]]
 	local err = sandbox.run_sandboxed(tls, "[Top level download]", 'Full')
 	if err then error(err) end
+	state_dump("examine")
 	-- Go through all the requirements and decide what we need
 	postprocess.run()
 	local required = planner.required_pkgs(postprocess.available_packages, requests.content_requests)
@@ -70,6 +74,9 @@ function prepare(entrypoint)
 				veriopts.verification = 'none'
 			end
 			task.real_uri = uri(utils.private(task.package.repo).context, task.package.uri_raw, veriopts)
+			task.real_uri:cback(function()
+				log_event('D', task.name .. " " .. task.package.Version)
+			end)
 		end
 	end
 	-- Now push all data into the transaction
