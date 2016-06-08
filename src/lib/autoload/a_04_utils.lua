@@ -224,4 +224,16 @@ function filter_best(arr, property, cmp)
 	return best
 end
 
+--[[
+Strip whitespace from both ends of the given string. \n is considered whitespace.
+It passes other types through (eg. nil).
+]]
+function strip(str)
+	if type(str) == 'string' then
+		return str:match('^%s*(.-)%s*$')
+	else
+		return str
+	end
+end
+
 return _M
