@@ -190,13 +190,20 @@ might not have them legally and we mark that by providing nil.
 state_vars = {
 	model = utils.strip(utils.slurp('/tmp/sysinfo/model')),
 	board_name = utils.strip(utils.slurp('/tmp/sysinfo/board_name')),
-	turris_version = utils.strip(utils.slurp('/etc/turris-version'))
+	turris_version = utils.strip(utils.slurp('/etc/turris-version')),
+	--[[
+	In case we fail to read that file (it is not there), we match against
+	an empty string, which produces nil ‒ the element won't be in there.
+	We don't have a better fallback for platforms we don't know for now.
+	]]
+	architectures = {'all', (utils.slurp('/etc/openwrt_release') or ""):match("DISTRIB_TARGET='([^'/]*)")}
 }
 events_wait(run_command(function (ecode, killed, stdout, stderr)
 	if ecode == 0 then
 		state_vars.serial = utils.strip(stdout)
 	end
 end, nil, nil, -1, -1, '/usr/bin/atsha204cmd', 'serial-number'))
+
 
 -- Functions to be injected into an environment in the given security level
 local funcs = {
@@ -245,7 +252,7 @@ List the variable names here. This way we ensure they are actually set in case
 they are nil. This helps in testing and also ensures some other global variable
 isn't mistaken for the actual value that isn't available.
 ]]
-for _, name in pairs({'model', 'board_name', 'turris_version', 'serial'}) do
+for _, name in pairs({'model', 'board_name', 'turris_version', 'serial', 'architectures'}) do
 	funcs.Restricted[name] = {
 		mode = "state",
 		value = name
