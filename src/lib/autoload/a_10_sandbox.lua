@@ -36,9 +36,11 @@ local unpack = unpack
 local assert = assert
 local next = next
 local DBG = DBG
+local WARN = WARN
 local run_command = run_command
 local events_wait = events_wait
 local utils = require "utils"
+local backend = require "backend"
 local requests = require "requests"
 
 module "sandbox"
@@ -177,6 +179,11 @@ local rest_available_funcs = {
 	"xpcall"
 }
 
+local status_ok, status = pcall(backend.status_parse)
+if not status_ok then
+	WARN("Couldn't read the status file: " .. tostring(status))
+	status = {}
+end
 --[[
 Some state variables provided for each sandbox. They are copied
 into each, so the fact a sandbox can modified its own copy doesn't
@@ -196,7 +203,21 @@ state_vars = {
 	an empty string, which produces nil ‒ the element won't be in there.
 	We don't have a better fallback for platforms we don't know for now.
 	]]
-	architectures = {'all', (utils.slurp('/etc/openwrt_release') or ""):match("DISTRIB_TARGET='([^'/]*)")}
+	architectures = {'all', (utils.slurp('/etc/openwrt_release') or ""):match("DISTRIB_TARGET='([^'/]*)")},
+	installed = utils.map(status, function (name, pkg)
+		if pkg.State[3] == "installed" then
+			return name, {
+				version = pkg.Version,
+				files = utils.set2arr(pkg.files or {}),
+				configs = utils.set2arr(pkg.Conffiles or {}),
+				-- TODO: We currently don't store the repository anywhere. So we can't provide it.
+				install_time = pkg["Installed-Time"]
+			}
+		else
+			-- The package is not installed - don't list it
+			return "", nil
+		end
+	end)
 }
 events_wait(run_command(function (ecode, killed, stdout, stderr)
 	if ecode == 0 then
@@ -252,7 +273,7 @@ List the variable names here. This way we ensure they are actually set in case
 they are nil. This helps in testing and also ensures some other global variable
 isn't mistaken for the actual value that isn't available.
 ]]
-for _, name in pairs({'model', 'board_name', 'turris_version', 'serial', 'architectures'}) do
+for _, name in pairs({'model', 'board_name', 'turris_version', 'serial', 'architectures', 'installed'}) do
 	funcs.Restricted[name] = {
 		mode = "state",
 		value = name
