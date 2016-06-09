@@ -147,3 +147,11 @@ function test_filter_best()
 	assert_table_equal({{3, 12}, {4, 12}}, U.filter_best(input, function (x) return x[2] end, function (_1, _2) return _1 > _2 end))
 	assert_table_equal({{1, 1}}, U.filter_best(input, function (x) return x[1] end, function (_1, _2) return _1 < _2 end))
 end
+
+function test_arr_append()
+	local a1 = {'a', 'b', 'c'}
+	local a2 = {'d', 'e', 'f'}
+	U.arr_append(a1, a2)
+	assert_table_equal({'a', 'b', 'c', 'd', 'e', 'f'}, a1)
+	assert_table_equal({'d', 'e', 'f'}, a2)
+end
