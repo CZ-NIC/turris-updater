@@ -147,3 +147,15 @@ function test_filter_best()
 	assert_table_equal({{3, 12}, {4, 12}}, U.filter_best(input, function (x) return x[2] end, function (_1, _2) return _1 > _2 end))
 	assert_table_equal({{1, 1}}, U.filter_best(input, function (x) return x[1] end, function (_1, _2) return _1 < _2 end))
 end
+
+function test_strip()
+	assert_equal("test", U.strip("test"))
+	assert_equal("test", U.strip([[
+	
+	test
+
+	]]))
+	assert_equal("test test", U.strip(" test test"))
+	assert_equal(42, U.strip(42))
+	assert_nil(U.strip(nil))
+end

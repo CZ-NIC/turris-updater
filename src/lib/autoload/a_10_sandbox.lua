@@ -36,7 +36,11 @@ local unpack = unpack
 local assert = assert
 local next = next
 local DBG = DBG
+local WARN = WARN
+local run_command = run_command
+local events_wait = events_wait
 local utils = require "utils"
+local backend = require "backend"
 local requests = require "requests"
 
 module "sandbox"
@@ -175,6 +179,53 @@ local rest_available_funcs = {
 	"xpcall"
 }
 
+local status_ok, status = pcall(backend.status_parse)
+if not status_ok then
+	WARN("Couldn't read the status file: " .. tostring(status))
+	status = {}
+end
+--[[
+Some state variables provided for each sandbox. They are copied
+into each, so the fact a sandbox can modified its own copy doesn't
+bother us, it can't destroy it for others.
+
+Let the table be module-global, so tests can actually manipulate it.
+
+We ignore errors (eg. the files not existing), because some platforms
+might not have them legally and we mark that by providing nil.
+]]
+state_vars = {
+	model = utils.strip(utils.slurp('/tmp/sysinfo/model')),
+	board_name = utils.strip(utils.slurp('/tmp/sysinfo/board_name')),
+	turris_version = utils.strip(utils.slurp('/etc/turris-version')),
+	--[[
+	In case we fail to read that file (it is not there), we match against
+	an empty string, which produces nil ‒ the element won't be in there.
+	We don't have a better fallback for platforms we don't know for now.
+	]]
+	architectures = {'all', (utils.slurp('/etc/openwrt_release') or ""):match("DISTRIB_TARGET='([^'/]*)")},
+	installed = utils.map(status, function (name, pkg)
+		if pkg.State[3] == "installed" then
+			return name, {
+				version = pkg.Version,
+				files = utils.set2arr(pkg.files or {}),
+				configs = utils.set2arr(pkg.Conffiles or {}),
+				-- TODO: We currently don't store the repository anywhere. So we can't provide it.
+				install_time = pkg["Installed-Time"]
+			}
+		else
+			-- The package is not installed - don't list it
+			return "", nil
+		end
+	end)
+}
+events_wait(run_command(function (ecode, killed, stdout, stderr)
+	if ecode == 0 then
+		state_vars.serial = utils.strip(stdout)
+	end
+end, nil, nil, -1, -1, '/usr/bin/atsha204cmd', 'serial-number'))
+
+
 -- Functions to be injected into an environment in the given security level
 local funcs = {
 	Full = {
@@ -215,6 +266,17 @@ for _, name in pairs(rest_available_funcs) do
 	funcs.Restricted[name] = {
 		mode = "inject",
 		value = G[name]
+	}
+end
+--[[
+List the variable names here. This way we ensure they are actually set in case
+they are nil. This helps in testing and also ensures some other global variable
+isn't mistaken for the actual value that isn't available.
+]]
+for _, name in pairs({'model', 'board_name', 'turris_version', 'serial', 'architectures', 'installed'}) do
+	funcs.Restricted[name] = {
+		mode = "state",
+		value = name
 	}
 end
 for name, val in pairs(G) do
@@ -294,6 +356,8 @@ function new(sec_level, parent)
 	for n, v in pairs(sec_level.f) do
 		if v.mode == "inject" then
 			result.env[n] = inject(v.value)
+		elseif v.mode == "state" then
+			result.env[n] = utils.clone(state_vars[v.value])
 		elseif v.mode == "wrap" then
 			result.env[n] = function(...)
 				return v.value(result, ...)
