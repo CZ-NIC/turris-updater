@@ -205,7 +205,7 @@ state_vars = {
 	]]
 	architectures = {'all', (utils.slurp('/etc/openwrt_release') or ""):match("DISTRIB_TARGET='([^'/]*)")},
 	installed = utils.map(status, function (name, pkg)
-		if pkg.State[3] == "installed" then
+		if utils.multi_index(pkg, Status, 3) == "installed" then
 			return name, {
 				version = pkg.Version,
 				files = utils.set2arr(pkg.files or {}),
