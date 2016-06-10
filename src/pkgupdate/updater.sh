@@ -55,7 +55,7 @@ if ! $BACKGROUNDED ; then
 	mkdir -p /tmp/update-state
 	if ! mkdir "$LOCK_DIR" ; then
 		echo "Already running" >&2
-		echo "Already running" | logger -p daemon.warning
+		echo "Already running" | logger -t updater -p daemon.warning
 		EXIT_CODE=0
 		exit
 	fi
@@ -84,7 +84,7 @@ if [ "$STATE" != "done" ] && [ "$STATE" != "error" ] ; then
 fi
 
 if [ -s "$STATE_DIR"/log2 ] ; then
-	create_notification -s update "$(sed -ne 's/^I \(.*\) \(.*\)/ • Nainstalovaná verze \2 balíku \1/p;s/^R \(.*\)/ • Odstraněn balík \1/p' "$LOG_FILE")" "$(sed -ne 's/^I \(.*\) \(.*\)/ • Installed version \2 of package \1/p;s/^R \(.*\)/ • Removed package \1/p' "$LOG_FILE")" || echo "Create notification failed" | logger -p daemon.error
+	create_notification -s update "$(sed -ne 's/^I \(.*\) \(.*\)/ • Nainstalovaná verze \2 balíku \1/p;s/^R \(.*\)/ • Odstraněn balík \1/p' "$LOG_FILE")" "$(sed -ne 's/^I \(.*\) \(.*\)/ • Installed version \2 of package \1/p;s/^R \(.*\)/ • Removed package \1/p' "$LOG_FILE")" || echo "Create notification failed" | logger -t updater -p daemon.error
 fi
 if [ "$EXIT_CODE" != 0 ] || [ "$STATE" != "done" ] ; then
 	if [ -s "$STATE_DIR/last_error" ] ; then
@@ -92,8 +92,8 @@ if [ "$EXIT_CODE" != 0 ] || [ "$STATE" != "done" ] ; then
 	else
 		ERROR="Unknown error"
 	fi
-	create_notification -s error "Updater selhal: $ERROR" "Updater failed: $ERROR" || echo "Create notification failed" | logger -p daemon.error
+	create_notification -s error "Updater selhal: $ERROR" "Updater failed: $ERROR" || echo "Create notification failed" | logger -t updater -p daemon.error
 fi
-notifier || echo "Notifier failed" | logger -p daemon.error
+notifier || echo "Notifier failed" | logger -t updater -p daemon.error
 
 # Let the trap clean up here
