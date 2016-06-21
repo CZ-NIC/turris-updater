@@ -118,7 +118,7 @@ function required_pkgs(pkgs, requests)
 			end
 		end
 		-- Require the dependencies
-		for d in pairs(mod.deps) do
+		for d in pairs(mod.deps or {}) do
 			dep(d)
 		end
 		for _, d in ipairs(src.Depends or {}) do
