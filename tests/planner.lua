@@ -33,15 +33,11 @@ function test_no_deps()
 	local pkgs = {
 		pkg1 = {
 			candidates = {{Package = 'pkg1', Depends = {}, repo = def_repo}},
-			modifier = {
-				deps = {}
-			}
+			modifier = {}
 		},
 		pkg2 = {
 			candidates = {{Package = 'pkg2', repo = def_repo}},
-			modifier = {
-				deps = {}
-			}
+			modifier = {}
 		}
 	}
 	local requests = {
@@ -66,17 +62,13 @@ function test_no_deps()
 		{
 			action = "require",
 			package = {Package = 'pkg1', Depends = {}, repo = def_repo},
-			modifier = {
-				deps = {}
-			},
+			modifier = {},
 			name = "pkg1"
 		},
 		{
 			action = "require",
 			package = {Package = 'pkg2', repo = def_repo},
-			modifier = {
-				deps = {}
-			},
+			modifier = {},
 			name = "pkg2"
 		}
 	}
@@ -87,9 +79,7 @@ function test_reinstall()
 	local pkgs = {
 		pkg1 = {
 			candidates = {{Package = 'pkg1', repo = def_repo}},
-			modifier = {
-				deps = {}
-			}
+			modifier = {}
 		}
 	}
 	local requests = {
@@ -107,9 +97,7 @@ function test_reinstall()
 		{
 			action = "reinstall",
 			package = {Package = 'pkg1', repo = def_repo},
-			modifier = {
-				deps = {},
-			},
+			modifier = {},
 			name = 'pkg1'
 		}
 	}
@@ -128,39 +116,33 @@ function test_deps()
 				{Package = 'dep1', Depends = {}, Version = "1", repo = def_repo},
 				{Package = 'dep1', Depends = {}, Version = "2", repo = def_repo}
 			},
-			modifier = {
-				deps = {}
-			}
+			modifier = {}
 		},
 		dep2 = {
 			candidates = {{Package = 'dep2', repo = def_repo}},
-			modifier = {
-				deps = {}
-			}
+			modifier = {}
 		},
 		dep3 = {
 			candidates = {{Package = 'dep3', repo = def_repo}},
 			modifier = {
-				deps = {dep1 = true}
+				deps = "dep1"
 			}
 		},
 		unused = {
 			candidates = {{Package = 'unused', repo = def_repo}},
 			modifier = {
-				deps = {dep1 = true}
+				deps = "dep1"
 			}
 		},
 		pkg1 = {
 			candidates = {{Package = 'pkg1', Depends = {}, repo = def_repo}},
 			modifier = {
-				deps = {dep1 = true}
+				deps = "dep1"
 			}
 		},
 		pkg2 = {
 			candidates = {{Package = 'pkg2', Depends = {'dep2', 'dep3'}, repo = def_repo}},
-			modifier = {
-				deps = {}
-			}
+			modifier = {}
 		}
 	}
 	local requests = {
@@ -185,41 +167,35 @@ function test_deps()
 		{
 			action = "require",
 			package = {Package = 'dep1', Depends = {}, Version = "2", repo = def_repo},
-			modifier = {
-				deps = {}
-			},
+			modifier = {},
 			name = "dep1"
 		},
 		{
 			action = "require",
 			package = {Package = 'pkg1', Depends = {}, repo = def_repo},
 			modifier = {
-				deps = {dep1 = true}
+				deps = "dep1"
 			},
 			name = "pkg1"
 		},
 		{
 			action = "require",
 			package = {Package = 'dep2', repo = def_repo},
-			modifier = {
-				deps = {}
-			},
+			modifier = {},
 			name = "dep2"
 		},
 		{
 			action = "require",
 			package = {Package = 'dep3', repo = def_repo},
 			modifier = {
-				deps = {dep1 = true}
+				deps = "dep1"
 			},
 			name = "dep3"
 		},
 		{
 			action = "require",
 			package = {Package = 'pkg2', Depends = {'dep2', 'dep3'}, repo = def_repo},
-			modifier = {
-				deps = {}
-			},
+			modifier = {},
 			name = "pkg2"
 		}
 	}
@@ -233,9 +209,7 @@ function test_missing_dep()
 	local pkgs = {
 		pkg = {
 			candidates = {{Package = 'pkg', Depends = {'nothere'}, repo = def_repo}},
-			modifier = {
-				deps = {}
-			}
+			modifier = {}
 		}
 	}
 	local requests = {
@@ -256,14 +230,12 @@ function test_circular_deps()
 	local pkgs = {
 		pkg1 = {
 			candidates = {{Package = 'pkg1', Depends = {'pkg2'}, repo = def_repo}},
-			modifier = {
-				deps = {}
-			}
+			modifier = {}
 		},
 		pkg2 = {
 			candidates = {{Package = 'pkg2', repo = def_repo}},
 			modifier = {
-				deps = {pkg1 = true}
+				deps = "pkg1"
 			}
 		}
 	}
@@ -472,9 +444,7 @@ function test_missing_install()
 	local pkgs = {
 		pkg1 = {
 			candidates = {{Package = 'pkg1', Depends = {}, repo = def_repo}},
-			modifier = {
-				deps = {}
-			}
+			modifier = {}
 		}
 	}
 	local requests = {
@@ -500,9 +470,7 @@ function test_missing_install()
 		{
 			action = "require",
 			package = {Package = 'pkg1', Depends = {}, repo = def_repo},
-			modifier = {
-				deps = {}
-			},
+			modifier = {},
 			name = "pkg1"
 		}
 	}
@@ -514,7 +482,6 @@ function test_missing_dep()
 		pkg1 = {
 			candidates = {{Package = 'pkg1', Depends = {'pkg2'}, repo = def_repo}},
 			modifier = {
-				deps = {},
 				ignore = {"deps"}
 			},
 			name = "pkg1"
@@ -536,11 +503,82 @@ function test_missing_dep()
 			action = "require",
 			package = {Package = 'pkg1', Depends = {'pkg2'}, repo = def_repo},
 			modifier = {
-				deps = {},
 				ignore = {"deps"}
 			},
 			name = "pkg1"
 		}
 	}
+	assert_table_equal(expected, result)
+end
+
+function test_complex_deps()
+	local pkgs = {}
+	for i = 1, 7 do
+		local n = "pkg" .. tostring(i)
+		pkgs[n] = {
+			candidates = {{Package = n, repo = def_repo}},
+			modifier = {},
+			name = n
+		}
+	end
+	local pkg2 = {
+		tp = "package",
+		name = "pkg2",
+		group = pkgs.pkg2
+	}
+	pkgs.meta = {
+		candidates = {{Package = "meta", repo = def_repo}},
+		modifier = {
+			deps = {
+				tp = "dep-and",
+				sub = {
+					"pkg1",
+					pkg2,
+					{
+						tp = "dep-or",
+						sub = {
+							{
+								tp = "dep-and",
+								sub = {
+									"pkg3",
+									"pkg4"
+								}
+							},
+							"pkg5",
+						}
+					},
+					{
+						tp = "dep-not",
+						sub = {
+							"pkg6"
+						}
+					},
+					"pkg7"
+				}
+			}
+		},
+		name = "meta"
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'meta',
+				group = pkgs.meta
+			}
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	print(DataDumper(result))
+	local expected = utils.map({"pkg1", "pkg2", "pkg3", "pkg4", "pkg7", "meta"}, function (i, name)
+		local p = pkgs[name]
+		return i, {
+			action = "require",
+			package = p.candidates[1],
+			modifier = p.modifier,
+			name = name
+		}
+	end)
 	assert_table_equal(expected, result)
 end
