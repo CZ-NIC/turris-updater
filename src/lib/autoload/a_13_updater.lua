@@ -49,8 +49,8 @@ function prepare(entrypoint)
 	Run the top level script with full privileges.
 	The script shall be part of updater anyway.
 	]]
-	local err = sandbox.run_sandboxed(tls, "[Top level download]", 'Full')
-	if err then error(err) end
+	local err = sandbox.run_sandboxed(tls, "", 'Full')
+	if err and err.tp == 'error' then error(err) end
 	state_dump("examine")
 	-- Go through all the requirements and decide what we need
 	postprocess.run()

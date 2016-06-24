@@ -414,6 +414,20 @@ function run_sandboxed(chunk, name, sec_level, parent, context_merge, context_mo
 		end
 	end
 	local context = new(sec_level, parent)
+	--[[
+	Construct the name, full path and a hierarchy table with all the existing
+	contexts. The hierarchy table is in the top-level script.
+	]]
+	context.name = name
+	if parent then
+		context.full_name = parent.full_name .. "/" .. name
+		context.root_parent = parent.root_parent
+	else
+		context.full_name = name
+		context.root_parent = context
+		context.hierarchy = {}
+	end
+	context.hierarchy[context.full_name] = context
 	utils.table_merge(context, context_merge or {})
 	context_mod = context_mod or function () end
 	context_mod(context)
@@ -424,7 +438,9 @@ function run_sandboxed(chunk, name, sec_level, parent, context_merge, context_mo
 	else
 		active_morpher = nil
 	end
-	if not ok then
+	if ok then
+		return context
+	else
 		if type(err) == "table" and err.tp == "error" then
 			return err
 		else
