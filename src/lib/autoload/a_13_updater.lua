@@ -114,11 +114,13 @@ function prepare(entrypoint)
 	end
 end
 
-function cleanup()
+function cleanup(success)
 	if cleanup_actions.replan then
 		reexec()
 	end
-	backend.flags_write(true)
+	if success then
+		backend.flags_write(true)
+	end
 end
 
 return _M
