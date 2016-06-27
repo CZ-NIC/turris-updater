@@ -64,7 +64,7 @@ function test_context_new()
 		assert_equal(sandbox.state_vars.architectures[1], 'all')
 		context.env = nil
 		context.level_check = nil
-		assert_table_equal({sec_level = sandbox.level(level), tp = "context"}, context)
+		assert_table_equal({sec_level = sandbox.level(level), tp = "context", flags = {}}, context)
 	end
 end
 

@@ -279,6 +279,9 @@ for _, name in pairs({'model', 'board_name', 'turris_version', 'serial', 'archit
 		value = name
 	}
 end
+funcs.Restricted["flags"] = {
+	mode = "flags"
+}
 for name, val in pairs(G) do
 	funcs.Full[name] = {
 		mode = "inject",
@@ -324,6 +327,61 @@ function level(l)
 	end
 end
 
+local function ro_proxy(flags)
+	return setmetatable({}, {
+		__index = function (_, name)
+			local result = flags[name]
+			if result and type(result) == 'string' then
+				return result
+			elseif result then
+				WARN("Type of flag " .. name .. " is " .. type(result) .. ", foreign access prevented")
+			end
+			return nil
+		end,
+		__newindex = function ()
+			error(utils.exception("access violation", "Writing of foreign flags not allowed"))
+		end
+	})
+end
+
+local function flags_new(context)
+	return setmetatable({}, {
+		__index = function (_, path)
+			-- Make sure the hierarchy is there ‒ it was created by run_sandboxed, not standalone
+			assert(context.root_parent)
+			local requested
+			if path == "" then
+				-- It's us
+				requested = context
+			elseif path.match('^/') then
+				-- It's an absolute path
+				requested = context.root_parent.hierarchy[path]
+			else
+				-- It's relative path ‒ construct the absolute one first
+				requested = context.root_parent.hierarchy[context.full_name + '/' + path]
+			end
+			if requested == context then
+				-- It's us. Provide full access to the table (eg. let it be written there as well)
+				return context.flags
+			else
+				--[[
+				TODO: We actually want to load the RO proxy from the flags storage.
+				The script's context might not exist yet (it hasn't run yet), but there
+				might be flags from previous run.
+
+				But as the storage doesn't exist yet, we shall do that later. For now,
+				we just construct a RO proxy on the fly.
+				]]
+				if requested then
+					return ro_proxy(requested.flags)
+				else
+					return nil
+				end
+			end
+		end
+	})
+end
+
 --[[
 Create a new context. The context inherits everything
 from its parent (if the parent is not nil). The security
@@ -349,6 +407,8 @@ function new(sec_level, parent)
 	result.sec_level = sec_level
 	-- Construct a new environment
 	result.env = {}
+	-- TODO: Load them somewhere
+	result.flags = {}
 	local inject = utils.clone
 	if sec_level >= level("Full") then
 		inject = function (...) return ... end
@@ -358,6 +418,8 @@ function new(sec_level, parent)
 			result.env[n] = inject(v.value)
 		elseif v.mode == "state" then
 			result.env[n] = utils.clone(state_vars[v.value])
+		elseif v.mode == "flags" then
+			result.env[n] = flags_new(result)
 		elseif v.mode == "wrap" then
 			result.env[n] = function(...)
 				return v.value(result, ...)
