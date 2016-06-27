@@ -28,6 +28,7 @@ local tostring = tostring
 local tonumber = tonumber
 local loadfile = loadfile
 local setmetatable = setmetatable
+local setfenv = setfenv
 local assert = assert
 local unpack = unpack
 local io = io
@@ -48,6 +49,7 @@ local sha256 = sha256
 local sync = sync
 local DBG = DBG
 local WARN = WARN
+local DataDumper = DataDumper
 local utils = require "utils"
 local journal = require "journal"
 
@@ -944,7 +946,7 @@ end
 
 -- Load flags from the file and warn if it isn't possible for any reason.
 function flags_load()
-	local chunk, err = loadfile(flags_store)
+	local chunk, err = loadfile(flags_storage)
 	if not chunk then
 		WARN("Couldn't load flags: " .. err)
 		return
@@ -1009,7 +1011,7 @@ function flags_get_ro(path)
 	return utils.multi_index(stored_flags, path, "proxy")
 end
 
-function flags_store(full)
+function flags_write(full)
 	if full then
 		for path, data in pairs(stored_flags) do
 			if data.provided then
@@ -1031,7 +1033,7 @@ function flags_store(full)
 	local to_store = utils.map(stored_flags, function (name, data)
 		return name, data.values
 	end)
-	local f, err = io.open(flags_store .. ".tmp", "w")
+	local f, err = io.open(flags_storage .. ".tmp", "w")
 	if not f then
 		WARN("Couldn't write the flag storage: " .. err)
 		return
@@ -1039,7 +1041,7 @@ function flags_store(full)
 	f:write(DataDumper(to_store))
 	f:close()
 	sync()
-	local ok, err = os.rename(flags_store .. ".tmp", flags_store)
+	local ok, err = os.rename(flags_storage .. ".tmp", flags_storage)
 	if not ok then
 		WARN("Couldn't put flag storage in place: " .. err)
 		return

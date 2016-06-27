@@ -250,6 +250,7 @@ end
 local orig_status_file = B.status_file
 local orig_info_dir = B.info_dir
 local orig_root_dir = B.root_dir
+local orig_flags_storage = B.flags_storage
 local tmp_dirs = {}
 
 --[[
@@ -748,11 +749,84 @@ function test_version_cmp()
 	assert_equal(1, B.version_cmp("1.10", "1.2"))
 end
 
+function test_flags()
+	assert_table_equal({}, B.stored_flags)
+	B.flags_load()
+	-- The meta tables are not checked here by assert_table_equal
+	assert_table_equal({
+		["/path"] = {
+			values = {
+				a = "hello",
+				b = "hi"
+			},
+			proxy = {}
+		}
+	}, B.stored_flags)
+	local flags = B.flags_get("/path")
+	assert_table_equal({
+		a = "hello",
+		b = "hi"
+	}, flags)
+	assert_table_equal({
+		["/path"] = {
+			values = {
+				a = "hello",
+				b = "hi"
+			},
+			provided = {
+				a = "hello",
+				b = "hi"
+			},
+			proxy = {}
+		}
+	}, B.stored_flags)
+	flags.x = "Greetings"
+	assert_table_equal({
+		["/path"] = {
+			values = {
+				a = "hello",
+				b = "hi"
+			},
+			provided = {
+				a = "hello",
+				b = "hi",
+				x = "Greetings"
+			},
+			proxy = {}
+		}
+	}, B.stored_flags)
+	local ro = B.flags_get_ro("/path")
+	assert_equal("hello", ro.a)
+	assert_nil(ro.c)
+	assert_equal("Greetings", ro.x)
+	assert_nil(B.flags_get_ro("/another"))
+	assert_exception(function () ro.c = "xyz" end, "access violation")
+	assert_exception(function () ro.d = "xyz" end, "access violation")
+	local new = B.flags_get("/another")
+	new.x = "y"
+	assert_equal("y", B.flags_get_ro("/another").x)
+	local test_root = mkdtemp()
+	table.insert(tmp_dirs, test_root)
+	B.flags_storage = test_root .. "/flags"
+	B.flags_write(true)
+	assert_table_equal({
+		["/path"] = {
+			a = "hello",
+			b = "hi",
+			x = "Greetings"
+		},
+		["/another"] = {
+			x = "y"
+		}
+	}, loadfile(B.flags_storage)())
+end
+
 function setup()
 	local sdir = os.getenv("S") or "."
 	-- Use a shortened version of a real status file for tests
 	B.status_file = sdir .. "/tests/data/opkg/status"
 	B.info_dir = sdir .. "/tests/data/opkg/info/"
+	B.flags_storage = sdir .. "/tests/data/flags"
 end
 
 function teardown()
@@ -760,6 +834,8 @@ function teardown()
 	B.status_file = orig_status_file
 	B.info_dir = orig_info_dir
 	B.root_dir= orig_root_dir
+	B.flags_storage = orig_flags_storage
 	utils.cleanup_dirs(tmp_dirs)
 	tmp_dirs = {}
+	B.stored_flags = {}
 end
