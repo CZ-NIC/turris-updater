@@ -1049,4 +1049,22 @@ function flags_write(full)
 	end
 end
 
+--[[
+Mark given flags in the script on the given path for storage.
+Eg, push the changes to be written.
+
+The names of the flags are passed by that ellipsis.
+]]
+function flags_mark(path, ...)
+	local group = stored_flags[path]
+	-- This should be called only from within a context and every context should have its own flags
+	assert(group)
+	if not group.values then
+		group.values = {}
+	end
+	for _, name in ipairs({...}) do
+		group.values[name] = group.provided[name]
+	end
+end
+
 return _M

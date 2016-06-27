@@ -749,6 +749,14 @@ function test_version_cmp()
 	assert_equal(1, B.version_cmp("1.10", "1.2"))
 end
 
+local function check_stored_flags(full, expected)
+	local test_root = mkdtemp()
+	table.insert(tmp_dirs, test_root)
+	B.flags_storage = test_root .. "/flags"
+	B.flags_write(full)
+	assert_table_equal(expected, loadfile(B.flags_storage)())
+end
+
 function test_flags()
 	assert_table_equal({}, B.stored_flags)
 	B.flags_load()
@@ -805,11 +813,7 @@ function test_flags()
 	local new = B.flags_get("/another")
 	new.x = "y"
 	assert_equal("y", B.flags_get_ro("/another").x)
-	local test_root = mkdtemp()
-	table.insert(tmp_dirs, test_root)
-	B.flags_storage = test_root .. "/flags"
-	B.flags_write(true)
-	assert_table_equal({
+	check_stored_flags(true, {
 		["/path"] = {
 			a = "hello",
 			b = "hi",
@@ -818,7 +822,39 @@ function test_flags()
 		["/another"] = {
 			x = "y"
 		}
-	}, loadfile(B.flags_storage)())
+	})
+end
+
+function test_flags_mark()
+	B.flags_load()
+	local old = B.flags_get("/path")
+	old.x = "123"
+	old.y = "2345"
+	old.a = "5678"
+	old.b = nil
+	local new = B.flags_get("/another")
+	new.a = "123"
+	B.flags_mark("/path", "x", "a")
+	check_stored_flags(false, {
+		["/path"] = {
+			a = "5678",
+			b = "hi",
+			x = "123"
+			-- y is /not/ present, because we haven't marked it.
+		}
+		-- Also, /new isn't here
+	})
+	B.flags_mark("/another", "a")
+	B.flags_mark("/path", "b")
+	check_stored_flags(false, {
+		["/path"] = {
+			a = "5678",
+			x = "123"
+		},
+		["/another"] = {
+			a = "123"
+		}
+	})
 end
 
 function setup()
