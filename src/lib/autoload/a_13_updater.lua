@@ -57,6 +57,7 @@ function prepare(entrypoint)
 	local required = planner.required_pkgs(postprocess.available_packages, requests.content_requests)
 	-- TODO: Reuse the status for the transaction. Also, share the lock.
 	local status = backend.status_parse()
+	backend.flags_load()
 	local tasks = planner.filter_required(status, required)
 	--[[
 	Start download of all the packages. They all start (or queue, if there are
@@ -117,6 +118,7 @@ function cleanup()
 	if cleanup_actions.replan then
 		reexec()
 	end
+	backend.flags_write(true)
 end
 
 return _M
