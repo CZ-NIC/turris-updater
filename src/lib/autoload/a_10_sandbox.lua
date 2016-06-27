@@ -327,56 +327,30 @@ function level(l)
 	end
 end
 
-local function ro_proxy(flags)
-	return setmetatable({}, {
-		__index = function (_, name)
-			local result = flags[name]
-			if result and type(result) == 'string' then
-				return result
-			elseif result then
-				WARN("Type of flag " .. name .. " is " .. type(result) .. ", foreign access prevented")
-			end
-			return nil
-		end,
-		__newindex = function ()
-			error(utils.exception("access violation", "Writing of foreign flags not allowed"))
-		end
-	})
-end
-
 local function flags_new(context)
 	return setmetatable({}, {
 		__index = function (_, path)
 			-- Make sure the hierarchy is there ‒ it was created by run_sandboxed, not standalone
 			assert(context.root_parent)
 			local requested
+			local full_path
 			if path == "" then
 				-- It's us
 				requested = context
 			elseif path.match('^/') then
 				-- It's an absolute path
+				full_path = path
 				requested = context.root_parent.hierarchy[path]
 			else
 				-- It's relative path ‒ construct the absolute one first
-				requested = context.root_parent.hierarchy[context.full_name + '/' + path]
+				full_path = context.full_name + '/' + path
+				requested = context.root_parent.hierarchy[full_path]
 			end
 			if requested == context then
 				-- It's us. Provide full access to the table (eg. let it be written there as well)
 				return context.flags
 			else
-				--[[
-				TODO: We actually want to load the RO proxy from the flags storage.
-				The script's context might not exist yet (it hasn't run yet), but there
-				might be flags from previous run.
-
-				But as the storage doesn't exist yet, we shall do that later. For now,
-				we just construct a RO proxy on the fly.
-				]]
-				if requested then
-					return ro_proxy(requested.flags)
-				else
-					return nil
-				end
+				return backend.flags_get_ro(full_path)
 			end
 		end
 	})
@@ -391,7 +365,7 @@ inherited).
 A new environment, corresponding to the security level,
 is constructed and stored in the result as „env“.
 ]]
-function new(sec_level, parent)
+function new(sec_level, parent, name)
 	sec_level = level(sec_level)
 	local result = {}
 	--[[
@@ -405,10 +379,23 @@ function new(sec_level, parent)
 	parent = parent or {}
 	sec_level = sec_level or parent.sec_level
 	result.sec_level = sec_level
+	--[[
+	Construct the name, full path and a hierarchy table with all the existing
+	contexts. The hierarchy table is in the top-level script.
+	]]
+	result.name = name
+	if parent and parent.full_name then
+		result.full_name = parent.full_name .. "/" .. name
+		result.root_parent = parent.root_parent
+	else
+		result.full_name = name
+		result.root_parent = result
+		result.hierarchy = {}
+	end
+	result.root_parent.hierarchy[result.full_name or ""] = result
+	result.flags = backend.flags_get(result.full_name)
 	-- Construct a new environment
 	result.env = {}
-	-- TODO: Load them somewhere
-	result.flags = {}
 	local inject = utils.clone
 	if sec_level >= level("Full") then
 		inject = function (...) return ... end
@@ -475,21 +462,7 @@ function run_sandboxed(chunk, name, sec_level, parent, context_merge, context_mo
 			return utils.exception("compilation", err)
 		end
 	end
-	local context = new(sec_level, parent)
-	--[[
-	Construct the name, full path and a hierarchy table with all the existing
-	contexts. The hierarchy table is in the top-level script.
-	]]
-	context.name = name
-	if parent then
-		context.full_name = parent.full_name .. "/" .. name
-		context.root_parent = parent.root_parent
-	else
-		context.full_name = name
-		context.root_parent = context
-		context.hierarchy = {}
-	end
-	context.hierarchy[context.full_name] = context
+	local context = new(sec_level, parent, name)
 	utils.table_merge(context, context_merge or {})
 	context_mod = context_mod or function () end
 	context_mod(context)

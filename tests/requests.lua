@@ -23,12 +23,14 @@ local sandbox = require "sandbox"
 local requests = require "requests"
 local utils = require "utils"
 local uri = require "uri"
+local backend = require "backend"
 
 module("requests-tests", package.seeall, lunit.testcase)
 
 local function run_sandbox_fun(func_code, level)
 	local chunk = "result = " .. func_code
 	local env
+	backend.stored_flags = {}
 	local result = sandbox.run_sandboxed(chunk, "Test chunk", level or "Restricted", nil, nil, function (context)
 		env = context.env
 	end)
@@ -178,7 +180,7 @@ function test_script_level_transition()
 		for j, to in ipairs(levels) do
 			local result = sandbox.run_sandboxed([[
 				Script "test-script" "data:," { security = ']] .. to .. [[' }
-			]], "Test chunk", from)
+			]], "Test chunk " .. from .. "/" .. to, from)
 			if i > j then
 				assert_table_equal(utils.exception("access violation", "Attempt to raise security level from " .. from .. " to " .. to), result)
 			else
@@ -195,6 +197,7 @@ function test_script_pass_validation()
 			Script "test-script" "data:," { security = 'Restricted']] .. opts .. [[ }
 		]], "Test chunk", "Restricted")
 		assert_table_equal(utils.exception(exctype or "bad value", msg), err)
+		backend.stored_flags = {}
 	end
 	-- Bad uri inside something
 	bad(", verification = 'sig', pubkey = 'invalid://'", "Unknown URI schema invalid")
@@ -228,5 +231,6 @@ function teardown()
 	requests.known_packages = {}
 	requests.known_repositories = {}
 	requests.content_requests = {}
+	backend.stored_flags = {}
 	mocks_reset()
 end

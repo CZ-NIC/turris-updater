@@ -20,6 +20,7 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 require 'lunit'
 local sandbox = require 'sandbox'
 local utils = require 'utils'
+local backend = require 'backend'
 
 module("sandbox-tests", package.seeall, lunit.testcase)
 
@@ -64,7 +65,10 @@ function test_context_new()
 		assert_equal(sandbox.state_vars.architectures[1], 'all')
 		context.env = nil
 		context.level_check = nil
-		assert_table_equal({sec_level = sandbox.level(level), tp = "context", flags = {}}, context)
+		local expected = {sec_level = sandbox.level(level), tp = "context"}
+		expected.root_parent = expected
+		expected.hierarchy = {[''] = expected}
+		assert_table_equal(expected, context)
 	end
 end
 
@@ -120,6 +124,7 @@ function test_sandbox_run()
 			assert_table_equal(expected, result)
 		end
 		assert_equal(result_called, called)
+		backend.stored_flags = {}
 	end
 	-- We can add a function and it can access the local upvalues
 	test_do(chunk_ok, "Restricted", nil, true)
@@ -267,4 +272,5 @@ end
 
 function teardown()
 	mocks_reset()
+	backend.stored_flags = {}
 end
