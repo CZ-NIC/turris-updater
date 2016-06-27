@@ -855,6 +855,16 @@ function test_flags_mark()
 			a = "123"
 		}
 	})
+	check_stored_flags(true, {
+		["/path"] = {
+			a = "5678",
+			x = "123",
+			y = "2345"
+		},
+		["/another"] = {
+			a = "123"
+		}
+	})
 end
 
 function setup()

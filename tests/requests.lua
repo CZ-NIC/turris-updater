@@ -27,6 +27,8 @@ local backend = require "backend"
 
 module("requests-tests", package.seeall, lunit.testcase)
 
+local tmp_dirs = {}
+
 local function run_sandbox_fun(func_code, level)
 	local chunk = "result = " .. func_code
 	local env
@@ -222,6 +224,30 @@ function test_script_err_propagate()
 	assert_equal("error", err.tp)
 end
 
+function test_store_flags()
+	local test_root = mkdtemp()
+	table.insert(tmp_dirs, test_root)
+	backend.flags_storage = test_root .. "/flags"
+	local result = sandbox.run_sandboxed([[
+		flags[""].x = "hello"
+		flags[""].y = "hi"
+		StoreFlags "x"
+	]], "", "Local")
+	assert_equal("context", result.tp, result.msg)
+	assert_table_equal({
+		[""] = {
+			values = {
+				x = "hello"
+			},
+			provided = {
+				x = "hello",
+				y = "hi"
+			},
+			proxy = {}
+		}
+	}, backend.stored_flags)
+end
+
 function setup()
 	-- Don't download stuff now
 	mock_gen("uri.new", function (context, u) return {u = u} end, true)
@@ -233,4 +259,6 @@ function teardown()
 	requests.content_requests = {}
 	backend.stored_flags = {}
 	mocks_reset()
+	utils.cleanup_dirs(tmp_dirs)
+	tmp_dirs = {}
 end

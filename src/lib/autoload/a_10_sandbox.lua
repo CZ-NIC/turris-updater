@@ -257,6 +257,10 @@ local funcs = {
 		Script = {
 			mode = "morpher",
 			value = requests.script
+		},
+		StoreFlags = {
+			mode = "morpher",
+			value = requests.store_flags
 		}
 	}
 }

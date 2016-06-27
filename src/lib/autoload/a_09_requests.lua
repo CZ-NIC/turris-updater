@@ -31,6 +31,7 @@ local tostring = tostring
 local table = table
 local utils = require "utils"
 local uri = require "uri"
+local backend = require "backend"
 local DBG = DBG
 local WARN = WARN
 
@@ -324,6 +325,12 @@ function script(result, context, name, script_uri, extra)
 	result.tp = "script"
 	result.name = name
 	result.uri = script_uri
+end
+
+function store_flags(result, context, ...)
+	DBG("Storing flags ", ...)
+	backend.flags_mark(context.full_name, ...)
+	backend.flags_write(false)
 end
 
 return _M
