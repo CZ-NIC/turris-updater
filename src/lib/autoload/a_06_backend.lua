@@ -984,10 +984,11 @@ function flags_get(path)
 	if not flags then
 		local f = {}
 		flags = {
-			values = f,
+			provided = f,
 			proxy = flags_ro_proxy(f)
 		}
 		stored_flags[path] = flags
+		return f
 	end
 	--[[
 	Return the flags table (the one the proxy points to, so the proxies see
