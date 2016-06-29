@@ -2,7 +2,7 @@
 
 local uci_ok, uci = pcall(require, "uci")
 local disable_all = false
-local branch
+local branch = ""
 local lists
 if uci_ok then
 	local cursor = uci.cursor()
@@ -14,34 +14,28 @@ if uci_ok then
 	branch = cursor:get("updater", "override", "branch")
 	if branch then
 		WARN("Branch overriden to " .. branch)
-		branch = "-" .. branch
+		branch = branch .. "/"
 	end
 	lists = cursor:get("updater", "pkglists", "lists")
 else
 	ERROR("UCI library is not available. Not processing user lists.")
 end
-branch = branch or ""
 
 -- Guess what board this is.
-local f = io.open("/tmp/sysinfo/model")
-local base_model
-if f then
-	local raw_model = f:read()
-	if raw_model then
-		if raw_model:match("[Oo]mnia") then
-			base_model = "omnia"
-		elseif raw_model:match("[Tt]urris") then
-			base_model = "turris"
-		end
+local base_model = ""
+if model then
+	if model:match("[Oo]mnia") then
+		base_model = "omnia/"
+	elseif model:match("[Tt]urris") then
+		base_model = "turris/"
 	end
-	f:close()
 end
+
+local base_url = "https://api.turris.cz/updater-defs/" .. turris_version .. "/" .. base_model .. branch
 
 if base_model then
 	-- The distribution script. It contains the repository and bunch of basic packages. The URI is computed based on the branch and the guessed board
-	Script("turris", "https://api.turris.cz/updater-defs/" .. base_model .. branch .. ".lua", { security = "Remote", verification = "cert", ca = "file:///etc/ssl/updater.pem", crl = "file:///tmp/crl.pem" })
-else
-	WARN("Failed to guess the board, relying on user-provided scripts")
+	Script("base",  base_url .. "base.lua", { security = "Remote", verification = "cert", ca = "file:///etc/ssl/updater.pem", crl = "file:///tmp/crl.pem" })
 end
 
 -- Some provided by the user
@@ -58,7 +52,7 @@ if uci_ok then
 		for _, l in ipairs(lists) do
 			-- TODO: Make signatures work
 			-- TODO: Make restricted security work
-			Script("userlist-" .. l, "https://api.turris.cz/updater-defs/" .. l .. ".lua", { security = "Remote", verification = "cert", ca = "file:///etc/ssl/updater.pem", crl = "file:///tmp/crl.pem" })
+			Script("userlist-" .. l, base_url .. "userlists/" .. l .. ".lua", { security = "Remote", verification = "cert", ca = "file:///etc/ssl/updater.pem", crl = "file:///tmp/crl.pem" })
 		end
 	end
 end
