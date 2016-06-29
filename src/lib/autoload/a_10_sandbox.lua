@@ -42,6 +42,11 @@ local events_wait = events_wait
 local utils = require "utils"
 local backend = require "backend"
 local requests = require "requests"
+local uci_ok, uci = pcall(require, "uci")
+if not uci_ok then
+	ERROR("The uci library is not available. Continuing without it and expecting this is a test run on development PC.")
+	uci = nil
+end
 
 module "sandbox"
 
@@ -279,6 +284,12 @@ for _, name in pairs(rest_available_funcs) do
 	funcs.Restricted[name] = {
 		mode = "inject",
 		value = G[name]
+	}
+end
+if uci then
+	funcs.Local.uci = {
+		mode = "inject",
+		value = uci
 	}
 end
 --[[
