@@ -18,6 +18,7 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
 local pairs = pairs
+local ipairs = ipairs
 local tostring = tostring
 local error = error
 local pcall = pcall
@@ -142,6 +143,83 @@ function get_repos()
 	end
 end
 
+-- Helper function for deps_canon ‒ handles 0 and 1 item dependencies.
+local function dep_size_check(dep)
+	if not next(dep.sub) then
+		return nil
+	elseif #dep.sub == 1 and dep.tp ~= 'dep-not' then
+		return dep.sub[1]
+	else
+		return dep
+	end
+end
+
+--[[
+Canonicize the dependencies somewhat. This does several things:
+• Splits dependencies from strings (eg. "a b c" becomes a real dep-and object holding "a", "b", "c").
+• Table dependencies are turned to real dep-and object.
+• Empty dependencies are turned to nil.
+• Single dependencies are turned to just the string (except with the not dependency)
+TODO: There may be versions. These are ignored for now.
+]]
+function deps_canon(old_deps)
+	if type(old_deps) == 'string' then
+		if old_deps:match('%s') then
+			local sub = {}
+			for dep in old_deps:gmatch('%S+') do
+				table.insert(sub, dep)
+			end
+			return deps_canon({
+				tp = 'dep-and',
+				sub = sub
+			})
+		elseif old_deps == '' then
+			return nil
+		else
+			return old_deps
+		end
+	elseif type(old_deps) == 'table' then
+		local tp = old_deps.tp
+		if tp == nil then
+			-- It is an AND-type multi-dependency. Mark it as such.
+			return deps_canon({
+				tp = 'dep-and',
+				sub = old_deps
+			})
+		elseif tp == 'dep-and' then
+			-- Flatten any sub-and dependencies
+			local sub = {}
+			for _, val in ipairs(old_deps.sub) do
+				local new_val = deps_canon(val)
+				if new_val and new_val.tp == 'dep-and' then
+					utils.arr_append(sub, new_val.sub)
+				else
+					table.insert(sub, new_val)
+				end
+			end
+			return dep_size_check({
+				tp = 'dep-and',
+				sub = sub
+			})
+		elseif tp == 'dep-or' or tp == 'dep-not' then
+			-- Run on sub-dependencies
+			for i, val in ipairs(old_deps.sub) do
+				old_deps.sub[i] = deps_canon(val)
+			end
+			return dep_size_check(old_deps)
+		elseif tp == 'package' then
+			-- Single package dependency (an object instead of name) ‒ leave it as it is
+			return old_deps
+		else
+			error(utils.exception('bad value', 'Object of type ' .. tp .. ' used as a dependency'));
+		end
+	elseif old_deps == nil then
+		return nil
+	else
+		error(utils.exception('bad value', 'Bad deps type ' .. type(old_deps)))
+	end
+end
+
 available_packages = {}
 
 --[[
@@ -204,6 +282,15 @@ function pkg_aggregate()
 		}
 		for _, m in pairs(pkg_group.modifiers) do
 			m.final = modifier
+			--[[
+			Merge all the deps together. We use an empty table if there's nothing else, which is OK,
+			since it'll get merged into the upper level and therefore won't have any effect during
+			the subsequent dependency processing.
+
+			Note that we don't merge the deps from the package sources, since there may be multiple
+			candidates and the deps could differ.
+			]]
+			table.insert(modifier.deps, m.deps or {})
 			-- Take a single value or a list from the source and merge it into a set in the destination
 			local function set_merge(name)
 				local src = m[name]
@@ -217,8 +304,6 @@ function pkg_aggregate()
 					modifier[name][src] = true
 				end
 			end
-			-- TODO: We need to make the deps canonical somehow for this to work properly.
-			set_merge("deps")
 			set_merge("order_after")
 			set_merge("order_before")
 			set_merge("pre_install")
@@ -240,6 +325,7 @@ function pkg_aggregate()
 			end
 			modifier.replan = modifier.replan or m.replan
 		end
+		modifier.deps = deps_canon(modifier.deps)
 		pkg_group.modifier = modifier
 		-- We merged them together, they are no longer needed separately
 		pkg_group.modifiers = nil

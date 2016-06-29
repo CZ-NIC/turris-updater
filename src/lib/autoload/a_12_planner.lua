@@ -117,10 +117,28 @@ function required_pkgs(pkgs, requests)
 				WARN("Dependency " .. (d.name or d) .. " of " .. name .. " is missing, ignoring as requested")
 			end
 		end
-		-- Require the dependencies
-		for d in pairs(mod.deps) do
-			dep(d)
+		local function dep_traverse(d)
+			if d == nil then
+				return
+			end
+			local t = d and d.tp
+			if type(d) == 'string' or t == 'package' then
+				return dep(d)
+			elseif t == 'dep-and' then
+				for _, sub in ipairs(d.sub) do
+					dep_traverse(sub)
+				end
+			elseif t == 'dep-or' then
+				WARN("Picking the first dependency of Or() compound, clever selection not implemented yet")
+				return dep_traverse(d.sub[1])
+			elseif t == 'dep-not' then
+				WARN("Ignoring the Not() dep compound, not implemented yet")
+			else
+				error(utils.exception('bad value', "Invalid dependency description " .. (t or "<nil>")))
+			end
 		end
+		-- Require the dependencies
+		dep_traverse(mod.deps)
 		for _, d in ipairs(src.Depends or {}) do
 			dep(d)
 		end

@@ -159,3 +159,11 @@ function test_strip()
 	assert_equal(42, U.strip(42))
 	assert_nil(U.strip(nil))
 end
+
+function test_arr_append()
+	local a1 = {'a', 'b', 'c'}
+	local a2 = {'d', 'e', 'f'}
+	U.arr_append(a1, a2)
+	assert_table_equal({'a', 'b', 'c', 'd', 'e', 'f'}, a1)
+	assert_table_equal({'d', 'e', 'f'}, a2)
+end

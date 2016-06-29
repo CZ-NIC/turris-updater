@@ -253,7 +253,10 @@ function test_pkg_merge()
 			modifier = {
 				name = "xyz",
 				order_after = {abc = true},
-				deps = utils.arr2set({"abc", "another", "xyz"}),
+				deps = {
+					tp = 'dep-and',
+					sub = {"abc", "another", "xyz"}
+				},
 				reboot = "finished",
 				replan = true
 			}
@@ -263,7 +266,6 @@ function test_pkg_merge()
 	local modifier_def = {
 		tp = "package",
 		abi_change = {},
-		deps = {},
 		order_after = {},
 		order_before = {},
 		post_install = {},
@@ -281,6 +283,27 @@ function test_pkg_merge()
 	end
 	assert_table_equal(exp, postprocess.available_packages)
 	assert_table_equal(utils.private(postprocess.available_packages.virt.candidates[1]).group, exp.virt)
+end
+
+function test_deps_canon()
+	assert_equal(nil, postprocess.deps_canon(nil))
+	assert_equal(nil, postprocess.deps_canon({}))
+	assert_equal(nil, postprocess.deps_canon(""))
+	assert_equal("x", postprocess.deps_canon("x"))
+	assert_equal("x", postprocess.deps_canon(" x "))
+	assert_equal("x", postprocess.deps_canon({"x"}))
+	assert_equal("x", postprocess.deps_canon({tp = 'dep-and', sub = {"x"}}))
+	assert_equal("x", postprocess.deps_canon({tp = 'dep-or', sub = {"x"}}))
+	assert_table_equal({tp = "dep-not", sub = {"x"}}, postprocess.deps_canon({tp = 'dep-not', sub = {"x"}}))
+	assert_table_equal({tp = "dep-and", sub = {"x", "y"}}, postprocess.deps_canon("x y"))
+	assert_table_equal({tp = "dep-and", sub = {"x", "y"}}, postprocess.deps_canon({"x y"}))
+	assert_table_equal({tp = "dep-and", sub = {"x", "y"}}, postprocess.deps_canon({"x", "y"}))
+	assert_table_equal({tp = "dep-and", sub = {"x", "y"}}, postprocess.deps_canon({"x", {"y "}}))
+	assert_table_equal({tp = "dep-and", sub = {"x", "y"}}, postprocess.deps_canon({"x", {tp = 'dep-and', sub = {"y "}}}))
+	assert_table_equal({tp = "dep-or", sub = {"x", "y"}}, postprocess.deps_canon({tp = "dep-or", sub = {"x", {tp = 'dep-or', sub = {"y"}}}}))
+	assert_table_equal({tp = "dep-or", sub = {"x", {tp = "dep-or", sub = {"y", "z"}}}}, postprocess.deps_canon({tp = "dep-or", sub = {"x", {tp = 'dep-or', sub = {"y ", "z"}}}}))
+	assert_table_equal({tp = "dep-or", sub = {"x", {tp = "dep-and", sub = {"y", "z"}}}}, postprocess.deps_canon({tp = "dep-or", sub = {"x", {"y", "z"}}}))
+	assert_table_equal({tp = "package", a = "b"}, postprocess.deps_canon({tp = "package", a = "b"}))
 end
 
 function teardown()

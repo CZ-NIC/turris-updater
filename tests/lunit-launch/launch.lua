@@ -53,7 +53,11 @@ end
 function assert_exception(func, reason, msg)
 	local ok, err = pcall(func)
 	lunit.assert_false(ok, "It hasn't failed")
-	lunit.assert_equal("error", err.tp, "Not an exception")
+	local dumped, result = pcall(DataDumper, err)
+	if not dumped then
+		result = "Can't dump :-("
+	end
+	lunit.assert_equal("error", err.tp, "Not an exception: " .. result)
 	lunit.assert_equal(reason, err.reason, "Failed with a wrong reason " .. (err.reason or err))
 	if msg then
 		lunit.assert_equal(msg, err.msg, "Failed with a wrong message " .. (err.msg or msg))

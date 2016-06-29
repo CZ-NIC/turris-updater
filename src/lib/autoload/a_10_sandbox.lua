@@ -261,6 +261,19 @@ local funcs = {
 	}
 }
 
+-- The operators for dependencies. They just wrap their arguments, nothing more.
+for _, name in pairs({'And', 'Or', 'Not'}) do
+	local objname = "dep-" .. name:lower()
+	funcs.Restricted[name] = {
+		mode = "inject",
+		value = function (...)
+			return {
+				tp = objname,
+				sub = {...}
+			}
+		end
+	}
+end
 -- Provide the global lua functions into places where they are needed
 for _, name in pairs(rest_available_funcs) do
 	funcs.Restricted[name] = {

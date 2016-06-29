@@ -245,6 +245,48 @@ function test_syslib()
 	assert_equal("hello", str:lower())
 end
 
+-- Test the complex dep descriptions
+function test_deps()
+	for fun, tp in pairs({And = 'dep-and', Or = 'dep-or', Not = 'dep-not'}) do
+		local env
+		local result = sandbox.run_sandboxed("res = " .. fun .. "('a', 'b', 'c')", "Chunk name", "Restricted", nil, nil, function (context)
+			-- Steal the context, so we can access the data stored there later on.
+			env = context.env
+		end)
+		assert_nil(result)
+		assert_table_equal({
+			tp = tp,
+			sub = {'a', 'b', 'c'}
+		}, env.res)
+	end
+	-- Test them together
+	local env
+	local result = sandbox.run_sandboxed([[
+		res = Or('pkg1', And(Not('pkg2'), 'pkg3'))
+	]], "Chunk name", 'Restricted', nil, nil, function (context)
+		env = context.env
+	end)
+	assert_nil(result)
+	assert_table_equal({
+		tp = 'dep-or',
+		sub = {
+			'pkg1',
+			{
+				tp = 'dep-and',
+				sub = {
+					{
+						tp = 'dep-not',
+						sub = {
+							'pkg2'
+						}
+					},
+					'pkg3'
+				}
+			}
+		}
+	}, env.res)
+end
+
 function teardown()
 	mocks_reset()
 end

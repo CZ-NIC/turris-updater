@@ -142,6 +142,14 @@ function table_merge(dest, src)
 	end
 end
 
+-- Append one table/array at the end of another
+function arr_append(into, what)
+	local offset = #into
+	for i, v in ipairs(what) do
+		into[i + offset] = v
+	end
+end
+
 local error_meta = {
 	__tostring = function (err)
 		return err.msg
