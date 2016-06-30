@@ -82,7 +82,9 @@ struct events {
 	struct event_base *base;
 	struct watched_child *children;
 	size_t child_count, child_alloc;
-	struct event *child_event, *child_kick_event;
+	int self_chld_write, self_chld_read;
+	bool self_chld;
+	struct event *child_event;
 	struct watched_command **commands;
 	size_t command_count, command_alloc;
 	struct download_data **downloads;
@@ -136,7 +138,16 @@ static void child_pop(struct events *events, struct watched_child *c) {
 }
 
 static void chld_event(evutil_socket_t socket __attribute__((unused)), short flags __attribute__((unused)), void *data) {
+	/*
+	 * First read bunch of data from the socket (we don't need to be sure
+	 * we've read everything). Only after that we reap all the zombies.
+	 * The other way around would make it possible to lose a zombie if it
+	 * arrived in between.
+	 */
 	struct events *events = data;
+	const size_t bufsize = 1024;
+	char buffer[bufsize];
+	recv(events->self_chld_read, buffer, sizeof buffer, MSG_DONTWAIT);
 	int status;
 	pid_t pid;
 	while ((pid = waitpid(-1, &status, WNOHANG)) != 0) {
@@ -168,6 +179,19 @@ static void chld_event(evutil_socket_t socket __attribute__((unused)), short fla
 			events->ARRAY = realloc(events->ARRAY, (events->ALLOC = events->ALLOC * 2 + 10) * sizeof *events->ARRAY); \
 	} while (0)
 
+static int chld_wakeup;
+
+static void chld(int signum __attribute__((unused))) {
+	if (chld_wakeup) {
+		/*
+		 * If there's anything to wake up, do so by writing something to the socket (if it fits).
+		 * If it doesn't fit, that's OK, because then there's something already and the other
+		 * side will get woken up anyway.
+		 */
+		send(chld_wakeup, "!", 1, MSG_DONTWAIT | MSG_NOSIGNAL);
+	}
+}
+
 struct wait_id watch_child(struct events *events, child_callback_t callback, void *data, pid_t pid) {
 	// We must not watch the child multiple times
 	ASSERT_MSG(!child_lookup(events, pid), "Requested to watch child %d multiple times\n", pid);
@@ -178,16 +202,39 @@ struct wait_id watch_child(struct events *events, child_callback_t callback, voi
 		.callback = callback,
 		.data = data
 	};
-	if (!events->child_event) {
-		// Create the SIGCHLD events when needed
-		events->child_event = event_new(events->base, SIGCHLD, EV_SIGNAL | EV_PERSIST, chld_event, events);
+	if (!events->self_chld) {
+		/*
+		 * It seems libevent has a race condition and leaves a SIGCHLD unhandled sometimes
+		 * and gets stuck for ethernity waiting for input (that never comes) from time to
+		 * time. That's a big problem for us.
+		 *
+		 * Therefore, we use the usual self-pipe trick ‒ writing into one end of a pipe
+		 * from the signal handler, letting the other side wake up libevent and then we
+		 * wait() for the children in the event handler.
+		 *
+		 * As there were some problems with real pipes (writes taking forever), we
+		 * use socket pairs instead.
+		 *
+		 * Sometimes one must wonder if using a library like libevent really saves us
+		 * any trouble at all.
+		 */
+		int pipes[2];
+		ASSERT_MSG(!socketpair(PF_LOCAL, SOCK_STREAM, 0, pipes), "Failed to create self-socket-pair: %s", strerror(errno));
+		ASSERT_MSG(fcntl(pipes[0], F_SETFD, (long)FD_CLOEXEC) != -1, "Failed to set close on exec on read self-pipe: %s", strerror(errno));
+		ASSERT_MSG(fcntl(pipes[1], F_SETFD, (long)FD_CLOEXEC) != -1, "Failed to set close on exec on write self-pipe: %s", strerror(errno));
+		ASSERT_MSG(!sigaction(SIGCHLD, &(const struct sigaction) {
+			.sa_handler = chld,
+			.sa_flags = SA_NOCLDSTOP | SA_RESTART
+		}, NULL), "Failed to set SIGCHLD handler: %s", strerror(errno));
+		events->child_event = event_new(events->base, pipes[0], EV_READ | EV_PERSIST, chld_event, events);
 		ASSERT(event_add(events->child_event, NULL) != -1);
-		events->child_kick_event = event_new(events->base, -1, 0, chld_event, events);
+		events->self_chld_read = pipes[0];
+		events->self_chld_write = pipes[1];
+		chld_wakeup = pipes[1];
+		events->self_chld = true;
 	}
-	// Ensure the callback is called even if the SIGCHLD came before the init above
-	// event_active doesn't seem to be called in our case (no idea why), so this trick with 0 timeout
-	struct timeval tv = {0, 0};
-	ASSERT(event_add(events->child_kick_event, &tv) != -1);
+	// Wake up the event loop, just in case the SIGCHLD arrived before we set up the mechanism above.
+	send(events->self_chld_write, "?", 1, MSG_DONTWAIT | MSG_NOSIGNAL);
 	return child_id(pid);
 }
 
@@ -670,8 +717,12 @@ void events_wait(struct events *events, size_t nid, struct wait_id *ids) {
 void events_destroy(struct events *events) {
 	if (events->child_event)
 		event_free(events->child_event);
-	if (events->child_kick_event)
-		event_free(events->child_kick_event);
+	if (events->self_chld) {
+		if (chld_wakeup == events->self_chld_write)
+			chld_wakeup = 0;
+		ASSERT(!close(events->self_chld_read));
+		ASSERT(!close(events->self_chld_write));
+	}
 	while (events->download_count)
 		download_free(events->downloads[0]);
 	while (events->command_count)
