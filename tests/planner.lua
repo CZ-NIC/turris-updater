@@ -570,7 +570,6 @@ function test_complex_deps()
 		}
 	}
 	local result = planner.required_pkgs(pkgs, requests)
-	print(DataDumper(result))
 	local expected = utils.map({"pkg1", "pkg2", "pkg3", "pkg4", "pkg7", "meta"}, function (i, name)
 		local p = pkgs[name]
 		return i, {

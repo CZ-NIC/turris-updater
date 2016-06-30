@@ -31,6 +31,7 @@ local tostring = tostring
 local table = table
 local utils = require "utils"
 local uri = require "uri"
+local backend = require "backend"
 local DBG = DBG
 local WARN = WARN
 
@@ -278,6 +279,7 @@ local script_insert_options = {
 
 function script(result, context, name, script_uri, extra)
 	DBG("Running script " .. name)
+	extra = extra or {}
 	for name in pairs(extra) do
 		if allowed_script_extras[name] == nil then
 			WARN("There's no extra option " .. name .. " for the Script command")
@@ -313,7 +315,7 @@ function script(result, context, name, script_uri, extra)
 		end
 	end
 	local err = sandbox.run_sandboxed(content, name, extra.security, context, merge)
-	if err then
+	if err and err.tp == 'error' then
 		if not err.origin then
 			err.oririn = script_uri
 		end
@@ -323,6 +325,12 @@ function script(result, context, name, script_uri, extra)
 	result.tp = "script"
 	result.name = name
 	result.uri = script_uri
+end
+
+function store_flags(result, context, ...)
+	DBG("Storing flags ", ...)
+	backend.flags_mark(context.full_name, ...)
+	backend.flags_write(false)
 end
 
 return _M

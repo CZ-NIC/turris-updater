@@ -626,14 +626,16 @@ absolute. Referencing self as an empty string works. The table is
 generated on the fly, therefore the script may not find out what other
 scripts ever run.
 
-The subtable is wholly instantiated, therefore the script can list the
-keys it left itself from previous run.
+In case of the own flags, the table is fully instantiated, so they can
+be written and iterated (using `next` and `pairs`). If it is flags
+belonging to other script, the table is read only and doesn't allow
+iterating (eg. it is possible to query a flag value, but not possible
+to discover which flags exist).
 
 Flags may be only strings.
 
 Any modification to the own flags table is stored on successful
 updater termination or when the script explicitly request it.
-Modifications to other scripts' flags tables are not stored.
 
 Hooks
 -----

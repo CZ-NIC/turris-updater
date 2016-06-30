@@ -49,14 +49,15 @@ function prepare(entrypoint)
 	Run the top level script with full privileges.
 	The script shall be part of updater anyway.
 	]]
-	local err = sandbox.run_sandboxed(tls, "[Top level download]", 'Full')
-	if err then error(err) end
+	local err = sandbox.run_sandboxed(tls, "", 'Full')
+	if err and err.tp == 'error' then error(err) end
 	state_dump("examine")
 	-- Go through all the requirements and decide what we need
 	postprocess.run()
 	local required = planner.required_pkgs(postprocess.available_packages, requests.content_requests)
 	-- TODO: Reuse the status for the transaction. Also, share the lock.
 	local status = backend.status_parse()
+	backend.flags_load()
 	local tasks = planner.filter_required(status, required)
 	--[[
 	Start download of all the packages. They all start (or queue, if there are
@@ -113,9 +114,12 @@ function prepare(entrypoint)
 	end
 end
 
-function cleanup()
+function cleanup(success)
 	if cleanup_actions.replan then
 		reexec()
+	end
+	if success then
+		backend.flags_write(true)
 	end
 end
 

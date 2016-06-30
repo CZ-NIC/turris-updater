@@ -42,6 +42,7 @@ local DBG = DBG
 local WARN = WARN
 local state_dump = state_dump
 local log_event = log_event
+local sync = sync
 
 module "transaction"
 

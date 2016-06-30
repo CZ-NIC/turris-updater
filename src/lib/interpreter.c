@@ -589,6 +589,7 @@ static int lua_stat(lua_State *L) {
 }
 
 static int lua_sync(lua_State *L __attribute__((unused))) {
+	DBG("Sync");
 	sync();
 	return 0;
 }

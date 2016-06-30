@@ -23,16 +23,20 @@ local sandbox = require "sandbox"
 local requests = require "requests"
 local utils = require "utils"
 local uri = require "uri"
+local backend = require "backend"
 
 module("requests-tests", package.seeall, lunit.testcase)
+
+local tmp_dirs = {}
 
 local function run_sandbox_fun(func_code, level)
 	local chunk = "result = " .. func_code
 	local env
-	local err = sandbox.run_sandboxed(chunk, "Test chunk", level or "Restricted", nil, nil, function (context)
+	backend.stored_flags = {}
+	local result = sandbox.run_sandboxed(chunk, "Test chunk", level or "Restricted", nil, nil, function (context)
 		env = context.env
 	end)
-	assert_nil(err, DataDumper(err))
+	assert_equal("context", result.tp, result.msg)
 	return env.result
 end
 
@@ -105,7 +109,7 @@ function test_repository()
 end
 
 function test_install_uninstall()
-	local err = sandbox.run_sandboxed([[
+	local result = sandbox.run_sandboxed([[
 		Install "pkg1" "pkg2" {priority = 45} "pkg3" {priority = 14} "pkg4" "pkg5"
 		Uninstall "pkg6" {priority = 75} "pkg7"
 		Install "pkg8"
@@ -130,17 +134,17 @@ function test_install_uninstall()
 		req(7, "uninstall"),
 		req(8, "install")
 	}, requests.content_requests)
-	assert_nil(err)
+	assert_equal("context", result.tp, result.msg)
 end
 
 function test_script()
 	-- We actually don't want any mocks here, let uri work as expected
 	mocks_reset()
 	-- The URI contains 'Install "pkg"'
-	local err = sandbox.run_sandboxed([[
+	local result = sandbox.run_sandboxed([[
 		Script "test-script" "data:base64,SW5zdGFsbCAicGtnIgo=" { security = 'Restricted' }
 	]], "Test chunk", "Restricted")
-	assert_nil(err, DataDumper(err))
+	assert_equal("context", result.tp, result.msg)
 	assert_table_equal({
 		{
 			tp = 'install',
@@ -154,11 +158,11 @@ end
 
 function test_script_missing()
 	mocks_reset()
-	local err = sandbox.run_sandboxed([[
+	local result = sandbox.run_sandboxed([[
 		Script "test-script" "file:///does/not/exist" { ignore = {"missing"}, security = "local" }
 	]], "Test chunk", "Local")
 	-- It doesn't produce an error, even when the script doesn't exist
-	assert_nil(err, DataDumper(err))
+	assert_equal("context", result.tp, result.msg)
 end
 
 -- Check we are not allowed to raise the security level by running a script
@@ -176,13 +180,13 @@ function test_script_level_transition()
 	local levels = {'Full', 'Local', 'Remote', 'Restricted'}
 	for i, from in ipairs(levels) do
 		for j, to in ipairs(levels) do
-			local err = sandbox.run_sandboxed([[
+			local result = sandbox.run_sandboxed([[
 				Script "test-script" "data:," { security = ']] .. to .. [[' }
-			]], "Test chunk", from)
+			]], "Test chunk " .. from .. "/" .. to, from)
 			if i > j then
-				assert_table_equal(utils.exception("access violation", "Attempt to raise security level from " .. from .. " to " .. to), err)
+				assert_table_equal(utils.exception("access violation", "Attempt to raise security level from " .. from .. " to " .. to), result)
 			else
-				assert_nil(err)
+				assert_equal("context", result.tp, result.msg)
 			end
 		end
 	end
@@ -195,6 +199,7 @@ function test_script_pass_validation()
 			Script "test-script" "data:," { security = 'Restricted']] .. opts .. [[ }
 		]], "Test chunk", "Restricted")
 		assert_table_equal(utils.exception(exctype or "bad value", msg), err)
+		backend.stored_flags = {}
 	end
 	-- Bad uri inside something
 	bad(", verification = 'sig', pubkey = 'invalid://'", "Unknown URI schema invalid")
@@ -203,9 +208,10 @@ function test_script_pass_validation()
 	-- We don't allow this URI in the given context (even if it is not directly used)
 	bad(", pubkey = 'file:///dev/null'", "At least Local level required for file URI", "access violation")
 	-- But we allow it if there's a high enough level
-	assert_nil(sandbox.run_sandboxed([[
+	local result = sandbox.run_sandboxed([[
 		Script "test-script" "data:," { security = 'Restricted', pubkey = 'file:///dev/null' }
-	]], "Test chunk", "Local"))
+	]], "Test chunk", "Local")
+	assert_equal("context", result.tp, result.msg)
 	-- TODO: Any idea how to steal the internal context and look into it?
 end
 
@@ -218,6 +224,30 @@ function test_script_err_propagate()
 	assert_equal("error", err.tp)
 end
 
+function test_store_flags()
+	local test_root = mkdtemp()
+	table.insert(tmp_dirs, test_root)
+	backend.flags_storage = test_root .. "/flags"
+	local result = sandbox.run_sandboxed([[
+		flags[""].x = "hello"
+		flags[""].y = "hi"
+		StoreFlags "x"
+	]], "", "Local")
+	assert_equal("context", result.tp, result.msg)
+	assert_table_equal({
+		[""] = {
+			values = {
+				x = "hello"
+			},
+			provided = {
+				x = "hello",
+				y = "hi"
+			},
+			proxy = {}
+		}
+	}, backend.stored_flags)
+end
+
 function setup()
 	-- Don't download stuff now
 	mock_gen("uri.new", function (context, u) return {u = u} end, true)
@@ -227,5 +257,8 @@ function teardown()
 	requests.known_packages = {}
 	requests.known_repositories = {}
 	requests.content_requests = {}
+	backend.stored_flags = {}
 	mocks_reset()
+	utils.cleanup_dirs(tmp_dirs)
+	tmp_dirs = {}
 end

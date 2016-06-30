@@ -20,6 +20,7 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 require 'lunit'
 local sandbox = require 'sandbox'
 local utils = require 'utils'
+local backend = require 'backend'
 
 module("sandbox-tests", package.seeall, lunit.testcase)
 
@@ -64,7 +65,10 @@ function test_context_new()
 		assert_equal(sandbox.state_vars.architectures[1], 'all')
 		context.env = nil
 		context.level_check = nil
-		assert_table_equal({sec_level = sandbox.level(level), tp = "context"}, context)
+		local expected = {sec_level = sandbox.level(level), tp = "context"}
+		expected.root_parent = expected
+		expected.hierarchy = {[''] = expected}
+		assert_table_equal(expected, context)
 	end
 end
 
@@ -116,8 +120,11 @@ function test_sandbox_run()
 		local result = sandbox.run_sandboxed(chunk, "Chunk name", sec_level, nil, nil, function (context)
 			context.env.call = call
 		end)
-		assert_table_equal(expected, result)
+		if expected then
+			assert_table_equal(expected, result)
+		end
 		assert_equal(result_called, called)
+		backend.stored_flags = {}
 	end
 	-- We can add a function and it can access the local upvalues
 	test_do(chunk_ok, "Restricted", nil, true)
@@ -215,10 +222,11 @@ function test_morpher()
 	m5:morph()
 	-- When we run morpher in a sandbox, that morpher is morphed by the end of the chunk
 	local context;
-	assert_nil(sandbox.run_sandboxed([[m = morpher "a"]], "Chunk name", "Restricted", nil, nil, function (c)
+	local result = sandbox.run_sandboxed([[m = morpher "a"]], "Chunk name", "Restricted", nil, nil, function (c)
 		context = c
 		context.env.morpher = morpher;
-	end))
+	end)
+	assert_equal(context, result)
 	assert_nil(getmetatable(context.env.m))
 	assert_table_equal({"a"}, context.env.m)
 	-- Test these don't break when nested in allowed ways (doesn't work with parenthenless form)
@@ -237,11 +245,12 @@ function test_syslib()
 	local l = string.lower
 	mock_gen("string.lower", function (...) return l(...) end)
 	local result = sandbox.run_sandboxed([[string.lower = function () return "hello" end]], "Chunk name", "Local")
-	assert_nil(result)
+	assert_equal("context", result.tp, result.err)
 	local str = "HI"
 	assert_equal("hi", str:lower())
 	-- Everything is allowed inside the full security level
-	local result = sandbox.run_sandboxed([[string.lower = function () return "hello" end]], "Chunk name", "Full")
+	local result = sandbox.run_sandboxed([[string.lower = function () return "hello" end]], "Chunk name 2", "Full")
+	assert_equal("context", result.tp, result.err)
 	assert_equal("hello", str:lower())
 end
 
@@ -253,7 +262,8 @@ function test_deps()
 			-- Steal the context, so we can access the data stored there later on.
 			env = context.env
 		end)
-		assert_nil(result)
+		assert_equal("context", result.tp, result.err)
+		backend.stored_flags = {}
 		assert_table_equal({
 			tp = tp,
 			sub = {'a', 'b', 'c'}
@@ -266,7 +276,7 @@ function test_deps()
 	]], "Chunk name", 'Restricted', nil, nil, function (context)
 		env = context.env
 	end)
-	assert_nil(result)
+	assert_equal("context", result.tp, result.err)
 	assert_table_equal({
 		tp = 'dep-or',
 		sub = {
@@ -287,6 +297,23 @@ function test_deps()
 	}, env.res)
 end
 
+function test_hierarchy()
+	local result = sandbox.run_sandboxed([[Script "script" "data:,"]], "toplevel", "Full")
+	assert_equal("context", result.tp, result.msg)
+	assert_equal("toplevel", result.name)
+	assert_equal("toplevel", result.full_name)
+	assert_equal(result, result.root_parent)
+	assert_equal(result, result.hierarchy["toplevel"])
+	local sub = result.hierarchy["toplevel/script"]
+	assert(sub)
+	assert_not_equal(result, sub)
+	assert_equal("context", sub.tp)
+	assert_equal("script", sub.name)
+	assert_equal("toplevel/script", sub.full_name)
+	assert_equal(result, sub.root_parent)
+end
+
 function teardown()
 	mocks_reset()
+	backend.stored_flags = {}
 end
