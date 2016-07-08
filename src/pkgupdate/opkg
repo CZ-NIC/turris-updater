@@ -25,7 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-UPDATER_CONFIG=auto.lua # TODO change this to real path
+UPDATER_CONFIG=/etc/updater/auto.lua # Automatic updater configuration file
 OPKG=/bin/opkg # Path to opkg
 
 ARGS=""
@@ -50,66 +50,60 @@ while [ "$1" ]; do
 done
 shift
 
-if [[ "$OPERATION" == "n" ]]; then
+if [ "$OPERATION" = "n" ]; then
 	# Not install or remove operation
 	$OPKG $ARGS $@
 	exit $?
 fi
 
 
+PACKAGES=""
 while [ "$1" ]; do
-	if [[ `echo "$1" | sed 's/^-/+/'` != "$1" ]]; then # ignore options
+	if [ "`echo "$1" | sed 's/^-/+/'`" != "$1" ]; then # ignore options
 		ARGS="$ARGS $1"
 		shift
 		continue
 	fi
-	PACKAGES=`echo -e "$PACKAGES\n$1"`
+	PACKAGES="$PACKAGES
+	$1"
 	shift
 done
 
 
 install() {
-	$OPKG $ARGS install "$1"
-	if [[ "$?" -ne 0 ]]; then
+	if ! $OPKG $ARGS install "$1"; then
 		# opkg failed, probably some problem with package. Lets not change anything
 		EXC=255
 		return
 	fi
 
-	if [[ -f "$1" ]]; then
+	if `echo "$1" | grep -q -E '.*(\.ipk|\.deb)$'`; then
 		echo "Warning: Locally installed packages will be removed with the next automatic update!" 1>&2
 		return
 	fi
 
-	INSPKG=`grep -e "^Install \"$1\"" "$UPDATER_CONFIG"` # Check if installed
-	if [[ -z "$INSPKG" ]]; then
-		# Package was never installed
+	if ! grep -q -e "^Install \"$1\"" "$UPDATER_CONFIG"; then
+		# Package wasn't installed
 		echo "Install \"$1\"" >>"$UPDATER_CONFIG"
 	fi
 }
 
 remove() {
-	# Lets remove that package
-	$OPKG $ARGS remove "$1"
-	if [[ "$?" -ne 0 ]]; then
+	if ! $OPKG $ARGS remove "$1"; then
 		# opkg failed. But continue anyway
 		EXC=255
 	fi
 
-	INSPKG=`grep -e "^Install \"$1\"" "$UPDATER_CONFIG"` # Check if installed
-	if [[ -n "$INSPKG" ]]; then
-		# Package is installed
-		sed -e "/^Install \"$1\"/d" "$UPDATER_CONFIG" -i
-	fi
+	sed -e "/^Install \"$1\"/d" -i "$UPDATER_CONFIG"
 }
 
 
 # Check if $UPDATER_CONFIG exists. Otherwise create.
-if [[ ! -f "$UPDATER_CONFIG" ]]; then
+if [ ! -f "$UPDATER_CONFIG" ]; then
 	echo "-- A file with auto-generated Install commands. Do not edit." > "$UPDATER_CONFIG"
 fi
 
-for P in $PACKAGES; do
+echo "$PACKAGES" | sed '1d' | while read P; do
 	case "$OPERATION" in
 		i) # Install
 			install "$P"
