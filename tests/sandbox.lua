@@ -34,7 +34,7 @@ function test_context_new()
 	assert_error(function () sandbox.new('Invalid level') end)
 	-- We try creating a context for each level.
 	for _, level in pairs({"Full", "Local", "Remote", "Restricted"}) do
-		local context = sandbox.new(level)
+		local context = sandbox.new(level, nil, "")
 		assert(context:level_check("Restricted"))
 		assert(context:level_check(level))
 		assert(context:level_check(sandbox.level("Restricted")))
@@ -65,10 +65,11 @@ function test_context_new()
 		assert_equal(sandbox.state_vars.architectures[1], 'all')
 		context.env = nil
 		context.level_check = nil
-		local expected = {sec_level = sandbox.level(level), tp = "context"}
+		local expected = {sec_level = sandbox.level(level), tp = "context", flags = {}, name = '', full_name = ''}
 		expected.root_parent = expected
 		expected.hierarchy = {[''] = expected}
 		assert_table_equal(expected, context)
+		backend.stored_flags = {}
 	end
 end
 

@@ -407,21 +407,29 @@ function new(sec_level, parent, name)
 	parent = parent or {}
 	sec_level = sec_level or parent.sec_level
 	result.sec_level = sec_level
-	--[[
-	Construct the name, full path and a hierarchy table with all the existing
-	contexts. The hierarchy table is in the top-level script.
-	]]
-	result.name = name
-	if parent and parent.full_name then
-		result.full_name = parent.full_name .. "/" .. name
-		result.root_parent = parent.root_parent
-	else
-		result.full_name = name
-		result.root_parent = result
-		result.hierarchy = {}
+	if name then
+		--[[
+		Construct the name, full path and a hierarchy table with all the existing
+		contexts. The hierarchy table is in the top-level script.
+
+		However, there are also name-less sandboxes. These are abused by the
+		uri module and don't actually run any real code and they don't have flags.
+		So we completely skip this flag manipulation for them. The flags variable
+		will be broken in such sandboxes, but as nobody would access it, it
+		doesn't matter.
+		]]
+		result.name = name
+		if parent and parent.full_name then
+			result.full_name = parent.full_name .. "/" .. name
+			result.root_parent = parent.root_parent
+		else
+			result.full_name = name
+			result.root_parent = result
+			result.hierarchy = {}
+		end
+		result.root_parent.hierarchy[result.full_name or ""] = result
+		result.flags = backend.flags_get(result.full_name)
 	end
-	result.root_parent.hierarchy[result.full_name or ""] = result
-	result.flags = backend.flags_get(result.full_name)
 	-- Construct a new environment
 	result.env = {}
 	local inject = utils.clone
