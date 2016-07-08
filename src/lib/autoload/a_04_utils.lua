@@ -244,4 +244,21 @@ function strip(str)
 	end
 end
 
+--[[
+Create a new table that will be an overlay of another table. Values that are
+set here are remembered. Lookups of other values are propagated to the original
+table.
+
+This is different from copying the table and setting some values in the copy
+in two ways:
+• Changes to the original table after the fact are visible in the overlay
+  mode.
+• It is not possible to remove a key using the overlay.
+]]
+function table_overlay(table)
+	return setmetatable({}, {
+		__index = table
+	})
+end
+
 return _M
