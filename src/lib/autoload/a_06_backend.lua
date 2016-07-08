@@ -582,7 +582,6 @@ function collision_check(current_status, remove_pkgs, add_pkgs)
 	-- Files that shall really disappear
 	local remove = {}
 	for f in pairs(remove_candidates) do
-		-- TODO: How about config files?
 		if not files_all[f] then
 			remove[f] = true
 		end

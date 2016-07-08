@@ -450,7 +450,7 @@ static int lua_move(lua_State *L) {
 	struct wait_id id = run_command(events, mv_result, NULL, &mv_result_data, 0, NULL, -1, -1, "/bin/mv", "-f", old, new, NULL);
 	events_wait(events, 1, &id);
 	if (mv_result_data.status) {
-		lua_pushfstring(L, "Failed to X-dev move '%s' to '%s': %s (ecode %d)", old, new, mv_result_data.err, mv_result_data.status);
+		lua_pushfstring(L, "Failed to move '%s' to '%s': %s (ecode %d)", old, new, mv_result_data.err, mv_result_data.status);
 		free(mv_result_data.err);
 		return lua_error(L);
 	}

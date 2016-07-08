@@ -212,7 +212,6 @@ function test_script_pass_validation()
 		Script "test-script" "data:," { security = 'Restricted', pubkey = 'file:///dev/null' }
 	]], "Test chunk", "Local")
 	assert_equal("context", result.tp, result.msg)
-	-- TODO: Any idea how to steal the internal context and look into it?
 end
 
 function test_script_err_propagate()
