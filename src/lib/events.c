@@ -516,11 +516,54 @@ static void download_done(struct wait_id id, void *data, int status, enum comman
 		download_run(events, waiting);
 }
 
+/*
+ * A shell-script that tries to download something for up to 3 times.
+ * It returns once it succeeds or when it gets a result that won't get
+ * better by retrying.
+ *
+ * TODO:
+ * While slightly hackish solution, it is significantly easier to do
+ * it by running a sub-process that runs the curls instead of doing the
+ * repeats ourselves. But we might want to do the harder, but more elegant
+ * and possibly robust solution of retrying directly.
+ */
+static const char *retry_curl =
+"RETRIES=3\n"
+"BASETMP=/tmp/curl-retry-$$\n"
+"trap 'rm -f $BASETMP.stdout $BASETMP.stderr ; exit $CODE' SIGHUP SIGINT SIGQUIT SIGILL SIGTRAP SIGABRT SIGBUS SIGFPE SIGPIPE SIGALRM SIGTERM EXIT\n"
+"\n"
+"output() {\n"
+"	cat $BASETMP.stderr >&2\n"
+"	cat $BASETMP.stdout\n"
+"}\n"
+"\n"
+"while [ $RETRIES -gt 0 ] ; do\n"
+"	/usr/bin/curl \"$@\" >$BASETMP.stdout 2>$BASETMP.stderr\n"
+"	CODE=$?\n"
+"	case $CODE in\n"
+"		0|1|2|3|4|22)\n"
+"			# We don't retry on success and some selected errors that are not likely to suceed if we retry\n"
+"			output\n"
+"			exit\n"
+"			;;\n"
+"	esac\n"
+"	RETRIES=$(($RETRIES - 1))\n"
+"	sleep 1\n"
+"done\n"
+"\n"
+"output\n"
+"exit $CODE\n";
+
 static void download_run(struct events *events, struct download_data *download) {
-	const size_t max_params = 10;
+	const size_t max_params = 13;
 	const char *params[max_params];
 	size_t build_i = 0;
 
+	// Parameters for sh (the script and name)
+	params[build_i++] = "-c";
+	params[build_i++] = retry_curl;
+	params[build_i++] = "retry-curl";
+	// Parameters for the script ‒ passed to the internal curl
 	params[build_i++] = "--compressed";
 	params[build_i++] = "--silent";
 	params[build_i++] = "--show-error";
@@ -541,7 +584,7 @@ static void download_run(struct events *events, struct download_data *download) 
 
 	events->downloads_running++;
 	download->waiting = false;
-	download->underlying_command = run_command_a(events, download_done, NULL, download, 0, NULL, -1, -1, "/usr/bin/curl", params);
+	download->underlying_command = run_command_a(events, download_done, NULL, download, 0, NULL, -1, -1, "/bin/sh", params);
 }
 
 struct wait_id download(struct events *events, download_callback_t callback, void *data, const char *url, const char *cacert, const char *crl) {
