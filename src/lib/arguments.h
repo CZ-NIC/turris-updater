@@ -26,8 +26,10 @@ enum cmd_op_type {
 	COT_CRASH,
 	// Terminate with zero exit code.
 	COT_EXIT,
-	// Print help.
-	COT_HELP,
+	// Terminate with zero exit code as soon as possible.
+	COT_EARLY_EXIT,
+	// Argument isn't option.
+	COT_NO_OP,
 	// Clean up any unfinished journal work and roll back whatever can be.
 	COT_JOURNAL_ABORT,
 	// Resume interrupted operation from journal, if any is there.
@@ -38,12 +40,8 @@ enum cmd_op_type {
 	COT_REMOVE,
 	// Set a root directory (the parameter is the directory to set to)
 	COT_ROOT_DIR,
-	// Syslog level
-	COT_SYSLOG_LEVEL,
-	// Stderr log level
-	COT_STDERR_LEVEL,
-	// Name of the syslog
-	COT_SYSLOG_NAME
+	// Run without the user confirmation
+	COT_BATCH,
 };
 
 // A whole operation to be performed, with any needed parameter.
@@ -52,6 +50,12 @@ struct cmd_op {
 	enum cmd_op_type type;
 	// With what. If the type doesn't expect a parameter, it is set to NULL.
 	const char *parameter;
+};
+
+// Identifies an used program
+enum cmd_args_prg {
+	COP_UPDATER,
+	COP_OPKG_TRANS
 };
 
 /*
@@ -66,7 +70,10 @@ struct cmd_op {
  * The result is always terminated by an operation of type COT_CRASH
  * or COT_EXIT.
  */
-struct cmd_op *cmd_args_parse(int argc, char *argv[]) __attribute__((nonnull)) __attribute__((returns_nonnull));
+struct cmd_op *cmd_args_parse(int argc, char *argv[], enum cmd_args_prg program) __attribute__((nonnull)) __attribute__((returns_nonnull));
+
+// Prints help for relevant arguments
+void cmd_arg_help(enum cmd_args_prg program);
 
 /*
  * Deep-copy the arguments. They can be used in the reexec() function.

@@ -26,21 +26,6 @@
 #include <stdio.h>
 #include <assert.h>
 
-static const char *help =
-"opkg-trans -j			Recover from a crash/reboot from a journal.\n"
-"opkg-trans -b			Abort interrupted work in the journal and clean.\n"
-"				up. Some stages of installation might not be\n"
-"				aborted.\n"
-"opkg-trans -a pkg1.opkg -r pkg2	Install and remove packages. The ones to install\n"
-"				(-a) need a path to already downloaded package\n"
-"				file. The ones to remove (-r) expect name of the\n"
-"				package.\n"
-"opkg-trans -R /root/dir	Use given path as a root directory\n"
-"opkg-trans -s syslog-level	What level of messages to send to syslog\n"
-"opkg-trans -S syslog-name	And under which name\n"
-"opkg-trans -e stderr-level	What level of messages to send to stderr\n"
-"opkg-trans -h			This help message.\n";
-
 static bool results_interpret(struct interpreter *interpreter, size_t result_count) {
 	bool result = true;
 	if (result_count >= 2) {
@@ -57,7 +42,7 @@ int main(int argc, char *argv[]) {
 	args_backup(argc, (const char **)argv);
 	struct events *events = events_new();
 	// Parse the arguments
-	struct cmd_op *ops = cmd_args_parse(argc, argv);
+	struct cmd_op *ops = cmd_args_parse(argc, argv, COP_OPKG_TRANS);
 	struct cmd_op *op = ops;
 	// Prepare the interpreter and load it with the embedded lua scripts
 	struct interpreter *interpreter = interpreter_create(events);
@@ -68,11 +53,8 @@ int main(int argc, char *argv[]) {
 	}
 	bool transaction_run = false;
 	bool trans_ok = true;
-	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
+	for (; op->type != COT_EXIT && op->type != COT_EARLY_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
-			case COT_HELP:
-				fputs(help, stderr);
-				break;
 			case COT_INSTALL: {
 				const char *err = interpreter_call(interpreter, "transaction.queue_install", NULL, "s", op->parameter);
 				ASSERT_MSG(!err, "%s", err);
@@ -99,22 +81,6 @@ int main(int argc, char *argv[]) {
 				ASSERT_MSG(!err, "%s", err);
 				break;
 			}
-			case COT_SYSLOG_LEVEL: {
-				enum log_level level = log_level_get(op->parameter);
-				ASSERT_MSG(level != LL_UNKNOWN, "Unknown log level %s", op->parameter);
-				log_syslog_level(level);
-				break;
-			}
-			case COT_SYSLOG_NAME: {
-				log_syslog_name(op->parameter);
-				break;
-			}
-			case COT_STDERR_LEVEL: {
-				enum log_level level = log_level_get(op->parameter);
-				ASSERT_MSG(level != LL_UNKNOWN, "Unknown log level %s", op->parameter);
-				log_stderr_level(level);
-				break;
-			}
 			default:
 				assert(0);
 		}
@@ -129,7 +95,7 @@ int main(int argc, char *argv[]) {
 	interpreter_destroy(interpreter);
 	events_destroy(events);
 	arg_backup_clear();
-	if (exit_type == COT_EXIT) {
+	if (exit_type == COT_EXIT || exit_type == COT_EARLY_EXIT) {
 		if (trans_ok)
 			return 0;
 		else
