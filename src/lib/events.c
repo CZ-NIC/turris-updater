@@ -40,6 +40,7 @@ struct watched_child {
 	pid_t pid;
 	child_callback_t callback;
 	void *data;
+	int status;
 };
 
 struct watched_command {
@@ -89,6 +90,15 @@ struct events {
 	size_t download_count, download_alloc;
 	size_t downloads_running, downloads_max;
 	uint64_t download_next_id;
+	/*
+	 * The event_base_loop is unable to work recursively
+	 * (eg. running event_base_loop from within a callback from another
+	 * event_base_loop). However, we would very much like to be able to
+	 * do events_wait recursively. Therefore, we postpone callbacks to
+	 * outside of the events module after event_base_loop terminated.
+	 */
+	size_t pending_alloc, pending_count;
+	struct wait_id *pending;
 };
 
 struct events *events_new(void) {
@@ -109,6 +119,18 @@ struct events *events_new(void) {
 	event_config_free(config);
 	result->downloads_max = DOWNLOAD_SLOTS;
 	return result;
+}
+
+// Ensure there's at least 1 element empty in the array
+#define ENSURE_FREE(ARRAY, COUNT, ALLOC) \
+	do { \
+		if (events->COUNT == events->ALLOC) \
+			events->ARRAY = realloc(events->ARRAY, (events->ALLOC = events->ALLOC * 2 + 10) * sizeof *events->ARRAY); \
+	} while (0)
+
+static void event_postpone(struct events *events, struct wait_id id) {
+	ENSURE_FREE(pending, pending_count, pending_alloc);
+	events->pending[events->pending_count ++] = id;
 }
 
 static struct watched_child *child_lookup(struct events *events, pid_t pid) {
@@ -155,18 +177,10 @@ static void chld_event(evutil_socket_t socket __attribute__((unused)), short fla
 			WARN("Untracted child %d terminated", (int)pid);
 			continue;
 		}
-		// Call the callback
-		c->callback(child_id(pid), c->data, pid, status);
-		child_pop(events, c);
+		c->status = status;
+		event_postpone(events, child_id(pid));
 	}
 }
-
-// Ensure there's at least 1 element empty in the array
-#define ENSURE_FREE(ARRAY, COUNT, ALLOC) \
-	do { \
-		if (events->COUNT == events->ALLOC) \
-			events->ARRAY = realloc(events->ARRAY, (events->ALLOC = events->ALLOC * 2 + 10) * sizeof *events->ARRAY); \
-	} while (0)
 
 struct wait_id watch_child(struct events *events, child_callback_t callback, void *data, pid_t pid) {
 	// We must not watch the child multiple times
@@ -301,21 +315,7 @@ static void command_check_complete(struct watched_command *command) {
 		return;
 	if (command->running)
 		return;
-	enum command_kill_status ks;
-	// Call the callback
-	switch (command->signal_sent) {
-		case SIGTERM:
-			ks = CK_TERMED;
-			break;
-		case SIGKILL:
-			ks = CK_KILLED;
-			break;
-		default:
-			ks = WIFSIGNALED(command->status) ? CK_SIGNAL_OTHER : CK_TERMINATED;
-			break;
-	}
-	command->callback(command_id(command), command->data, command->status, ks, command->output_size, command->output, command->error_size, command->error);
-	command_free(command);
+	event_postpone(command->events, command_id(command));
 }
 
 static void command_terminated_callback(struct wait_id id, void *data, pid_t pid, int status) {
@@ -592,6 +592,13 @@ static struct watched_command *command_lookup(struct events *events, struct watc
 }
 
 void watch_cancel(struct events *events, struct wait_id id) {
+	// If a callback for it is already pending, cancel it.
+	for (size_t i = 0; i < events->pending_count; i ++)
+		if (memcmp(&id, &events->pending[i], sizeof id) == 0) {
+			// Move the rest of the pending events one position to the left
+			memmove(events->pending + i, events->pending + i + 1, (-- events->pending_count - i) * sizeof *events->pending);
+			break;
+		}
 	switch (id.type) {
 		case WT_CHILD: {
 			struct watched_child *c = child_lookup(events, id.pid);
@@ -629,6 +636,66 @@ void events_wait(struct events *events, size_t nid, struct wait_id *ids) {
 				break;
 			case -1:
 				DIE("Error running event loop");
+		}
+		/*
+		 * Process pending events we postponed during the event_base_loop call.
+		 *
+		 * One might get the idea to optimise stuff and join it with the below
+		 * while cycle to mark used events. That however doesn't work ‒ we may
+		 * get an event that we don't wait for right now and it wouldn't get
+		 * eliminated in the future once someone waits for it. Also, an event
+		 * might end up in the wrong events_wait call if they are called
+		 * recursively.
+		 *
+		 * Also, the recursive calls to events_wait is the reason we don't just
+		 * iterate with a for cycle over the pending events, but pull them from
+		 * the queue one by one.
+		 */
+		while (events->pending_count) {
+			struct wait_id id = events->pending[0];
+			memmove(events->pending, events->pending + 1, (-- events->pending_count) * sizeof *events->pending);
+			switch (id.type) {
+				// Note that there must be that active event, because we just postponed the callback.
+				case WT_CHILD: {
+					struct watched_child *child = child_lookup(events, id.pid);
+					ASSERT(child);
+					child->callback(id, child->data, id.pid, child->status);
+					child_pop(events, child);
+					break;
+				}
+				case WT_COMMAND: {
+					struct watched_command *command = command_lookup(events, id.pointers.command, id.pid);
+					ASSERT(command);
+					enum command_kill_status ks;
+					switch (command->signal_sent) {
+						case SIGTERM:
+							ks = CK_TERMED;
+							break;
+						case SIGKILL:
+							ks = CK_KILLED;
+							break;
+						default:
+							ks = WIFSIGNALED(command->status) ? CK_SIGNAL_OTHER : CK_TERMINATED;
+							break;
+					}
+					command->callback(id, command->data, command->status, ks, command->output_size, command->output, command->error_size, command->error);
+					command_free(command);
+					break;
+				}
+				case WT_DOWNLOAD: {
+					/*
+					 * Currently, we don't postpone downloads, because they are
+					 * triggered from command callback (unlike WT_COMMAND, which
+					 * may be both due to WT_CHILD and received EOF on stdout/stderr
+					 * of the subprocess). And the command callback is already
+					 * postponed. Postponing downloads would be useless work
+					 * with bunch of extra allocs and deallocs.
+					 */
+					DIE("Postponed download");
+				}
+				default:
+					DIE("Unknown pending event found");
+			}
 		}
 		/*
 		 * Look if there's still some event to wait for. Drop all the events
@@ -680,5 +747,6 @@ void events_destroy(struct events *events) {
 	free(events->children);
 	free(events->commands);
 	free(events->downloads);
+	free(events->pending);
 	free(events);
 }

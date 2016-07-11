@@ -260,13 +260,20 @@ static void download_failed_callback(struct wait_id id __attribute__((unused)), 
 	ck_assert_uint_eq(500, status);
 }
 
+// Just like the done callback, but download one more thing from within this callback (and wait for it).
+static void download_recursive_callback(struct wait_id id, void *data, int status, size_t out_size, const char *out) {
+	download_done_callback(id, data, status, out_size, out);
+	struct wait_id new_id = download(data, download_done_callback, NULL, "https://api.turris.cz/index.html", NULL, NULL);
+	events_wait(data, 1, &new_id);
+}
+
 START_TEST(command_download) {
 	const char *s_dir = getenv("S");
 	if (!s_dir)
 		s_dir = ".";
 	const char *cert_file = aprintf("%s/tests/data/updater.pem", s_dir);
 	const size_t cnt = 5;
-	struct wait_id ids[cnt * 2];
+	struct wait_id ids[cnt * 3];
 
 	struct events *events = events_new();
 	download_slot_count_set(events, 2);
@@ -274,9 +281,10 @@ START_TEST(command_download) {
 	for (size_t i = 0; i < cnt; i++) {
 		ids[i] = download(events, download_done_callback, NULL, "https://api.turris.cz/index.html", cert_file, NULL);
 		ids[i + cnt] = download(events, download_failed_callback, NULL, "https://api.turris.cz/does_not_exist.dat", cert_file, NULL);
+		ids[i + 2 * cnt] = download(events, download_recursive_callback, events, "https://api.turris.cz/index.html", cert_file, NULL);
 	}
 
-	events_wait(events, cnt * 2, ids);
+	events_wait(events, cnt * 3, ids);
 	events_destroy(events);
 }
 END_TEST
