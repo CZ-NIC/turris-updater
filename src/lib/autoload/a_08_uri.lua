@@ -39,6 +39,7 @@ local file = file
 local string = string
 local events_wait = events_wait
 local download = download
+local run_command = run_command
 local utils = require "utils"
 
 module "uri"
