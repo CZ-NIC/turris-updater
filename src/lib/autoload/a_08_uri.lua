@@ -220,14 +220,22 @@ function new(context, uri, verification)
 	-- TODO: Check restricted URIs
 	-- Prepare verification
 	verification = verification or {}
-	-- Try to find out verification parameter, in the verification argument, in the context or use a default. Should it be checked as URI (if it is uri)?
-	local function ver_lookup(field, default)
+	local context_nocheck_cache
+	local function context_nocheck(want_context)
+		if want_context and not context_nocheck_cache then
+			local sandbox = require "sandbox"
+			context_nocheck_cache = sandbox.new('Full', context)
+		end
+		return context_nocheck_cache
+	end
+	-- Try to find out verification parameter, in the verification argument, in the context or use a default. Provide a context used to check the required URIs inside the result (eg. if it is inherited, don't check them).
+	local function ver_lookup(field, default, want_context)
 		if verification[field] ~= nil then
-			return verification[field], true
+			return verification[field], context
 		elseif context[field] ~= nil then
-			return context[field], false
+			return context[field], context_nocheck(want_context)
 		else
-			return default, false
+			return default, context
 		end
 	end
 	local result = {
@@ -261,15 +269,7 @@ function new(context, uri, verification)
 	local do_cert = handler.can_check_cert and (vermode == 'both' or vermode == 'cert')
 	local use_ca, use_crl
 	if do_cert then
-		local ca, ca_sec_check = ver_lookup('ca')
-		local ca_context
-		if ca_sec_check then
-			ca_context = context
-		else
-			-- The ca URI comes from within the context, so it is already checked for security level - allow it through
-			local sandbox = require "sandbox"
-			ca_context = sandbox.new('Full', context)
-		end
+		local ca, ca_context = ver_lookup('ca', nil, true)
 		local function pem_get(uris, context)
 			local fname, f = tempfile()
 			table.insert(tmp_files, fname)
@@ -294,21 +294,10 @@ function new(context, uri, verification)
 		end
 		use_ca = pem_get(ca, ca_context)
 		if not use_ca then
-			return use_ca
+			return result
 		end
-		local crl, crl_sec_check = ver_lookup('crl')
+		local crl, crl_context = ver_lookup('crl', nil, true)
 		if crl then
-			local crl_context
-			if crl_sec_check then
-				crl_context = context
-			elseif ca_sec_check then
-				-- The CA used the provided context, but we don't want it
-				local sandbox = require "sandbox"
-				crl_context = sandbox.new('Full', context)
-			else
-				-- The CA created its own context, reuse that one
-				crl_context = ca_context
-			end
 			use_crl = pem_get(crl, crl_context)
 			if not use_crl then
 				return result
@@ -322,17 +311,18 @@ function new(context, uri, verification)
 	if do_sig then
 		-- As we check the signature after we download everything, just schedule it now
 		local sig_uri = verification.sig or uri .. ".sig"
-		local veri = 'none'
-		if do_cert then veri = 'cert' end -- If the main resource checks cert, the .sig should too
-		sig_data = new(context, sig_uri, {verification = 'cert'})
+		local sig_veri = utils.table_overlay(verification)
+		sig_veri.verification = 'none'
+		if do_cert then sig_veri.verification = 'cert' end -- If the main resource checks cert, the .sig should too
+		sig_data = new(context, sig_uri, sig_veri)
 		table.insert(sub_uris, sig_data)
-		local pubkeys = ver_lookup('pubkey')
+		local pubkeys, pk_context = ver_lookup('pubkey', nil, true)
 		if type(pubkeys) == 'string' then
 			pubkeys = {pubkeys}
 		end
 		if type(pubkeys) == 'table' then
 			for _, uri in ipairs(pubkeys) do
-				local u = new(context, uri, {verification = 'none'})
+				local u = new(pk_context, uri, {verification = 'none'})
 				table.insert(sub_uris, u)
 				table.insert(sig_pubkeys, u)
 			end
