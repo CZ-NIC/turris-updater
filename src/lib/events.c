@@ -577,6 +577,7 @@ static void download_done(struct wait_id id, void *data, int status, enum comman
 static const char *retry_curl =
 "RETRIES=3\n"
 "BASETMP=/tmp/curl-retry-$$\n"
+"CODE=0\n"
 "trap 'rm -f $BASETMP.stdout $BASETMP.stderr ; exit $CODE' SIGHUP SIGINT SIGQUIT SIGILL SIGTRAP SIGABRT SIGBUS SIGFPE SIGPIPE SIGALRM SIGTERM EXIT\n"
 "\n"
 "output() {\n"
@@ -591,7 +592,7 @@ static const char *retry_curl =
 "		0|1|2|3|4|22)\n"
 "			# We don't retry on success and some selected errors that are not likely to suceed if we retry\n"
 "			output\n"
-"			exit\n"
+"			exit $CODE\n"
 "			;;\n"
 "	esac\n"
 "	RETRIES=$(($RETRIES - 1))\n"
