@@ -34,6 +34,8 @@ struct arg_case {
 // Bad arguments passed, give help and give up
 static struct cmd_op bad_args_ops[] = { { .type = COT_CRASH } };
 static struct cmd_op help_ops[] = { { .type = COT_EARLY_EXIT } };
+static struct cmd_op updater_allowed_flag[] = { { .type = COT_BATCH }, { .type = COT_NO_OP, .parameter = "script.lua" }, { .type = COT_EXIT } };
+static struct cmd_op updater_free_arg[] = { { .type = COT_NO_OP, .parameter = "argument" }, { .type = COT_EXIT } };
 static struct cmd_op journal_ops[] = { { .type = COT_JOURNAL_RESUME }, { .type = COT_EXIT } };
 static struct cmd_op abort_ops[] = { { .type = COT_JOURNAL_ABORT }, { .type = COT_EXIT } };
 static struct cmd_op install_ops[] = { { .type = COT_INSTALL, .parameter = "package.ipk" }, { .type = COT_EXIT } };
@@ -59,8 +61,9 @@ static struct cmd_op root_journal_ops[] = {
 };
 static char *no_args[] = { NULL };
 static char *invalid_flag[] = { "-X", NULL };
-static char *not_allowed_flag[] = { "--batch", NULL };
+static char *not_allowed_flag[] = { "--batch", "script.lua", NULL };
 static char *free_arg[] = { "argument", NULL };
+static char *free_arg_twice[] = { "argument", "argument", NULL };
 static char *help_arg[] = { "-h", NULL };
 static char *help_arg_long[] = { "--help", NULL };
 static char *help_arg_extra[] = { "-h", "invalid_argument", NULL };
@@ -125,12 +128,42 @@ static struct arg_case cases[] = {
 	},
 	{
 		/*
+		 * updater
+		 * Allowed flag → provide it and exit successfully.
+		 */
+		.name = "Allowed flag",
+		.program = CAP_UPDATER,
+		.args = not_allowed_flag,
+		.expected_ops = updater_allowed_flag
+	},
+	{
+		/*
 		 * opkg-trans
 		 * Free-standing argument (without a flag) is invalid → give help and exit.
 		 */
-		.name = "Free-standing argument",
+		.name = "Free-standing argument - opkg-trans",
 		.program = CAP_OPKG_TRANS,
 		.args = free_arg,
+		.expected_ops = bad_args_ops
+	},
+	{
+		/*
+		 * updater
+		 * Free-standing argument (without a flag) is valid for updater → provide argument and exit successfully.
+		 */
+		.name = "Free-standing argument - updater",
+		.program = CAP_UPDATER,
+		.args = free_arg,
+		.expected_ops = updater_free_arg
+	},
+	{
+		/*
+		 * updater
+		 * Two free-standing arguments (without a flag) are invalid → give help and exit.
+		 */
+		.name = "Free-standing two arguments - updater",
+		.program = CAP_UPDATER,
+		.args = free_arg_twice,
 		.expected_ops = bad_args_ops
 	},
 	{
@@ -191,6 +224,16 @@ static struct arg_case cases[] = {
 		.name = "Journal resume with a parameter",
 		.program = CAP_OPKG_TRANS,
 		.args = trans_journal_extra,
+		.expected_ops = bad_args_ops
+	},
+	{
+		/*
+		 * updater
+		 * Journal resume requested but for updater.
+		 */
+		.name = "Journal resume - updater",
+		.program = CAP_UPDATER,
+		.args = trans_journal,
 		.expected_ops = bad_args_ops
 	},
 	{

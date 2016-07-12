@@ -42,19 +42,18 @@ static void result_extend(size_t *count, struct cmd_op **result, enum cmd_op_typ
 #define COPT_ABORT		2
 #define COPT_ADD		3
 #define COPT_REMOVE		4
-#define COPT_ROOT_DIR		5
-#define COPT_SYSLOG_LEVEL	6
-#define COPT_STDERR_LEVEL	7
-#define COPT_SYSLOG_NAME	8
-#define COPT_BATCH		9
+#define COPT_BATCH		5
+#define COPT_ROOT_DIR		6
+#define COPT_SYSLOG_LEVEL	7
+#define COPT_STDERR_LEVEL	8
+#define COPT_SYSLOG_NAME	9
 #define COPT_NO_OP		15
 
 #define L(I) (1<<I)
 static uint32_t cmd_prg_filter_map[] = {
 	// CAP_UPDATER
-	L(COPT_HELP) | L(COPT_JOURNAL) | L(COPT_ABORT) | L(COPT_BATCH) |
-		L(COPT_NO_OP) | L(COPT_ROOT_DIR) | L(COPT_SYSLOG_NAME) |
-		L(COPT_SYSLOG_LEVEL) | L(COPT_STDERR_LEVEL),
+	L(COPT_HELP) | L(COPT_BATCH) | L(COPT_NO_OP) | L(COPT_ROOT_DIR) |
+		L(COPT_SYSLOG_NAME) | L(COPT_SYSLOG_LEVEL) | L(COPT_STDERR_LEVEL),
 	// CAP_OPKG_TRANS
 	L(COPT_HELP) | L(COPT_JOURNAL) | L(COPT_ABORT) | L(COPT_ADD) |
 		L(COPT_REMOVE) | L(COPT_ROOT_DIR) | L(COPT_SYSLOG_LEVEL) |
@@ -64,7 +63,7 @@ static uint32_t cmd_prg_filter_map[] = {
 
 static const char *help_head[] = {
 	// CAP_UPDATER
-	"Usage: updater [OPTION]... ENTRYPOINT\n",
+	"Usage: updater [OPTION]... TOP_LEVEL_CONFIG\n",
 	// CAP_OPKG_TRANS
 	"Usage: opkg-trans [OPTION]...\n"
 };
@@ -77,11 +76,11 @@ static const char *opt_help[] = {
 	"				to downloaded package file.",
 	"--remove, -r <package>		Remove package. Additional argument is expected to\n"
 	"				be name of the package.",
+	"--batch 			Run without user confirmation.",
 	"-R <path>			Use given path as a root directory.",
 	"-s <syslog-level>		What level of messages to send to syslog.",
 	"-S <syslog-name>		Under which name messages are send to syslog.",
-	"-e <stderr-level>		What level of messages to send to stderr.",
-	"--batch			Run without user confirmation."
+	"-e <stderr-level>		What level of messages to send to stderr."
 };
 
 static struct option opt_long[] = {
@@ -176,23 +175,29 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], enum cmd_args_prg program)
 			}
 			case 260: {
 				CMD_PROGRAM_FILTER(COPT_BATCH);
-				result_extend(&res_count, &result, COT_BATCH, optarg);
+				result_extend(&res_count, &result, COT_BATCH, NULL);
 				break;
 			}
 			default:
 				return provide_help(result, true, program);
 		}
 	}
+	// Handle non option arguments
 	if (argv[optind] != NULL) {
 		if (!(cmd_prg_filter_map[program] & (1<<COPT_NO_OP))) {
 			return cmd_unrecognized(result, program, argv[0], argv[optind]);
 		}
-		if (optind < (argc - 1)) {
+		if (optind < (argc - 1)) { // Expecting only one
 			fprintf(stderr, "%s: Unexpected argument '%s'\n", argv[0], argv[optind + 1]);
 			return provide_help(result, true, program);
 		}
-		result_extend(&res_count, &result, COT_NO_OP, NULL);
+		result_extend(&res_count, &result, COT_NO_OP, argv[optind]);
+	} else if (cmd_prg_filter_map[program] & (1<<COPT_NO_OP)) {
+		fprintf(stderr, "Please provide arguments.\n");
+		return provide_help(result, true, program);
 	}
+
+	// For opkg-trans when nothing we print help and exit with nonzero code
 	if (!res_count && program == CAP_OPKG_TRANS && !help_requested) {
 		return provide_help(result, true, program);
 	}
