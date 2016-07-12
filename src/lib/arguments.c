@@ -51,11 +51,11 @@ static void result_extend(size_t *count, struct cmd_op **result, enum cmd_op_typ
 
 #define L(I) (1<<I)
 static uint32_t cmd_prg_filter_map[] = {
-	// COP_UPDATER
+	// CAP_UPDATER
 	L(COPT_HELP) | L(COPT_JOURNAL) | L(COPT_ABORT) | L(COPT_BATCH) |
 		L(COPT_NO_OP) | L(COPT_ROOT_DIR) | L(COPT_SYSLOG_NAME) |
 		L(COPT_SYSLOG_LEVEL) | L(COPT_STDERR_LEVEL),
-	// COP_OPKG_TRANS
+	// CAP_OPKG_TRANS
 	L(COPT_HELP) | L(COPT_JOURNAL) | L(COPT_ABORT) | L(COPT_ADD) |
 		L(COPT_REMOVE) | L(COPT_ROOT_DIR) | L(COPT_SYSLOG_LEVEL) |
 		L(COPT_SYSLOG_NAME) | L(COPT_STDERR_LEVEL)
@@ -63,9 +63,9 @@ static uint32_t cmd_prg_filter_map[] = {
 #undef L
 
 static const char *help_head[] = {
-	// COP_UPDATER
+	// CAP_UPDATER
 	"Usage: updater [OPTION]... ENTRYPOINT\n",
-	// COP_OPKG_TRANS
+	// CAP_OPKG_TRANS
 	"Usage: opkg-trans [OPTION]...\n"
 };
 
@@ -112,42 +112,39 @@ static inline struct cmd_op *cmd_unrecognized(struct cmd_op *result,
 
 #define CMD_PROGRAM_FILTER(CMD) do { if (!(cmd_prg_filter_map[program] & (1<<CMD))) \
 	{ return cmd_unrecognized(result, program, argv[0], argv[optind]); } } while(0)
-#define CMD_EXCLUSIVE() do { if (exclusive_cmd) { fprintf(stderr, "Incompatible commands\n"); \
-	return provide_help(result, true, program); } exclusive_cmd = true; } while(0)
 struct cmd_op *cmd_args_parse(int argc, char *argv[], enum cmd_args_prg program) {
 	// Reset, start scanning from the start.
 	optind = 1;
 	size_t res_count = 0;
 	struct cmd_op *result = NULL;
-	bool exclusive_cmd = false;
+	bool exclusive_cmd = false, install_remove = false, help_requested = false;
 	int c, ilongopt;
 	while ((c = getopt_long(argc, argv, "hbja:r:R:s:e:S:", opt_long, &ilongopt)) != -1) {
 		switch (c) {
 			case 'h':
 				CMD_PROGRAM_FILTER(COPT_HELP);
-				return provide_help(result, false, program);
+				help_requested = true;
+				break;
 			case 'j':
 				CMD_PROGRAM_FILTER(COPT_JOURNAL);
-				CMD_EXCLUSIVE();
 				exclusive_cmd = true;
 				result_extend(&res_count, &result, COT_JOURNAL_RESUME, NULL);
 				break;
 			case 'b':
 				CMD_PROGRAM_FILTER(COPT_ABORT);
-				CMD_EXCLUSIVE();
 				exclusive_cmd = true;
 				result_extend(&res_count, &result, COT_JOURNAL_ABORT, NULL);
 				break;
 			case 'a':
 				CMD_PROGRAM_FILTER(COPT_ADD);
-				CMD_EXCLUSIVE();
 				ASSERT(optarg);
+				install_remove = true;
 				result_extend(&res_count, &result, COT_INSTALL, optarg);
 				break;
 			case 'r':
 				CMD_PROGRAM_FILTER(COPT_REMOVE);
-				CMD_EXCLUSIVE();
 				ASSERT(optarg);
+				install_remove = true;
 				result_extend(&res_count, &result, COT_REMOVE, optarg);
 				break;
 			case 'R':
@@ -196,7 +193,7 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], enum cmd_args_prg program)
 		}
 		result_extend(&res_count, &result, COT_NO_OP, NULL);
 	}
-	if (!res_count && program == COP_OPKG_TRANS) {
+	if (!res_count && program == CAP_OPKG_TRANS && !help_requested) {
 		return provide_help(result, true, program);
 	}
 
@@ -211,8 +208,17 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], enum cmd_args_prg program)
 			result[set_pos ++] = tmp;
 		}
 	}
-	result_extend(&res_count, &result, COT_EXIT, NULL);
-	return result;
+	if (exclusive_cmd && (res_count - set_pos != 1 || help_requested || install_remove)) {
+		fprintf(stderr, "Incompatible commands\n");
+		return provide_help(result, true, program);
+	}
+
+	if (help_requested)
+		return provide_help(result, false, program);
+	else {
+		result_extend(&res_count, &result, COT_EXIT, NULL);
+		return result;
+	}
 }
 
 void cmd_arg_help(enum cmd_args_prg program) {

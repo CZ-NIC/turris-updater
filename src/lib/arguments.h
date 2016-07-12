@@ -54,8 +54,8 @@ struct cmd_op {
 
 // Identifies an used program
 enum cmd_args_prg {
-	COP_UPDATER,
-	COP_OPKG_TRANS
+	CAP_UPDATER,
+	CAP_OPKG_TRANS
 };
 
 /*
