@@ -26,7 +26,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 UPDATER_CONFIG=/etc/updater/auto.lua # Automatic updater configuration file
-OPKG=/bin/opkg # Path to opkg
+OPKG=/bin/opkg-cl # Path to opkg
 
 ARGS=""
 EXC=0
