@@ -121,9 +121,17 @@ struct events *events_new(void) {
 	return result;
 }
 
-// Ensure there's at least 1 element empty in the array
+/*
+ * Ensure there's at least 1 element empty in the array.
+ *
+ * We use a doubly growing array in case of allocation (so the copies that may be
+ * happening behind the scene in realloc are amortized to O(1) per added element).
+ * We also add a little constant to bootstrap the starting 0 size to something
+ * that can be multiplied.
+ */
 #define ENSURE_FREE(ARRAY, COUNT, ALLOC) \
 	do { \
+		ASSERT(events->COUNT <= events->ALLOC); \
 		if (events->COUNT == events->ALLOC) \
 			events->ARRAY = realloc(events->ARRAY, (events->ALLOC = events->ALLOC * 2 + 10) * sizeof *events->ARRAY); \
 	} while (0)
