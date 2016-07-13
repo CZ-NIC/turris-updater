@@ -81,7 +81,7 @@ START_TEST(child_wait) {
 	struct wait_id id_copy[cld_count];
 	memcpy(id_copy, ids, cld_count * sizeof *ids);
 	// Must terminate sooner
-	alarm(10);
+	alarm(30);
 	events_wait(events, cld_count, id_copy);
 	// Cancel alarm
 	alarm(0);
@@ -101,7 +101,7 @@ START_TEST(child_wait_cancel) {
 	// Cancel the event
 	watch_cancel(events, id);
 	// Try waiting for it ‒ it should immediatelly terminate
-	alarm(10);
+	alarm(30);
 	struct wait_id id_copy = id;
 	events_wait(events, 1, &id_copy);
 	alarm(0);
@@ -153,7 +153,7 @@ START_TEST(command_start_noio) {
 	}
 	struct wait_id ids_copy[3];
 	memcpy(ids_copy, ids, sizeof ids);
-	alarm(10);
+	alarm(30);
 	events_wait(events, 3, ids_copy);
 	alarm(0);
 	for (size_t i = 0; i < 3; i ++) {
@@ -172,7 +172,7 @@ START_TEST(command_timeout) {
 	struct command_info info = { .called = 0 };
 	struct wait_id id = run_command(events, command_terminated, NULL, &info, 0, NULL, 100, 1000, "/bin/sh", "-c", "while true ; do : ; done", NULL);
 	info.id_expected = id;
-	alarm(10);
+	alarm(30);
 	events_wait(events, 1, &id);
 	alarm(0);
 	ck_assert_uint_eq(1, info.called);
@@ -200,7 +200,7 @@ START_TEST(command_io) {
 	}
 	struct wait_id ids_copy[3];
 	memcpy(ids_copy, ids, sizeof ids);
-	alarm(10);
+	alarm(30);
 	events_wait(events, 3, ids_copy);
 	alarm(0);
 	ck_assert_str_eq("test\n", infos[0].out);
@@ -260,13 +260,20 @@ static void download_failed_callback(struct wait_id id __attribute__((unused)), 
 	ck_assert_uint_eq(500, status);
 }
 
+// Just like the done callback, but download one more thing from within this callback (and wait for it).
+static void download_recursive_callback(struct wait_id id, void *data, int status, size_t out_size, const char *out) {
+	download_done_callback(id, data, status, out_size, out);
+	struct wait_id new_id = download(data, download_done_callback, NULL, "https://api.turris.cz/index.html", NULL, NULL);
+	events_wait(data, 1, &new_id);
+}
+
 START_TEST(command_download) {
 	const char *s_dir = getenv("S");
 	if (!s_dir)
 		s_dir = ".";
 	const char *cert_file = aprintf("%s/tests/data/updater.pem", s_dir);
 	const size_t cnt = 5;
-	struct wait_id ids[cnt * 2];
+	struct wait_id ids[cnt * 3];
 
 	struct events *events = events_new();
 	download_slot_count_set(events, 2);
@@ -274,9 +281,10 @@ START_TEST(command_download) {
 	for (size_t i = 0; i < cnt; i++) {
 		ids[i] = download(events, download_done_callback, NULL, "https://api.turris.cz/index.html", cert_file, NULL);
 		ids[i + cnt] = download(events, download_failed_callback, NULL, "https://api.turris.cz/does_not_exist.dat", cert_file, NULL);
+		ids[i + 2 * cnt] = download(events, download_recursive_callback, events, "https://api.turris.cz/index.html", cert_file, NULL);
 	}
 
-	events_wait(events, cnt * 2, ids);
+	events_wait(events, cnt * 3, ids);
 	events_destroy(events);
 }
 END_TEST
@@ -284,7 +292,7 @@ END_TEST
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Event loop");
 	TCase *children = tcase_create("children");
-	tcase_set_timeout(children, 10);
+	tcase_set_timeout(children, 120);
 	/*
 	 * There are often race conditions when dealing with forks, waits, signals ‒ run it many times
 	 * But limit the time in valgrind (environment variable passed from the makefile).

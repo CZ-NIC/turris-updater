@@ -1,9 +1,11 @@
 -- The basic repository
 Repository 'turris' 'https://api.turris.cz/openwrt-repo/omnia-dev-michal/packages' {
-	subdirs = {'base', 'lucics', 'management', 'packages', 'routing', 'turrispackages'},
-	verification = 'cert'
+	subdirs = {'base', 'lucics', 'management', 'packages', 'routing', 'turrispackages'}
 }
--- TODO: Once we have priorities, provide a fall-back nightly repository
+Repository 'turris-fallback' 'https://api.turris.cz/openwrt-repo/omnia-nightly/packages' {
+	subdirs = {'base', 'lucics', 'management', 'packages', 'routing', 'turrispackages'},
+	priority = 40
+}
 
 -- Make sure the updater is up to date before continuing
 Package 'opkg-trans' { replan = true }

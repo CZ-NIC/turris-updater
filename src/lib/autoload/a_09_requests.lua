@@ -159,16 +159,24 @@ function repository(result, context, name, repo_uri, extra)
 
 	Pass result as the validation parameter, as all validation info would be
 	part of the extra.
+
+	We do some mangling with the sig URI, since they are not at Package.gz.sig, but at
+	Package.sig only.
 	]]
 	if extra.subdirs then
 		utils.private(result).index_uri = {}
 		for _, sub in pairs(extra.subdirs) do
 			sub = "/" .. sub
-			utils.private(result).index_uri[sub] = uri(context, repo_uri .. sub .. '/Packages.gz', result)
+			local u = repo_uri .. sub .. '/Packages.gz'
+			local params = utils.table_overlay(result)
+			params.sig = repo_uri .. sub .. '/Packages.sig'
+			utils.private(result).index_uri[sub] = uri(context, u, params)
 		end
 	else
 		local u = result.index or repo_uri .. '/Packages.gz'
-		utils.private(result).index_uri = {[""] = uri(context, u, result)}
+		local params = utils.table_overlay(result)
+		params.sig = params.sig or u:gsub('%.gz$', '') .. '.sig'
+		utils.private(result).index_uri = {[""] = uri(context, u, params)}
 	end
 	result.priority = result.priority or 50
 	result.serial = repo_serial

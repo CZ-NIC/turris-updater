@@ -167,3 +167,22 @@ function test_arr_append()
 	assert_table_equal({'a', 'b', 'c', 'd', 'e', 'f'}, a1)
 	assert_table_equal({'d', 'e', 'f'}, a2)
 end
+
+function test_table_overlay()
+	local original = {'a', 'b', 'c'}
+	local overlay = U.table_overlay(original)
+	assert_equal('b', original[2])
+	assert_equal('b', overlay[2])
+	overlay[2] = 'd'
+	overlay[4] = 'e'
+	assert_equal('b', original[2])
+	assert_equal('d', overlay[2])
+	assert_nil(original[4])
+	assert_equal('e', overlay[4])
+	original[1] = 'x'
+	original[2] = 'y'
+	assert_equal('x', original[1])
+	assert_equal('y', original[2])
+	assert_equal('x', overlay[1])
+	assert_equal('d', overlay[2])
+end
