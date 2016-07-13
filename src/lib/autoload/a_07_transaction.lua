@@ -37,7 +37,6 @@ local table = table
 local backend = require "backend"
 local utils = require "utils"
 local journal = require "journal"
-local locks = require "locks"
 local DBG = DBG
 local WARN = WARN
 local state_dump = state_dump
@@ -203,7 +202,7 @@ end
 
 -- The internal part of perform, re-run on journal recover
 -- The lock file is expected to be already acquired and is released at the end.
-local function perform_internal(operations, journal_status, lfile)
+local function perform_internal(operations, journal_status, run_state)
 	--[[
 	Run one step of a transaction. Mark it in the journal once it is done.
 
@@ -231,7 +230,7 @@ local function perform_internal(operations, journal_status, lfile)
 	end
 
 	local dir_cleanups = {}
-	local status = backend.status_parse()
+	local status = run_state.status
 	local errors_collected = {}
 	-- Emulate try-finally
 	local ok, err = pcall(function ()
@@ -274,7 +273,7 @@ local function perform_internal(operations, journal_status, lfile)
 	step(journal.CLEANED, pkg_cleanup, true, status)
 	-- All done. Mark journal as done.
 	journal.finish()
-	lfile:release()
+	run_state:release()
 	return errors_collected
 end
 
@@ -301,16 +300,14 @@ parameters) is modeled based on opkg, not on dpkg.
 An error may be thrown if anything goes wrong.
 ]]
 function perform(operations)
-	-- TODO: Make it configurable? OpenWRT hardcodes this into the binary, but we may want to be usable on non-OpenWRT systems as well.
-	local lfile = locks.acquire(backend.root_dir .. "/var/lock/opkg.lock")
+	local run_state = backend.run_state()
 	journal.fresh()
-	return perform_internal(operations, {}, lfile)
+	return perform_internal(operations, {}, run_state)
 end
 
 -- Resume from the journal
 function recover()
-	-- TODO: Make it configurable? OpenWRT hardcodes this into the binary, but we may want to be usable on non-OpenWRT systems as well.
-	local lfile = locks.acquire(backend.root_dir .. "/var/lock/opkg.lock")
+	local run_state = backend.run_state()
 	local previous = journal.recover()
 	local status = {}
 	for i, value in ipairs(previous) do
@@ -324,14 +321,14 @@ function recover()
 		temporary files and directories. Clean them up.
 		]]
 		journal.finish()
-		lfile:release()
+		run_state:release()
 		return {
 			["*"] = {
 				transaction = "Transaction in the journal hasn't started yet, nothing to resume"
 			}
 		}
 	else
-		return perform_internal(operations, status, lfile)
+		return perform_internal(operations, status, run_state)
 	end
 end
 

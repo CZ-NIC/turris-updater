@@ -45,15 +45,11 @@ local test_status = {
 }
 local intro = {
 	{
-		f = "locks.acquire",
-		p = {"//var/lock/opkg.lock"}
-	},
-	{
-		f = "journal.fresh",
+		f = "backend.run_state",
 		p = {}
 	},
 	{
-		f = "backend.status_parse",
+		f = "journal.fresh",
 		p = {}
 	},
 	{
@@ -101,8 +97,8 @@ local function outro(cleanup_dirs, status)
 			p = {}
 		},
 		{
-			f = "locks.release",
-			p = {"//var/lock/opkg.lock"}
+			f = "backend.run_state.release",
+			p = {}
 		}
 	}
 end
@@ -121,7 +117,18 @@ end
 
 local function mocks_install()
 	mock_gen("backend.dir_ensure")
-	mock_gen("backend.status_parse", function () return utils.clone(test_status) end)
+	mock_gen("backend.status_parse", function () fail("Forbidden function backend.status_parse") end)
+	mock_gen("backend.run_state", function()
+		return {
+			release = function ()
+				table.insert(mocks_called, {
+					f = "backend.run_state.release",
+					p = {}
+				})
+			end,
+			status = utils.clone(test_status)
+		}
+	end)
 	mock_gen("backend.pkg_unpack", function () return "pkg_dir" end)
 	mock_gen("backend.pkg_examine", function () return {f = true}, {d = true}, {c = "1234567890123456"}, {Package = "pkg-name", files = {f = true}, Conffiles = {c = "1234567890123456"}, Version = "1", Status = {"install", "user", "installed"}} end)
 	mock_gen("backend.collision_check", function () return {}, {}  end)
@@ -144,17 +151,7 @@ local function mocks_install()
 	mock_gen("journal.fresh")
 	mock_gen("journal.finish")
 	mock_gen("journal.write")
-	mock_gen("locks.acquire", function (path)
-		-- Return an "object" that has a mocked release method, but nothing more
-		return {
-			release = function ()
-				table.insert(mocks_called, {
-					f = "locks.release",
-					p = {path}
-				})
-			end
-		}
-	end)
+	mock_gen("locks.acquire", function () fail("Forbidden function locks.acquire") end)
 end
 
 -- Test calling empty transaction
@@ -459,10 +456,10 @@ function test_recover_early()
 		}
 	}, transaction.recover())
 	assert_table_equal({
-		{ f = "locks.acquire", p = {"//var/lock/opkg.lock"} },
+		{ f = "backend.run_state", p = {} },
 		{ f = "journal.recover", p = {} },
 		{ f = "journal.finish", p = {} },
-		{ f = "locks.release", p = {"//var/lock/opkg.lock"} }
+		{ f = "backend.run_state.release", p = {} }
 	}, mocks_called)
 end
 

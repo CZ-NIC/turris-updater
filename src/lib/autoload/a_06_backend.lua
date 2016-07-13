@@ -52,6 +52,7 @@ local WARN = WARN
 local DataDumper = DataDumper
 local utils = require "utils"
 local journal = require "journal"
+local locks = require "locks"
 
 module "backend"
 
@@ -1064,6 +1065,40 @@ function flags_mark(path, ...)
 	for _, name in ipairs({...}) do
 		group.values[name] = group.provided[name]
 	end
+end
+
+local run_state_cache = {}
+
+function run_state_cache:init()
+	assert(not self.initialized)
+	assert(not self.lfile)
+	assert(not self.status)
+	-- TODO: Make it configurable? OpenWRT hardcodes this into the binary, but we may want to be usable on non-OpenWRT systems as well.
+	self.lfile = locks.acquire(root_dir .. "/var/lock/opkg.lock")
+	self.status = status_parse()
+	self.initialized = true
+end
+
+function run_state_cache:release()
+	assert(self.initialized)
+	assert(self.lfile)
+	self.lfile:release()
+	self.lfile = nil
+	self.status = nil
+	self.initialized = nil
+end
+
+--[[
+Return an initialized state object. The state object holds the
+package database status (status field) and holds a lock (lfile field). It may
+be reused from a previous time and unless the previous user released the lock
+(by calling run_state():release(), it reuses the content.
+]]
+function run_state()
+	if not run_state_cache.initialized then
+		run_state_cache:init()
+	end
+	return run_state_cache
 end
 
 return _M
