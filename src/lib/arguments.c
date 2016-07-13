@@ -22,12 +22,12 @@
 
 #include <unistd.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
 #include <stdint.h>
 #include <getopt.h>
+#include <assert.h>
 
 static void result_extend(size_t *count, struct cmd_op **result, enum cmd_op_type type, const char *param) {
 	*result = realloc(*result, ++ (*count) * sizeof **result);
@@ -37,202 +37,187 @@ static void result_extend(size_t *count, struct cmd_op **result, enum cmd_op_typ
 	};
 }
 
-#define COPT_HELP		0
-#define COPT_JOURNAL		1
-#define COPT_ABORT		2
-#define COPT_ADD		3
-#define COPT_REMOVE		4
-#define COPT_BATCH		5
-#define COPT_ROOT_DIR		6
-#define COPT_SYSLOG_LEVEL	7
-#define COPT_STDERR_LEVEL	8
-#define COPT_SYSLOG_NAME	9
-#define COPT_NO_OP		15
-
-#define L(I) (1<<I)
-static uint32_t cmd_prg_filter_map[] = {
-	// CAP_UPDATER
-	L(COPT_HELP) | L(COPT_BATCH) | L(COPT_NO_OP) | L(COPT_ROOT_DIR) |
-		L(COPT_SYSLOG_NAME) | L(COPT_SYSLOG_LEVEL) | L(COPT_STDERR_LEVEL),
-	// CAP_OPKG_TRANS
-	L(COPT_HELP) | L(COPT_JOURNAL) | L(COPT_ABORT) | L(COPT_ADD) |
-		L(COPT_REMOVE) | L(COPT_ROOT_DIR) | L(COPT_SYSLOG_LEVEL) |
-		L(COPT_SYSLOG_NAME) | L(COPT_STDERR_LEVEL)
-};
-#undef L
-
-static const char *help_head[] = {
-	// CAP_UPDATER
-	"Usage: updater [OPTION]... TOP_LEVEL_CONFIG\n",
-	// CAP_OPKG_TRANS
-	"Usage: opkg-trans [OPTION]...\n"
-};
-
 static const char *opt_help[] = {
+	// COT_CRASH
+	NULL,
+	// COT_EXIT
+	NULL,
+	// COT_HELP
 	"--help, -h			Prints this text.",
-	"--journal, -j			Recover from a crash/reboot from a journal.",
+	// COT_JOURNAL_ABORT
 	"--abort, -b			Abort interrupted work in the journal and clean.",
+	// COT_JOURNAL_RESUME
+	"--journal, -j			Recover from a crash/reboot from a journal.",
+	// COT_INSTALL
 	"--add, -a <file>		Install package. Additional argument must be path\n"
 	"				to downloaded package file.",
+	// COT_REMOVE
 	"--remove, -r <package>		Remove package. Additional argument is expected to\n"
 	"				be name of the package.",
-	"--batch 			Run without user confirmation.",
+	// COT_ROOT_DIR
 	"-R <path>			Use given path as a root directory.",
+	// COT_BATCH
+	"--batch 			Run without user confirmation.",
+	// COT_SYSLOG_LEVEL
 	"-s <syslog-level>		What level of messages to send to syslog.",
+	// COT_STDERR_LEVEL
+	"-e <stderr-level>		What level of messages to send to stderr.",
+	// COT_SYSLOG_NAME
 	"-S <syslog-name>		Under which name messages are send to syslog.",
-	"-e <stderr-level>		What level of messages to send to stderr."
+	// COT_NO_OP
+	NULL
 };
 
-static struct option opt_long[] = {
-	{.name = "help", .has_arg = no_argument, .val = 'h'},
-	{.name = "journal", .has_arg = no_argument, .val = 'j'},
-	{.name = "abort", .has_arg = no_argument, .val = 'b'},
-	{.name = "add", .has_arg = required_argument, .val = 'a'},
-	{.name = "remove", .has_arg = required_argument, .val = 'r'},
-	{.name = "batch", .has_arg = no_argument, .val = 260},
+#define OPT_BATCH_VAL 260
+static const struct option opt_long[] = {
+	{ .name = "help", .has_arg = no_argument, .val = 'h' },
+	{ .name = "journal", .has_arg = no_argument, .val = 'j' },
+	{ .name = "abort", .has_arg = no_argument, .val = 'b' },
+	{ .name = "add", .has_arg = required_argument, .val = 'a' },
+	{ .name = "remove", .has_arg = required_argument, .val = 'r' },
+	{ .name = "batch", .has_arg = no_argument, .val = OPT_BATCH_VAL },
 	{NULL}
 };
 
-static struct cmd_op *provide_help(struct cmd_op *result, bool crash, enum cmd_args_prg program) {
-	cmd_arg_help(program);
-	result = realloc(result, sizeof *result);
-	if (crash)
-		result[0] = (struct cmd_op) { .type = COT_CRASH };
-	else
-		result[0] = (struct cmd_op) { .type = COT_EARLY_EXIT };
+static struct cmd_op *provide_help(struct cmd_op *result) {
+	result = realloc(result, 2 * sizeof *result);
+	result[0] = (struct cmd_op) { .type = COT_HELP };
+	result[1] = (struct cmd_op) { .type = COT_CRASH };
 	return result;
 }
 
-static inline struct cmd_op *cmd_unrecognized(struct cmd_op *result,
-		enum cmd_args_prg program, char *prgname, char *opt) {
+static struct cmd_op *cmd_unrecognized(struct cmd_op *result, char *prgname, char *opt) {
 	fprintf(stderr, "%s: unrecognized option '%s'\n", prgname, opt);
-	return provide_help(result, true, program);
+	return provide_help(result);
 }
 
-#define CMD_PROGRAM_FILTER(CMD) do { if (!(cmd_prg_filter_map[program] & (1<<CMD))) \
-	{ return cmd_unrecognized(result, program, argv[0], argv[optind]); } } while(0)
-struct cmd_op *cmd_args_parse(int argc, char *argv[], enum cmd_args_prg program) {
+// Returns mapping of allowed operations to indexes in enum cmd_op_type
+static bool *cmd_op_accepts_map(const enum cmd_op_type accepts[]) {
+	bool *map = calloc(COT_LAST, sizeof(bool));
+	for (size_t i = 0; accepts[i] != COT_LAST; i++) {
+		map[accepts[i]] = true;
+	}
+	// Always allow exits and help
+	map[COT_EXIT] = map[COT_CRASH] = map[COT_HELP] = true;
+	return map;
+}
+
+struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type accepts[]) {
 	// Reset, start scanning from the start.
 	optind = 1;
 	size_t res_count = 0;
 	struct cmd_op *result = NULL;
-	bool exclusive_cmd = false, install_remove = false, help_requested = false;
+	bool exclusive_cmd = false, install_remove = false;
 	int c, ilongopt;
+	bool *accepts_map = cmd_op_accepts_map(accepts);
 	while ((c = getopt_long(argc, argv, "hbja:r:R:s:e:S:", opt_long, &ilongopt)) != -1) {
 		switch (c) {
 			case 'h':
-				CMD_PROGRAM_FILTER(COPT_HELP);
-				help_requested = true;
+				exclusive_cmd = true;
+				result_extend(&res_count, &result, COT_HELP, NULL);
 				break;
+			case '?':
+				free(accepts_map);
+				return provide_help(result);
 			case 'j':
-				CMD_PROGRAM_FILTER(COPT_JOURNAL);
 				exclusive_cmd = true;
 				result_extend(&res_count, &result, COT_JOURNAL_RESUME, NULL);
 				break;
 			case 'b':
-				CMD_PROGRAM_FILTER(COPT_ABORT);
 				exclusive_cmd = true;
 				result_extend(&res_count, &result, COT_JOURNAL_ABORT, NULL);
 				break;
 			case 'a':
-				CMD_PROGRAM_FILTER(COPT_ADD);
 				ASSERT(optarg);
 				install_remove = true;
 				result_extend(&res_count, &result, COT_INSTALL, optarg);
 				break;
 			case 'r':
-				CMD_PROGRAM_FILTER(COPT_REMOVE);
 				ASSERT(optarg);
 				install_remove = true;
 				result_extend(&res_count, &result, COT_REMOVE, optarg);
 				break;
 			case 'R':
-				CMD_PROGRAM_FILTER(COPT_ROOT_DIR);
 				ASSERT(optarg);
 				result_extend(&res_count, &result, COT_ROOT_DIR, optarg);
 				break;
-			case 's': {
-				CMD_PROGRAM_FILTER(COPT_SYSLOG_LEVEL);
+			case 's':
 				ASSERT(optarg);
-				enum log_level level = log_level_get(optarg);
-				ASSERT_MSG(level != LL_UNKNOWN, "Unknown log level %s", optarg);
-				log_syslog_level(level);
+				result_extend(&res_count, &result, COT_SYSLOG_LEVEL, optarg);
 				break;
-			}
-			case 'S': {
-				CMD_PROGRAM_FILTER(COPT_SYSLOG_NAME);
+			case 'S':
 				ASSERT(optarg);
-				log_syslog_name(optarg);
+				result_extend(&res_count, &result, COT_SYSLOG_NAME, optarg);
 				break;
-			}
-			case 'e': {
-				CMD_PROGRAM_FILTER(COPT_STDERR_LEVEL);
+			case 'e':
 				ASSERT(optarg);
-				enum log_level level = log_level_get(optarg);
-				ASSERT_MSG(level != LL_UNKNOWN, "Unknown log level %s", optarg);
-				log_stderr_level(level);
+				result_extend(&res_count, &result, COT_STDERR_LEVEL, optarg);
 				break;
-			}
-			case 260: {
-				CMD_PROGRAM_FILTER(COPT_BATCH);
+			case OPT_BATCH_VAL:
 				result_extend(&res_count, &result, COT_BATCH, NULL);
 				break;
-			}
 			default:
-				return provide_help(result, true, program);
+				assert(0);
+		}
+		if (!accepts_map[result[res_count - 1].type]) {
+			free(accepts_map);
+			return cmd_unrecognized(result, argv[0], argv[optind - 1]);
 		}
 	}
+	bool accepts_no_op = accepts_map[COT_NO_OP];
+	free(accepts_map);
 	// Handle non option arguments
 	if (argv[optind] != NULL) {
-		if (!(cmd_prg_filter_map[program] & (1<<COPT_NO_OP))) {
-			return cmd_unrecognized(result, program, argv[0], argv[optind]);
+		if (!accepts_no_op) {
+			return cmd_unrecognized(result, argv[0], argv[optind]);
 		}
 		if (optind < (argc - 1)) { // Expecting only one
 			fprintf(stderr, "%s: Unexpected argument '%s'\n", argv[0], argv[optind + 1]);
-			return provide_help(result, true, program);
+			return provide_help(result);
 		}
 		result_extend(&res_count, &result, COT_NO_OP, argv[optind]);
-	} else if (cmd_prg_filter_map[program] & (1<<COPT_NO_OP)) {
-		fprintf(stderr, "Please provide arguments.\n");
-		return provide_help(result, true, program);
-	}
-
-	// For opkg-trans when nothing we print help and exit with nonzero code
-	if (!res_count && program == CAP_OPKG_TRANS && !help_requested) {
-		return provide_help(result, true, program);
 	}
 
 	// Move settings options to the front
 	size_t set_pos = 0;
 	for (size_t i = 0; i < res_count; i ++) {
-		enum cmd_op_type tp = result[i].type;
-		if (tp == COT_ROOT_DIR || tp == COT_BATCH) {
-			struct cmd_op tmp = result[i];
-			for (size_t j = i; j > set_pos; j --)
-				result[j] = result[j - 1];
-			result[set_pos ++] = tmp;
+		switch (result[i].type) {
+			case COT_ROOT_DIR:
+			case COT_BATCH:
+			case COT_SYSLOG_LEVEL:
+			case COT_STDERR_LEVEL:
+			case COT_SYSLOG_NAME: {
+				struct cmd_op tmp = result[i];
+				for (size_t j = i; j > set_pos; j --)
+					result[j] = result[j - 1];
+				result[set_pos ++] = tmp;
+				break;
+			}
+			default:
+				break;
 		}
 	}
-	if (exclusive_cmd && (res_count - set_pos != 1 || help_requested || install_remove)) {
+
+	// When nothing is given, we print help and exit with nonzero code
+	if (!res_count) {
+		return provide_help(result);
+	}
+	if (exclusive_cmd && (res_count - set_pos != 1 || install_remove)) {
 		fprintf(stderr, "Incompatible commands\n");
-		return provide_help(result, true, program);
+		return provide_help(result);
 	}
 
-	if (help_requested)
-		return provide_help(result, false, program);
-	else {
-		result_extend(&res_count, &result, COT_EXIT, NULL);
-		return result;
-	}
+	result_extend(&res_count, &result, COT_EXIT, NULL);
+	return result;
 }
 
-void cmd_arg_help(enum cmd_args_prg program) {
-	puts(help_head[program]);
-	unsigned i;
-	for (i = 0; i < sizeof(opt_help) / sizeof(char*); i++) {
-		if (cmd_prg_filter_map[program] & (1<<i))
+void cmd_args_help(const enum cmd_op_type accepts[]) {
+	bool *accepts_map = cmd_op_accepts_map(accepts);
+	for (size_t i = 0; i < sizeof(opt_help) / sizeof(char*); i++) {
+		if (accepts_map[i] && opt_help[i])
 			puts(opt_help[i]);
 	}
+	free(accepts_map);
 }
 
 static int back_argc;

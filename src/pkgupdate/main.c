@@ -40,17 +40,23 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 	return result;
 }
 
-/*
- * The launcher of updater. Currently, everything is hardcoded here.
- * That shall change soon, but we need something to test with.
- */
+static const enum cmd_op_type cmd_op_allows[] = {
+	COT_BATCH, COT_NO_OP, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL,
+	COT_SYSLOG_NAME, COT_LAST
+};
+
+static void print_help() {
+	puts("Usage: updater [OPTION]... TOP_LEVEL_CONFIG\n");
+	cmd_args_help(cmd_op_allows);
+}
+
 int main(int argc, char *argv[]) {
 	// Some setup of the machinery
 	state_dump("startup");
 	args_backup(argc, (const char **)argv);
 	struct events *events = events_new();
 	// Parse the arguments
-	struct cmd_op *ops = cmd_args_parse(argc, argv, CAP_UPDATER);
+	struct cmd_op *ops = cmd_args_parse(argc, argv, cmd_op_allows);
 	struct cmd_op *op = ops;
 	// Prepare the interpreter and load it with the embedded lua scripts
 	struct interpreter *interpreter = interpreter_create(events);
@@ -61,9 +67,12 @@ int main(int argc, char *argv[]) {
 	}
 	const char *top_level_config = NULL;
 	bool batch = false;
-	bool trans_ok = true;
-	for (; op->type != COT_EXIT && op->type != COT_EARLY_EXIT && op->type != COT_CRASH; op ++)
+	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
+			case COT_HELP: {
+				print_help();
+				break;
+			}
 			case COT_NO_OP:
 				top_level_config = op->parameter;
 				break;
@@ -75,11 +84,28 @@ int main(int argc, char *argv[]) {
 				ASSERT_MSG(!err, "%s", err);
 				break;
 			}
+			case COT_SYSLOG_LEVEL: {
+				enum log_level level = log_level_get(op->parameter);
+				ASSERT_MSG(level != LL_UNKNOWN, "Unknown log level %s", op->parameter);
+				log_syslog_level(level);
+				break;
+			}
+			case COT_SYSLOG_NAME: {
+				log_syslog_name(op->parameter);
+				break;
+			}
+			case COT_STDERR_LEVEL: {
+				enum log_level level = log_level_get(op->parameter);
+				ASSERT_MSG(level != LL_UNKNOWN, "Unknown log level %s", op->parameter);
+				log_stderr_level(level);
+				break;
+			}
 			default:
 				assert(0);
 		}
 	enum cmd_op_type exit_type = op->type;
 	free(ops);
+	bool trans_ok;
 	if (exit_type == COT_EXIT) {
 		// Decide what packages need to be downloaded and handled
 		const char *err = interpreter_call(interpreter, "updater.prepare", NULL, "s", top_level_config);
@@ -99,7 +125,7 @@ int main(int argc, char *argv[]) {
 	interpreter_destroy(interpreter);
 	events_destroy(events);
 	arg_backup_clear();
-	if (exit_type == COT_EXIT || exit_type == COT_EARLY_EXIT) {
+	if (exit_type == COT_EXIT) {
 		if (trans_ok) {
 			state_dump("done");
 			return 0;
