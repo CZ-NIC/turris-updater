@@ -184,8 +184,11 @@ local rest_available_funcs = {
 	"xpcall"
 }
 
-local status_ok, status = pcall(backend.status_parse)
-if not status_ok then
+local status_ok, run_state = pcall(backend.run_state)
+local status
+if status_ok then
+	status = run_state
+else
 	WARN("Couldn't read the status file: " .. tostring(status))
 	status = {}
 end

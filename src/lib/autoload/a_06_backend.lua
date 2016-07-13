@@ -1074,9 +1074,21 @@ function run_state_cache:init()
 	assert(not self.lfile)
 	assert(not self.status)
 	-- TODO: Make it configurable? OpenWRT hardcodes this into the binary, but we may want to be usable on non-OpenWRT systems as well.
-	self.lfile = locks.acquire(root_dir .. "/var/lock/opkg.lock")
-	self.status = status_parse()
-	self.initialized = true
+	local ok, err = pcall(function()
+		self.lfile = locks.acquire(root_dir .. "/var/lock/opkg.lock")
+		self.status = status_parse()
+		self.initialized = true
+	end)
+	if not ok then
+		-- If it failed, return to completely uninitialized state
+		if self.lfile then
+			self.lfile:release()
+		end
+		self.lfile = nil
+		self.status = nil
+		-- And propagate the error
+		error(err)
+	end
 end
 
 function run_state_cache:release()
