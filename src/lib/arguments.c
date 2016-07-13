@@ -22,12 +22,14 @@
 
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
 #include <stdint.h>
 #include <getopt.h>
 #include <assert.h>
+#include <stdarg.h>
 
 static void result_extend(size_t *count, struct cmd_op **result, enum cmd_op_type type, const char *param) {
 	*result = realloc(*result, ++ (*count) * sizeof **result);
@@ -37,35 +39,29 @@ static void result_extend(size_t *count, struct cmd_op **result, enum cmd_op_typ
 	};
 }
 
-static const char *opt_help[] = {
-	// COT_CRASH
-	NULL,
-	// COT_EXIT
-	NULL,
-	// COT_HELP
-	"--help, -h			Prints this text.",
-	// COT_JOURNAL_ABORT
-	"--abort, -b			Abort interrupted work in the journal and clean.",
-	// COT_JOURNAL_RESUME
-	"--journal, -j			Recover from a crash/reboot from a journal.",
-	// COT_INSTALL
-	"--add, -a <file>		Install package. Additional argument must be path\n"
-	"				to downloaded package file.",
-	// COT_REMOVE
-	"--remove, -r <package>		Remove package. Additional argument is expected to\n"
-	"				be name of the package.",
-	// COT_ROOT_DIR
-	"-R <path>			Use given path as a root directory.",
-	// COT_BATCH
-	"--batch 			Run without user confirmation.",
-	// COT_SYSLOG_LEVEL
-	"-s <syslog-level>		What level of messages to send to syslog.",
-	// COT_STDERR_LEVEL
-	"-e <stderr-level>		What level of messages to send to stderr.",
-	// COT_SYSLOG_NAME
-	"-S <syslog-name>		Under which name messages are send to syslog.",
-	// COT_NO_OP
-	NULL
+static const char *opt_help[COT_LAST] = {
+	[COT_HELP] =
+		"--help, -h			Prints this text.\n",
+	[COT_JOURNAL_ABORT] =
+		"--abort, -b			Abort interrupted work in the journal and clean.\n",
+	[COT_JOURNAL_RESUME] =
+		"--journal, -j			Recover from a crash/reboot from a journal.\n",
+	[COT_INSTALL] =
+		"--add, -a <file>		Install package. Additional argument must be path\n"
+		"				to downloaded package file.\n",
+	[COT_REMOVE] =
+		"--remove, -r <package>		Remove package. Additional argument is expected to\n"
+		"				be name of the package.\n",
+	[COT_ROOT_DIR] =
+		"-R <path>			Use given path as a root directory.\n",
+	[COT_BATCH] =
+		"--batch 			Run without user confirmation.\n",
+	[COT_SYSLOG_LEVEL] =
+		"-s <syslog-level>		What level of messages to send to syslog.\n",
+	[COT_STDERR_LEVEL] =
+		"-e <stderr-level>		What level of messages to send to stderr.\n",
+	[COT_SYSLOG_NAME] =
+		"-S <syslog-name>		Under which name messages are send to syslog.\n",
 };
 
 #define OPT_BATCH_VAL 260
@@ -79,37 +75,45 @@ static const struct option opt_long[] = {
 	{NULL}
 };
 
-static struct cmd_op *provide_help(struct cmd_op *result) {
-	result = realloc(result, 2 * sizeof *result);
-	result[0] = (struct cmd_op) { .type = COT_HELP };
-	result[1] = (struct cmd_op) { .type = COT_CRASH };
+static struct cmd_op *cmd_arg_crash(struct cmd_op *result, const char *format, ...) {
+	va_list args;
+	va_start(args, format);
+	size_t len = vsnprintf(NULL, 0, format, args);
+	va_end(args);
+	char *message = malloc((len + 1) * sizeof(char));
+	va_start(args, format);
+	vsprintf(message, format, args);
+	va_end(args);
+
+	result = realloc(result, sizeof *result);
+	*result = (struct cmd_op) { .type = COT_CRASH, .message = message };
 	return result;
 }
 
 static struct cmd_op *cmd_unrecognized(struct cmd_op *result, char *prgname, char *opt) {
-	fprintf(stderr, "%s: unrecognized option '%s'\n", prgname, opt);
-	return provide_help(result);
+	return cmd_arg_crash(result, "%s: unrecognized option '%s'\n", prgname, opt);
 }
 
 // Returns mapping of allowed operations to indexes in enum cmd_op_type
-static bool *cmd_op_accepts_map(const enum cmd_op_type accepts[]) {
-	bool *map = calloc(COT_LAST, sizeof(bool));
+static void cmd_op_accepts_map(bool *map, const enum cmd_op_type accepts[]) {
+	memset(map, false, COT_LAST * sizeof *map);
 	for (size_t i = 0; accepts[i] != COT_LAST; i++) {
 		map[accepts[i]] = true;
 	}
 	// Always allow exits and help
 	map[COT_EXIT] = map[COT_CRASH] = map[COT_HELP] = true;
-	return map;
 }
 
 struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type accepts[]) {
 	// Reset, start scanning from the start.
 	optind = 1;
+	opterr = 0;
 	size_t res_count = 0;
 	struct cmd_op *result = NULL;
 	bool exclusive_cmd = false, install_remove = false;
 	int c, ilongopt;
-	bool *accepts_map = cmd_op_accepts_map(accepts);
+	bool accepts_map[COT_LAST];
+	cmd_op_accepts_map(accepts_map, accepts);
 	while ((c = getopt_long(argc, argv, "hbja:r:R:s:e:S:", opt_long, &ilongopt)) != -1) {
 		switch (c) {
 			case 'h':
@@ -117,8 +121,7 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 				result_extend(&res_count, &result, COT_HELP, NULL);
 				break;
 			case '?':
-				free(accepts_map);
-				return provide_help(result);
+				return cmd_unrecognized(result, argv[0], argv[optind - 1]);
 			case 'j':
 				exclusive_cmd = true;
 				result_extend(&res_count, &result, COT_JOURNAL_RESUME, NULL);
@@ -160,25 +163,18 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 				assert(0);
 		}
 		if (!accepts_map[result[res_count - 1].type]) {
-			free(accepts_map);
 			return cmd_unrecognized(result, argv[0], argv[optind - 1]);
 		}
 	}
-	bool accepts_no_op = accepts_map[COT_NO_OP];
-	free(accepts_map);
 	// Handle non option arguments
-	if (argv[optind] != NULL) {
-		if (!accepts_no_op) {
+	for (; optind < argc; optind++) {
+		if (!accepts_map[COT_NO_OP]) {
 			return cmd_unrecognized(result, argv[0], argv[optind]);
-		}
-		if (optind < (argc - 1)) { // Expecting only one
-			fprintf(stderr, "%s: Unexpected argument '%s'\n", argv[0], argv[optind + 1]);
-			return provide_help(result);
 		}
 		result_extend(&res_count, &result, COT_NO_OP, argv[optind]);
 	}
 
-	// Move settings options to the front
+	// Move settings options to the front.
 	size_t set_pos = 0;
 	for (size_t i = 0; i < res_count; i ++) {
 		switch (result[i].type) {
@@ -198,13 +194,8 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 		}
 	}
 
-	// When nothing is given, we print help and exit with nonzero code
-	if (!res_count) {
-		return provide_help(result);
-	}
 	if (exclusive_cmd && (res_count - set_pos != 1 || install_remove)) {
-		fprintf(stderr, "Incompatible commands\n");
-		return provide_help(result);
+		return cmd_arg_crash(result, "Incompatible commands\n");
 	}
 
 	result_extend(&res_count, &result, COT_EXIT, NULL);
@@ -212,12 +203,12 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 }
 
 void cmd_args_help(const enum cmd_op_type accepts[]) {
-	bool *accepts_map = cmd_op_accepts_map(accepts);
-	for (size_t i = 0; i < sizeof(opt_help) / sizeof(char*); i++) {
+	bool accepts_map[COT_LAST];
+	cmd_op_accepts_map(accepts_map, accepts);
+	for (size_t i = 0; i < (sizeof opt_help) / (sizeof *opt_help); i++) {
 		if (accepts_map[i] && opt_help[i])
-			puts(opt_help[i]);
+			fputs(opt_help[i], stderr);
 	}
-	free(accepts_map);
 }
 
 static int back_argc;

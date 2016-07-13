@@ -41,12 +41,15 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 }
 
 static const enum cmd_op_type cmd_op_allows[] = {
-	COT_BATCH, COT_NO_OP, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL,
-	COT_SYSLOG_NAME, COT_LAST
+	COT_BATCH, COT_NO_OP, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_LAST
 };
 
+static void print_help_short() {
+	fputs("Usage: updater [OPTION]... TOP_LEVEL_CONFIG\n", stderr);
+}
+
 static void print_help() {
-	puts("Usage: updater [OPTION]... TOP_LEVEL_CONFIG\n");
+	print_help_short();
 	cmd_args_help(cmd_op_allows);
 }
 
@@ -66,14 +69,22 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 	const char *top_level_config = NULL;
-	bool batch = false;
+	bool batch = false, early_exit = false;
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
 			case COT_HELP: {
 				print_help();
+				early_exit = true;
 				break;
 			}
 			case COT_NO_OP:
+				if (top_level_config) {
+					// What ever is next one, crash.
+					fputs("More than one top level config given. This is not supported\n" ,stderr);
+					print_help_short();
+					(op + 1)->type = COT_CRASH;
+					break;
+				}
 				top_level_config = op->parameter;
 				break;
 			case COT_BATCH:
@@ -103,10 +114,21 @@ int main(int argc, char *argv[]) {
 			default:
 				assert(0);
 		}
+	if (op->type == COT_EXIT && !early_exit && !top_level_config) {
+		fputs("No top level config given, please provide one.\n", stderr);
+		print_help_short();
+		op->type = COT_CRASH;
+	}
+	if (op->type == COT_CRASH && op->message) {
+		fputs(op->message, stderr);
+		free(op->message);
+		print_help_short();
+	}
 	enum cmd_op_type exit_type = op->type;
 	free(ops);
-	bool trans_ok;
-	if (exit_type == COT_EXIT) {
+
+	bool trans_ok = true;
+	if (exit_type == COT_EXIT && !early_exit) {
 		// Decide what packages need to be downloaded and handled
 		const char *err = interpreter_call(interpreter, "updater.prepare", NULL, "s", top_level_config);
 		ASSERT_MSG(!err, "%s", err);

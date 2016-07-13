@@ -22,7 +22,7 @@
 
 // An operation type to be performed
 enum cmd_op_type {
-	// Terminate with non-zero exit code.
+	// Terminate with non-zero exit code. Error message is passed with error information.
 	COT_CRASH,
 	// Terminate with zero exit code.
 	COT_EXIT,
@@ -58,6 +58,8 @@ struct cmd_op {
 	enum cmd_op_type type;
 	// With what. If the type doesn't expect a parameter, it is set to NULL.
 	const char *parameter;
+	// Additional message. Set to NULL if no message provided
+	char *message;
 };
 
 /*

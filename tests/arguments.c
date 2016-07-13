@@ -32,10 +32,12 @@ struct arg_case {
 };
 
 // Bad arguments passed, give help and give up
-static struct cmd_op bad_args_ops[] = { { .type = COT_HELP }, { .type = COT_CRASH } };
+static struct cmd_op bad_args_ops[] = { { .type = COT_CRASH } };
+static struct cmd_op simple_exit[] = { { .type = COT_EXIT } };
 static struct cmd_op help_ops[] = { { .type = COT_HELP }, { .type = COT_EXIT } };
 static struct cmd_op allowed_ops[] = { { .type = COT_BATCH }, { .type = COT_EXIT } };
 static struct cmd_op allowed_no_ops[] = { { .type = COT_NO_OP, .parameter = "argument" }, { .type = COT_EXIT } };
+static struct cmd_op allowed_no_ops_twice[] = { { .type = COT_NO_OP, .parameter = "argument" }, { .type = COT_NO_OP, .parameter = "argument" }, { .type = COT_EXIT } };
 static struct cmd_op journal_ops[] = { { .type = COT_JOURNAL_RESUME }, { .type = COT_EXIT } };
 static struct cmd_op abort_ops[] = { { .type = COT_JOURNAL_ABORT }, { .type = COT_EXIT } };
 static struct cmd_op install_ops[] = { { .type = COT_INSTALL, .parameter = "package.ipk" }, { .type = COT_EXIT } };
@@ -96,17 +98,13 @@ static char *root_journal_no_reorder[] = { "-R", "/dir", "-j", NULL };
 static char *root_journal_reorder[] = { "-j", "-R", "/dir", NULL };
 
 static const enum cmd_op_type accepts_all[] = {
-	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR,
-	COT_BATCH, COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_NO_OP,
-	COT_LAST
+	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_BATCH, COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_NO_OP, COT_LAST
 };
 static const enum cmd_op_type accepts_deny_no_op[] = {
-	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR,
-	COT_BATCH, COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_LAST
+	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_BATCH, COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_LAST
 };
 static const enum cmd_op_type accepts_deny_batch[] = {
-	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR,
-	COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_NO_OP, COT_LAST
+	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_NO_OP, COT_LAST
 };
 static const enum cmd_op_type accepts_deny_all[] = {
 	COT_LAST
@@ -120,7 +118,7 @@ static struct arg_case cases[] = {
 		.name = "No args",
 		.args = no_args,
 		.accepts = accepts_all,
-		.expected_ops = bad_args_ops
+		.expected_ops = simple_exit
 	},
 	{
 		/*
@@ -169,12 +167,12 @@ static struct arg_case cases[] = {
 	},
 	{
 		/*
-		 * Two free-standing arguments (without a flag) are invalid → give help and exit.
+		 * Two free-standing arguments (without a flag) are also valid → provide both arguments and exit sucessfully
 		 */
 		.name = "Free-standing two arguments",
 		.args = free_arg_twice,
 		.accepts = accepts_all,
-		.expected_ops = bad_args_ops
+		.expected_ops = allowed_no_ops_twice,
 	},
 	{
 		/*
@@ -418,6 +416,8 @@ START_TEST(cmd_args_parse_test) {
 			ck_abort_msg("Extra parameter at position %zu on %s test", i, c->name);
 		if (expected->parameter)
 			ck_assert_msg(strcmp(expected->parameter, op->parameter) == 0, "Parameters at position %zu on %s test don't match: %s vs. %s", i, c->name, expected->parameter, op->parameter);
+		if (op->type == COT_CRASH)
+			free(op->message);
 		i ++;
 		op ++;
 		expected ++;
