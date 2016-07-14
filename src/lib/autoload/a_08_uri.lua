@@ -41,6 +41,7 @@ local events_wait = events_wait
 local download = download
 local run_command = run_command
 local utils = require "utils"
+local DBG = DBG
 
 module "uri"
 
@@ -126,7 +127,7 @@ local function handler_http(uri, err_cback, done_cback, ca, crl)
 		if status == 200 then
 			done_cback(answer)
 		else
-			err_cback(utils.exception("unreachable", tostring(answer)))
+			err_cback(utils.exception("unreachable", uri .. ": " .. tostring(answer)))
 		end
 	end, uri, ca, crl)
 end
@@ -216,6 +217,7 @@ function parse(context, uri)
 end
 
 function new(context, uri, verification)
+	DBG("Creating new URI: ", uri)
 	local handler = parse(context, uri)
 	-- TODO: Check restricted URIs
 	-- Prepare verification

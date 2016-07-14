@@ -644,6 +644,7 @@ static void download_run(struct events *events, struct download_data *download) 
 }
 
 struct wait_id download(struct events *events, download_callback_t callback, void *data, const char *url, const char *cacert, const char *crl) {
+	DBG("Downloading %s", url);
 	ENSURE_FREE(downloads, download_count, download_alloc);
 	struct download_data *res = malloc(sizeof *res);
 	*res = (struct download_data) {
