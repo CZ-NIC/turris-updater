@@ -75,23 +75,24 @@ static const struct option opt_long[] = {
 	{NULL}
 };
 
-static struct cmd_op *cmd_arg_crash(struct cmd_op *result, const char *format, ...) {
+// Builds new result with any number of error messages. But specify their count as
+// argument errcount.
+static struct cmd_op *cmd_arg_crash(struct cmd_op *result, size_t errcount, ...) {
+	result = realloc(result, (2 + errcount) * sizeof *result);
 	va_list args;
-	va_start(args, format);
-	size_t len = vsnprintf(NULL, 0, format, args);
-	va_end(args);
-	char *message = malloc((len + 1) * sizeof(char));
-	va_start(args, format);
-	vsprintf(message, format, args);
+	va_start(args, errcount);
+	for (size_t i = 0; i < errcount; i++) {
+		result[i] = (struct cmd_op) { .type = COT_ERR_MSG, .parameter = va_arg(args, const char*) };
+	}
 	va_end(args);
 
-	result = realloc(result, sizeof *result);
-	*result = (struct cmd_op) { .type = COT_CRASH, .message = message };
+	result[errcount] = (struct cmd_op) { .type = COT_HELP };
+	result[errcount + 1] = (struct cmd_op) { .type = COT_CRASH };
 	return result;
 }
 
-static struct cmd_op *cmd_unrecognized(struct cmd_op *result, char *prgname, char *opt) {
-	return cmd_arg_crash(result, "%s: unrecognized option '%s'\n", prgname, opt);
+static struct cmd_op *cmd_unrecognized(struct cmd_op *result, char *opt) {
+	return cmd_arg_crash(result, 3, "Unrecognized option ", opt, "\n");
 }
 
 // Returns mapping of allowed operations to indexes in enum cmd_op_type
@@ -121,7 +122,7 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 				result_extend(&res_count, &result, COT_HELP, NULL);
 				break;
 			case '?':
-				return cmd_unrecognized(result, argv[0], argv[optind - 1]);
+				return cmd_unrecognized(result, argv[optind - 1]);
 			case 'j':
 				exclusive_cmd = true;
 				result_extend(&res_count, &result, COT_JOURNAL_RESUME, NULL);
@@ -163,13 +164,13 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 				assert(0);
 		}
 		if (!accepts_map[result[res_count - 1].type]) {
-			return cmd_unrecognized(result, argv[0], argv[optind - 1]);
+			return cmd_unrecognized(result, argv[optind - 1]);
 		}
 	}
 	// Handle non option arguments
 	for (; optind < argc; optind++) {
 		if (!accepts_map[COT_NO_OP]) {
-			return cmd_unrecognized(result, argv[0], argv[optind]);
+			return cmd_unrecognized(result, argv[optind]);
 		}
 		result_extend(&res_count, &result, COT_NO_OP, argv[optind]);
 	}
@@ -195,7 +196,7 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 	}
 
 	if (exclusive_cmd && (res_count - set_pos != 1 || install_remove)) {
-		return cmd_arg_crash(result, "Incompatible commands\n");
+		return cmd_arg_crash(result, 1, "Incompatible commands\n");
 	}
 
 	result_extend(&res_count, &result, COT_EXIT, NULL);

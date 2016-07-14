@@ -22,12 +22,14 @@
 
 // An operation type to be performed
 enum cmd_op_type {
-	// Terminate with non-zero exit code. Error message is passed with error information.
+	// Terminate with non-zero exit code.
 	COT_CRASH,
 	// Terminate with zero exit code.
 	COT_EXIT,
 	// Print help.
 	COT_HELP,
+	// Print error message stored in argument variable.
+	COT_ERR_MSG,
 	// Clean up any unfinished journal work and roll back whatever can be.
 	COT_JOURNAL_ABORT,
 	// Resume interrupted operation from journal, if any is there.
@@ -58,8 +60,6 @@ struct cmd_op {
 	enum cmd_op_type type;
 	// With what. If the type doesn't expect a parameter, it is set to NULL.
 	const char *parameter;
-	// Additional message. Set to NULL if no message provided
-	char *message;
 };
 
 /*

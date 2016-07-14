@@ -43,12 +43,8 @@ static const enum cmd_op_type cmd_op_allows[] = {
 	COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_LAST
 };
 
-static void print_help_short() {
-	fputs("Usage: opkg-trans [OPTION]...\n", stderr);
-}
-
 static void print_help() {
-	print_help_short();
+	fputs("Usage: opkg-trans [OPTION]...\n", stderr);
 	cmd_args_help(cmd_op_allows);
 }
 
@@ -73,6 +69,10 @@ int main(int argc, char *argv[]) {
 			case COT_HELP: {
 				print_help();
 				early_exit = true;
+				break;
+			}
+			case COT_ERR_MSG: {
+				fputs(op->parameter, stderr);
 				break;
 			}
 			case COT_INSTALL: {
@@ -120,11 +120,6 @@ int main(int argc, char *argv[]) {
 			default:
 				assert(0);
 		}
-	if (op->type == COT_CRASH && op->message) {
-		fputs(op->message, stderr);
-		free(op->message);
-		print_help_short();
-	}
 	enum cmd_op_type exit_type = op->type;
 	free(ops);
 	if (transaction_run && exit_type == COT_EXIT) {
@@ -134,7 +129,7 @@ int main(int argc, char *argv[]) {
 		trans_ok = results_interpret(interpreter, result_count);
 	} else if (!early_exit && exit_type != COT_CRASH) {
 		fputs("No operation specified. Please specify what to do.\n", stderr);
-		print_help_short();
+		print_help();
 		exit_type = COT_CRASH;
 	}
 

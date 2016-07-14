@@ -44,12 +44,8 @@ static const enum cmd_op_type cmd_op_allows[] = {
 	COT_BATCH, COT_NO_OP, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_LAST
 };
 
-static void print_help_short() {
-	fputs("Usage: updater [OPTION]... TOP_LEVEL_CONFIG\n", stderr);
-}
-
 static void print_help() {
-	print_help_short();
+	fputs("Usage: updater [OPTION]... TOP_LEVEL_CONFIG\n", stderr);
 	cmd_args_help(cmd_op_allows);
 }
 
@@ -77,11 +73,15 @@ int main(int argc, char *argv[]) {
 				early_exit = true;
 				break;
 			}
+			case COT_ERR_MSG: {
+				fputs(op->parameter, stderr);
+				break;
+			}
 			case COT_NO_OP:
 				if (top_level_config) {
-					// What ever is next one, crash.
 					fputs("More than one top level config given. This is not supported\n" ,stderr);
-					print_help_short();
+					print_help();
+					// What ever is next one, crash.
 					(op + 1)->type = COT_CRASH;
 					break;
 				}
@@ -116,13 +116,8 @@ int main(int argc, char *argv[]) {
 		}
 	if (op->type == COT_EXIT && !early_exit && !top_level_config) {
 		fputs("No top level config given, please provide one.\n", stderr);
-		print_help_short();
+		print_help();
 		op->type = COT_CRASH;
-	}
-	if (op->type == COT_CRASH && op->message) {
-		fputs(op->message, stderr);
-		free(op->message);
-		print_help_short();
 	}
 	enum cmd_op_type exit_type = op->type;
 	free(ops);
