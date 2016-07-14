@@ -1080,12 +1080,9 @@ function run_state_cache:init()
 		self.initialized = true
 	end)
 	if not ok then
-		-- If it failed, return to completely uninitialized state
-		if self.lfile then
-			self.lfile:release()
-		end
-		self.lfile = nil
-		self.status = nil
+		-- Clean up to uninitialized state
+		self.initialized = true -- Work around that assert checking release is only called on initialized object
+		self:release()
 		-- And propagate the error
 		error(err)
 	end
@@ -1093,9 +1090,10 @@ end
 
 function run_state_cache:release()
 	assert(self.initialized)
-	assert(self.lfile)
-	self.lfile:release()
-	self.lfile = nil
+	if self.lfile then
+		self.lfile:release()
+		self.lfile = nil
+	end
 	self.status = nil
 	self.initialized = nil
 end
