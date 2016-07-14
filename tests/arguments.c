@@ -32,7 +32,35 @@ struct arg_case {
 };
 
 // Bad arguments passed, give help and give up
-static struct cmd_op bad_args_ops[] = { { .type = COT_CRASH } };
+static struct cmd_op incompatible_args_ops[] = { { .type = COT_ERR_MSG, .parameter = "Incompatible commands\n" }, { .type = COT_HELP }, { .type = COT_CRASH } };
+static struct cmd_op invalid_flag_ops[] = {
+	{ .type = COT_ERR_MSG, .parameter = "Unrecognized option " },
+	{ .type = COT_ERR_MSG, .parameter = "-X"},
+	{ .type = COT_ERR_MSG, .parameter = "\n" },
+	{ .type = COT_HELP },
+	{ .type = COT_CRASH }
+};
+static struct cmd_op not_allowed_flag_ops[] = {
+	{ .type = COT_ERR_MSG, .parameter = "Unrecognized option " },
+	{ .type = COT_ERR_MSG, .parameter = "--batch"},
+	{ .type = COT_ERR_MSG, .parameter = "\n" },
+	{ .type = COT_HELP },
+	{ .type = COT_CRASH }
+};
+static struct cmd_op bad_free_arg_ops[] = {
+	{ .type = COT_ERR_MSG, .parameter = "Unrecognized option " },
+	{ .type = COT_ERR_MSG, .parameter = "argument"},
+	{ .type = COT_ERR_MSG, .parameter = "\n" },
+	{ .type = COT_HELP },
+	{ .type = COT_CRASH }
+};
+static struct cmd_op trans_journal_extra_ops[] = {
+	{ .type = COT_ERR_MSG, .parameter = "Unrecognized option " },
+	{ .type = COT_ERR_MSG, .parameter = "journal!"},
+	{ .type = COT_ERR_MSG, .parameter = "\n" },
+	{ .type = COT_HELP },
+	{ .type = COT_CRASH }
+};
 static struct cmd_op simple_exit[] = { { .type = COT_EXIT } };
 static struct cmd_op help_ops[] = { { .type = COT_HELP }, { .type = COT_EXIT } };
 static struct cmd_op allowed_ops[] = { { .type = COT_BATCH }, { .type = COT_EXIT } };
@@ -61,6 +89,26 @@ static struct cmd_op root_journal_ops[] = {
 	{ .type = COT_JOURNAL_RESUME },
 	{ .type = COT_EXIT }
 };
+static struct cmd_op install_no_param_ops[] = {
+	{ .type = COT_ERR_MSG, .parameter = "Missing additional argument for " },
+	{ .type = COT_ERR_MSG, .parameter = "-a"},
+	{ .type = COT_ERR_MSG, .parameter = "\n" },
+	{ .type = COT_HELP }, { .type = COT_CRASH }
+};
+static struct cmd_op remove_no_param_ops[] = {
+	{ .type = COT_ERR_MSG, .parameter = "Missing additional argument for " },
+	{ .type = COT_ERR_MSG, .parameter = "-r"},
+	{ .type = COT_ERR_MSG, .parameter = "\n" },
+	{ .type = COT_HELP },
+	{ .type = COT_CRASH }
+};
+static struct cmd_op root_no_param_ops[] = {
+	{ .type = COT_ERR_MSG, .parameter = "Missing additional argument for " },
+	{ .type = COT_ERR_MSG, .parameter = "-R"},
+	{ .type = COT_ERR_MSG, .parameter = "\n" },
+	{ .type = COT_HELP },
+	{ .type = COT_CRASH }
+};
 static char *no_args[] = { NULL };
 static char *invalid_flag[] = { "-X", NULL };
 static char *not_allowed_flag[] = { "--batch", NULL };
@@ -68,7 +116,7 @@ static char *free_arg[] = { "argument", NULL };
 static char *free_arg_twice[] = { "argument", "argument", NULL };
 static char *help_arg[] = { "-h", NULL };
 static char *help_arg_long[] = { "--help", NULL };
-static char *help_arg_extra[] = { "-h", "invalid_argument", NULL };
+static char *help_arg_extra[] = { "-h", "argument", NULL };
 static char *trans_journal[] = { "-j", NULL };
 static char *trans_journal_long[] = { "--journal", NULL };
 static char *trans_journal_extra[] = { "-j", "journal!", NULL };
@@ -127,7 +175,7 @@ static struct arg_case cases[] = {
 		.name = "Invalid flag",
 		.args = invalid_flag,
 		.accepts = accepts_all,
-		.expected_ops = bad_args_ops
+		.expected_ops = invalid_flag_ops
 	},
 	{
 		/*
@@ -136,7 +184,7 @@ static struct arg_case cases[] = {
 		.name = "Not allowed flag",
 		.args = not_allowed_flag,
 		.accepts = accepts_deny_batch,
-		.expected_ops = bad_args_ops
+		.expected_ops = not_allowed_flag_ops
 	},
 	{
 		/*
@@ -154,7 +202,7 @@ static struct arg_case cases[] = {
 		.name = "Free-standing argument not accepted",
 		.args = free_arg,
 		.accepts = accepts_deny_no_op,
-		.expected_ops = bad_args_ops
+		.expected_ops = bad_free_arg_ops
 	},
 	{
 		/*
@@ -198,8 +246,8 @@ static struct arg_case cases[] = {
 		 */
 		.name = "Help with extra argument",
 		.args = help_arg_extra,
-		.accepts = accepts_all,
-		.expected_ops = bad_args_ops
+		.accepts = accepts_deny_no_op,
+		.expected_ops = bad_free_arg_ops
 	},
 	{
 		/*
@@ -225,8 +273,8 @@ static struct arg_case cases[] = {
 		 */
 		.name = "Journal resume with a parameter",
 		.args = trans_journal_extra,
-		.accepts = accepts_all,
-		.expected_ops = bad_args_ops
+		.accepts = accepts_deny_no_op,
+		.expected_ops = trans_journal_extra_ops
 	},
 	{
 		/*
@@ -252,10 +300,10 @@ static struct arg_case cases[] = {
 		 */
 		.name = "Journal abort with a parameter",
 		.args = trans_abort_extra,
-		.accepts = accepts_all,
-		.expected_ops = bad_args_ops
+		.accepts = accepts_deny_no_op,
+		.expected_ops = trans_journal_extra_ops
 	},
-#define MULTI(NUM) { .name = "Multiple incompatible flags #" #NUM, .args = multi_flags_##NUM, .accepts = accepts_all, .expected_ops = bad_args_ops }
+#define MULTI(NUM) { .name = "Multiple incompatible flags #" #NUM, .args = multi_flags_##NUM, .accepts = accepts_all, .expected_ops = incompatible_args_ops }
 	MULTI(1),
 	MULTI(2),
 	MULTI(3),
@@ -316,7 +364,7 @@ static struct arg_case cases[] = {
 		.name = "Install without package param",
 		.args = install_no_param,
 		.accepts = accepts_all,
-		.expected_ops = bad_args_ops
+		.expected_ops = install_no_param_ops
 	},
 	{
 		/*
@@ -325,7 +373,7 @@ static struct arg_case cases[] = {
 		.name = "Remove without package param",
 		.args = remove_no_param,
 		.accepts = accepts_all,
-		.expected_ops = bad_args_ops
+		.expected_ops = remove_no_param_ops
 	},
 	{
 		/*
@@ -334,7 +382,7 @@ static struct arg_case cases[] = {
 		.name = "Root dir without param",
 		.args = root_no_param,
 		.accepts = accepts_all,
-		.expected_ops = bad_args_ops
+		.expected_ops = root_no_param_ops
 	},
 	{
 		/*
@@ -416,8 +464,6 @@ START_TEST(cmd_args_parse_test) {
 			ck_abort_msg("Extra parameter at position %zu on %s test", i, c->name);
 		if (expected->parameter)
 			ck_assert_msg(strcmp(expected->parameter, op->parameter) == 0, "Parameters at position %zu on %s test don't match: %s vs. %s", i, c->name, expected->parameter, op->parameter);
-		if (op->type == COT_CRASH)
-			free(op->message);
 		i ++;
 		op ++;
 		expected ++;

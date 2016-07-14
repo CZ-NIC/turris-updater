@@ -115,12 +115,14 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 	int c, ilongopt;
 	bool accepts_map[COT_LAST];
 	cmd_op_accepts_map(accepts_map, accepts);
-	while ((c = getopt_long(argc, argv, "hbja:r:R:s:e:S:", opt_long, &ilongopt)) != -1) {
+	while ((c = getopt_long(argc, argv, ":hbja:r:R:s:e:S:", opt_long, &ilongopt)) != -1) {
 		switch (c) {
 			case 'h':
 				exclusive_cmd = true;
 				result_extend(&res_count, &result, COT_HELP, NULL);
 				break;
+			case ':':
+				return cmd_arg_crash(result, 3, "Missing additional argument for ", argv[optind - 1], "\n");
 			case '?':
 				return cmd_unrecognized(result, argv[optind - 1]);
 			case 'j':
