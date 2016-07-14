@@ -37,7 +37,7 @@ end
 
 -- Reused options for remotely fetched scripts
 local script_options = {
-	secutiry = "Remote",
+	security = "Remote",
 	ca = "file:///etc/ssl/updater.pem",
 	crl = "file:///tmp/crl.pem",
 	pubkey = {
