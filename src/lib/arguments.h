@@ -28,6 +28,8 @@ enum cmd_op_type {
 	COT_EXIT,
 	// Print help.
 	COT_HELP,
+	// Print error message stored in argument variable.
+	COT_ERR_MSG,
 	// Clean up any unfinished journal work and roll back whatever can be.
 	COT_JOURNAL_ABORT,
 	// Resume interrupted operation from journal, if any is there.
@@ -38,12 +40,18 @@ enum cmd_op_type {
 	COT_REMOVE,
 	// Set a root directory (the parameter is the directory to set to)
 	COT_ROOT_DIR,
+	// Run without the user confirmation
+	COT_BATCH,
 	// Syslog level
 	COT_SYSLOG_LEVEL,
 	// Stderr log level
 	COT_STDERR_LEVEL,
 	// Name of the syslog
-	COT_SYSLOG_NAME
+	COT_SYSLOG_NAME,
+	// Argument isn't option.
+	COT_NO_OP,
+	// Automatic last dummy value to know size of enum
+	COT_LAST
 };
 
 // A whole operation to be performed, with any needed parameter.
@@ -60,13 +68,22 @@ struct cmd_op {
  * the operations don't have to correspond one to one with the
  * arguments.
  *
+ * Argument accepts must be COT_LAST terminated array of all allowed operations.
+ *
  * The result is allocated on the heap. The parameters are not
  * allocated, they point to the strings passed in argv.
  *
  * The result is always terminated by an operation of type COT_CRASH
  * or COT_EXIT.
  */
-struct cmd_op *cmd_args_parse(int argc, char *argv[]) __attribute__((nonnull)) __attribute__((returns_nonnull));
+struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type accepts[]) __attribute__((nonnull)) __attribute__((returns_nonnull));
+
+/*
+ * Prints help for accepted arguments
+ *
+ * Argument accepts is COT_LAST terminated array of all allowed operations.
+ */
+void cmd_args_help(const enum cmd_op_type accepts[]);
 
 /*
  * Deep-copy the arguments. They can be used in the reexec() function.

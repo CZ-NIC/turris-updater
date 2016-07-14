@@ -27,12 +27,45 @@
 struct arg_case {
 	const char *name;
 	char **args;
+	const enum cmd_op_type *accepts;
 	struct cmd_op *expected_ops;
 };
 
 // Bad arguments passed, give help and give up
-static struct cmd_op bad_args_ops[] = { { .type = COT_HELP }, { .type = COT_CRASH } };
+static struct cmd_op incompatible_args_ops[] = { { .type = COT_ERR_MSG, .parameter = "Incompatible commands\n" }, { .type = COT_HELP }, { .type = COT_CRASH } };
+static struct cmd_op invalid_flag_ops[] = {
+	{ .type = COT_ERR_MSG, .parameter = "Unrecognized option " },
+	{ .type = COT_ERR_MSG, .parameter = "-X"},
+	{ .type = COT_ERR_MSG, .parameter = "\n" },
+	{ .type = COT_HELP },
+	{ .type = COT_CRASH }
+};
+static struct cmd_op not_allowed_flag_ops[] = {
+	{ .type = COT_ERR_MSG, .parameter = "Unrecognized option " },
+	{ .type = COT_ERR_MSG, .parameter = "--batch"},
+	{ .type = COT_ERR_MSG, .parameter = "\n" },
+	{ .type = COT_HELP },
+	{ .type = COT_CRASH }
+};
+static struct cmd_op bad_free_arg_ops[] = {
+	{ .type = COT_ERR_MSG, .parameter = "Unrecognized option " },
+	{ .type = COT_ERR_MSG, .parameter = "argument"},
+	{ .type = COT_ERR_MSG, .parameter = "\n" },
+	{ .type = COT_HELP },
+	{ .type = COT_CRASH }
+};
+static struct cmd_op trans_journal_extra_ops[] = {
+	{ .type = COT_ERR_MSG, .parameter = "Unrecognized option " },
+	{ .type = COT_ERR_MSG, .parameter = "journal!"},
+	{ .type = COT_ERR_MSG, .parameter = "\n" },
+	{ .type = COT_HELP },
+	{ .type = COT_CRASH }
+};
+static struct cmd_op simple_exit[] = { { .type = COT_EXIT } };
 static struct cmd_op help_ops[] = { { .type = COT_HELP }, { .type = COT_EXIT } };
+static struct cmd_op allowed_ops[] = { { .type = COT_BATCH }, { .type = COT_EXIT } };
+static struct cmd_op allowed_no_ops[] = { { .type = COT_NO_OP, .parameter = "argument" }, { .type = COT_EXIT } };
+static struct cmd_op allowed_no_ops_twice[] = { { .type = COT_NO_OP, .parameter = "argument" }, { .type = COT_NO_OP, .parameter = "argument" }, { .type = COT_EXIT } };
 static struct cmd_op journal_ops[] = { { .type = COT_JOURNAL_RESUME }, { .type = COT_EXIT } };
 static struct cmd_op abort_ops[] = { { .type = COT_JOURNAL_ABORT }, { .type = COT_EXIT } };
 static struct cmd_op install_ops[] = { { .type = COT_INSTALL, .parameter = "package.ipk" }, { .type = COT_EXIT } };
@@ -56,23 +89,53 @@ static struct cmd_op root_journal_ops[] = {
 	{ .type = COT_JOURNAL_RESUME },
 	{ .type = COT_EXIT }
 };
+static struct cmd_op install_no_param_ops[] = {
+	{ .type = COT_ERR_MSG, .parameter = "Missing additional argument for " },
+	{ .type = COT_ERR_MSG, .parameter = "-a"},
+	{ .type = COT_ERR_MSG, .parameter = "\n" },
+	{ .type = COT_HELP }, { .type = COT_CRASH }
+};
+static struct cmd_op remove_no_param_ops[] = {
+	{ .type = COT_ERR_MSG, .parameter = "Missing additional argument for " },
+	{ .type = COT_ERR_MSG, .parameter = "-r"},
+	{ .type = COT_ERR_MSG, .parameter = "\n" },
+	{ .type = COT_HELP },
+	{ .type = COT_CRASH }
+};
+static struct cmd_op root_no_param_ops[] = {
+	{ .type = COT_ERR_MSG, .parameter = "Missing additional argument for " },
+	{ .type = COT_ERR_MSG, .parameter = "-R"},
+	{ .type = COT_ERR_MSG, .parameter = "\n" },
+	{ .type = COT_HELP },
+	{ .type = COT_CRASH }
+};
 static char *no_args[] = { NULL };
 static char *invalid_flag[] = { "-X", NULL };
+static char *not_allowed_flag[] = { "--batch", NULL };
 static char *free_arg[] = { "argument", NULL };
+static char *free_arg_twice[] = { "argument", "argument", NULL };
 static char *help_arg[] = { "-h", NULL };
-static char *help_arg_extra[] = { "-h", "invalid_argument", NULL };
+static char *help_arg_long[] = { "--help", NULL };
+static char *help_arg_extra[] = { "-h", "argument", NULL };
 static char *trans_journal[] = { "-j", NULL };
+static char *trans_journal_long[] = { "--journal", NULL };
 static char *trans_journal_extra[] = { "-j", "journal!", NULL };
 static char *trans_abort[] = { "-b", NULL };
+static char *trans_abort_long[] = { "--abort", NULL };
 static char *trans_abort_extra[] = { "-b", "journal!", NULL };
 static char *multi_flags_1[] = { "-j", "-h", NULL };
 static char *multi_flags_2[] = { "-j", "-a", "pkg.ipk", NULL };
 static char *multi_flags_3[] = { "-h", "-j", NULL };
 static char *multi_flags_4[] = { "-j", "-b", NULL };
 static char *multi_flags_5[] = { "-b", "-a", "pkg.ipk", NULL };
+static char *multi_flags_6[] = { "--journal", "-a", "pkg.ipk", NULL };
+static char *multi_flags_7[] = { "--help", "--remove", "pkg.ipk", NULL };
+static char *multi_flags_8[] = { "--journal", "--add", "pkg.ipk", NULL };
 static char *install_pkg[] = { "-a", "package.ipk", NULL };
+static char *install_pkg_long[] = { "--add", "package.ipk", NULL };
 static char *remove_pkg[] = { "-r", "package", NULL };
-static char *complex_install_remove[] = { "-r", "pkg-1", "-a", "pkg-2.ipk", "-r", "pkg-3", "-r", "pkg-4", "-a", "pkg-5.ipk", NULL };
+static char *remove_pkg_long[] = { "--remove", "package", NULL };
+static char *complex_install_remove[] = { "-r", "pkg-1", "--add", "pkg-2.ipk", "-r", "pkg-3", "--remove", "pkg-4", "-a", "pkg-5.ipk", NULL };
 static char *install_no_param[] = { "-a", NULL };
 static char *remove_no_param[] = { "-r", NULL };
 static char *root_no_param[] = { "-R", NULL };
@@ -82,6 +145,19 @@ static char *root_reorder[] = { "-a", "pkg.ipk", "-R", "/dir", NULL };
 static char *root_journal_no_reorder[] = { "-R", "/dir", "-j", NULL };
 static char *root_journal_reorder[] = { "-j", "-R", "/dir", NULL };
 
+static const enum cmd_op_type accepts_all[] = {
+	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_BATCH, COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_NO_OP, COT_LAST
+};
+static const enum cmd_op_type accepts_deny_no_op[] = {
+	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_BATCH, COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_LAST
+};
+static const enum cmd_op_type accepts_deny_batch[] = {
+	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_NO_OP, COT_LAST
+};
+static const enum cmd_op_type accepts_deny_all[] = {
+	COT_LAST
+};
+
 static struct arg_case cases[] = {
 	{
 		/*
@@ -89,7 +165,8 @@ static struct arg_case cases[] = {
 		 */
 		.name = "No args",
 		.args = no_args,
-		.expected_ops = bad_args_ops
+		.accepts = accepts_all,
+		.expected_ops = simple_exit
 	},
 	{
 		/*
@@ -97,22 +174,70 @@ static struct arg_case cases[] = {
 		 */
 		.name = "Invalid flag",
 		.args = invalid_flag,
-		.expected_ops = bad_args_ops
+		.accepts = accepts_all,
+		.expected_ops = invalid_flag_ops
+	},
+	{
+		/*
+		 * Not allowed but existing flag → give help and exit.
+		 */
+		.name = "Not allowed flag",
+		.args = not_allowed_flag,
+		.accepts = accepts_deny_batch,
+		.expected_ops = not_allowed_flag_ops
+	},
+	{
+		/*
+		 * Allowed flag → provide it and exit successfully.
+		 */
+		.name = "Allowed flag",
+		.args = not_allowed_flag,
+		.accepts = accepts_deny_no_op,
+		.expected_ops = allowed_ops
 	},
 	{
 		/*
 		 * Free-standing argument (without a flag) is invalid → give help and exit.
 		 */
-		.name = "Free-standing argument",
+		.name = "Free-standing argument not accepted",
 		.args = free_arg,
-		.expected_ops = bad_args_ops
+		.accepts = accepts_deny_no_op,
+		.expected_ops = bad_free_arg_ops
 	},
 	{
 		/*
-		 * Asked for help → provide it and exit sucessfully.
+		 * Free-standing argument (without a flag) is valid for updater → provide argument and exit successfully.
+		 */
+		.name = "Free-standing argument accepted",
+		.args = free_arg,
+		.accepts = accepts_all,
+		.expected_ops = allowed_no_ops
+	},
+	{
+		/*
+		 * Two free-standing arguments (without a flag) are also valid → provide both arguments and exit sucessfully
+		 */
+		.name = "Free-standing two arguments",
+		.args = free_arg_twice,
+		.accepts = accepts_all,
+		.expected_ops = allowed_no_ops_twice,
+	},
+	{
+		/*
+		 * Asked for help → provide it and exit successfully.
 		 */
 		.name = "Help",
 		.args = help_arg,
+		.accepts = accepts_all,
+		.expected_ops = help_ops
+	},
+	{
+		/*
+		 * Asked for help → provide it and exit successfully.
+		 */
+		.name = "Help long option",
+		.args = help_arg_long,
+		.accepts = accepts_all,
 		.expected_ops = help_ops
 	},
 	{
@@ -121,7 +246,8 @@ static struct arg_case cases[] = {
 		 */
 		.name = "Help with extra argument",
 		.args = help_arg_extra,
-		.expected_ops = bad_args_ops
+		.accepts = accepts_deny_no_op,
+		.expected_ops = bad_free_arg_ops
 	},
 	{
 		/*
@@ -129,6 +255,16 @@ static struct arg_case cases[] = {
 		 */
 		.name = "Journal resume",
 		.args = trans_journal,
+		.accepts = accepts_all,
+		.expected_ops = journal_ops
+	},
+	{
+		/*
+		 * Journal resume requested.
+		 */
+		.name = "Journal resume long option",
+		.args = trans_journal_long,
+		.accepts = accepts_all,
 		.expected_ops = journal_ops
 	},
 	{
@@ -137,7 +273,8 @@ static struct arg_case cases[] = {
 		 */
 		.name = "Journal resume with a parameter",
 		.args = trans_journal_extra,
-		.expected_ops = bad_args_ops
+		.accepts = accepts_deny_no_op,
+		.expected_ops = trans_journal_extra_ops
 	},
 	{
 		/*
@@ -145,6 +282,16 @@ static struct arg_case cases[] = {
 		 */
 		.name = "Journal abort",
 		.args = trans_abort,
+		.accepts = accepts_all,
+		.expected_ops = abort_ops
+	},
+	{
+		/*
+		 * Journal abort requested.
+		 */
+		.name = "Journal abort long option",
+		.args = trans_abort_long,
+		.accepts = accepts_all,
 		.expected_ops = abort_ops
 	},
 	{
@@ -153,20 +300,34 @@ static struct arg_case cases[] = {
 		 */
 		.name = "Journal abort with a parameter",
 		.args = trans_abort_extra,
-		.expected_ops = bad_args_ops
+		.accepts = accepts_deny_no_op,
+		.expected_ops = trans_journal_extra_ops
 	},
-#define MULTI(NUM) { .name = "Multiple incompatible flags #" #NUM, .args = multi_flags_##NUM, .expected_ops = bad_args_ops }
+#define MULTI(NUM) { .name = "Multiple incompatible flags #" #NUM, .args = multi_flags_##NUM, .accepts = accepts_all, .expected_ops = incompatible_args_ops }
 	MULTI(1),
 	MULTI(2),
 	MULTI(3),
 	MULTI(4),
 	MULTI(5),
+	MULTI(6),
+	MULTI(7),
+	MULTI(8),
 	{
 		/*
 		 * Install a package.
 		 */
 		.name = "Install",
 		.args = install_pkg,
+		.accepts = accepts_all,
+		.expected_ops = install_ops
+	},
+	{
+		/*
+		 * Install a package, long option.
+		 */
+		.name = "Install - long option",
+		.args = install_pkg_long,
+		.accepts = accepts_all,
 		.expected_ops = install_ops
 	},
 	{
@@ -175,6 +336,16 @@ static struct arg_case cases[] = {
 		 */
 		.name = "Remove",
 		.args = remove_pkg,
+		.accepts = accepts_all,
+		.expected_ops = remove_ops
+	},
+	{
+		/*
+		 * Remove a package, long option.
+		 */
+		.name = "Remove - long option",
+		.args = remove_pkg_long,
+		.accepts = accepts_all,
 		.expected_ops = remove_ops
 	},
 	{
@@ -183,6 +354,7 @@ static struct arg_case cases[] = {
 		 */
 		.name = "Complex install/remove",
 		.args = complex_install_remove,
+		.accepts = accepts_all,
 		.expected_ops = complex_install_ops
 	},
 	{
@@ -191,7 +363,8 @@ static struct arg_case cases[] = {
 		 */
 		.name = "Install without package param",
 		.args = install_no_param,
-		.expected_ops = bad_args_ops
+		.accepts = accepts_all,
+		.expected_ops = install_no_param_ops
 	},
 	{
 		/*
@@ -199,7 +372,8 @@ static struct arg_case cases[] = {
 		 */
 		.name = "Remove without package param",
 		.args = remove_no_param,
-		.expected_ops = bad_args_ops
+		.accepts = accepts_all,
+		.expected_ops = remove_no_param_ops
 	},
 	{
 		/*
@@ -207,7 +381,8 @@ static struct arg_case cases[] = {
 		 */
 		.name = "Root dir without param",
 		.args = root_no_param,
-		.expected_ops = bad_args_ops
+		.accepts = accepts_all,
+		.expected_ops = root_no_param_ops
 	},
 	{
 		/*
@@ -215,6 +390,7 @@ static struct arg_case cases[] = {
 		 */
 		.name = "Root dir set",
 		.args = root_only,
+		.accepts = accepts_all,
 		.expected_ops = root_ops
 	},
 	{
@@ -223,6 +399,7 @@ static struct arg_case cases[] = {
 		 */
 		.name = "Root dir install",
 		.args = root_no_reorder,
+		.accepts = accepts_all,
 		.expected_ops = root_install_ops
 	},
 	{
@@ -232,6 +409,7 @@ static struct arg_case cases[] = {
 		 */
 		.name = "Root dir install, reorder",
 		.args = root_reorder,
+		.accepts = accepts_all,
 		.expected_ops = root_install_ops
 	},
 	{
@@ -240,6 +418,7 @@ static struct arg_case cases[] = {
 		 */
 		.name = "Root dir & journal",
 		.args = root_journal_no_reorder,
+		.accepts = accepts_all,
 		.expected_ops = root_journal_ops
 	},
 	{
@@ -248,6 +427,7 @@ static struct arg_case cases[] = {
 		 */
 		.name = "Root dir & journal, reorder",
 		.args = root_journal_reorder,
+		.accepts = accepts_all,
 		.expected_ops = root_journal_ops
 	}
 };
@@ -265,7 +445,7 @@ START_TEST(cmd_args_parse_test) {
 	args[count] = NULL;
 	// Call the tested function
 	mark_point();
-	struct cmd_op *ops = cmd_args_parse(count, args);
+	struct cmd_op *ops = cmd_args_parse(count, args, c->accepts);
 	mark_point();
 	// They are already parsed, no longer needed
 	free(args);
