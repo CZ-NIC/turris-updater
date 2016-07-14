@@ -26,21 +26,6 @@
 #include <stdio.h>
 #include <assert.h>
 
-static const char *help =
-"opkg-trans -j			Recover from a crash/reboot from a journal.\n"
-"opkg-trans -b			Abort interrupted work in the journal and clean.\n"
-"				up. Some stages of installation might not be\n"
-"				aborted.\n"
-"opkg-trans -a pkg1.opkg -r pkg2	Install and remove packages. The ones to install\n"
-"				(-a) need a path to already downloaded package\n"
-"				file. The ones to remove (-r) expect name of the\n"
-"				package.\n"
-"opkg-trans -R /root/dir	Use given path as a root directory\n"
-"opkg-trans -s syslog-level	What level of messages to send to syslog\n"
-"opkg-trans -S syslog-name	And under which name\n"
-"opkg-trans -e stderr-level	What level of messages to send to stderr\n"
-"opkg-trans -h			This help message.\n";
-
 static bool results_interpret(struct interpreter *interpreter, size_t result_count) {
 	bool result = true;
 	if (result_count >= 2) {
@@ -53,11 +38,21 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 	return result;
 }
 
+static const enum cmd_op_type cmd_op_allows[] = {
+	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR,
+	COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_LAST
+};
+
+static void print_help() {
+	fputs("Usage: opkg-trans [OPTION]...\n", stderr);
+	cmd_args_help(cmd_op_allows);
+}
+
 int main(int argc, char *argv[]) {
 	args_backup(argc, (const char **)argv);
 	struct events *events = events_new();
 	// Parse the arguments
-	struct cmd_op *ops = cmd_args_parse(argc, argv);
+	struct cmd_op *ops = cmd_args_parse(argc, argv, cmd_op_allows);
 	struct cmd_op *op = ops;
 	// Prepare the interpreter and load it with the embedded lua scripts
 	struct interpreter *interpreter = interpreter_create(events);
@@ -68,11 +63,18 @@ int main(int argc, char *argv[]) {
 	}
 	bool transaction_run = false;
 	bool trans_ok = true;
+	bool early_exit = false;
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
-			case COT_HELP:
-				fputs(help, stderr);
+			case COT_HELP: {
+				print_help();
+				early_exit = true;
 				break;
+			}
+			case COT_ERR_MSG: {
+				fputs(op->parameter, stderr);
+				break;
+			}
 			case COT_INSTALL: {
 				const char *err = interpreter_call(interpreter, "transaction.queue_install", NULL, "s", op->parameter);
 				ASSERT_MSG(!err, "%s", err);
@@ -125,7 +127,12 @@ int main(int argc, char *argv[]) {
 		const char *err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
 		ASSERT_MSG(!err, "%s", err);
 		trans_ok = results_interpret(interpreter, result_count);
+	} else if (!early_exit && exit_type != COT_CRASH) {
+		fputs("No operation specified. Please specify what to do.\n", stderr);
+		print_help();
+		exit_type = COT_CRASH;
 	}
+
 	interpreter_destroy(interpreter);
 	events_destroy(events);
 	arg_backup_clear();
