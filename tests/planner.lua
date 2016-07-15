@@ -104,6 +104,63 @@ function test_reinstall()
 	assert_table_equal(expected, result)
 end
 
+-- Test the reinstall flag works even when we „require“ the package first (this was broken before)
+function test_reinstall_upgrade()
+	local pkgs = {
+		pkg1 = {
+			candidates = {{Package = 'pkg1', repo = def_repo}},
+			modifier = {}
+		},
+		pkg2 = {
+			candidates = {{Package = 'pkg2', repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			-- First ask for it to get installed. That one schedules it as „require"
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1'
+			}
+		},
+		{
+			-- Just a package in the middle, so we are sure the following reschedule doesn't reorder things.
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg2'
+			}
+		},
+		{
+			-- Second instance with reinstall. That one should reschedule it as „reinstall“
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1'
+			},
+			reinstall = true
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		{
+			action = "reinstall",
+			package = {Package = 'pkg1', repo = def_repo},
+			modifier = {},
+			name = 'pkg1'
+		},
+		{
+			action = "require",
+			package = {Package = 'pkg2', repo = def_repo},
+			modifier = {},
+			name = 'pkg2'
+		}
+	}
+	assert_table_equal(expected, result)
+end
+
 --[[
 Find some deps. Some are from the modifier, some from the candidate.
 There may be multiple candidates. Also, check each dep is brought in

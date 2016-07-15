@@ -78,6 +78,7 @@ function required_pkgs(pkgs, requests)
 	local processed = {}
 	local plan = {}
 	local function schedule(req, action, dispensable)
+		action = action or "require"
 		local name = req.name or req
 		name = name:match('^%S+')
 		DBG("Require " .. name)
@@ -91,9 +92,21 @@ function required_pkgs(pkgs, requests)
 				error(utils.exception('inconsistent', "Package " .. name .. " is not available"))
 			end
 		end
-		if to_install[candidates] then
-			-- This one is already scheduled
-			return true
+		local scheduled = to_install[candidates]
+		if scheduled then
+			if scheduled.action == action then
+				-- This one is already scheduled
+				return true
+			elseif scheduled.action == 'require' and action == 'reinstall' then
+				-- Upgrade the scheduled package to reinstall
+				scheduled.action = 'reinstall'
+				return true
+			elseif scheduled.action == 'reinstall' and action == 'require' then
+				-- We keep the higher level of reinstall
+				return true
+			else
+				error(utils.exception('inconsistent', "Package " .. name .. " wants to be both installed and uninstalled at the same time"))
+			end
 		end
 		if processed[candidates] then
 			--[[
@@ -143,7 +156,7 @@ function required_pkgs(pkgs, requests)
 			dep(d)
 		end
 		local r = {
-			action = action or "require",
+			action = action,
 			package = src,
 			modifier = mod,
 			name = name
