@@ -45,7 +45,7 @@
 // The name used in lua registry to store stuff
 #define REGISTRY_NAME "libupdater"
 
-const char *crash_file = "/tmp/updater_crash.log";
+static const char *crash_file = "/tmp/updater_crash.log";
 
 // From the embed file, lua things that are auto-loaded
 extern struct file_index_element autoload[];
@@ -75,7 +75,7 @@ static int err_handler(lua_State *L) {
 	 */
 	if (!lua_checkstack(L, 4))
 		return 1; // Reuse the provided param as a result
-	lua_getfield(L, LUA_GLOBALSINDEX, "error_handler");
+	lua_getfield(L, LUA_GLOBALSINDEX, "c_pcall_error_handler");
 	if (!lua_isfunction(L, -1))
 		goto FAIL;
 	lua_pushvalue(L, top);
@@ -882,7 +882,8 @@ const char *interpreter_call(struct interpreter *interpreter, const char *functi
 			const char *trace = lua_tostring(interpreter->state, -1);
 			if (trace) {
 				DBG("%s\n", trace);
-				dump2file(crash_file, trace);
+				if (!dump2file(crash_file, trace))
+					WARN("Crash report of stack trace dump failed.");
 			} // Else just print message, we are probably missing trace
 			lua_pop(interpreter->state, 1);
 			lua_getfield(interpreter->state, -1, "msg");

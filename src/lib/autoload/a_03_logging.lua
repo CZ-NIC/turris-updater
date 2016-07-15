@@ -17,8 +17,6 @@ You should have received a copy of the GNU General Public License
 along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
-local stacktraceplus = require "stacktraceplus"
-
 -- Generate appropriate logging functions
 for _, name in ipairs({ 'ERROR', 'WARN', 'INFO', 'DBG' }) do
 	_G[name] = function(...)
@@ -43,8 +41,25 @@ function log_event(action, package)
 end
 
 -- Function used from C to generate message from error
-function error_handler(err)
-	strace = stacktraceplus.stacktrace(err)
-	msg = err.reason .. ": " .. err.msg
-	return {msg=msg, trace=strace}
+function c_pcall_error_handler(err)
+	function err2string(msg, err)
+		if type(err) == "string" then
+			msg = msg .. "\n" .. err
+		elseif err.tp == "error" then
+			msg = msg .. "\n" .. err.reason .. ": " .. err.msg
+		else
+			error(utils.exception("Unknown error", "Unknown error"))
+		end
+		return msg
+	end
+
+	local msg = ""
+	if (err.errors) then -- multiple errors
+		for _, merr in pairs(err.errors) do
+			msg = err2string(msg, merr)
+		end
+	else
+		msg = err2string(msg, err)
+	end
+	return {msg=msg, trace=stacktraceplus.stacktrace()}
 end

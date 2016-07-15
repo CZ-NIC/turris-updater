@@ -117,13 +117,13 @@ enum log_level log_level_get(const char *level) {
 	return LL_UNKNOWN;
 }
 
-void dump2file (const char *file, const char *text) {
+bool dump2file (const char *file, const char *text) {
 	FILE *f = fopen(file, "w");
 	if (!f)
-		// If file opening failed, just drop it.
-		return; 
+		return false; 
 	fputs(text, f);
 	fclose(f);
+	return true;
 }
 
 size_t printf_len(const char *msg, ...) {
