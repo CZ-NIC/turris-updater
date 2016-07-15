@@ -55,10 +55,9 @@ function prepare(entrypoint)
 	-- Go through all the requirements and decide what we need
 	postprocess.run()
 	local required = planner.required_pkgs(postprocess.available_packages, requests.content_requests)
-	-- TODO: Reuse the status for the transaction. Also, share the lock.
-	local status = backend.status_parse()
+	local run_state = backend.run_state()
 	backend.flags_load()
-	local tasks = planner.filter_required(status, required)
+	local tasks = planner.filter_required(run_state.status, required)
 	--[[
 	Start download of all the packages. They all start (or queue, if there are
 	too many). We then start taking them one by one, but that doesn't stop it
