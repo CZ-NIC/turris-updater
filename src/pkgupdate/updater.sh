@@ -35,6 +35,7 @@ EXIT_CODE=1
 BACKGROUND=false
 BACKGROUNDED=false
 TMP_DIR="/tmp/$$.tmp"
+export UPDATER_ENABLE_STATE_LOG=true
 
 timeout() {
 	# Let a command run for up to $1 seconds. If it doesn't finishes by then, kill it.
@@ -44,7 +45,6 @@ timeout() {
 	TIME="$1"
 	PROG="$2"
 	shift 2
-	set +e
 	"$PROG" "$@" >"$TMP_DIR"/t-output &
 	export CPID="$!"
 	(
@@ -72,7 +72,6 @@ timeout() {
 		CNT=$((CNT+1))
 	done
 	wait "$WATCHER"
-	set -e
 	return "$RESULT"
 }
 
@@ -114,7 +113,7 @@ mkdir -p "$TMP_DIR"
 trap 'rm -rf "$LOCK_DIR" "$PID_FILE" "$TMP_DIR"; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
 
 # Run the actual updater
-UPDATER_ENABLE_STATE_LOG=true timeout 900 pkgupdate file:///etc/updater/entry.lua --batch
+timeout 900 pkgupdate file:///etc/updater/entry.lua --batch
 # Evaluate what has run
 EXIT_CODE="$?"
 STATE=$(cat "$STATE_DIR"/state)
