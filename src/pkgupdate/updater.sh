@@ -25,6 +25,13 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+DISABLED=$(uci -q get updater.override.disable || echo false)
+if $DISABLED ; then
+	echo "Updater disabled" | logger -t daemon.warning
+	echo "Updater disabled" >&2
+	exit 0
+fi
+
 get-api-crl
 
 STATE_DIR=/tmp/update-state

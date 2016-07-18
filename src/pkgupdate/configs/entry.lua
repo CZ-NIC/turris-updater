@@ -5,11 +5,6 @@ local lists
 if uci then
 	-- If something is really broken, we could be unable to load the uci dynamic module. Try to do some recovery in such case and hope it works well the next time.
 	local cursor = uci.cursor()
-	local disable = cursor:get("updater", "override", "disable")
-	if disable == "true" then
-		-- The user doesn't want the updater to run
-		error("Updater disabled") -- TODO: Something less brutal?
-	end
 	branch = cursor:get("updater", "override", "branch")
 	if branch then
 		WARN("Branch overriden to " .. branch)
