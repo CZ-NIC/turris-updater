@@ -173,8 +173,27 @@ function test_https_cert()
 	assert(ok1)
 	assert_false(ok2)
 	-- It refuses local URIs inside the ca field if refered from the wrong context
-	context = sandbox.new("Restricted")
+	context = sandbox.new("Remote")
 	assert_exception(function () uri(context, "https://api.turris.cz/", {verification = "cert", ca = ca_file}) end, "access violation")
+end
+
+function test_restricted()
+	local context = sandbox.new("Restricted")
+	context.restrict = 'https://api%.turris%.cz/.*'
+	local function u(location)
+		local result = uri(context, location, {verification = 'none'})
+		--[[
+		Make sure we wait for the result so we free all relevant memory.
+		Yes, it would be better if we freed it automatically when we just
+		drop the reference, but the world is not perfect.
+		]]
+		result:get()
+	end
+	assert_pass(function () u("https://api.turris.cz/") end)
+	assert_pass(function () u("https://api.turris.cz/index.html") end)
+	assert_exception(function () u("https://api.turris.cz") end, "access violation")
+	assert_exception(function () u("http://api.turris.cz/index.html") end, "access violation")
+	assert_exception(function () u("https://www.turris.cz/index.html") end, "access violation")
 end
 
 function test_sig()

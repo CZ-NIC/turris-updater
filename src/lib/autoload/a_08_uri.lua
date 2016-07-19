@@ -132,6 +132,14 @@ local function handler_http(uri, err_cback, done_cback, ca, crl)
 	end, uri, ca, crl)
 end
 
+local function match_check(uri, context)
+	if context:level_check("Remote") then
+		-- No restriction in this context. Don't check.
+		return true
+	end
+	return uri:match('^' .. context.restrict .. '$')
+end
+
 local handlers = {
 	data = {
 		handler = handler_data,
@@ -148,13 +156,15 @@ local handlers = {
 	http = {
 		handler = handler_http,
 		def_verif = 'sig',
-		sec_level = 'Restricted'
+		sec_level = 'Restricted',
+		match = match_check
 	},
 	https = {
 		handler = handler_http,
 		can_check_cert = true,
 		def_verif = 'both',
-		sec_level = 'Restricted'
+		sec_level = 'Restricted',
+		match = match_check
 	}
 }
 
@@ -212,6 +222,9 @@ function parse(context, uri)
 	end
 	if not context:level_check(handler.sec_level) then
 		error(utils.exception("access violation", "At least " .. handler.sec_level .. " level required for " .. schema .. " URI"))
+	end
+	if handler.match and not handler.match(uri, context) then
+		error(utils.exception("access violation", "The uri " .. uri .. " does not pass restrictions"))
 	end
 	return handler
 end
