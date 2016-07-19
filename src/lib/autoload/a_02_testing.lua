@@ -19,14 +19,24 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 
 -- Just for testing purposes
 local testing = {}
+
 function testing.values()
 	return 42, "hello"
 end
+
 function testing:method()
 	return type(self)
 end
+
 testing.subtable = {}
 function testing.subtable.echo(...)
 	return ...
 end
+
+function testing.twoerrs()
+	local multi = utils.exception('multiple', "Multiple exceptions (2)")
+	multi.errors = { "error1", utils.exception('simulation', "error2") }
+	error(multi)
+end
+
 return testing
