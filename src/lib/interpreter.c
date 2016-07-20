@@ -45,6 +45,8 @@
 // The name used in lua registry to store stuff
 #define REGISTRY_NAME "libupdater"
 
+static const char *crash_file = "/tmp/updater_crash.log";
+
 // From the embed file, lua things that are auto-loaded
 extern struct file_index_element autoload[];
 
@@ -73,10 +75,7 @@ static int err_handler(lua_State *L) {
 	 */
 	if (!lua_checkstack(L, 4))
 		return 1; // Reuse the provided param as a result
-	lua_getfield(L, LUA_GLOBALSINDEX, "stacktraceplus");
-	if (!lua_istable(L, -1))
-		goto FAIL;
-	lua_getfield(L, -1, "stacktrace");
+	lua_getfield(L, LUA_GLOBALSINDEX, "c_pcall_error_handler");
 	if (!lua_isfunction(L, -1))
 		goto FAIL;
 	lua_pushvalue(L, top);
@@ -876,9 +875,22 @@ const char *interpreter_call(struct interpreter *interpreter, const char *functi
 	va_end(args);
 	int result = lua_pcall(L, nparams, LUA_MULTRET, handler);
 	lua_remove(L, handler);
-	if (result)
+	if (result) {
 		// There's an error on top of the stack
-		return lua_tostring(interpreter->state, -1);
+		if (lua_istable(interpreter->state, -1)) {
+			lua_getfield(interpreter->state, -1, "trace");
+			const char *trace = lua_tostring(interpreter->state, -1);
+			if (trace) {
+				DBG("%s\n", trace);
+				if (!dump2file(crash_file, trace))
+					WARN("Crash report of stack trace dump failed.");
+			} // Else just print message, we are probably missing trace
+			lua_pop(interpreter->state, 1);
+			lua_getfield(interpreter->state, -1, "msg");
+		}
+		const char *errmsg = lua_tostring(interpreter->state, -1);
+		return errmsg;
+	}
 	if (result_count)
 		*result_count = lua_gettop(L);
 	return NULL;

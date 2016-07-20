@@ -39,3 +39,27 @@ function log_event(action, package)
 		end
 	end
 end
+
+-- Function used from C to generate message from error
+function c_pcall_error_handler(err)
+	function err2string(msg, err)
+		if type(err) == "string" then
+			msg = msg .. "\n" .. err
+		elseif err.tp == "error" then
+			msg = msg .. "\n" .. err.reason .. ": " .. err.msg
+		else
+			error(utils.exception("Unknown error", "Unknown error"))
+		end
+		return msg
+	end
+
+	local msg = ""
+	if (err.errors) then -- multiple errors
+		for _, merr in pairs(err.errors) do
+			msg = err2string(msg, merr)
+		end
+	else
+		msg = err2string(msg, err)
+	end
+	return {msg=msg, trace=stacktraceplus.stacktrace()}
+end

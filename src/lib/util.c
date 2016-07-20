@@ -117,6 +117,15 @@ enum log_level log_level_get(const char *level) {
 	return LL_UNKNOWN;
 }
 
+bool dump2file (const char *file, const char *text) {
+	FILE *f = fopen(file, "w");
+	if (!f)
+		return false; 
+	fputs(text, f);
+	fclose(f);
+	return true;
+}
+
 size_t printf_len(const char *msg, ...) {
 	va_list args;
 	va_start(args, msg);

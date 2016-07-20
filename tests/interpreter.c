@@ -127,6 +127,17 @@ START_INTERPRETER_TEST(call_error)
 	ck_assert_msg(strstr(error, "Test error"), "Error %s doesn't contain Test error", error);
 END_INTERPRETER_TEST
 
+START_INTERPRETER_TEST(call_error_multi)
+	/*
+	 * Check we can call a function that produces two errors and both errors
+	 * would be propagated.
+	 */
+	const char *error = interpreter_call(interpreter, "testing.twoerrs", NULL, "");
+	ck_assert_msg(error, "Didn't get an error");
+	ck_assert_msg(strstr(error, "error1"), "Error %s doesn't contain Test error1", error);
+	ck_assert_msg(strstr(error, "error2"), "Error %s doesn't contain Test error2", error);
+END_INTERPRETER_TEST
+
 START_INTERPRETER_TEST(call_noparams)
 	/*
 	 * Test we may call a function and extract its results.
@@ -250,6 +261,7 @@ Suite *gen_test_suite(void) {
 	// Run the tests ‒ each test case takes 2*i and 2*i + 1 indices
 	tcase_add_loop_test(interpreter, loading, 0, 2 * sizeof loading_cases / sizeof *loading_cases);
 	tcase_add_test(interpreter, call_error);
+	tcase_add_test(interpreter, call_error_multi);
 	tcase_add_test(interpreter, call_noparams);
 	tcase_add_test(interpreter, call_method);
 	tcase_add_test(interpreter, call_echo);

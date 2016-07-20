@@ -56,6 +56,9 @@ void log_syslog_level(enum log_level level);
 void log_syslog_name(const char *name);
 void log_stderr_level(enum log_level level);
 
+// Writes given text to file. Be aware that no information about failure is given.
+bool dump2file (const char *file, const char *text) __attribute__((nonnull,nonnull));
+
 // Compute the size needed (including \0) to format given message
 size_t printf_len(const char *msg, ...) __attribute__((format(printf, 1, 2)));
 // Like sprintf, but returs the string. Expects there's enough space.
