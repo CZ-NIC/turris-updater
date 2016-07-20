@@ -67,7 +67,7 @@ function prepare(entrypoint)
 		if task.action == "require" then
 			-- Strip sig verification off, packages from repos don't have their own .sig files, but they are checked by hashes in the (already checked) index.
 			local veriopts = utils.shallow_copy(task.package.repo)
-			local veri = veriopts.verification or utils.private(task.package.repo).context.verification
+			local veri = veriopts.verification or utils.private(task.package.repo).context.verification or 'both'
 			if veri == 'both' then
 				veriopts.verification = 'cert'
 			elseif veri == 'sig' then
