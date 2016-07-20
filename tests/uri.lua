@@ -33,6 +33,23 @@ function test_invalid()
 	assert_exception(function () return uri(context, "unknown:bad") end, "bad value")
 end
 
+-- Test if we have get and ok methods
+function test_methods()
+	function method_assert(u)
+		uri.wait(u)
+		lunit.assert_function(u.get, "Uri missing get method")
+		lunit.assert_function(u.ok, "Uri missing ok method")
+	end
+
+	local context = sandbox.new("Local")
+	-- Check on success
+	local u1 = uri(context, "https://api.turris.cz/", {verification = 'none'})
+	-- Missing ca and crl files
+	local u2 = uri(context, "https://api.turris.cz/", {ca = "file:///tmp/missing.ca", crl = "file:///tmp/missing.pem", pubkey = "file:///tmp/missing.pub"})
+	method_assert(u1)
+	method_assert(u2)
+end
+
 local function check_sync(level, input, output)
 	local context = sandbox.new(level)
 	local uri = uri(context, input)

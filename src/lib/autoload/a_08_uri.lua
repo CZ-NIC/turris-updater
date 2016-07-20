@@ -256,6 +256,18 @@ function new(context, uri, verification)
 		end
 		tmp_files = {}
 	end
+	-- Prepare the result and callbacks into the handler
+	function result:ok()
+		if self.done then
+			return self.err == nil
+		else
+			return nil
+		end
+	end
+	function result:get()
+		wait(self)
+		return self:ok(), self.content or self.err
+	end
 	-- Soft failure during the preparation
 	local function give_up(err)
 		result.done = true
@@ -331,18 +343,6 @@ function new(context, uri, verification)
 		else
 			error(utils.exception('bad value', "The pubkey must be either string or table, not " .. type(uris)))
 		end
-	end
-	-- Prepare the result and callbacks into the handler
-	function result:ok()
-		if self.done then
-			return self.err == nil
-		else
-			return nil
-		end
-	end
-	function result:get()
-		wait(self)
-		return self:ok(), self.content or self.err
 	end
 	local wait_sub_uris = #sub_uris
 	local function dispatch()
