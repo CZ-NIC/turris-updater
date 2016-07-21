@@ -214,6 +214,48 @@ function test_script_pass_validation()
 	assert_equal("context", result.tp, result.msg)
 end
 
+-- Test guessing/setting the restrict option
+function test_restrict()
+	local orig_run_sandboxed = sandbox.run_sandboxed
+	mock_gen('sandbox.run_sandboxed')
+	local function run(uri, options, restrict, level, err)
+		local result = orig_run_sandboxed([[
+			Script 'test-script' ']] .. uri .. [[' { security = 'Restricted']] .. options .. [[ }
+		]], "Test chunk", level, nil, {restrict = "http://some%.host/.*"})
+		if err then
+			assert_equal("error", result.tp)
+			assert_equal("access violation", result.reason)
+		else
+			assert_equal("context", result.tp, result.msg)
+			assert_equal(1, #mocks_called)
+			mocks_called[1].p[4] = "context"
+			assert_table_equal({
+				{
+					f = "sandbox.run_sandboxed",
+					p = {
+						"",
+						"test-script",
+						"Restricted",
+						"context",
+						{
+							restrict = restrict
+						}
+					}
+				}
+			}, mocks_called)
+		end
+		mocks_called[1] = nil
+		backend.stored_flags = {}
+	end
+	run('http://some.host/index.cgi', '', 'http://some%.host/.*', "Local")
+	run('http://some.host/index.cgi', ', restrict = ".*"', ".*", "Local")
+	run('http://some.host/index.cgi', '', 'http://some%.host/.*', "Restricted")
+	run('http://some.host/index.cgi', ', restrict = "http://some%.host/subdir/.*"', 'http://some%.host/subdir/.*', "Restricted")
+	run('http://some.host/index.cgi', ', restrict = "http://some%.host/.*"', 'http://some%.host/.*', "Restricted")
+	run('http://some.host/index.cgi', ', restrict = "http://other%.host/.*"', 'http://some%.host/.*', "Restricted", true)
+	run('http://some.host/index.cgi', ', restrict = "http://.*"', 'http://some%.host/.*', "Restricted", true)
+end
+
 function test_script_err_propagate()
 	mocks_reset()
 	local err = sandbox.run_sandboxed([[
@@ -247,9 +289,22 @@ function test_store_flags()
 	}, backend.stored_flags)
 end
 
+-- If someone wants to actually download the mock URI object, return an empty document
+local uri_meta = {}
+function uri_meta:__index(key)
+	if key == 'get' then
+		return function()
+			return true, ''
+		end
+	else
+		return nil
+	end
+end
+
 function setup()
 	-- Don't download stuff now
-	mock_gen("uri.new", function (context, u) return {u = u} end, true)
+	--
+	mock_gen("uri.new", function (context, u) return setmetatable({u = u}, uri_meta) end, true)
 end
 
 function teardown()
