@@ -20,6 +20,8 @@
 #ifndef UPDATER_INTERPRETER_H
 #define UPDATER_INTERPRETER_H
 
+#include "embed_types.h"
+
 #include <stdlib.h>
 
 struct interpreter;
@@ -31,8 +33,11 @@ struct events;
  * then all the event-related functions ASSERT. The events
  * structure is not owned by the interpreter, but if you provide
  * one, it must stay alive for the whole life of the interpreter.
+ * uriinter is index of embedded files in executable to be used
+ * from lua as uri internal. You can provide NULL if nothing is
+ * embedded.
  */
-struct interpreter *interpreter_create(struct events *events) __attribute__((malloc));
+struct interpreter *interpreter_create(struct events *events, const struct file_index_element *uriinter) __attribute__((malloc));
 /*
  * Run lua chunk in an interpreter. In case there's an error,
  * the error is returned. The string is owned by the lua

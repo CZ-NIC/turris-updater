@@ -18,7 +18,6 @@
  */
 
 #include "interpreter.h"
-#include "embed_types.h"
 #include "util.h"
 #include "events.h"
 #include "journal.h"
@@ -650,6 +649,25 @@ static int lua_reexec(lua_State *L __attribute__((unused))) {
 	return 0;
 }
 
+// Stores pointer to internal files used as uri.
+static const struct file_index_element *uriinternal;
+
+static int lua_uri_internal_get(lua_State *L) {
+	int param_count = lua_gettop(L);
+	if (param_count > 1)
+		return luaL_error(L, "Too many parameters to uri_internal_get: %d", param_count);
+	const char *name = luaL_checkstring(L, 1);
+	if (!uriinternal)
+		goto nointernal_err;
+	const struct file_index_element *file = index_element_find(uriinternal, name);
+	if (!file)
+		goto nointernal_err;
+	lua_pushlstring(L, (const char *)file->data, file->size);
+	return 1;
+nointernal_err:
+	return luaL_error(L, "No internal with name: %s", name);
+}
+
 struct injected_func {
 	int (*func)(lua_State *);
 	const char *name;
@@ -677,10 +695,12 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_setenv, "setenv" },
 	{ lua_md5, "md5" },
 	{ lua_sha256, "sha256" },
-	{ lua_reexec, "reexec" }
+	{ lua_reexec, "reexec" },
+	{ lua_uri_internal_get, "uri_internal_get" }
 };
 
-struct interpreter *interpreter_create(struct events *events) {
+struct interpreter *interpreter_create(struct events *events, const struct file_index_element *uriinter) {
+	uriinternal = uriinter;
 	struct interpreter *result = malloc(sizeof *result);
 	lua_State *L = luaL_newstate();
 	*result = (struct interpreter) {

@@ -5,5 +5,5 @@ $(O)/.gen/tests/lunit-launch/lunit.embedlist: $(S)/src/lib/gen_embed.sh $(S)/src
 	$(Q)$< .lua lunit_modules $(S)/src/lib/embed_types.h $(LUNIT_LOAD) >$@
 
 BINARIES_NOTARGET += tests/lunit-launch/lulaunch
-lulaunch_MODULES := main lunit.embed
+lulaunch_MODULES := main lunit.embed ../uriinternal.embed
 lulaunch_LOCAL_LIBS := updater
