@@ -29,6 +29,9 @@
 // From the embed files, lua modules to run lunit.
 extern struct file_index_element lunit_modules[];
 
+// From the embed file, embedded files to binary
+extern struct file_index_element uriinternal[];
+
 // Our own fake require that loads the thing from embedded file
 void require(struct interpreter *interpreter, const char *name) {
 	char *index = strdup(name);
@@ -50,7 +53,7 @@ int main(int argc __attribute__((unused)), char *argv[]) {
 		log_stderr_level(LL_UNKNOWN);
 	// Get the interpreter
 	struct events *events = events_new();
-	struct interpreter *interpreter = interpreter_create(events);
+	struct interpreter *interpreter = interpreter_create(events, uriinternal);
 	const char *error = interpreter_autoload(interpreter);
 	ASSERT_MSG(!error, "%s", error);
 	// Load the lunit modules

@@ -134,6 +134,14 @@ function test_file()
 	err_sync("Local", "file:///does/not/exist", "unreachable")
 end
 
+function test_internal()
+	check_sync("Local", "internal:hello_txt", "hello\n")
+	check_sync("Local", "internal:hello%5ftxt", "hello\n")
+	assert_exception(function () uri(sandbox.new("Remote"), "internal:hello_txt") end, "access violation")
+	err_sync("Local", "internal:%ZZ", "malformed URI")
+	err_sync("Local", "internal:does_not_exist", "unreachable")
+end
+
 function test_https()
 	local context = sandbox.new("Remote")
 	local u1 = uri(context, "https://api.turris.cz/", {verification = 'none'})

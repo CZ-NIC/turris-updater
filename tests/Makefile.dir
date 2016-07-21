@@ -33,10 +33,16 @@ LUA_TESTS := \
 	utils \
 	uri
 
+TEST_URIINTERNAL := $(abspath $(wildcard $(S)/tests/internal/*))
+$(O)/.gen/tests/uriinternal.embedlist: $(S)/src/lib/gen_embed.sh $(S)/src/lib/embed_types.h $(TEST_URIINTERNAL)
+	$(M) GEN $@
+	$(Q) mkdir -p $(dir $@)
+	$(Q)$< "" uriinternal $(S)/src/lib/embed_types.h $(TEST_URIINTERNAL) >$@
+
 define DO_C_TEST
 
 BINARIES_NOTARGET += tests/ctest-$(1)
-ctest-$(1)_MODULES += $(1) ctest
+ctest-$(1)_MODULES += $(1) uriinternal.embed ctest
 $$(patsubst %,$(O)/.objs/tests/%.o,$$(ctest-$(1)_MODULES)): $(O)/tests/check-compiled/compiled
 ctest-$(1)_SYSTEM_LIBS += check m rt
 ctest-$(1)_LOCAL_LIBS += updater

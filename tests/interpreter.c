@@ -49,7 +49,8 @@ const char *survival[] = { "invalid_func();", "local x = 1;", NULL };
 const char *library[] = { "next({});", "getfenv();", "string.find('x', 'y');", "math.abs(-1);", "os.clock();", "debug.getregistry()", NULL };
 const char *autoloaded[] = { "testing.values();", NULL };
 const char *logging[] = { "log('DEBUG', 'test')", "log('INVALID', 'test')", "ERROR('test')", NULL };
-const char *pre_require[] = { "local m = require 'testing'; testing.values();" };
+const char *pre_require[] = { "local m = require 'testing'; testing.values();", NULL };
+const char *uriinter_get[] = { "uri_internal_get('hello_txt')", NULL };
 
 struct loading_case loading_cases[] = {
 	{ "OK", ok, 1, false },
@@ -70,8 +71,13 @@ struct loading_case loading_cases[] = {
 	{ "Logging", logging, 3, true },
 	{ "Missing logging", logging, 2, false },
 	// Check the loading presets the package.loaded correctly, so further require works.
-	{ "pre_require", pre_require, 1, true }
+	{ "pre_require", pre_require, 1, true },
+	// Check if we can call uri_internal_get
+	{ "uri_internal_get", uriinter_get, 1, false }
 };
+
+// From the embed file, embedded files to binary
+extern struct file_index_element uriinternal[];
 
 START_TEST(loading) {
 	/*
@@ -87,7 +93,7 @@ START_TEST(loading) {
 	 */
 	struct loading_case *c = &loading_cases[_i / 2];
 	struct events *events = events_new();
-	struct interpreter *interpreter = interpreter_create(events);
+	struct interpreter *interpreter = interpreter_create(events, uriinternal);
 	if (c->autoload)
 		ck_assert_msg(!interpreter_autoload(interpreter), "Error autoloading");
 	mark_point();
@@ -107,7 +113,7 @@ END_TEST
 #define START_INTERPRETER_TEST(NAME) \
 	START_TEST(NAME) { \
 		struct events *events = events_new(); \
-		struct interpreter *interpreter = interpreter_create(events); \
+		struct interpreter *interpreter = interpreter_create(events, NULL); \
 		ck_assert_msg(!interpreter_autoload(interpreter), "Error autoloading"); \
 		mark_point();
 
