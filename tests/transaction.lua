@@ -631,6 +631,16 @@ function test_approval_hash()
 	}))
 end
 
+function test_approval_report()
+	assert_equal('', transaction.approval_report())
+	transaction.queue_install_downloaded('', "pkg1", 13)
+	transaction.queue_remove("pkg2")
+	assert_equal([[
+install	13	pkg1
+remove	-	pkg2
+]], transaction.approval_report())
+end
+
 function teardown()
 	-- A trick to clean up the queue
 	mocks_install('transaction.perform', function () return {} end)

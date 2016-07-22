@@ -392,12 +392,21 @@ function queue_install_downloaded(data, name, version)
 	table.insert(queue, {op = "install", data = data, name = name, version = version})
 end
 
+local function queued_tasks()
+	return utils.map(queue, function (i, task) return i, table.concat({task.op, task.version or '-', task.name}, '	') .. "\n" end)
+end
+
 -- Compute the approval hash of the queued operations
 function approval_hash()
 	-- Convert the tasks into formatted lines, sort them and hash it.
-	local requests = utils.map(queue, function (i, task) return i, table.concat({task.op, task.version or '-', task.name}, '	') end)
+	local requests = queued_tasks()
 	table.sort(requests)
-	return sha256(table.concat(requests, "\n"))
+	return sha256(table.concat(requests))
+end
+
+-- Provide a human-readable report of the queued tasks
+function approval_report()
+	return table.concat(queued_tasks())
 end
 
 return _M
