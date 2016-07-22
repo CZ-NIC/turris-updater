@@ -26,7 +26,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
+#include <errno.h>
 
 // From the embed file, embedded files to binary
 extern struct file_index_element uriinternal[];
@@ -56,6 +56,41 @@ static void print_help() {
 const char *hook_preupdate = "/etc/updater/hook_preupdate";
 const char *hook_postupdate = "/etc/updater/hook_postupdate";
 
+static bool approved(struct interpreter *interpreter, const char *approval_file, const char **approvals, size_t approval_count) {
+	if (!approval_file)
+		// We don't need to ask for approval.
+		return true;
+	// We need to ask for approval. But we may have gotten it already.
+	// Compute the hash of our plan first
+	size_t result_count;
+	const char *err = interpreter_call(interpreter, "transaction.approval_hash", &result_count, "");
+	ASSERT_MSG(!err, "%s", err);
+	ASSERT_MSG(result_count == 1, "Wrong number of results from transaction.approval_hash: %zu", result_count);
+	const char *hash;
+	ASSERT_MSG(interpreter_collect_results(interpreter, "%s", &hash) == 1, "The result of transaction.approval_hash is not a string");
+	for (size_t i = 0; i < approval_count; i ++)
+		if (strcmp(approvals[i], hash) == 0) {
+			// Yes, this is approved plan of actions. Go ahead.
+			// Get rid of the old file. Also, don't check if it suceeds (it might be missing)
+			unlink(approval_file);
+			return true;
+		}
+	// We didn't get the approval. Ask for it by generating the report.
+	FILE *report_file = fopen(approval_file, "w");
+	ASSERT_MSG(report_file, "Failed to provide the approval report: %s", strerror(errno));
+	// Note we need to write the hash out before we start manipulating interpreter again
+	fputs(hash, report_file);
+	fputc('\n', report_file);
+	err = interpreter_call(interpreter, "transaction.approval_report", &result_count, "");
+	ASSERT_MSG(!err, "%s", err);
+	ASSERT_MSG(result_count == 1, "Wrong number of results from transaction.approval_report: %zu", result_count);
+	const char *report;
+	ASSERT_MSG(interpreter_collect_results(interpreter, "%s", &report) == 1, "The result of transaction.approval_report is not a string");
+	fputs(report, report_file);
+	fclose(report_file);
+	return false;
+}
+
 int main(int argc, char *argv[]) {
 	// Some setup of the machinery
 	log_stderr_level(LL_INFO);
@@ -66,7 +101,8 @@ int main(int argc, char *argv[]) {
 	struct cmd_op *op = ops;
 	const char *top_level_config = "internal:entry_lua";
 	const char *root_dir = NULL;
-	bool batch = false, early_exit = false, replan = false, need_approval = false;
+	bool batch = false, early_exit = false, replan = false;
+	const char *approval_file = NULL;
 	const char **approvals = NULL;
 	size_t approval_count = 0;
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
@@ -112,7 +148,7 @@ int main(int argc, char *argv[]) {
 				break;
 			}
 			case COT_ASK_APPROVAL:
-				need_approval = true;
+				approval_file = op->parameter;
 				break;
 			case COT_APPROVE: {
 				approvals = realloc(approvals, (++ approval_count) * sizeof *approvals);
@@ -120,7 +156,7 @@ int main(int argc, char *argv[]) {
 				break;
 			}
 			default:
-				assert(0);
+				DIE("Unknown COT");
 		}
 	enum cmd_op_type exit_type = op->type;
 	free(ops);
@@ -130,10 +166,7 @@ int main(int argc, char *argv[]) {
 	// Prepare the interpreter and load it with the embedded lua scripts
 	struct interpreter *interpreter = interpreter_create(events, uriinternal);
 	const char *error = interpreter_autoload(interpreter);
-	if (error) {
-		fputs(error, stderr);
-		return 1;
-	}
+	ASSERT_MSG(!error, "%s", error);
 
 	if (root_dir) {
 		const char *err = interpreter_call(interpreter, "backend.root_dir_set", NULL, "s", root_dir);
@@ -141,40 +174,44 @@ int main(int argc, char *argv[]) {
 	} else
 		root_dir = "";
 	bool trans_ok = true;
-	if (exit_type == COT_EXIT && !early_exit) {
-		// Decide what packages need to be downloaded and handled
-		const char *err = interpreter_call(interpreter, "updater.prepare", NULL, "s", top_level_config);
-		ASSERT_MSG(!err, "%s", err);
-		if (!batch) {
-			// For now we want to confirm by the user.
-			fprintf(stderr, "Press return to continue, CTRL+C to abort\n");
-			getchar();
-		}
-		size_t result_count;
-		err = interpreter_call(interpreter, "transaction.empty", &result_count, "");
-		ASSERT_MSG(!err, "%s", err);
-		ASSERT_MSG(result_count == 1, "Wrong number of results of transaction.empty");
-		bool trans_empty;
-		ASSERT_MSG(interpreter_collect_results(interpreter, "b", &trans_empty) == -1, "The result of transaction.empty is not bool");
-		if (!trans_empty) {
-			char *hook_path;
-			if (!replan) {
-				INFO("Executing preupdate hooks...");
-				hook_path = aprintf("%s%s", root_dir, hook_preupdate);
-				setenv("ROOT_DIR", root_dir, true);
-				exec_dir(events, hook_path);
-			}
-			err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
-			ASSERT_MSG(!err, "%s", err);
-			trans_ok = results_interpret(interpreter, result_count);
-			err = interpreter_call(interpreter, "updater.cleanup", NULL, "b", trans_ok);
-			ASSERT_MSG(!err, "%s", err);
-			INFO("Executing postupdate hooks...");
-			hook_path = aprintf("%s%s", root_dir, hook_postupdate);
-			setenv("SUCCESS", trans_ok ? "true" : "false", true); // ROOT_DIR is already set
-			exec_dir(events, hook_path);
-		}
+	if (exit_type != COT_EXIT)
+		goto CLEANUP;
+	if (early_exit)
+		goto CLEANUP;
+	// Decide what packages need to be downloaded and handled
+	const char *err = interpreter_call(interpreter, "updater.prepare", NULL, "s", top_level_config);
+	ASSERT_MSG(!err, "%s", err);
+	if (!batch) {
+		// For now we want to confirm by the user.
+		fprintf(stderr, "Press return to continue, CTRL+C to abort\n");
+		getchar();
 	}
+	size_t result_count;
+	err = interpreter_call(interpreter, "transaction.empty", &result_count, "");
+	ASSERT_MSG(!err, "%s", err);
+	ASSERT_MSG(result_count == 1, "Wrong number of results of transaction.empty");
+	bool trans_empty;
+	ASSERT_MSG(interpreter_collect_results(interpreter, "b", &trans_empty) == -1, "The result of transaction.empty is not bool");
+	if (trans_empty)
+		goto CLEANUP;
+	if (!replan) {
+		INFO("Executing preupdate hooks...");
+		const char *hook_path = aprintf("%s%s", root_dir, hook_preupdate);
+		setenv("ROOT_DIR", root_dir, true);
+		exec_dir(events, hook_path);
+	}
+	if (!approved(interpreter, approval_file, approvals, approval_count))
+		goto CLEANUP;
+	err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
+	ASSERT_MSG(!err, "%s", err);
+	trans_ok = results_interpret(interpreter, result_count);
+	err = interpreter_call(interpreter, "updater.cleanup", NULL, "b", trans_ok);
+	ASSERT_MSG(!err, "%s", err);
+	INFO("Executing postupdate hooks...");
+	const char *hook_path = aprintf("%s%s", root_dir, hook_postupdate);
+	setenv("SUCCESS", trans_ok ? "true" : "false", true); // ROOT_DIR is already set
+	exec_dir(events, hook_path);
+CLEANUP:
 	free(approvals);
 	interpreter_destroy(interpreter);
 	events_destroy(events);

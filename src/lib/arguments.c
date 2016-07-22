@@ -65,9 +65,9 @@ static const char *opt_help[COT_LAST] = {
 	[COT_SYSLOG_NAME] =
 		"-S <syslog-name>		Under which name messages are send to syslog.\n",
 	[COT_ASK_APPROVAL] =
-		"--ask-approval			Require user's approval to proceed (abort if --approve with appropriate ID is not present)\n",
+		"--ask-approval=<report-file>	Require user's approval to proceed (abort if --approve with appropriate ID is not present, plan of action is put into the report-file if approval is needed)\n",
 	[COT_APPROVE] =
-		"--approve=<id>			Approve actions with given ID (multiple allowed).\n"
+		"--approve=<id>			Approve actions with given ID (multiple allowed, from a corresponding report-file).\n"
 };
 
 enum option_val {
@@ -87,7 +87,7 @@ static const struct option opt_long[] = {
 	{ .name = "batch", .has_arg = no_argument, .val = OPT_BATCH_VAL },
 	{ .name = "reexec", .has_arg = no_argument, .val = OPT_REEXEC_VAL },
 	{ .name = "state-log", .has_arg = no_argument, .val = OPT_STATE_LOG_VAL },
-	{ .name = "ask-approval", .has_arg = no_argument, .val = OPT_ASK_APPROVAL_VAL },
+	{ .name = "ask-approval", .has_arg = required_argument, .val = OPT_ASK_APPROVAL_VAL },
 	{ .name = "approve", .has_arg = required_argument, .val = OPT_APPROVE_VAL },
 	{ .name = NULL }
 };
@@ -186,7 +186,7 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 				result_extend(&res_count, &result, COT_STATE_LOG, NULL);
 				break;
 			case OPT_ASK_APPROVAL_VAL:
-				result_extend(&res_count, &result, COT_ASK_APPROVAL, NULL);
+				result_extend(&res_count, &result, COT_ASK_APPROVAL, optarg);
 				break;
 			case OPT_APPROVE_VAL:
 				result_extend(&res_count, &result, COT_APPROVE, optarg);

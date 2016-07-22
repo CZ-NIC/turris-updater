@@ -111,7 +111,7 @@ static struct cmd_op root_no_param_ops[] = {
 };
 static struct cmd_op approval_reorder_ops[] = {
 	{ .type = COT_APPROVE, .parameter = "abcde" },
-	{ .type = COT_ASK_APPROVAL },
+	{ .type = COT_ASK_APPROVAL, .parameter = "/tmp/report-file" },
 	{ .type = COT_APPROVE, .parameter = "123456" },
 	{ .type = COT_NO_OP, .parameter = "file:///etc/updater/entry.lua" },
 	{ .type = COT_EXIT }
@@ -151,7 +151,7 @@ static char *root_no_reorder[] = { "-R", "/dir", "-a", "pkg.ipk", NULL };
 static char *root_reorder[] = { "-a", "pkg.ipk", "-R", "/dir", NULL };
 static char *root_journal_no_reorder[] = { "-R", "/dir", "-j", NULL };
 static char *root_journal_reorder[] = { "-j", "-R", "/dir", NULL };
-static char *approval_reorder[] = { "--approve=abcde", "file:///etc/updater/entry.lua", "--ask-approval", "--approve=123456", NULL };
+static char *approval_reorder[] = { "--approve=abcde", "file:///etc/updater/entry.lua", "--ask-approval=/tmp/report-file", "--approve=123456", NULL };
 
 static const enum cmd_op_type accepts_all[] = {
 	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_BATCH, COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_NO_OP, COT_LAST
