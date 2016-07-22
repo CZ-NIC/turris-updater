@@ -46,6 +46,10 @@ enum cmd_op_type {
 	COT_REEXEC,
 	// Enable dumping state to files in /tmp/updater-state directory
 	COT_STATE_LOG,
+	// Ask for approval of the operations by generating a report and requiring the --approve flag
+	COT_ASK_APPROVAL,
+	// Approve operation with the given ID (as obtained from the above mentioned report). The ID is in the parameter.
+	COT_APPROVE,
 	// Syslog level
 	COT_SYSLOG_LEVEL,
 	// Stderr log level

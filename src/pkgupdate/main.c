@@ -45,7 +45,7 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 }
 
 static const enum cmd_op_type cmd_op_allows[] = {
-	COT_BATCH, COT_NO_OP, COT_REEXEC, COT_STATE_LOG, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_LAST
+	COT_BATCH, COT_NO_OP, COT_REEXEC, COT_STATE_LOG, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_LAST
 };
 
 static void print_help() {
@@ -66,7 +66,9 @@ int main(int argc, char *argv[]) {
 	struct cmd_op *op = ops;
 	const char *top_level_config = "internal:entry_lua";
 	const char *root_dir = NULL;
-	bool batch = false, early_exit = false, replan = false;
+	bool batch = false, early_exit = false, replan = false, need_approval = false;
+	const char **approvals = NULL;
+	size_t approval_count = 0;
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
 			case COT_HELP: {
@@ -107,6 +109,14 @@ int main(int argc, char *argv[]) {
 				enum log_level level = log_level_get(op->parameter);
 				ASSERT_MSG(level != LL_UNKNOWN, "Unknown log level %s", op->parameter);
 				log_stderr_level(level);
+				break;
+			}
+			case COT_ASK_APPROVAL:
+				need_approval = true;
+				break;
+			case COT_APPROVE: {
+				approvals = realloc(approvals, (++ approval_count) * sizeof *approvals);
+				approvals[approval_count - 1] = op->parameter;
 				break;
 			}
 			default:
@@ -165,6 +175,7 @@ int main(int argc, char *argv[]) {
 			exec_dir(events, hook_path);
 		}
 	}
+	free(approvals);
 	interpreter_destroy(interpreter);
 	events_destroy(events);
 	arg_backup_clear();
