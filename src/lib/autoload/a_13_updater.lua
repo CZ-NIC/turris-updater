@@ -97,7 +97,7 @@ function prepare(entrypoint)
 						error(utils.exception("corruption", "The sha256 sum of " .. task.name .. " does not match"))
 					end
 				end
-				transaction.queue_install_downloaded(data)
+				transaction.queue_install_downloaded(data, task.name, task.package.Version)
 			else
 				error(data)
 			end

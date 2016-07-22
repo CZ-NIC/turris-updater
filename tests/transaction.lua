@@ -43,6 +43,7 @@ local test_status = {
 		Status = {"install", "user", "installed"}
 	}
 }
+
 local intro = {
 	{
 		f = "backend.run_state",
@@ -550,6 +551,84 @@ function test_empty()
 	assert(transaction.empty())
 	transaction.queue_remove("pkg")
 	assert_false(transaction.empty())
+end
+
+function test_approval_hash()
+	-- When nothing is present, the hash is equal to one of an empty string
+	assert_equal(sha256(''), transaction.approval_hash())
+	-- Override the transaction.perform with empty function, so we can clean the queue when we like
+	mocks_install('transaction.perform', function () return {} end)
+	local function ops_hash(ops)
+		for _, op in ipairs(ops) do
+			transaction["queue_" .. op[1]](unpack(op, 2))
+		end
+		local hash = transaction.approval_hash()
+		-- get rid of the queue
+		transaction.perform_queue()
+		return hash
+	end
+	local function equal(ops1, ops2)
+		return ops_hash(ops1) == ops_hash(ops2)
+	end
+	-- The same lists of operations return the same hash
+	assert_true(equal(
+	{
+		{'install_downloaded', '', 'pkg', 13},
+		{'remove', 'pkg2'}
+	},
+	{
+		{'install_downloaded', '', 'pkg', 13},
+		{'remove', 'pkg2'}
+	}))
+	-- The order doesn't matter (since we are not sure if the planner is deterministic in that regard)
+	assert_true(equal(
+	{
+		{'install_downloaded', '', 'pkg', 13},
+		{'remove', 'pkg2'}
+	},
+	{
+		{'remove', 'pkg2'},
+		{'install_downloaded', '', 'pkg', 13}
+	}))
+	-- Package version changes the hash
+	assert_false(equal(
+	{
+		{'install_downloaded', '', 'pkg', 13},
+		{'remove', 'pkg2'}
+	},
+	{
+		{'install_downloaded', '', 'pkg', 14},
+		{'remove', 'pkg2'}
+	}))
+	-- Package name changes the hash
+	assert_false(equal(
+	{
+		{'install_downloaded', '', 'pkg', 13},
+		{'remove', 'pkg2'}
+	},
+	{
+		{'install_downloaded', '', 'pkg3', 13},
+		{'remove', 'pkg2'}
+	}))
+	-- Package the operation changes the hash
+	assert_false(equal(
+	{
+		{'install_downloaded', '', 'pkg', 13},
+		{'remove', 'pkg2'}
+	},
+	{
+		{'remove', 'pkg'},
+		{'remove', 'pkg2'}
+	}))
+	-- Omitting one of the tasks changes the hash
+	assert_false(equal(
+	{
+		{'install_downloaded', '', 'pkg', 13},
+		{'remove', 'pkg2'}
+	},
+	{
+		{'remove', 'pkg2'}
+	}))
 end
 
 function teardown()
