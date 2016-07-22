@@ -55,6 +55,7 @@ struct loading_case loading_cases[] = {
 	{ "OK", ok, 1, false },
 	{ "Syntax error", syntax, 0, false },
 	{ "Invalid function", invalid_func, 0, false },
+	{ "Invalid function with autoload", invalid_func, 0, true },
 	{ "Runtime error", runtime, 0, false },
 	// Check that function created in the first chunk can be used in the second one (no error here)
 	{ "Shared context", shared_context, 2, false },
