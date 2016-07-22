@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
 		fputs(error, stderr);
 		return 1;
 	}
-	const char *top_level_config = "internal:entry_lua";
+	const char *top_level_config = NULL;
 	bool batch = false, early_exit = false;
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
@@ -112,6 +112,8 @@ int main(int argc, char *argv[]) {
 			default:
 				assert(0);
 		}
+	if (op->type == COT_EXIT && !early_exit && !top_level_config)
+		top_level_config = "internal:entry_lua";
 	enum cmd_op_type exit_type = op->type;
 	free(ops);
 

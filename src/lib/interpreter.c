@@ -658,14 +658,12 @@ static int lua_uri_internal_get(lua_State *L) {
 		return luaL_error(L, "Too many parameters to uri_internal_get: %d", param_count);
 	const char *name = luaL_checkstring(L, 1);
 	if (!uriinternal)
-		goto nointernal_err;
+		return luaL_error(L, "Internal uri is not supported.", name);
 	const struct file_index_element *file = index_element_find(uriinternal, name);
 	if (!file)
-		goto nointernal_err;
+		return luaL_error(L, "No internal with name: %s", name);
 	lua_pushlstring(L, (const char *)file->data, file->size);
 	return 1;
-nointernal_err:
-	return luaL_error(L, "No internal with name: %s", name);
 }
 
 struct injected_func {

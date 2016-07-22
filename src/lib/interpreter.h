@@ -34,8 +34,8 @@ struct events;
  * structure is not owned by the interpreter, but if you provide
  * one, it must stay alive for the whole life of the interpreter.
  * uriinter is index of embedded files in executable to be used
- * from lua as uri internal. You can provide NULL if nothing is
- * embedded.
+ * from lua as uri internal. You can provide NULL if this feature
+ * shouldn't be available.
  */
 struct interpreter *interpreter_create(struct events *events, const struct file_index_element *uriinter) __attribute__((malloc));
 /*
