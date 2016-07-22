@@ -22,6 +22,7 @@
 #include "../lib/util.h"
 #include "../lib/arguments.h"
 
+#include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -44,13 +45,16 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 }
 
 static const enum cmd_op_type cmd_op_allows[] = {
-	COT_BATCH, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_NO_OP, COT_LAST
+	COT_BATCH, COT_NO_OP, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_LAST
 };
 
 static void print_help() {
 	fputs("Usage: updater [OPTION]...\n", stderr);
 	cmd_args_help(cmd_op_allows);
 }
+
+const char *hook_preupdate = "/etc/updater/hook_preupdate";
+const char *hook_postupdate = "/etc/updater/hook_postupdate";
 
 int main(int argc, char *argv[]) {
 	// Some setup of the machinery
@@ -69,7 +73,8 @@ int main(int argc, char *argv[]) {
 		fputs(error, stderr);
 		return 1;
 	}
-	const char *top_level_config = NULL;
+	const char *top_level_config = "internal:entry_lua";
+	const char *root_dir = NULL;
 	bool batch = false, early_exit = false;
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
@@ -88,11 +93,9 @@ int main(int argc, char *argv[]) {
 			case COT_BATCH:
 				batch = true;
 				break;
-			case COT_ROOT_DIR: {
-				const char *err = interpreter_call(interpreter, "backend.root_dir_set", NULL, "s", op->parameter);
-				ASSERT_MSG(!err, "%s", err);
+			case COT_ROOT_DIR:
+				root_dir = op->parameter;
 				break;
-			}
 			case COT_SYSLOG_LEVEL: {
 				enum log_level level = log_level_get(op->parameter);
 				ASSERT_MSG(level != LL_UNKNOWN, "Unknown log level %s", op->parameter);
@@ -112,8 +115,11 @@ int main(int argc, char *argv[]) {
 			default:
 				assert(0);
 		}
-	if (op->type == COT_EXIT && !early_exit && !top_level_config)
-		top_level_config = "internal:entry_lua";
+	if (root_dir) {
+		const char *err = interpreter_call(interpreter, "backend.root_dir_set", NULL, "s", root_dir);
+		ASSERT_MSG(!err, "%s", err);
+	} else
+		root_dir = "";
 	enum cmd_op_type exit_type = op->type;
 	free(ops);
 
@@ -127,12 +133,21 @@ int main(int argc, char *argv[]) {
 			fprintf(stderr, "Press return to continue, CTRL+C to abort\n");
 			getchar();
 		}
+		// TODO do not execute this if set of updates is empty
+		INFO("Executing preupdate hooks...");
+		char *hook_path = aprintf("%s%s", root_dir, hook_preupdate);
+		setenv("ROOT_DIR", root_dir, true);
+		exec_dir(events, hook_path);
 		size_t result_count;
 		err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
 		ASSERT_MSG(!err, "%s", err);
 		trans_ok = results_interpret(interpreter, result_count);
 		err = interpreter_call(interpreter, "updater.cleanup", NULL, "b", trans_ok);
 		ASSERT_MSG(!err, "%s", err);
+		INFO("Executing postupdate hooks...");
+		hook_path = aprintf("%s%s", root_dir, hook_postupdate);
+		setenv("SUCCESS", root_dir ? "true" : "false", true); // ROOT_DIR is already set
+		exec_dir(events, hook_path);
 	}
 	interpreter_destroy(interpreter);
 	events_destroy(events);

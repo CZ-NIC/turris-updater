@@ -20,6 +20,8 @@
 #ifndef UPDATER_UTIL_H
 #define UPDATER_UTIL_H
 
+#include "events.h"
+
 #include <stdlib.h>
 #include <stdbool.h>
 #include <alloca.h>
@@ -58,6 +60,9 @@ void log_stderr_level(enum log_level level);
 
 // Writes given text to file. Be aware that no information about failure is given.
 bool dump2file (const char *file, const char *text) __attribute__((nonnull,nonnull));
+
+// Executes all executable files in given directory
+void exec_dir(struct events *events, const char *dir) __attribute__((nonnull));
 
 // Compute the size needed (including \0) to format given message
 size_t printf_len(const char *msg, ...) __attribute__((format(printf, 1, 2)));
