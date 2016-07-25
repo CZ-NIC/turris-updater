@@ -223,6 +223,29 @@ function block_split(string)
 end
 
 --[[
+Somewhat sanitize slashes in file names.
+• Make sure there is a slash at the beginning.
+• Make sure there is none at the end.
+• Make sure there aren't multiple slashes in a row.
+
+This is because some OpenWRT packages differ from others in that
+they don't have the leading slashes. This then may confuse
+updater, because they are considered as different files and
+removed after upgrade of such package. Which is quite dangerous
+in the case of busybox, for example.
+]]
+local function slashes_sanitize(files)
+	if files then
+		return utils.map(files, function (fname, val)
+			fname = "/" .. fname
+			return fname:gsub('/+', '/'):gsub('(.)/$', '%1'), val
+		end)
+	else
+		return nil
+	end
+end
+
+--[[
 Postprocess the table representing a status of a package. The original table
 is modified and returned.
 
@@ -261,6 +284,7 @@ function package_postprocess(status)
 	end
 	-- Conffiles are lines with two „words“
 	replace("Conffiles", "\n", "%s*(%S+)%s+(%S+)")
+	status.Conffiles = slashes_sanitize(status.Conffiles)
 	-- Depends are separated by commas and may contain a version in parentheses
 	local idx = 0
 	replace("Depends", ",", function (s)
@@ -295,7 +319,7 @@ local function pkg_control(pkg_name)
 	end
 end
 
---
+-- Load list of files from .list control file
 local function pkg_files(pkg_name)
 	local content = pkg_file(pkg_name, "list", true)
 	if content then
@@ -303,7 +327,7 @@ local function pkg_files(pkg_name)
 		for l in content:gmatch("[^\n]+") do
 			result[l] = true
 		end
-		return result
+		return slashes_sanitize(result)
 	else
 		return {}
 	end
@@ -482,9 +506,9 @@ function pkg_examine(dir)
 	end
 	local files, dirs
 	-- One for non-directories
-	launch(function (text) files = find_result(text) end, "/usr/bin/find", "!", "-type", "d", "-print0")
+	launch(function (text) files = slashes_sanitize(find_result(text)) end, "/usr/bin/find", "!", "-type", "d", "-print0")
 	-- One for directories
-	launch(function (text) dirs = find_result(text) end, "/usr/bin/find", "-type", "d", "-print0")
+	launch(function (text) dirs = slashes_sanitize(find_result(text)) end, "/usr/bin/find", "-type", "d", "-print0")
 	-- Get list of config files, if there are any
 	local control_dir = dir .. "/control"
 	local cidx = io.open(control_dir .. "/conffiles")
@@ -500,6 +524,7 @@ function pkg_examine(dir)
 		end
 		cidx:close()
 	end
+	conffiles = slashes_sanitize(conffiles)
 	-- Load the control file of the package and parse it
 	local control = package_postprocess(block_parse(utils.slurp(control_dir .. "/control")));
 	-- Wait for all asynchronous processes to finish
