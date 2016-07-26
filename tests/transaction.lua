@@ -546,6 +546,15 @@ function test_recover_late()
 	assert_table_equal(expected, mocks_called)
 end
 
+function test_empty()
+	assert(transaction.empty())
+	transaction.queue_remove("pkg")
+	assert_false(transaction.empty())
+end
+
 function teardown()
+	-- A trick to clean up the queue
+	mocks_install('transaction.perform', function () return {} end)
+	transaction.perform_queue()
 	mocks_reset()
 end

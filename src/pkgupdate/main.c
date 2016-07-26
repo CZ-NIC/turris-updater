@@ -133,21 +133,27 @@ int main(int argc, char *argv[]) {
 			fprintf(stderr, "Press return to continue, CTRL+C to abort\n");
 			getchar();
 		}
-		// TODO do not execute this if set of updates is empty
-		INFO("Executing preupdate hooks...");
-		char *hook_path = aprintf("%s%s", root_dir, hook_preupdate);
-		setenv("ROOT_DIR", root_dir, true);
-		exec_dir(events, hook_path);
 		size_t result_count;
-		err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
+		err = interpreter_call(interpreter, "transaction.empty", &result_count, "");
 		ASSERT_MSG(!err, "%s", err);
-		trans_ok = results_interpret(interpreter, result_count);
-		err = interpreter_call(interpreter, "updater.cleanup", NULL, "b", trans_ok);
-		ASSERT_MSG(!err, "%s", err);
-		INFO("Executing postupdate hooks...");
-		hook_path = aprintf("%s%s", root_dir, hook_postupdate);
-		setenv("SUCCESS", root_dir ? "true" : "false", true); // ROOT_DIR is already set
-		exec_dir(events, hook_path);
+		ASSERT_MSG(result_count == 1, "Wrong number of results of transaction.empty");
+		bool trans_empty;
+		ASSERT_MSG(interpreter_collect_results(interpreter, "b", &trans_empty) == -1, "The result of transaction.empty is not bool");
+		if (!trans_empty) {
+			INFO("Executing preupdate hooks...");
+			char *hook_path = aprintf("%s%s", root_dir, hook_preupdate);
+			setenv("ROOT_DIR", root_dir, true);
+			exec_dir(events, hook_path);
+			err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
+			ASSERT_MSG(!err, "%s", err);
+			trans_ok = results_interpret(interpreter, result_count);
+			err = interpreter_call(interpreter, "updater.cleanup", NULL, "b", trans_ok);
+			ASSERT_MSG(!err, "%s", err);
+			INFO("Executing postupdate hooks...");
+			hook_path = aprintf("%s%s", root_dir, hook_postupdate);
+			setenv("SUCCESS", root_dir ? "true" : "false", true); // ROOT_DIR is already set
+			exec_dir(events, hook_path);
+		}
 	}
 	interpreter_destroy(interpreter);
 	events_destroy(events);

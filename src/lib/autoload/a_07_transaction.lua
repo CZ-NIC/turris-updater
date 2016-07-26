@@ -349,17 +349,21 @@ local function errors_format(errors)
 	end
 end
 
+function empty()
+	return not next(queue)
+end
+
 --[[
 Run transaction of the queued operations.
 ]]
 function perform_queue()
-	if next(queue) then
+	if empty() then
+		return true
+	else
 		-- Ensure we reset the queue by running it. And also that we allow the garbage collector to collect the data in there.
 		local queue_cp = queue
 		queue = {}
 		return errors_format(perform(queue_cp))
-	else
-		return true
 	end
 end
 
