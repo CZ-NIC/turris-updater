@@ -120,7 +120,7 @@ mkdir -p "$TMP_DIR"
 trap 'rm -rf "$LOCK_DIR" "$PID_FILE" "$TMP_DIR"; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
 
 # Run the actual updater
-timeout 900 pkgupdate file:///etc/updater/entry.lua --batch
+timeout 900 pkgupdate --batch
 # Evaluate what has run
 EXIT_CODE="$?"
 STATE=$(cat "$STATE_DIR"/state)

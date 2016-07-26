@@ -27,6 +27,9 @@
 #include <string.h>
 #include <assert.h>
 
+// From the embed file, embedded files to binary
+extern struct file_index_element uriinternal[];
+
 static bool results_interpret(struct interpreter *interpreter, size_t result_count) {
 	bool result = true;
 	if (result_count >= 2) {
@@ -41,11 +44,11 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 }
 
 static const enum cmd_op_type cmd_op_allows[] = {
-	COT_BATCH, COT_NO_OP, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_LAST
+	COT_BATCH, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ENTRY, COT_LAST
 };
 
 static void print_help() {
-	fputs("Usage: updater [OPTION]... TOP_LEVEL_CONFIG\n", stderr);
+	fputs("Usage: updater [OPTION]...\n", stderr);
 	cmd_args_help(cmd_op_allows);
 }
 
@@ -60,7 +63,7 @@ int main(int argc, char *argv[]) {
 	struct cmd_op *ops = cmd_args_parse(argc, argv, cmd_op_allows);
 	struct cmd_op *op = ops;
 	// Prepare the interpreter and load it with the embedded lua scripts
-	struct interpreter *interpreter = interpreter_create(events);
+	struct interpreter *interpreter = interpreter_create(events, uriinternal);
 	const char *error = interpreter_autoload(interpreter);
 	if (error) {
 		fputs(error, stderr);
@@ -79,14 +82,7 @@ int main(int argc, char *argv[]) {
 				fputs(op->parameter, stderr);
 				break;
 			}
-			case COT_NO_OP:
-				if (top_level_config) {
-					fputs("More than one top level config given. This is not supported\n" ,stderr);
-					print_help();
-					// What ever is next one, crash.
-					(op + 1)->type = COT_CRASH;
-					break;
-				}
+			case COT_ENTRY:
 				top_level_config = op->parameter;
 				break;
 			case COT_BATCH:
@@ -116,11 +112,8 @@ int main(int argc, char *argv[]) {
 			default:
 				assert(0);
 		}
-	if (op->type == COT_EXIT && !early_exit && !top_level_config) {
-		fputs("No top level config given, please provide one.\n", stderr);
-		print_help();
-		op->type = COT_CRASH;
-	}
+	if (op->type == COT_EXIT && !early_exit && !top_level_config)
+		top_level_config = "internal:entry_lua";
 	enum cmd_op_type exit_type = op->type;
 	free(ops);
 

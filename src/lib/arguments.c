@@ -65,6 +65,7 @@ static const char *opt_help[COT_LAST] = {
 };
 
 #define OPT_BATCH_VAL 260
+#define OPT_ENTRY_VAL 261
 static const struct option opt_long[] = {
 	{ .name = "help", .has_arg = no_argument, .val = 'h' },
 	{ .name = "journal", .has_arg = no_argument, .val = 'j' },
@@ -72,6 +73,7 @@ static const struct option opt_long[] = {
 	{ .name = "add", .has_arg = required_argument, .val = 'a' },
 	{ .name = "remove", .has_arg = required_argument, .val = 'r' },
 	{ .name = "batch", .has_arg = no_argument, .val = OPT_BATCH_VAL },
+	{ .name = "entry", .has_arg = required_argument, .val = OPT_ENTRY_VAL },
 	{NULL}
 };
 
@@ -161,6 +163,10 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 				break;
 			case OPT_BATCH_VAL:
 				result_extend(&res_count, &result, COT_BATCH, NULL);
+				break;
+			case OPT_ENTRY_VAL:
+				ASSERT(optarg);
+				result_extend(&res_count, &result, COT_ENTRY, optarg);
 				break;
 			default:
 				assert(0);

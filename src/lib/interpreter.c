@@ -18,7 +18,6 @@
  */
 
 #include "interpreter.h"
-#include "embed_types.h"
 #include "util.h"
 #include "events.h"
 #include "journal.h"
@@ -94,6 +93,23 @@ static int push_err_handler(lua_State *L) {
 	luaL_checkstack(L, 1, "Not enough space to push error handler");
 	lua_pushcfunction(L, err_handler);
 	return lua_gettop(L);
+}
+
+static const char *interpreter_error_result(lua_State *L) {
+	// There's an error on top of the stack
+	if (lua_istable(L, -1)) {
+		lua_getfield(L, -1, "trace");
+		const char *trace = lua_tostring(L, -1);
+		if (trace) {
+			DBG("%s", trace);
+			if (!dump2file(crash_file, trace))
+				WARN("Crash report of stack trace dump failed.");
+		} // Else just print message, we are probably missing trace
+		lua_pop(L, 1);
+		lua_getfield(L, -1, "msg");
+	}
+	const char *errmsg = lua_tostring(L, -1);
+	return errmsg;
 }
 
 static int lua_log(lua_State *L) {
@@ -221,7 +237,7 @@ static void command_terminated(struct wait_id id __attribute__((unused)), void *
 	lua_pushlstring(L, out, out_size);
 	lua_pushlstring(L, err, err_size);
 	int result = lua_pcall(L, 4, 0, handler);
-	ASSERT_MSG(!result, "%s", lua_tostring(L, -1));
+	ASSERT_MSG(!result, "%s", interpreter_error_result(L));
 }
 
 static void command_postfork(void *data) {
@@ -233,7 +249,7 @@ static void command_postfork(void *data) {
 		int handler = push_err_handler(L);
 		extract_registry_value(L, lcd->postfork_callback);
 		int result = lua_pcall(L, 0, 0, handler);
-		ASSERT_MSG(!result, "%s", lua_tostring(L, -1));
+		ASSERT_MSG(!result, "%s", interpreter_error_result(L));
 	}
 	// We don't worry about freeing memory here. We're going to exec just in a while.
 }
@@ -317,7 +333,7 @@ static void download_callback(struct wait_id id __attribute__((unused)), void *d
 	lua_pushinteger(L, status);
 	lua_pushlstring(L, out, out_size);
 	int result = lua_pcall(L, 2, 0, handler);
-	ASSERT_MSG(!result, "%s", lua_tostring(L, -1));
+	ASSERT_MSG(!result, "%s", interpreter_error_result(L));
 }
 
 static int lua_download(lua_State *L) {
@@ -633,6 +649,23 @@ static int lua_reexec(lua_State *L __attribute__((unused))) {
 	return 0;
 }
 
+// Stores pointer to internal files used as uri.
+static const struct file_index_element *uriinternal;
+
+static int lua_uri_internal_get(lua_State *L) {
+	int param_count = lua_gettop(L);
+	if (param_count > 1)
+		return luaL_error(L, "Too many parameters to uri_internal_get: %d", param_count);
+	const char *name = luaL_checkstring(L, 1);
+	if (!uriinternal)
+		return luaL_error(L, "Internal uri is not supported.", name);
+	const struct file_index_element *file = index_element_find(uriinternal, name);
+	if (!file)
+		return luaL_error(L, "No internal with name: %s", name);
+	lua_pushlstring(L, (const char *)file->data, file->size);
+	return 1;
+}
+
 struct injected_func {
 	int (*func)(lua_State *);
 	const char *name;
@@ -660,10 +693,12 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_setenv, "setenv" },
 	{ lua_md5, "md5" },
 	{ lua_sha256, "sha256" },
-	{ lua_reexec, "reexec" }
+	{ lua_reexec, "reexec" },
+	{ lua_uri_internal_get, "uri_internal_get" }
 };
 
-struct interpreter *interpreter_create(struct events *events) {
+struct interpreter *interpreter_create(struct events *events, const struct file_index_element *uriinter) {
+	uriinternal = uriinter;
 	struct interpreter *result = malloc(sizeof *result);
 	lua_State *L = luaL_newstate();
 	*result = (struct interpreter) {
@@ -722,7 +757,7 @@ const char *interpreter_include(struct interpreter *interpreter, const char *cod
 	}, src);
 	if (result)
 		// There's been an error. Extract it (top of the stack).
-		return lua_tostring(L, -1);
+		return interpreter_error_result(L);
 	/*
 	 * The stack:
 	 * • … (unknown stuff from before)
@@ -733,7 +768,7 @@ const char *interpreter_include(struct interpreter *interpreter, const char *cod
 	// Remove the error handler
 	lua_remove(L, -2);
 	if (result)
-		return lua_tostring(L, -1);
+		return interpreter_error_result(L);
 	bool has_result = true;
 	if (lua_isnil(L, -1)) {
 		/*
@@ -876,20 +911,7 @@ const char *interpreter_call(struct interpreter *interpreter, const char *functi
 	int result = lua_pcall(L, nparams, LUA_MULTRET, handler);
 	lua_remove(L, handler);
 	if (result) {
-		// There's an error on top of the stack
-		if (lua_istable(interpreter->state, -1)) {
-			lua_getfield(interpreter->state, -1, "trace");
-			const char *trace = lua_tostring(interpreter->state, -1);
-			if (trace) {
-				DBG("%s\n", trace);
-				if (!dump2file(crash_file, trace))
-					WARN("Crash report of stack trace dump failed.");
-			} // Else just print message, we are probably missing trace
-			lua_pop(interpreter->state, 1);
-			lua_getfield(interpreter->state, -1, "msg");
-		}
-		const char *errmsg = lua_tostring(interpreter->state, -1);
-		return errmsg;
+		return interpreter_error_result(L);
 	}
 	if (result_count)
 		*result_count = lua_gettop(L);
