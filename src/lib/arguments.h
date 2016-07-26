@@ -48,8 +48,6 @@ enum cmd_op_type {
 	COT_STDERR_LEVEL,
 	// Name of the syslog
 	COT_SYSLOG_NAME,
-	// Entry point
-	COT_ENTRY,
 	// Argument isn't option.
 	COT_NO_OP,
 	// Automatic last dummy value to know size of enum

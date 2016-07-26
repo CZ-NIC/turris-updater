@@ -1,1 +1,1 @@
---entry file://$ROOT_DIR/config --batch -R "$ROOT_DIR"
+file://$ROOT_DIR/config --batch -R "$ROOT_DIR"

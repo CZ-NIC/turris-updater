@@ -44,7 +44,7 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 }
 
 static const enum cmd_op_type cmd_op_allows[] = {
-	COT_BATCH, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ENTRY, COT_LAST
+	COT_BATCH, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_NO_OP, COT_LAST
 };
 
 static void print_help() {
@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
 				fputs(op->parameter, stderr);
 				break;
 			}
-			case COT_ENTRY:
+			case COT_NO_OP:
 				top_level_config = op->parameter;
 				break;
 			case COT_BATCH:
