@@ -46,7 +46,18 @@ function test_fsutils()
 	assert_table_equal({["d1"] = "d"}, ls(dir))
 	-- Exists and is a directory
 	events_wait(run_command(function () end, nil, nil, -1, -1, "/bin/chmod", "0750", dir .. "/d1"))
+	events_wait(run_command(function () end, nil, nil, -1, -1, "/bin/ln", "-s", dir .. "/d1", dir .. "/s1"))
 	local stat_type, stat_perm = stat(dir .. "/d1")
+	assert_equal("d", stat_type)
+	assert_equal("rwxr-x---", stat_perm)
+	stat_type, stat_perm = stat(dir .. "/s1")
+	assert_equal("d", stat_type)
+	assert_equal("rwxr-x---", stat_perm)
+	-- Check the symbolic link stat version
+	stat_type, stat_perm = stat(dir .. "/s1", true)
+	assert_equal("l", stat_type)
+	assert_equal("rwxrwxrwx", stat_perm)
+	stat_type, stat_perm = stat(dir .. "/d1", true)
 	assert_equal("d", stat_type)
 	assert_equal("rwxr-x---", stat_perm)
 	-- Doesn't exist
@@ -56,7 +67,11 @@ function test_fsutils()
 	-- Already exists
 	assert_error(function () mkdir(dir .. "/d1") end)
 	move(dir .. "/d1", dir .. "/d2")
-	assert_table_equal({["d2"] = "d"}, ls(dir))
+	assert_table_equal({["d2"] = "d", ["s1"] = "l"}, ls(dir))
+	-- It is a dead symlink, but that's OK
+	stat_type, stat_perm = stat(dir .. "/s1", true)
+	assert_equal("l", stat_type)
+	assert_equal("rwxrwxrwx", stat_perm)
 	-- Create a file
 	local f = io.open(dir .. "/d2/x", "w")
 	assert(f)
