@@ -590,7 +590,12 @@ static const char *perm2str(struct stat *buf) {
 static int lua_stat(lua_State *L) {
 	const char *fname = luaL_checkstring(L, 1);
 	struct stat buf;
-	int result = stat(fname, &buf);
+	int result;
+	if (lua_toboolean(L, 2))
+		// Use lstat instead of stat. Non-existent parameter is OK with lua_toboolean (and returns false)
+		result = lstat(fname, &buf);
+	else
+		result = stat(fname, &buf);
 	if (result == -1) {
 		if (errno == ENOENT)
 			// No result, because the file does not exist
