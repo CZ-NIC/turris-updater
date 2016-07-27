@@ -9,6 +9,8 @@ if uci then
 	if branch then
 		WARN("Branch overriden to " .. branch)
 		branch = branch .. "/"
+	else
+		branch = ""
 	end
 	lists = cursor:get("updater", "pkglists", "lists")
 else
