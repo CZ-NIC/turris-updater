@@ -151,7 +151,7 @@ int main(int argc, char *argv[]) {
 			ASSERT_MSG(!err, "%s", err);
 			INFO("Executing postupdate hooks...");
 			hook_path = aprintf("%s%s", root_dir, hook_postupdate);
-			setenv("SUCCESS", root_dir ? "true" : "false", true); // ROOT_DIR is already set
+			setenv("SUCCESS", trans_ok ? "true" : "false", true); // ROOT_DIR is already set
 			exec_dir(events, hook_path);
 		}
 	}
