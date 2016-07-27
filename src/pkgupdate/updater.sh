@@ -25,7 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-DISABLED=$(uci -q get updater.override.disable || echo false)
+DISABLED=$( (uci -q get updater.override.disable || echo false) | sed -e 's/0/false/;s/1/true/')
 if $DISABLED ; then
 	echo "Updater disabled" | logger -t daemon.warning
 	echo "Updater disabled" >&2
