@@ -350,8 +350,11 @@ function status_parse()
 		if not content then error("Failed to read content of the status file") end
 		for block in block_split(content) do
 			local pkg = block_parse(block)
-			merge(pkg, pkg_control(pkg.Package))
-			pkg.files = pkg_files(pkg.Package)
+			-- Don't read info files if package is not installed
+			if not pkg.Status:match("not%-installed") then
+				merge(pkg, pkg_control(pkg.Package))
+				pkg.files = pkg_files(pkg.Package)
+			end
 			pkg = package_postprocess(pkg)
 			result[pkg.Package] = pkg
 		end
