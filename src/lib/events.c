@@ -611,7 +611,7 @@ static const char *retry_curl =
 "exit $CODE\n";
 
 static void download_run(struct events *events, struct download_data *download) {
-	const size_t max_params = 13;
+	const size_t max_params = 15;
 	const char *params[max_params];
 	size_t build_i = 0;
 
@@ -624,6 +624,8 @@ static void download_run(struct events *events, struct download_data *download) 
 	params[build_i++] = "--silent";
 	params[build_i++] = "--show-error";
 	params[build_i++] = "--fail";
+	params[build_i++] = "-m";
+	params[build_i++] = "180"; // Timeout after three minutes
 	if (download->cacert) {
 		params[build_i++] = "--cacert";
 		params[build_i++] = download->cacert;
