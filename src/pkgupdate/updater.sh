@@ -108,6 +108,7 @@ if ! $BACKGROUNDED ; then
 	fi
 	cat /dev/null >"$LOG_FILE"
 	echo startup >"$STATE_DIR/state"
+	rm -f "$STATE_DIR/last_error" "$STATE_DIR/log2"
 	echo $$>"$PID_FILE"
 fi
 if $BACKGROUND ; then
@@ -120,7 +121,7 @@ mkdir -p "$TMP_DIR"
 trap 'rm -rf "$LOCK_DIR" "$PID_FILE" "$TMP_DIR"; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
 
 # Run the actual updater
-timeout 900 pkgupdate --batch
+timeout 3000 pkgupdate --batch
 # Evaluate what has run
 EXIT_CODE="$?"
 STATE=$(cat "$STATE_DIR"/state)

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2013, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
+# Copyright (c) 2013,2016, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,7 +31,7 @@ set -ex
 
 if [ -d /tmp/update-state/lock ] ; then
 	PID=$(cat /tmp/update-state/pid)
-	if ! ps | grep updater | grep -q "$PID" ; then
+	if ! busybox ps | grep updater | grep -q "$PID" ; then
 		rm -r /tmp/update-state/lock /tmp/update-state/pid
 		echo 'lost' >/tmp/update-state/state
 	fi
