@@ -42,6 +42,8 @@ enum cmd_op_type {
 	COT_ROOT_DIR,
 	// Run without the user confirmation
 	COT_BATCH,
+	// Internally used when reexecuting. Informs program that this is restarted instance.
+	COT_REEXEC,
 	// Syslog level
 	COT_SYSLOG_LEVEL,
 	// Stderr log level
