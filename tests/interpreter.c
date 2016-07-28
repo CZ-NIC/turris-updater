@@ -48,7 +48,7 @@ const char *shared_context[] = { "function xyz() return 1 ; end", "if xyz() ~= 1
 const char *survival[] = { "invalid_func();", "local x = 1;", NULL };
 const char *library[] = { "next({});", "getfenv();", "string.find('x', 'y');", "math.abs(-1);", "os.clock();", "debug.getregistry()", NULL };
 const char *autoloaded[] = { "testing.values();", NULL };
-const char *logging[] = { "log('DEBUG', 'test')", "log('INVALID', 'test')", "ERROR('test')", NULL };
+const char *logging[] = { "log('DEBUG', 0, 'test')", "log('INVALID', 0, 'test')", "ERROR('test')", NULL };
 const char *pre_require[] = { "local m = require 'testing'; testing.values();", NULL };
 const char *uriinter_get[] = { "uri_internal_get('hello_txt')", NULL };
 

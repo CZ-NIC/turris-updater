@@ -20,13 +20,13 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 -- Generate appropriate logging functions
 for _, name in ipairs({ 'ERROR', 'WARN', 'INFO', 'DBG' }) do
 	_G[name] = function(...)
-		log(name, ...)
+		log(name, 1, ...)
 	end
 end
 
 -- The DIE function (which should really terminate, not just throw)
 function DIE(...)
-	log('DIE', ...)
+	log('DIE', 1, ...)
 	os.exit(1)
 end
 
