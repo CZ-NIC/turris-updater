@@ -90,8 +90,12 @@ void log_internal(enum log_level level, const char *file, size_t line, const cha
 			log_syslog_name("updater");
 		syslog(LOG_MAKEPRI(LOG_DAEMON, levels[level].syslog_prio), "%s:%zu (%s): %s", file, line, func, msg);
 	}
-	if (do_stderr)
-		fprintf(stderr, "%s:%s:%zu (%s):%s\n", levels[level].prefix, file, line, func, msg);
+	if (do_stderr) {
+		if (stderr_level < LL_DBG)
+			fprintf(stderr, "%s:%s\n", levels[level].prefix, msg);
+		else
+			fprintf(stderr, "%s:%s:%zu (%s):%s\n", levels[level].prefix, file, line, func, msg);
+	}
 	if (level == LL_DIE) {
 		state_dump("error");
 		err_dump(msg);
