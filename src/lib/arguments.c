@@ -56,6 +56,8 @@ static const char *opt_help[COT_LAST] = {
 		"-R <path>			Use given path as a root directory.\n",
 	[COT_BATCH] =
 		"--batch 			Run without user confirmation.\n",
+	[COT_STATE_LOG] =
+		"--state-log			Dump state to files in /etc/updater-state directory.\n",
 	[COT_SYSLOG_LEVEL] =
 		"-s <syslog-level>		What level of messages to send to syslog.\n",
 	[COT_STDERR_LEVEL] =
@@ -64,7 +66,11 @@ static const char *opt_help[COT_LAST] = {
 		"-S <syslog-name>		Under which name messages are send to syslog.\n",
 };
 
-#define OPT_BATCH_VAL 260
+enum option_val {
+	OPT_BATCH_VAL = 260,
+	OPT_STATE_LOG_VAL,
+};
+
 static const struct option opt_long[] = {
 	{ .name = "help", .has_arg = no_argument, .val = 'h' },
 	{ .name = "journal", .has_arg = no_argument, .val = 'j' },
@@ -72,6 +78,7 @@ static const struct option opt_long[] = {
 	{ .name = "add", .has_arg = required_argument, .val = 'a' },
 	{ .name = "remove", .has_arg = required_argument, .val = 'r' },
 	{ .name = "batch", .has_arg = no_argument, .val = OPT_BATCH_VAL },
+	{ .name = "state-log", .has_arg = no_argument, .val = OPT_STATE_LOG_VAL },
 	{NULL}
 };
 
@@ -162,6 +169,9 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 			case OPT_BATCH_VAL:
 				result_extend(&res_count, &result, COT_BATCH, NULL);
 				break;
+			case OPT_STATE_LOG_VAL:
+				result_extend(&res_count, &result, COT_STATE_LOG, NULL);
+				break;
 			default:
 				assert(0);
 		}
@@ -183,6 +193,7 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 		switch (result[i].type) {
 			case COT_ROOT_DIR:
 			case COT_BATCH:
+			case COT_STATE_LOG:
 			case COT_SYSLOG_LEVEL:
 			case COT_STDERR_LEVEL:
 			case COT_SYSLOG_NAME: {

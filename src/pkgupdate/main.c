@@ -45,7 +45,7 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 }
 
 static const enum cmd_op_type cmd_op_allows[] = {
-	COT_BATCH, COT_NO_OP, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_LAST
+	COT_BATCH, COT_NO_OP, COT_STATE_LOG, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_LAST
 };
 
 static void print_help() {
@@ -60,7 +60,6 @@ int main(int argc, char *argv[]) {
 	// Some setup of the machinery
 	log_stderr_level(LL_INFO);
 	log_syslog_level(LL_INFO);
-	state_dump("startup");
 	args_backup(argc, (const char **)argv);
 	struct events *events = events_new();
 	// Parse the arguments
@@ -95,6 +94,9 @@ int main(int argc, char *argv[]) {
 				break;
 			case COT_ROOT_DIR:
 				root_dir = op->parameter;
+				break;
+			case COT_STATE_LOG:
+				set_state_log(true);
 				break;
 			case COT_SYSLOG_LEVEL: {
 				enum log_level level = log_level_get(op->parameter);

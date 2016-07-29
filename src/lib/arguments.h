@@ -42,6 +42,8 @@ enum cmd_op_type {
 	COT_ROOT_DIR,
 	// Run without the user confirmation
 	COT_BATCH,
+	// Enable dumping state to files in /tmp/updater-state directory
+	COT_STATE_LOG,
 	// Syslog level
 	COT_SYSLOG_LEVEL,
 	// Stderr log level

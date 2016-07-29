@@ -47,10 +47,14 @@ static const struct level_info levels[] = {
 static enum log_level syslog_level = LL_DISABLE;
 static enum log_level stderr_level = LL_WARN;
 static bool syslog_opened = false;
+bool state_log_enabled = false;
+
+void set_state_log(bool state_log) {
+	state_log_enabled = state_log;
+}
 
 void state_dump(const char *msg) {
-	const char *enable = getenv("UPDATER_ENABLE_STATE_LOG");
-	if (enable && strcmp("true", enable) == 0) {
+	if (state_log_enabled) {
 		FILE *f = fopen("/tmp/update-state/state", "w");
 		if (f) {
 			fprintf(f, "%s\n", msg);
@@ -62,8 +66,7 @@ void state_dump(const char *msg) {
 }
 
 void err_dump(const char *msg) {
-	const char *enable = getenv("UPDATER_ENABLE_STATE_LOG");
-	if (enable && strcmp("true", enable) == 0) {
+	if (state_log_enabled) {
 		FILE *f = fopen("/tmp/update-state/last_error", "w");
 		if (f) {
 			fprintf(f, "%s\n", msg);

@@ -42,7 +42,6 @@ EXIT_CODE=1
 BACKGROUND=false
 BACKGROUNDED=false
 TMP_DIR="/tmp/$$.tmp"
-export UPDATER_ENABLE_STATE_LOG=true
 
 timeout() {
 	# Let a command run for up to $1 seconds. If it doesn't finishes by then, kill it.
@@ -121,7 +120,7 @@ mkdir -p "$TMP_DIR"
 trap 'rm -rf "$LOCK_DIR" "$PID_FILE" "$TMP_DIR"; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
 
 # Run the actual updater
-timeout 3000 pkgupdate --batch
+timeout 3000 pkgupdate --batch --state-log
 # Evaluate what has run
 EXIT_CODE="$?"
 STATE=$(cat "$STATE_DIR"/state)
