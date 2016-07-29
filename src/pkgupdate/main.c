@@ -61,17 +61,9 @@ int main(int argc, char *argv[]) {
 	log_stderr_level(LL_INFO);
 	log_syslog_level(LL_INFO);
 	args_backup(argc, (const char **)argv);
-	struct events *events = events_new();
 	// Parse the arguments
 	struct cmd_op *ops = cmd_args_parse(argc, argv, cmd_op_allows);
 	struct cmd_op *op = ops;
-	// Prepare the interpreter and load it with the embedded lua scripts
-	struct interpreter *interpreter = interpreter_create(events, uriinternal);
-	const char *error = interpreter_autoload(interpreter);
-	if (error) {
-		fputs(error, stderr);
-		return 1;
-	}
 	const char *top_level_config = "internal:entry_lua";
 	const char *root_dir = NULL;
 	bool batch = false, early_exit = false;
@@ -117,14 +109,24 @@ int main(int argc, char *argv[]) {
 			default:
 				assert(0);
 		}
+	enum cmd_op_type exit_type = op->type;
+	free(ops);
+
+	state_dump("startup");
+	struct events *events = events_new();
+	// Prepare the interpreter and load it with the embedded lua scripts
+	struct interpreter *interpreter = interpreter_create(events, uriinternal);
+	const char *error = interpreter_autoload(interpreter);
+	if (error) {
+		fputs(error, stderr);
+		return 1;
+	}
+
 	if (root_dir) {
 		const char *err = interpreter_call(interpreter, "backend.root_dir_set", NULL, "s", root_dir);
 		ASSERT_MSG(!err, "%s", err);
 	} else
 		root_dir = "";
-	enum cmd_op_type exit_type = op->type;
-	free(ops);
-
 	bool trans_ok = true;
 	if (exit_type == COT_EXIT && !early_exit) {
 		// Decide what packages need to be downloaded and handled
