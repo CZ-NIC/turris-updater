@@ -616,7 +616,7 @@ function test_control_cleanup()
 	end
 	assert_table_equal(all_files, ls(test_dir))
 	--[[
-	Run the cleanup, but with both pkg1 and pkg2 installed. Also, the strange files should stay.
+	Run the cleanup, but with both pkg1 and pkg2 installed. Also, the strange files should stay except pkg2.xyz.abc, because it would be for package pkg2.xyz.
 
 	The control_cleanup doesn't care about the content of the packages, so be lazy a bit.
 	]]
@@ -626,6 +626,7 @@ function test_control_cleanup()
 			Status = {"install", "user", "installed"}
 		}
 	end
+	all_files["pkg2.xyz.abc"] = nil
 	B.control_cleanup({
 		pkg1 = pkg_gen "pkg1",
 		pkg2 = pkg_gen "pkg2"
@@ -634,7 +635,6 @@ function test_control_cleanup()
 	-- Drop the things belonging to pkg2
 	B.control_cleanup({ pkg1 = pkg_gen "pkg1" })
 	all_files["pkg2.control"] = nil
-	all_files["pkg2.xyz.abc"] = nil
 	assert_table_equal(all_files, ls(test_dir))
 end
 
