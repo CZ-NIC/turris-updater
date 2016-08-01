@@ -846,14 +846,19 @@ function control_cleanup(status)
 		if tp ~= 'r' and tp ~= '?' then
 			WARN("Non-file " .. file .. " in control directory")
 		else
-			local pname = file:match("^([^%.]+)%.")
-			if not pname then
+			-- Remove suffix from file name, but only suffix.
+			local suffix_index = file:find("%.([^%.]+)$")
+			if not suffix_index or suffix_index == 1 then
+				-- If name doesn't have suffix or as suffix was identified whole name
 				WARN("Control file " .. file .. " has a wrong name format")
-			elseif utils.multi_index(status, pname, "Status", 3) ~= "installed" then
-				DBG("Removing control file " .. file)
-				local _, err = os.remove(info_dir .. "/" .. file)
-				if err then
-					ERROR(err)
+			else
+				local pname = file:sub(1, suffix_index - 1)
+				if utils.multi_index(status, pname, "Status", 3) ~= "installed" then
+					DBG("Removing control file " .. file)
+					local _, err = os.remove(info_dir .. "/" .. file)
+					if err then
+						ERROR(err)
+					end
 				end
 			end
 		end
