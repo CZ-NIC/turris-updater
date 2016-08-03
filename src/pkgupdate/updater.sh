@@ -58,30 +58,18 @@ timeout() {
 		# Note that Busybox doesn't have sleep as build-in, but as external
 		# program. So backgrounded wait can stay running even after script exits
 		# if not killed.
-		trap 'kill $SLEEP ; exit' TERM INT QUIT ABRT
-		sleep "$TIME" &
-		SLEEP=$!
-		wait $SLEEP
+		sleep "$TIME"
 		echo "Killing $PROG/$CPID after $TIME seconds (stuck?)" | logger -t updater -p daemon.error
 		kill "$CPID"
-		sleep 5 &
-		SLEEP=$!
-		wait $SLEEP
+		sleep 5
 		kill -9 "$CPID"
 		# Wait to be killed by the parrent
-		sleep 60 &
-		SLEEP=$!
-		wait $SLEEP
+		sleep 60
 	) &
 	WATCHER="$!"
 	wait "$CPID"
 	RESULT="$?"
 	CPID=
-	CNT=0
-	while [ "$CNT" -lt 5 ] && ! kill "$WATCHER" ; do
-		sleep 1
-		CNT=$((CNT+1))
-	done
 	kill "$WATCHER"
 	wait "$WATCHER"
 	WATCHER=
