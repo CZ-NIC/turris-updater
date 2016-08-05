@@ -1,5 +1,5 @@
 
-.PHONY: check-clean test valgrind check test-locks valgrind-locks
+.PHONY: check-clean test valgrind luacheck check test-locks valgrind-locks
 
 BINARIES_NOTARGET += tests/locks
 locks_MODULES += locks
@@ -11,9 +11,14 @@ $(O)/tests/check-compiled/compiled:
 	+make -C $(O)/tests/check-compiled
 	touch $(O)/tests/check-compiled/compiled
 
+$(O)/tests/luacheck-compiled/bin/luacheck:
+	mkdir -p $(O)/tests/luacheck-compiled
+	cd $(S)/tests/luacheck && ./install.lua $(abspath $(O)/tests/luacheck-compiled)
+
 clean: check-clean
 check-clean:
 	rm -rf $(O)/tests/check-compiled
+	rm -rf $(O)/tests/luacheck-compiled
 
 C_TESTS := \
 	arguments \
@@ -34,6 +39,8 @@ LUA_TESTS := \
 	uri
 
 LUA_AUTOLOAD = $(patsubst a_%.lua,%,$(notdir $(wildcard $(S)/src/lib/autoload/a_*.lua)))
+# Ignore stacktraceplus and dumper, not our creation.
+LUA_AUTOLOAD := $(sort $(filter-out 01_stacktraceplus 05_dumper,$(LUA_AUTOLOAD)))
 
 TEST_URIINTERNAL := $(abspath $(wildcard $(S)/tests/internal/*))
 $(O)/.gen/tests/uriinternal.embedlist: $(S)/src/lib/gen_embed.sh $(S)/src/lib/embed_types.h $(TEST_URIINTERNAL)
@@ -83,19 +90,24 @@ valgrind-lua-$(1): $(O)/bin/lulaunch $(S)/tests/$(1).lua
 endef
 
 .PHONY: luac-autoload
-define DO_LUAC
+.PHONY: luacheck
+define DO_LUA_LINT
 
 luac-autoload: luac-autoload-$(1)
-
 .PHONY: luac-autoload-$(1)
 luac-autoload-$(1): $(S)/src/lib/autoload/a_$(1).lua
 	luac -p $$<
+
+luacheck: luacheck-$(1)
+.PHONY: luacheck-$(1)
+luacheck-$(1): $(S)/src/lib/autoload/a_$(1).lua $(O)/tests/luacheck-compiled/bin/luacheck $(S)/tests/luacheck.config
+	$(O)/tests/luacheck-compiled/bin/luacheck --config $(S)/tests/luacheck.config $$<
 
 endef
 
 $(eval $(foreach TEST,$(C_TESTS),$(call DO_C_TEST,$(TEST))))
 $(eval $(foreach TEST,$(LUA_TESTS),$(call DO_LUA_TEST,$(TEST))))
-$(eval $(foreach TEST,$(LUA_AUTOLOAD),$(call DO_LUAC,$(TEST))))
+$(eval $(foreach TEST,$(LUA_AUTOLOAD),$(call DO_LUA_LINT,$(TEST))))
 
 test-locks: $(O)/bin/locks
 	$(O)/bin/locks
@@ -106,7 +118,7 @@ valgrind-locks: $(O)/bin/locks
 test: test-locks
 valgrind: valgrind-locks
 
-check: test valgrind luac-autoload
+check: test valgrind luac-autoload luacheck
 
 include $(S)/tests/lunit-launch/Makefile.dir
 include $(S)/tests/system/Makefile.dir
