@@ -214,3 +214,8 @@ reexec()::
   Try to run the program from the beginning, preserving the command
   line arguments and working directory. It depends on being set up
   properly at the start of the program.
+
+uri_internal_get(name)::
+  Function to access embedded files using `internal:` uri. Argument `name`
+  is name of requested embedded file. Returns file content. If there is
+  no file under given name, error is raised.
