@@ -114,26 +114,31 @@ static const char *interpreter_error_result(lua_State *L) {
 
 static int lua_log(lua_State *L) {
 	int nargs = lua_gettop(L);
-	if (nargs < 1)
-		return luaL_error(L, "Not enough arguments passed to log()");
+	ASSERT_MSG(nargs >= 1, "Not enough arguments passed to log()");
 	enum log_level level = log_level_get(lua_tostring(L, 1));
+	int depth = luaL_checkinteger(L, 2); // Depth to ignore and report upper location
+	if (depth < 0)
+		return luaL_error(L, "Second argument mustn't be less then zero");
+	struct lua_Debug ldebug;
+	lua_getstack(L, depth + 1, &ldebug); // get informations about caller
+	lua_getinfo(L, "Sln", &ldebug);
 	size_t sum = 1;
-	size_t sizes[nargs - 1];
-	const char *strs[nargs - 1];
-	for (int i = 2; i <= nargs; i ++) {
-		strs[i - 2] = lua_tostring(L, i);
-		sizes[i - 2] = strlen(strs[i - 2]);
-		sum += sizes[i - 2];
+	size_t sizes[nargs - 2];
+	const char *strs[nargs - 2];
+	for (int i = 3; i <= nargs; i ++) {
+		strs[i - 3] = lua_tostring(L, i);
+		sizes[i - 3] = strlen(strs[i - 3]);
+		sum += sizes[i - 3];
 	}
 	char *message = alloca(sum);
 	size_t pos = 0;
-	for (size_t i = 0; i < (unsigned)nargs - 1; i ++) {
+	for (size_t i = 0; i < (unsigned)nargs - 2; i ++) {
 		memcpy(message + pos, strs[i], sizes[i]);
 		pos += sizes[i];
 	}
 	message[pos] = '\0';
-	// TODO: It would be nice to know the line number and file from lua. But it's quite a lot of work now.
-	log_internal(level, "lua", 0, "???", "%s", message);
+	char *file = aprintf("%s.lua", ldebug.source);
+	log_internal(level, file, ldebug.currentline, ldebug.name ? ldebug.name : "Globals", "%s", message);
 	return 0;
 }
 
