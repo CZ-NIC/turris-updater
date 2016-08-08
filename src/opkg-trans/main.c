@@ -50,6 +50,7 @@ int main(int argc, char *argv[]) {
 	// Some setup of the machinery
 	log_stderr_level(LL_INFO);
 	log_syslog_level(LL_INFO);
+	set_state_log(false);
 	args_backup(argc, (const char **)argv);
 	struct events *events = events_new();
 	// Parse the arguments

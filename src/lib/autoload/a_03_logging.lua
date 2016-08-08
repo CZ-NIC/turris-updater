@@ -31,7 +31,7 @@ function DIE(...)
 end
 
 function log_event(action, package)
-	if os.getenv("UPDATER_ENABLE_STATE_LOG") == "true" then
+	if state_log_enabled() then
 		local f = io.open("/tmp/update-state/log2", "a")
 		if f then
 			f:write(action, " ", package, "\n")

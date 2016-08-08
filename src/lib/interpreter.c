@@ -676,6 +676,13 @@ static int lua_uri_internal_get(lua_State *L) {
 	return 1;
 }
 
+extern bool state_log_enabled; // defined in util.c
+
+static int lua_state_log_enabled(lua_State *L) {
+	lua_pushboolean(L, state_log_enabled);
+	return 1;
+}
+
 struct injected_func {
 	int (*func)(lua_State *);
 	const char *name;
@@ -683,6 +690,7 @@ struct injected_func {
 
 static const struct injected_func injected_funcs[] = {
 	{ lua_log, "log" },
+	{ lua_state_log_enabled, "state_log_enabled" },
 	{ lua_state_dump, "state_dump" },
 	{ lua_run_command, "run_command" },
 	{ lua_download, "download" },

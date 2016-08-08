@@ -44,6 +44,8 @@ enum cmd_op_type {
 	COT_BATCH,
 	// Internally used when reexecuting. Informs program that this is restarted instance.
 	COT_REEXEC,
+	// Enable dumping state to files in /tmp/updater-state directory
+	COT_STATE_LOG,
 	// Syslog level
 	COT_SYSLOG_LEVEL,
 	// Stderr log level

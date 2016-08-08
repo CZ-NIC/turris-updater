@@ -49,6 +49,8 @@ void log_internal(enum log_level level, const char *file, size_t line, const cha
 
 enum log_level log_level_get(const char *str) __attribute__((nonnull));
 
+// Sets if state and error should be dumped into files in /tmp/updater-state directory
+void set_state_log(bool state_log);
 // In the full updater mode, dump current state into /tmp/update-state/state
 void state_dump(const char *msg) __attribute__((nonnull));
 // In the full updater mode, dump the error into /tmp/update-state/error

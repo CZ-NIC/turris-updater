@@ -45,7 +45,7 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 }
 
 static const enum cmd_op_type cmd_op_allows[] = {
-	COT_BATCH, COT_REEXEC, COT_NO_OP, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_LAST
+	COT_BATCH, COT_NO_OP, COT_REEXEC, COT_STATE_LOG, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_LAST
 };
 
 static void print_help() {
@@ -60,19 +60,10 @@ int main(int argc, char *argv[]) {
 	// Some setup of the machinery
 	log_stderr_level(LL_INFO);
 	log_syslog_level(LL_INFO);
-	state_dump("startup");
 	args_backup(argc, (const char **)argv);
-	struct events *events = events_new();
 	// Parse the arguments
 	struct cmd_op *ops = cmd_args_parse(argc, argv, cmd_op_allows);
 	struct cmd_op *op = ops;
-	// Prepare the interpreter and load it with the embedded lua scripts
-	struct interpreter *interpreter = interpreter_create(events, uriinternal);
-	const char *error = interpreter_autoload(interpreter);
-	if (error) {
-		fputs(error, stderr);
-		return 1;
-	}
 	const char *top_level_config = "internal:entry_lua";
 	const char *root_dir = NULL;
 	bool batch = false, early_exit = false, replan = false;
@@ -99,6 +90,9 @@ int main(int argc, char *argv[]) {
 			case COT_ROOT_DIR:
 				root_dir = op->parameter;
 				break;
+			case COT_STATE_LOG:
+				set_state_log(true);
+				break;
 			case COT_SYSLOG_LEVEL: {
 				enum log_level level = log_level_get(op->parameter);
 				ASSERT_MSG(level != LL_UNKNOWN, "Unknown log level %s", op->parameter);
@@ -118,14 +112,24 @@ int main(int argc, char *argv[]) {
 			default:
 				assert(0);
 		}
+	enum cmd_op_type exit_type = op->type;
+	free(ops);
+
+	state_dump("startup");
+	struct events *events = events_new();
+	// Prepare the interpreter and load it with the embedded lua scripts
+	struct interpreter *interpreter = interpreter_create(events, uriinternal);
+	const char *error = interpreter_autoload(interpreter);
+	if (error) {
+		fputs(error, stderr);
+		return 1;
+	}
+
 	if (root_dir) {
 		const char *err = interpreter_call(interpreter, "backend.root_dir_set", NULL, "s", root_dir);
 		ASSERT_MSG(!err, "%s", err);
 	} else
 		root_dir = "";
-	enum cmd_op_type exit_type = op->type;
-	free(ops);
-
 	bool trans_ok = true;
 	if (exit_type == COT_EXIT && !early_exit) {
 		// Decide what packages need to be downloaded and handled
