@@ -35,7 +35,6 @@ local setmetatable = setmetatable
 local table = table
 local os = os
 local io = io
-local file = file
 local string = string
 local events_wait = events_wait
 local download = download
@@ -379,7 +378,7 @@ function new(context, uri, verification)
 				table.insert(sig_pubkeys, u)
 			end
 		else
-			error(utils.exception('bad value', "The pubkey must be either string or table, not " .. type(uris)))
+			error(utils.exception('bad value', "The pubkey must be either string or table, not " .. type(pubkeys)))
 		end
 	end
 	local wait_sub_uris = #sub_uris
@@ -407,7 +406,7 @@ function new(context, uri, verification)
 					sigval(result.content)
 					if not found and result.content:sub(1, 2) == string.char(0x1F, 0x8B) then
 						-- Try once more with gzip decompressed
-						function gzip_done(ecode, killed, stdout)
+						local function gzip_done(ecode, _, stdout)
 							if ecode == 0 then
 								sigval(stdout)
 							end
@@ -472,7 +471,7 @@ Instead of calling uri.new("file:///stuff"), uri("file://stuff") can be
 used (the first version works too).
 ]]
 local meta = {
-	__call = function (module, context, uri, verification)
+	__call = function (_, context, uri, verification)
 		return new(context, uri, verification)
 	end
 }

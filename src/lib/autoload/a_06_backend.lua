@@ -301,7 +301,7 @@ function package_postprocess(status)
 end
 
 -- Get pkg_name's file's content with given suffix. Nil on error.
-local function pkg_file(pkg_name, suffix, warn)
+local function pkg_file(pkg_name, suffix, _)
 	local fname = info_dir .. pkg_name .. "." .. suffix
 	local content, err = utils.slurp(fname)
 	if not content then
@@ -393,6 +393,9 @@ function status_dump(status)
 		f:close()
 		-- Override the resulting file (btrfs guarantees the data is there once we rename it)
 		local _, err = os.rename(tmp_file, status_file)
+		if err then
+			error("Couldn't rename status file " .. tmp_file .. " to " .. status_file .. ": " .. err)
+		end
 	else
 		error("Couldn't write status file " .. tmp_file .. ": " .. err)
 	end
@@ -421,7 +424,7 @@ function pkg_unpack(package, tmp_dir)
 	local err
 	-- Unpack the ipk into s1dir, getting control.tar.gz and data.tar.gz
 	local function stage1()
-		events_wait(run_command(function (ecode, killed, stdout, stderr)
+		events_wait(run_command(function (ecode, _, _, stderr)
 			if ecode ~= 0 then
 				err = "Stage 1 unpack failed: " .. stderr
 			end
@@ -433,7 +436,7 @@ function pkg_unpack(package, tmp_dir)
 	local function unpack_archive(what)
 		local archive = s1dir .. "/" .. what .. ".tar.gz"
 		local dir = s2dir .. "/" .. what
-		return run_command(function (ecode, killed, stdout, stderr)
+		return run_command(function (ecode, _, _, stderr)
 			if ecode ~= 0 then
 				err = "Stage 2 unpack of " .. what .. " failed: " .. stderr
 			end
@@ -449,7 +452,7 @@ function pkg_unpack(package, tmp_dir)
 	local events = {}
 	local function remove(dir)
 		-- TODO: Would it be better to remove from within our code, without calling rm?
-		table.insert(events, run_command(function (ecode, killed, stdout, stderr)
+		table.insert(events, run_command(function (ecode, _, _, stderr)
 			if ecode ~= 0 then
 				WARN("Failed to clean up work directory ", dir, ": ", stderr)
 			end
@@ -491,7 +494,7 @@ function pkg_examine(dir)
 	local err = nil
 	-- Launch scans of the data directory
 	local function launch(postprocess, ...)
-		local function cback(ecode, killed, stdout, stderr)
+		local function cback(ecode, _, stdout, stderr)
 			if ecode == 0 then
 				postprocess(stdout)
 			else
@@ -722,14 +725,19 @@ function pkg_merge_control(dir, name, files)
 	]]
 	local events = {}
 	local err
+	local ec = 0
 	for fname, tp in pairs(ls(dir)) do
 		if tp ~= "r" and tp ~= "?" then
 			WARN("Control file " .. fname .. " is not a file, skipping")
 		else
 			DBG("Putting control file " .. fname .. " into place")
-			table.insert(events, run_command(function (ecode, killed, stdout, stderr)
+			table.insert(events, run_command(function (ecode, _, _, stderr)
+				ec = ecode
 				err = stderr
 			end, nil, nil, cmd_timeout, cmd_kill_timeout, "/bin/cp", "-Lpf", dir .. "/" .. fname, info_dir .. "/" .. name .. '.' .. fname))
+		end
+		if ec ~= 0 then
+			error(err)
 		end
 	end
 	-- Create the list of files
@@ -789,7 +797,7 @@ function pkg_cleanup_files(files, rm_configs)
 					break
 				else
 					DBG("Removing empty directory " .. root_dir .. parent)
-					local ok, err = pcall(function () os.remove(root_dir .. parent) end)
+					local ok, _ = pcall(function () os.remove(root_dir .. parent) end)
 					if not ok then
 						-- It is an error, but we don't want to give up on the rest of the operation because of that
 						ERROR("Failed to removed empty " .. parent .. ", ignoring")
@@ -818,7 +826,7 @@ function script_run(pkg_name, script_name, ...)
 	if ftype == 'r' and perm:match("^r.[xs]") then
 		DBG("Running " .. script_name .. " of " .. pkg_name)
 		local s_ecode, s_stderr
-		events_wait(run_command(function (ecode, killed, stdout, stderr)
+		events_wait(run_command(function (ecode, _, _, stderr)
 			DBG("Terminated")
 			s_ecode = ecode
 			s_stderr = stderr

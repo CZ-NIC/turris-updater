@@ -42,7 +42,7 @@ end
 
 -- Function used from C to generate message from error
 function c_pcall_error_handler(err)
-	function err2string(msg, err)
+	local function err2string(msg, err)
 		if type(err) == "string" then
 			msg = msg .. "\n" .. err
 		elseif err.tp == "error" then

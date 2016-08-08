@@ -78,7 +78,7 @@ has been run).
 
 The package has no methods, it's just a stupid structure.
 ]]
-function package(result, context, pkg, extra)
+function package(result, _, pkg, extra)
 	extra = extra or {}
 	-- Minimal typo verification. Further verification is done when actually using the package.
 	for name in pairs(extra) do
@@ -238,7 +238,7 @@ local function content_request(context, cmd, allowed, ...)
 	submit({})
 end
 
-function install(result, context, ...)
+function install(_, context, ...)
 	return content_request(context, "install", allowed_install_extras, ...)
 end
 
@@ -246,7 +246,7 @@ local allowed_uninstall_extras = utils.arr2set({
 	"priority"
 })
 
-function uninstall(result, context, ...)
+function uninstall(_, context, ...)
 	return content_request(context, "uninstall", allowed_uninstall_extras, ...)
 end
 
@@ -358,7 +358,7 @@ function script(result, context, name, script_uri, extra)
 	result.uri = script_uri
 end
 
-function store_flags(result, context, ...)
+function store_flags(_, context, ...)
 	DBG("Storing flags ", ...)
 	backend.flags_mark(context.full_name, ...)
 	backend.flags_write(false)

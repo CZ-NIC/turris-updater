@@ -29,7 +29,6 @@ local loadstring = loadstring
 local setfenv = setfenv
 local pcall = pcall
 local setmetatable = setmetatable
-local getmetatable = getmetatable
 local tostring = tostring
 local error = error
 local unpack = unpack
@@ -189,7 +188,7 @@ local status
 if status_ok then
 	status = run_state
 else
-	WARN("Couldn't read the status file: " .. tostring(status))
+	WARN("Couldn't read the status file: " .. tostring(run_state))
 	status = {}
 end
 --[[
@@ -227,7 +226,7 @@ state_vars = {
 		end
 	end)
 }
-events_wait(run_command(function (ecode, killed, stdout, stderr)
+events_wait(run_command(function (ecode, _, stdout, _)
 	if ecode == 0 then
 		state_vars.serial = utils.strip(stdout)
 	end
