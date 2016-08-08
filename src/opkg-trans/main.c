@@ -39,9 +39,7 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 }
 
 static const enum cmd_op_type cmd_op_allows[] = {
-	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR,
-	COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_LAST
-};
+	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_REEXEC, COT_LAST };
 
 static void print_help() {
 	fputs("Usage: opkg-trans [OPTION]...\n", stderr);
@@ -120,6 +118,9 @@ int main(int argc, char *argv[]) {
 				log_stderr_level(level);
 				break;
 			}
+			case COT_REEXEC:
+				// We are currenty not using this here, but lets accept it so we would prevent problems with reexecuting.
+				break;
 			default:
 				assert(0);
 		}

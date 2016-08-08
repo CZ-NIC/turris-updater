@@ -65,6 +65,7 @@ static const char *opt_help[COT_LAST] = {
 };
 
 #define OPT_BATCH_VAL 260
+#define OPT_REEXEC_VAL 261
 static const struct option opt_long[] = {
 	{ .name = "help", .has_arg = no_argument, .val = 'h' },
 	{ .name = "journal", .has_arg = no_argument, .val = 'j' },
@@ -72,6 +73,7 @@ static const struct option opt_long[] = {
 	{ .name = "add", .has_arg = required_argument, .val = 'a' },
 	{ .name = "remove", .has_arg = required_argument, .val = 'r' },
 	{ .name = "batch", .has_arg = no_argument, .val = OPT_BATCH_VAL },
+	{ .name = "reexec", .has_arg = no_argument, .val = OPT_REEXEC_VAL },
 	{NULL}
 };
 
@@ -162,6 +164,9 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 			case OPT_BATCH_VAL:
 				result_extend(&res_count, &result, COT_BATCH, NULL);
 				break;
+			case OPT_REEXEC_VAL:
+				result_extend(&res_count, &result, COT_REEXEC, NULL);
+				break;
 			default:
 				assert(0);
 		}
@@ -183,6 +188,7 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 		switch (result[i].type) {
 			case COT_ROOT_DIR:
 			case COT_BATCH:
+			case COT_REEXEC:
 			case COT_SYSLOG_LEVEL:
 			case COT_STDERR_LEVEL:
 			case COT_SYSLOG_NAME: {
@@ -248,6 +254,12 @@ void reexec() {
 	// Try restoring the working directory to the original, but don't insist
 	if (orig_wd)
 		chdir(orig_wd);
-	execvp(back_argv[0], back_argv);
-	DIE("Failed to reexec %s: %s", back_argv[0], strerror(errno));
+	// Extend back_argv by --reexec
+	char **argv;
+	argv = alloca((back_argc + 2) * sizeof *argv);
+	memcpy(argv, back_argv, back_argc * sizeof *back_argv);
+	argv[back_argc] = "--reexec";
+	argv[back_argc + 1] = NULL;
+	execvp(argv[0], argv);
+	DIE("Failed to reexec %s: %s", argv[0], strerror(errno));
 }

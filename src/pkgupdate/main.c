@@ -45,7 +45,7 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 }
 
 static const enum cmd_op_type cmd_op_allows[] = {
-	COT_BATCH, COT_NO_OP, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_LAST
+	COT_BATCH, COT_REEXEC, COT_NO_OP, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_LAST
 };
 
 static void print_help() {
@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
 	}
 	const char *top_level_config = "internal:entry_lua";
 	const char *root_dir = NULL;
-	bool batch = false, early_exit = false;
+	bool batch = false, early_exit = false, replan = false;
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
 			case COT_HELP: {
@@ -92,6 +92,9 @@ int main(int argc, char *argv[]) {
 				break;
 			case COT_BATCH:
 				batch = true;
+				break;
+			case COT_REEXEC:
+				replan = true;
 				break;
 			case COT_ROOT_DIR:
 				root_dir = op->parameter;
@@ -140,10 +143,13 @@ int main(int argc, char *argv[]) {
 		bool trans_empty;
 		ASSERT_MSG(interpreter_collect_results(interpreter, "b", &trans_empty) == -1, "The result of transaction.empty is not bool");
 		if (!trans_empty) {
-			INFO("Executing preupdate hooks...");
-			char *hook_path = aprintf("%s%s", root_dir, hook_preupdate);
-			setenv("ROOT_DIR", root_dir, true);
-			exec_dir(events, hook_path);
+			char *hook_path;
+			if (!replan) {
+				INFO("Executing preupdate hooks...");
+				hook_path = aprintf("%s%s", root_dir, hook_preupdate);
+				setenv("ROOT_DIR", root_dir, true);
+				exec_dir(events, hook_path);
+			}
 			err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
 			ASSERT_MSG(!err, "%s", err);
 			trans_ok = results_interpret(interpreter, result_count);
