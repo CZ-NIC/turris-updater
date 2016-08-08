@@ -135,12 +135,14 @@ ls(directory)::
   s;; A unix-domain socket
   ?;; Failed to determine the type
 
-stat(path, [lstat])::
+stat(path)::
   Statistics about the given file. If the file does not exist, it
   returns nothing. Otherwise, the file type is returned (see the types
   of `ls`). The second result is the permissions of the file, in the
-  imitation of shell's `ls -l`, like `rwxr-x---`. If the second
-  parameter is set to true value, the `lstat` behaviour is preferred
+  imitation of shell's `ls -l`, like `rwxr-x---`.
+
+lstat(path)::
+  Same as `stat` except the `lstat` behaviour is preferred.
   (eg. provides info about symbolic link if it is a link, instead of
   the target).
 

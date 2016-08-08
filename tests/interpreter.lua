@@ -54,10 +54,10 @@ function test_fsutils()
 	assert_equal("d", stat_type)
 	assert_equal("rwxr-x---", stat_perm)
 	-- Check the symbolic link stat version
-	stat_type, stat_perm = stat(dir .. "/s1", true)
+	stat_type, stat_perm = lstat(dir .. "/s1")
 	assert_equal("l", stat_type)
 	assert_equal("rwxrwxrwx", stat_perm)
-	stat_type, stat_perm = stat(dir .. "/d1", true)
+	stat_type, stat_perm = lstat(dir .. "/d1")
 	assert_equal("d", stat_type)
 	assert_equal("rwxr-x---", stat_perm)
 	-- Doesn't exist
@@ -69,7 +69,7 @@ function test_fsutils()
 	move(dir .. "/d1", dir .. "/d2")
 	assert_table_equal({["d2"] = "d", ["s1"] = "l"}, ls(dir))
 	-- It is a dead symlink, but that's OK
-	stat_type, stat_perm = stat(dir .. "/s1", true)
+	stat_type, stat_perm = lstat(dir .. "/s1")
 	assert_equal("l", stat_type)
 	assert_equal("rwxrwxrwx", stat_perm)
 	-- Create a file

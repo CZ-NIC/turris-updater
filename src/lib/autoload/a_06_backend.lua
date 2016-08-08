@@ -41,6 +41,7 @@ local chdir = chdir
 local run_command = run_command
 local events_wait = events_wait
 local stat = stat
+local lstat = lstat
 local mkdir = mkdir
 local move = move
 local ls = ls
@@ -670,7 +671,7 @@ function pkg_merge_files(dir, dirs, files, configs)
 	Now move all the files in place.
 	]]
 	for f in pairs(files) do
-		if stat(dir .. f, true) == nil then
+		if lstat(dir .. f) == nil then
 			DBG("File " .. f .. " already installed")
 		else
 			DBG("Installing file " .. f)
@@ -764,7 +765,7 @@ function pkg_cleanup_files(files, rm_configs)
 			local ok, err = pcall(function () os.remove(path) end)
 			-- If it failed because the file didn't exist, that's OK. Mostly.
 			if not ok then
-				local tp = stat(path, true)
+				local tp = lstat(path)
 				if tp then
 					error(err)
 				else

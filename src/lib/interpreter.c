@@ -592,12 +592,11 @@ static const char *perm2str(struct stat *buf) {
 	return perm;
 }
 
-static int lua_stat(lua_State *L) {
+static int stat_lstat(lua_State *L, bool use_lstat) {
 	const char *fname = luaL_checkstring(L, 1);
 	struct stat buf;
 	int result;
-	if (lua_toboolean(L, 2))
-		// Use lstat instead of stat. Non-existent parameter is OK with lua_toboolean (and returns false)
+	if (use_lstat)
 		result = lstat(fname, &buf);
 	else
 		result = stat(fname, &buf);
@@ -611,6 +610,14 @@ static int lua_stat(lua_State *L) {
 	lua_pushstring(L, stat2str(&buf));
 	lua_pushstring(L, perm2str(&buf));
 	return 2;
+}
+
+static int lua_stat(lua_State *L) {
+	return stat_lstat(L, false);
+}
+
+static int lua_lstat(lua_State *L) {
+	return stat_lstat(L, true);
 }
 
 static int lua_sync(lua_State *L __attribute__((unused))) {
@@ -707,6 +714,7 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_move, "move" },
 	{ lua_ls, "ls" },
 	{ lua_stat, "stat" },
+	{ lua_lstat, "lstat" },
 	{ lua_sync, "sync" },
 	{ lua_setenv, "setenv" },
 	{ lua_md5, "md5" },
