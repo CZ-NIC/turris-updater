@@ -8,7 +8,7 @@ they are listed here.
 Logging
 -------
 
-log(level, msg, msg, msg, ...)::
+log(level, depth, msg, msg, msg, ...)::
   This is a low-level function used for logging. It should not be used
   directly by lua code. The messages are just strings that are
   concatenated together before outputting. The level is one of:
@@ -16,6 +16,10 @@ log(level, msg, msg, msg, ...)::
   - ERROR
   - WARN
   - DBG
+  The depth argument specifies how many functions on the top of the stack
+  are to be disregarded when printing the source file, line number and
+  function name to the logs. 0 means the function directly calling log,
+  1 is its caller, etc.
 ERROR(msg, msg, ...)::
 WARN(msg, msg, ...)::
 DBG(msg, msg, ...)::
