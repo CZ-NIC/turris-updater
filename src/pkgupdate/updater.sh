@@ -54,30 +54,24 @@ timeout() {
 	"$PROG" "$@" >"$TMP_DIR"/t-output &
 	export CPID="$!"
 	(
-		trap 'kill $SLEEP ; exit' TERM INT QUIT ABRT
-		sleep "$TIME" &
-		SLEEP=$!
-		wait $SLEEP
+		# Note that Busybox doesn't have sleep as build-in, but as external
+		# program. So backgrounded wait can stay running even after script exits
+		# if not killed.
+		sleep "$TIME"
 		echo "Killing $PROG/$CPID after $TIME seconds (stuck?)" | logger -t updater -p daemon.error
 		kill "$CPID"
-		sleep 5 &
-		SLEEP=$!
-		wait $SLEEP
+		sleep 5
 		kill -9 "$CPID"
 		# Wait to be killed by the parrent
-		sleep 60 &
-		SLEEP=$!
-		wait $SLEEP
+		sleep 60
 	) &
 	WATCHER="$!"
 	wait "$CPID"
 	RESULT="$?"
-	CNT=0
-	while [ "$CNT" -lt 5 ] && ! kill "$WATCHER" ; do
-		sleep 1
-		CNT=$((CNT+1))
-	done
+	CPID=
+	kill "$WATCHER"
 	wait "$WATCHER"
+	WATCHER=
 	return "$RESULT"
 }
 
@@ -117,7 +111,20 @@ if $BACKGROUND ; then
 	exit
 fi
 mkdir -p "$TMP_DIR"
-trap 'rm -rf "$LOCK_DIR" "$PID_FILE" "$TMP_DIR"; exit "$EXIT_CODE"' EXIT INT QUIT TERM ABRT
+
+WATCHER=
+CPID=
+trap_handler() {
+	rm -rf "$LOCK_DIR" "$PID_FILE" "$TMP_DIR"
+	[ -n "$WATCHER" ] && kill -9 $WATCHER 2>/dev/null
+	[ -n "$CPID" ] && if kill $CPID 2>/dev/null; then
+	(
+		sleep 5
+		kill -9 $CPID 2>/dev/null
+	) & fi
+	exit $EXIT_CODE
+}
+trap trap_handler EXIT INT QUIT TERM ABRT
 
 # Run the actual updater
 timeout 3000 pkgupdate --batch --state-log
