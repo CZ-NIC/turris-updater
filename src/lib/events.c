@@ -275,6 +275,7 @@ struct wait_id run_command(struct events *events, command_callback_t callback, p
 	// Copies the terminating NULL as well.
 	while((params[i ++] = va_arg(args, const char *)) != NULL)
 		; // No body of the while. Everything is done in the conditional.
+	va_end(args);
 	return run_command_a(events, callback, post_fork, data, input_size, input, term_timeout, kill_timeout, command, params);
 }
 
@@ -306,7 +307,7 @@ static void run_child(post_fork_callback_t post_fork, void *data, const char *co
 	params_full[i] = NULL;
 	params_full[0] = strdup(command);
 	execv(command, params_full);
-	DIE("Failet do exec %s: %s", command, strerror(errno));
+	DIE("Failed to exec %s: %s", command, strerror(errno));
 }
 
 static struct wait_id command_id(struct watched_command *command) {

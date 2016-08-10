@@ -42,6 +42,11 @@ while [ "$1" ]; do
 			OPERATION="r"
 			break
 			;;
+		upgrade)
+			echo "Using opkg for upgrading is discouraged! Use update.sh instead."
+			echo "Press CTRL+C to abort, return to continue anyway."
+			read
+			;;
 		*)
 			ARGS="$ARGS $1"
 			;;

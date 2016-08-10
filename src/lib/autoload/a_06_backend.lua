@@ -559,7 +559,7 @@ Note that when upgrading, the old packages needs to be considered removed
 
 The current_status is what is returned from status_parse(). The remove_pkgs
 is set of package names (without versions) to remove. It's not a problem if
-the package is not installed. The add_pkgs is a table, values are names of packages
+the package is not installed. The add_pkgs is a table, keys are names of packages
 (without versions), the values are sets of the files the new package will own.
 
 It returns a table, values are name of files where are new collisions, values
@@ -672,6 +672,7 @@ function pkg_merge_files(dir, dirs, files, configs)
 	]]
 	for f in pairs(files) do
 		if lstat(dir .. f) == nil then
+			-- This happens when we recovering transaction and file is already moved
 			DBG("File " .. f .. " already installed")
 		else
 			DBG("Installing file " .. f)

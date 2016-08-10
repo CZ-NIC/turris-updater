@@ -244,7 +244,7 @@ void args_backup(int argc, const char **argv) {
 	size_t s = 0;
 	char *result = NULL;
 	do {
-		s += 1000;
+		s += 128;
 		orig_wd = realloc(orig_wd, s);
 		result = getcwd(orig_wd, s);
 	} while (result == NULL && errno == ERANGE); // Need more space?
