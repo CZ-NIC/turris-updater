@@ -19,5 +19,6 @@ tags
 .ycm_extra_conf.pyc
 # Test stuff
 tests/check-compiled
+tests/luacheck-compiled
 tests/arguments
 testdir
