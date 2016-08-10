@@ -67,7 +67,7 @@ static bool approved(struct interpreter *interpreter, const char *approval_file,
 	ASSERT_MSG(!err, "%s", err);
 	ASSERT_MSG(result_count == 1, "Wrong number of results from transaction.approval_hash: %zu", result_count);
 	const char *hash;
-	ASSERT_MSG(interpreter_collect_results(interpreter, "%s", &hash) == 1, "The result of transaction.approval_hash is not a string");
+	ASSERT_MSG(interpreter_collect_results(interpreter, "s", &hash) == -1, "The result of transaction.approval_hash is not a string");
 	for (size_t i = 0; i < approval_count; i ++)
 		if (strcmp(approvals[i], hash) == 0) {
 			// Yes, this is approved plan of actions. Go ahead.
@@ -85,7 +85,7 @@ static bool approved(struct interpreter *interpreter, const char *approval_file,
 	ASSERT_MSG(!err, "%s", err);
 	ASSERT_MSG(result_count == 1, "Wrong number of results from transaction.approval_report: %zu", result_count);
 	const char *report;
-	ASSERT_MSG(interpreter_collect_results(interpreter, "%s", &report) == 1, "The result of transaction.approval_report is not a string");
+	ASSERT_MSG(interpreter_collect_results(interpreter, "s", &report) == -1, "The result of transaction.approval_report is not a string");
 	fputs(report, report_file);
 	fclose(report_file);
 	return false;
@@ -194,14 +194,14 @@ int main(int argc, char *argv[]) {
 	ASSERT_MSG(interpreter_collect_results(interpreter, "b", &trans_empty) == -1, "The result of transaction.empty is not bool");
 	if (trans_empty)
 		goto CLEANUP;
+	if (!approved(interpreter, approval_file, approvals, approval_count))
+		goto CLEANUP;
 	if (!replan) {
 		INFO("Executing preupdate hooks...");
 		const char *hook_path = aprintf("%s%s", root_dir, hook_preupdate);
 		setenv("ROOT_DIR", root_dir, true);
 		exec_dir(events, hook_path);
 	}
-	if (!approved(interpreter, approval_file, approvals, approval_count))
-		goto CLEANUP;
 	err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
 	ASSERT_MSG(!err, "%s", err);
 	trans_ok = results_interpret(interpreter, result_count);
