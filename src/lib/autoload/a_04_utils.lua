@@ -69,13 +69,13 @@ function set2arr(set)
 end
 
 function arr2set(arr)
-	return map(arr, function (i, name) return name, true end)
+	return map(arr, function (_, name) return name, true end)
 end
 
 -- Run rm -rf on all dirs in the provided table
 function cleanup_dirs(dirs)
 	if next(dirs) then
-		events_wait(run_command(function (ecode, killed, stdout, stderr)
+		events_wait(run_command(function (ecode, _, _, stderr)
 			if ecode ~= 0 then
 				error("rm -rf failed: " .. stderr)
 			end
@@ -104,7 +104,7 @@ Make a deep copy of passed data. This does not work on userdata, on functions
 doesn't copy them and uses the original).
 ]]
 function clone(data)
-	cloned = {}
+	local cloned = {}
 	local function clone_internal(data)
 		if cloned[data] ~= nil then
 			return cloned[data]
@@ -171,7 +171,7 @@ to return table[idx1][idx2][idx3]. But if it finds anything
 that is not a table on the way, nil is returned.
 ]]
 function multi_index(table, ...)
-	for i, idx in ipairs({...}) do
+	for _, idx in ipairs({...}) do
 		if type(table) ~= "table" then
 			return nil
 		else

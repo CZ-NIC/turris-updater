@@ -40,8 +40,8 @@ local journal = require "journal"
 local DBG = DBG
 local WARN = WARN
 local state_dump = state_dump
-local log_event = log_event
 local sync = sync
+local log_event = log_event
 
 module "transaction"
 
@@ -169,7 +169,7 @@ local function pkg_scripts(status, plan, removes, to_install, errors_collected, 
 			utils.table_merge(all_configs, status[op.name].Conffiles or {})
 			local cfiles = status[op.name].Conffiles or {}
 			for f in pairs(cfiles) do
-				local path, modified = backend.pkg_config_info(f, cfiles)
+				local _, modified = backend.pkg_config_info(f, cfiles)
 				if not modified then
 					cfiles[f] = nil
 				end
@@ -214,7 +214,7 @@ local function perform_internal(operations, journal_status, run_state)
 
 	All the results from the step are stored in the journal and also returned.
 	]]
-	local function step(journal_type, fun, sync, ...)
+	local function step(journal_type, fun, flush, ...)
 		if journal_status[journal_type] then
 			DBG("Step " .. journal_type .. " already stored in journal, providing the result")
 			return unpack(journal_status[journal_type])
@@ -310,7 +310,7 @@ function recover()
 	local run_state = backend.run_state()
 	local previous = journal.recover()
 	local status = {}
-	for i, value in ipairs(previous) do
+	for _, value in ipairs(previous) do
 		assert(not status[value.type])
 		status[value.type] = value.params
 	end
@@ -328,7 +328,7 @@ function recover()
 			}
 		}
 	else
-		return perform_internal(operations, status, run_state)
+		return perform_internal(previous, status, run_state)
 	end
 end
 

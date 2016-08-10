@@ -95,7 +95,7 @@ function get_repos()
 					broken('syntax', utils.exception('repo broken', "Couldn't parse the index of " .. name .. ": " .. tostring(list)))
 				end
 			end
-			local function decompressed(ecode, killed, stdout, stderr)
+			local function decompressed(ecode, _, stdout, stderr)
 				DBG("Decompression of " .. name .. " done")
 				if ecode == 0 then
 					parse(stdout)
@@ -128,7 +128,6 @@ function get_repos()
 	end
 	-- Make sure everything is downloaded
 	uri.wait(unpack(uris))
-	uris = nil
 	-- And extracted
 	events_wait(unpack(extract_events))
 	-- Process any errors

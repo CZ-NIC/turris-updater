@@ -111,7 +111,7 @@ function DataDumper(value, varname, fastmode, ident)
     string = function(value) return strvalcache[value] end,
     number = function(value) return value end,
     boolean = function(value) return tostring(value) end,
-    ['nil'] = function(value) return 'nil' end,
+    ['nil'] = function(_) return 'nil' end,
     ['function'] = function(value) 
       return string_format("loadstring(%q)", string_dump(value)) 
     end,
