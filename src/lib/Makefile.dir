@@ -1,6 +1,5 @@
 LIBRARIES += src/lib/libupdater
 
-# TODO: Alternatively compile the thing!
 OPKG_AUTOLOAD := $(abspath $(wildcard $(S)/src/lib/autoload/*.lua))
 $(O)/.gen/src/lib/lautoload.embedlist: $(S)/src/lib/gen_embed.sh $(S)/src/lib/embed_types.h $(OPKG_AUTOLOAD)
 	$(M) GEN $@

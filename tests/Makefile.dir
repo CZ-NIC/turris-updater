@@ -33,6 +33,8 @@ LUA_TESTS := \
 	utils \
 	uri
 
+LUA_AUTOLOAD = $(patsubst a_%.lua,%,$(notdir $(wildcard $(S)/src/lib/autoload/a_*.lua)))
+
 TEST_URIINTERNAL := $(abspath $(wildcard $(S)/tests/internal/*))
 $(O)/.gen/tests/uriinternal.embedlist: $(S)/src/lib/gen_embed.sh $(S)/src/lib/embed_types.h $(TEST_URIINTERNAL)
 	$(M) GEN $@
@@ -80,8 +82,20 @@ valgrind-lua-$(1): $(O)/bin/lulaunch $(S)/tests/$(1).lua
 
 endef
 
+.PHONY: luac-autoload
+define DO_LUAC
+
+luac-autoload: luac-autoload-$(1)
+
+.PHONY: luac-autoload-$(1)
+luac-autoload-$(1): $(S)/src/lib/autoload/a_$(1).lua
+	luac -p $$<
+
+endef
+
 $(eval $(foreach TEST,$(C_TESTS),$(call DO_C_TEST,$(TEST))))
 $(eval $(foreach TEST,$(LUA_TESTS),$(call DO_LUA_TEST,$(TEST))))
+$(eval $(foreach TEST,$(LUA_AUTOLOAD),$(call DO_LUAC,$(TEST))))
 
 test-locks: $(O)/bin/locks
 	$(O)/bin/locks
@@ -92,7 +106,7 @@ valgrind-locks: $(O)/bin/locks
 test: test-locks
 valgrind: valgrind-locks
 
-check: test valgrind
+check: test valgrind luac-autoload
 
 include $(S)/tests/lunit-launch/Makefile.dir
 include $(S)/tests/system/Makefile.dir
