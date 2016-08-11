@@ -1,0 +1,73 @@
+Dependency computation
+======================
+
+We use a SAT solver to compute which packages and in what versions
+should be installed. We do so in phases and at the end we know the
+result (or that the requirements are so broken we can't do anything
+about them).
+
+The SAT construction
+--------------------
+
+The formula describes dependencies between packages. This is derived
+from the repository indices (and `Package` commands, if they are
+present), but it doesn't yet consider what packages the user requests
+to be installed.
+
+We provide several kinds of variables:
+
+* A variable for each package name that exists. Also, there include
+  virtual packages and „provided“ packages (eg. if a package has a
+  „Provides“ header).
+* A variable for each package candidate that can be installed. These
+  usually correspondent one to one with the package names. However, in
+  case of multiple repositories, a package can have multiple
+  candidates ‒ multiple versions or source repositories. We are
+  interested in the final values of these variables.
+* Request variables. In case the configuration specifies a certain
+  version or versions of a package to install, we add a variable for
+  such request (and add corresponding dependencies on the candidates).
+  In case of installation request by a name only we use the package
+  name variable directly. We do similar thing for
+  version-dependencies.
+* Auxiliary variables. These are used when constructing complex
+  dependencies. In case we have some `Or`, `And` and `Not` operators,
+  we represent the result of each by a variable. We are not interested
+  in the values of these variables, but they make the construction of
+  the relations easier. This is similar to Tseytin transformation
+  (which has some slight differences).
+
+Further, we describe the relations. The SAT solver takes CNF, but we
+describe the relations as other relations besides disjunctions here.
+They are easy enough to convert and this way it is more readable.
+
+Each package candidate implies corresponding package name (eg.
+`!C∨N`). In the other direction, a package name requires at least one
+candidate, therefore we get `!N∨C₁∨C₂…`. Furthermore, at most one
+version of each package can be installed, so for each pair of
+candidates of the same package we generate `!C₁∨!C₂`. This is not the
+case for two packages „providing“ the same thing (they may block each
+other, but that doesn't happen implicitly).
+
+The request variables are handled in the same way as package names,
+with the exception of their dependency candidates blocking each other.
+
+Eventually we need to add the dependencies. As each package candidate
+has its own dependencies, they are handled on the candidate variables.
+Each dependency on a package without version is an implication to the
+package name variable. Each dependency with version is handled with a
+request variable.
+
+The complex dependencies are handled by adding the corresponding
+variables. The `And` operator adds multiple separate clauses, similar
+to how dependencies of a candidate are handled. The `Or` produces
+single clause. The `Not` operator expects there's only single child
+(that should be handled by the normalisation) and `Not` produces an
+implication.
+
+We can consider package blocking as a `And(Not(*), Not(*), …)`.
+
+Note that this SAT formula must be satisfiable, at least by not having
+any package installed.
+
+
