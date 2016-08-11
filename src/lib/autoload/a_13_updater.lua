@@ -88,13 +88,13 @@ function prepare(entrypoint)
 				if task.package.MD5Sum then
 					local sum = md5(data)
 					if sum ~= task.package.MD5Sum then
-						error("corruption", "The md5 sum of " .. task.name .. " does not match")
+						error(utils.exception("corruption", "The md5 sum of " .. task.name .. " does not match"))
 					end
 				end
 				if task.package.SHA256Sum then
 					local sum = sha256(data)
 					if sum ~= task.package.SHA256Sum then
-						error("corruption", "The sha256 sum of " .. task.name .. " does not match")
+						error(utils.exception("corruption", "The sha256 sum of " .. task.name .. " does not match"))
 					end
 				end
 				transaction.queue_install_downloaded(data)
