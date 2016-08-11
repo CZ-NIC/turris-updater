@@ -220,7 +220,7 @@ It returns object with following methods:
   satisfiable():: Checks if clauses are satisfiable with given
     assumptions. Returns true or false accordingly.
   max_satisfiable():: Generates maximal satisfiable subset of assumptions.
-    Can be called only after `satisfiable` returned false. Returns table
+    Can be called only after `satisfiable` returned false. Returns set
     of all assumptions that can be assumed at the same time.
 
 After calling `satisfiable` you can access assigned values by indexing

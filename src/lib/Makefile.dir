@@ -15,6 +15,7 @@ libupdater_MODULES := \
 	events \
 	journal \
 	locks \
+	picosat \
 	util \
 	md5 \
 	sha256 \

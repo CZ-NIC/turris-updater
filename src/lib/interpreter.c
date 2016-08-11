@@ -25,6 +25,7 @@
 #include "sha256.h"
 #include "locks.h"
 #include "arguments.h"
+#include "picosat.h"
 
 #include <lua.h>
 #include <lualib.h>
@@ -748,6 +749,7 @@ struct interpreter *interpreter_create(struct events *events, const struct file_
 	// Some binary embedded modules
 	journal_mod_init(L);
 	locks_mod_init(L);
+	picosat_mod_init(L);
 	return result;
 }
 
