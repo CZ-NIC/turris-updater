@@ -116,6 +116,11 @@ static struct cmd_op approval_reorder_ops[] = {
 	{ .type = COT_NO_OP, .parameter = "file:///etc/updater/entry.lua" },
 	{ .type = COT_EXIT }
 };
+static struct cmd_op task_log_reorder_ops[] = {
+	{ .type = COT_TASK_LOG, .parameter = "abcd" },
+	{ .type = COT_NO_OP, .parameter = "file:///etc/updater/entry.lua" },
+	{ .type = COT_EXIT }
+};
 static char *no_args[] = { NULL };
 static char *invalid_flag[] = { "-X", NULL };
 static char *not_allowed_flag[] = { "--batch", NULL };
@@ -152,15 +157,16 @@ static char *root_reorder[] = { "-a", "pkg.ipk", "-R", "/dir", NULL };
 static char *root_journal_no_reorder[] = { "-R", "/dir", "-j", NULL };
 static char *root_journal_reorder[] = { "-j", "-R", "/dir", NULL };
 static char *approval_reorder[] = { "--approve=abcde", "file:///etc/updater/entry.lua", "--ask-approval=/tmp/report-file", "--approve=123456", NULL };
+static char *task_log_reorder[] = { "file:///etc/updater/entry.lua", "--task-log=abcd", NULL };
 
 static const enum cmd_op_type accepts_all[] = {
-	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_BATCH, COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_NO_OP, COT_LAST
+	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_BATCH, COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_NO_OP, COT_TASK_LOG, COT_LAST
 };
 static const enum cmd_op_type accepts_deny_no_op[] = {
-	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_BATCH, COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_LAST
+	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_BATCH, COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_TASK_LOG, COT_LAST
 };
 static const enum cmd_op_type accepts_deny_batch[] = {
-	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_NO_OP, COT_LAST
+	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_NO_OP, COT_TASK_LOG, COT_LAST
 };
 static const enum cmd_op_type accepts_deny_all[] = {
 	COT_LAST
@@ -446,6 +452,15 @@ static struct arg_case cases[] = {
 		.args = approval_reorder,
 		.accepts = accepts_all,
 		.expected_ops = approval_reorder_ops
+	},
+	{
+		/*
+		 * Check we allow the --task-log option.
+		 */
+		 .name = "Task log",
+		 .args = task_log_reorder,
+		 .accepts = accepts_all,
+		 .expected_ops = task_log_reorder_ops
 	}
 };
 

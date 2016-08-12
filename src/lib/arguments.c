@@ -67,7 +67,9 @@ static const char *opt_help[COT_LAST] = {
 	[COT_ASK_APPROVAL] =
 		"--ask-approval=<report-file>	Require user's approval to proceed (abort if --approve with appropriate ID is not present, plan of action is put into the report-file if approval is needed)\n",
 	[COT_APPROVE] =
-		"--approve=<id>			Approve actions with given ID (multiple allowed, from a corresponding report-file).\n"
+		"--approve=<id>			Approve actions with given ID (multiple allowed, from a corresponding report-file).\n",
+	[COT_TASK_LOG] =
+		"--task-log=<file>		Append list of executed tasks into a log file.\n"
 };
 
 enum option_val {
@@ -76,6 +78,8 @@ enum option_val {
 	OPT_REEXEC_VAL,
 	OPT_ASK_APPROVAL_VAL,
 	OPT_APPROVE_VAL,
+	OPT_TASK_LOG_VAL,
+	OPT_LAST
 };
 
 static const struct option opt_long[] = {
@@ -89,7 +93,25 @@ static const struct option opt_long[] = {
 	{ .name = "state-log", .has_arg = no_argument, .val = OPT_STATE_LOG_VAL },
 	{ .name = "ask-approval", .has_arg = required_argument, .val = OPT_ASK_APPROVAL_VAL },
 	{ .name = "approve", .has_arg = required_argument, .val = OPT_APPROVE_VAL },
+	{ .name = "task-log", .has_arg = required_argument, .val = OPT_TASK_LOG_VAL },
 	{ .name = NULL }
+};
+
+static const struct simple_opt {
+	enum cmd_op_type op;
+	bool has_arg;
+	bool active;
+} simple_args[OPT_LAST] = {
+	['R'] = { COT_ROOT_DIR, true, true },
+	['s'] = { COT_SYSLOG_LEVEL, true, true },
+	['S'] = { COT_SYSLOG_NAME, true, true },
+	['e'] = { COT_STDERR_LEVEL, true, true },
+	[OPT_BATCH_VAL] = { COT_BATCH, false, true },
+	[OPT_REEXEC_VAL] = { COT_REEXEC, false, true },
+	[OPT_STATE_LOG_VAL] = { COT_STATE_LOG, false, true },
+	[OPT_ASK_APPROVAL_VAL] = { COT_ASK_APPROVAL, true, true },
+	[OPT_APPROVE_VAL] = { COT_APPROVE, true, true },
+	[OPT_TASK_LOG_VAL] = { COT_TASK_LOG, true, true }
 };
 
 // Builds new result with any number of error messages. But specify their count as
@@ -133,7 +155,12 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 	bool accepts_map[COT_LAST];
 	cmd_op_accepts_map(accepts_map, accepts);
 	while ((c = getopt_long(argc, argv, ":hbja:r:R:s:e:S:", opt_long, &ilongopt)) != -1) {
-		switch (c) {
+		const struct simple_opt *opt = &simple_args[c];
+		if (opt->active) {
+			if (opt->has_arg)
+				ASSERT(optarg);
+			result_extend(&res_count, &result, opt->op, opt->has_arg ? optarg : NULL);
+		} else switch (c) {
 			case 'h':
 				exclusive_cmd = true;
 				result_extend(&res_count, &result, COT_HELP, NULL);
@@ -159,37 +186,6 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 				ASSERT(optarg);
 				install_remove = true;
 				result_extend(&res_count, &result, COT_REMOVE, optarg);
-				break;
-			case 'R':
-				ASSERT(optarg);
-				result_extend(&res_count, &result, COT_ROOT_DIR, optarg);
-				break;
-			case 's':
-				ASSERT(optarg);
-				result_extend(&res_count, &result, COT_SYSLOG_LEVEL, optarg);
-				break;
-			case 'S':
-				ASSERT(optarg);
-				result_extend(&res_count, &result, COT_SYSLOG_NAME, optarg);
-				break;
-			case 'e':
-				ASSERT(optarg);
-				result_extend(&res_count, &result, COT_STDERR_LEVEL, optarg);
-				break;
-			case OPT_BATCH_VAL:
-				result_extend(&res_count, &result, COT_BATCH, NULL);
-				break;
-			case OPT_REEXEC_VAL:
-				result_extend(&res_count, &result, COT_REEXEC, NULL);
-				break;
-			case OPT_STATE_LOG_VAL:
-				result_extend(&res_count, &result, COT_STATE_LOG, NULL);
-				break;
-			case OPT_ASK_APPROVAL_VAL:
-				result_extend(&res_count, &result, COT_ASK_APPROVAL, optarg);
-				break;
-			case OPT_APPROVE_VAL:
-				result_extend(&res_count, &result, COT_APPROVE, optarg);
 				break;
 			default:
 				assert(0);
@@ -218,7 +214,8 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 			case COT_STDERR_LEVEL:
 			case COT_SYSLOG_NAME:
 			case COT_ASK_APPROVAL:
-			case COT_APPROVE: {
+			case COT_APPROVE:
+			case COT_TASK_LOG: {
 				struct cmd_op tmp = result[i];
 				for (size_t j = i; j > set_pos; j --)
 					result[j] = result[j - 1];
