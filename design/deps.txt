@@ -67,7 +67,51 @@ implication.
 
 We can consider package blocking as a `And(Not(*), Not(*), …)`.
 
-Note that this SAT formula must be satisfiable, at least by not having
+[NOTE]
+This SAT formula must be satisfiable, at least by not having
 any package installed.
 
+[NOTE]
+As we don't know in advance what request variables we may need, we may
+need to construct them as we go through the creation process and
+possibly the further the phases. This is not a real problem, but it is
+still easier to consider them pre-created in the description of the
+following phases.
 
+The critical packages
+---------------------
+
+We go through the `Install` requests and note any packages that are
+marked as „critical“. We then fix these package name variables to
+positive values (we can fix a variable value by inserting a singleton
+clause). Then we check the satisfiability of the formula. If it is not
+satisfiable, the base/critical system can't be installed and we refuse
+to continue.
+
+[NOTE]
+This is a slight simplification, since the package criticality
+can be restricted to certain versions. But for now, we don't care, if
+any candidate of a package is considered critical and such package
+name is requested to be installed, we consider it critical.
+
+`Install` and `Uninstall` requests
+----------------------------------
+
+After partitioning the requests into groups with the same priority we
+start with the highest priority. For each group we take the
+corresponding package name and request variables and assume them to be
+positive or negative (depending on if it is `Install` or `Uninstall`
+request respectively). If the group contains an `Install` and
+`Uninstall` request of the same variable, we refuse this input as
+invalid.
+
+With the variable values assumed we check satisfiability. If it is
+satisfiable, everything is fine. If not, we ask for the largest
+satisfiable subset of the assumptions. We then fix the satisfiable
+assumptions.
+
+After fixing the satisfiable variables, we move on to the next highest
+priority group.
+
+At the end of this phase we have determined all the requests we can
+satisfy and fixed them.
