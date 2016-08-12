@@ -30,12 +30,13 @@ We provide several kinds of variables:
   In case of installation request by a name only we use the package
   name variable directly. We do similar thing for
   version-dependencies.
-* Auxiliary variables. These are used when constructing complex
-  dependencies. In case we have some `Or`, `And` and `Not` operators,
-  we represent the result of each by a variable. We are not interested
-  in the values of these variables, but they make the construction of
-  the relations easier. This is similar to Tseytin transformation
-  (which has some slight differences).
+* Auxiliary variables. As there may be complex dependencies, it is
+  easier to use something like Tseytin transformation ‒ have a
+  „result“ variable for each `Or`, `And` and `Not` operator. Note that
+  since a dependency on the expression is an implication (the
+  expression must be true when the package is installed, but we don't
+  care about its value when it is not), we are free to produce only
+  one direction of value enforcement (eg. propagating down).
 
 Further, we describe the relations. The SAT solver takes CNF, but we
 describe the relations as other relations besides disjunctions here.
@@ -114,4 +115,61 @@ After fixing the satisfiable variables, we move on to the next highest
 priority group.
 
 At the end of this phase we have determined all the requests we can
-satisfy and fixed them.
+satisfy and fixed them. We also can produce warnings about which
+requests we were unable to meet.
+
+Package versions
+----------------
+
+We need to choose which packages and in what versions we want to
+install them. We don't want to install any more packages than we have
+to and we want to install the newest possible version of each package.
+However, the newest possible version has precedence over the minimal
+set of packages (eg. we want to install newer version of a package,
+even when it has an extra dependency).
+
+In general, having to keep an old version of package should be rare.
+Therefore, we start assuming any older version of package is not
+installed and try if it is satisfiable. If so, we fix these assumptions
+and move on. If it is not satisfiable, we ask for the maximal
+satisfiable subset. We take the packages with all their version
+assumptions satisfied and fix these. Then we pick a single package
+that is not yet fixed and relax its assumptions by a single version
+(eg. now it has two newest versions enabled) and try again. We repeat
+this until we reach satisfiability again.
+
+[NOTE]
+We currently computed which versions of packages will *not*
+be installed. It still says nothing about which packages we need.
+
+Package selection
+-----------------
+
+The last part is to choose which package candidates we actually want.
+We take all the ones that were not fixed yet and assume them to be
+false. This will result in unsatisfiable problem (at least in the case
+the user requests at least one package). But by examining which
+packages are not in the maximum satisfiable subset of assumptions we
+know which candidates need to be installed.
+
+Deterministic results
+---------------------
+
+In case not all results can be satisfied or when there are alternative
+dependencies, there may be multiple possible solutions. We don't want
+„flipping“, when the chosen result would be different each time and we
+would modify the list of installed packages every run.
+
+Therefore we make sure that the produced SAT problem is exactly the
+same every time, including the order of variables, packages,
+assumptions, etc. We do so by first sorting all inputs.
+
+[NOTE]
+There's a function to set seed in the SAT solver. If it turns out it
+computes different things every time, we may need to set the seed to
+constant value.
+
+[NOTE]
+We still might want to improve this further, so the solver prefers
+already existing or close solution. But that is something to think
+about later.
