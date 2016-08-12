@@ -81,11 +81,11 @@ static bool approved(struct interpreter *interpreter, const char *approval_file,
 	// Note we need to write the hash out before we start manipulating interpreter again
 	fputs(hash, report_file);
 	fputc('\n', report_file);
-	err = interpreter_call(interpreter, "transaction.approval_report", &result_count, "");
+	err = interpreter_call(interpreter, "transaction.task_report", &result_count, "");
 	ASSERT_MSG(!err, "%s", err);
-	ASSERT_MSG(result_count == 1, "Wrong number of results from transaction.approval_report: %zu", result_count);
+	ASSERT_MSG(result_count == 1, "Wrong number of results from transaction.task_report: %zu", result_count);
 	const char *report;
-	ASSERT_MSG(interpreter_collect_results(interpreter, "s", &report) == -1, "The result of transaction.approval_report is not a string");
+	ASSERT_MSG(interpreter_collect_results(interpreter, "s", &report) == -1, "The result of transaction.task_report is not a string");
 	fputs(report, report_file);
 	fclose(report_file);
 	return false;
