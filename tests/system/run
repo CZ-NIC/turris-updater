@@ -53,4 +53,4 @@ if [ -f "$DEFINITION"/cleanup ] ; then
 	. "$DEFINITION"/cleanup
 fi
 # Check it did what it should have
-diff -u -r "$TMP_DIR"/output "$ROOT_DIR"
+diff -u -N -r "$TMP_DIR"/output "$ROOT_DIR"
