@@ -127,7 +127,7 @@ trap_handler() {
 trap trap_handler EXIT INT QUIT TERM ABRT
 
 # Run the actual updater
-timeout 3000 pkgupdate --batch --state-log
+timeout 3000 pkgupdate --batch --state-log --task-log=/usr/share/updater/updater-log
 # Evaluate what has run
 EXIT_CODE="$?"
 STATE=$(cat "$STATE_DIR"/state)
