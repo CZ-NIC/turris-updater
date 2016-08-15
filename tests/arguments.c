@@ -109,6 +109,13 @@ static struct cmd_op root_no_param_ops[] = {
 	{ .type = COT_HELP },
 	{ .type = COT_CRASH }
 };
+static struct cmd_op approval_reorder_ops[] = {
+	{ .type = COT_APPROVE, .parameter = "abcde" },
+	{ .type = COT_ASK_APPROVAL, .parameter = "/tmp/report-file" },
+	{ .type = COT_APPROVE, .parameter = "123456" },
+	{ .type = COT_NO_OP, .parameter = "file:///etc/updater/entry.lua" },
+	{ .type = COT_EXIT }
+};
 static char *no_args[] = { NULL };
 static char *invalid_flag[] = { "-X", NULL };
 static char *not_allowed_flag[] = { "--batch", NULL };
@@ -144,12 +151,13 @@ static char *root_no_reorder[] = { "-R", "/dir", "-a", "pkg.ipk", NULL };
 static char *root_reorder[] = { "-a", "pkg.ipk", "-R", "/dir", NULL };
 static char *root_journal_no_reorder[] = { "-R", "/dir", "-j", NULL };
 static char *root_journal_reorder[] = { "-j", "-R", "/dir", NULL };
+static char *approval_reorder[] = { "--approve=abcde", "file:///etc/updater/entry.lua", "--ask-approval=/tmp/report-file", "--approve=123456", NULL };
 
 static const enum cmd_op_type accepts_all[] = {
-	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_BATCH, COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_NO_OP, COT_LAST
+	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_BATCH, COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_NO_OP, COT_LAST
 };
 static const enum cmd_op_type accepts_deny_no_op[] = {
-	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_BATCH, COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_LAST
+	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_BATCH, COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_LAST
 };
 static const enum cmd_op_type accepts_deny_batch[] = {
 	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_SYSLOG_NAME, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_NO_OP, COT_LAST
@@ -429,6 +437,15 @@ static struct arg_case cases[] = {
 		.args = root_journal_reorder,
 		.accepts = accepts_all,
 		.expected_ops = root_journal_ops
+	},
+	{
+		/*
+		 * Ask for approval and approve some operations.
+		 */
+		.name = "Ask for approval & approve",
+		.args = approval_reorder,
+		.accepts = accepts_all,
+		.expected_ops = approval_reorder_ops
 	}
 };
 

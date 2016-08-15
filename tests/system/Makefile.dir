@@ -6,7 +6,8 @@ TRANS_SYS_TESTS := \
 	remove-nonexistent
 
 UPD_SYS_TESTS := \
-	plan
+	plan \
+	plan-unapproved
 
 .PHONY: test-sys valgrind-sys check
 

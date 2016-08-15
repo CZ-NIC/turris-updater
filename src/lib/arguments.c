@@ -55,7 +55,7 @@ static const char *opt_help[COT_LAST] = {
 	[COT_ROOT_DIR] =
 		"-R <path>			Use given path as a root directory.\n",
 	[COT_BATCH] =
-		"--batch 			Run without user confirmation.\n",
+		"--batch			Run without user confirmation.\n",
 	[COT_STATE_LOG] =
 		"--state-log			Dump state to files in /etc/updater-state directory.\n",
 	[COT_SYSLOG_LEVEL] =
@@ -64,12 +64,18 @@ static const char *opt_help[COT_LAST] = {
 		"-e <stderr-level>		What level of messages to send to stderr.\n",
 	[COT_SYSLOG_NAME] =
 		"-S <syslog-name>		Under which name messages are send to syslog.\n",
+	[COT_ASK_APPROVAL] =
+		"--ask-approval=<report-file>	Require user's approval to proceed (abort if --approve with appropriate ID is not present, plan of action is put into the report-file if approval is needed)\n",
+	[COT_APPROVE] =
+		"--approve=<id>			Approve actions with given ID (multiple allowed, from a corresponding report-file).\n"
 };
 
 enum option_val {
 	OPT_BATCH_VAL = 260,
 	OPT_STATE_LOG_VAL,
 	OPT_REEXEC_VAL,
+	OPT_ASK_APPROVAL_VAL,
+	OPT_APPROVE_VAL,
 };
 
 static const struct option opt_long[] = {
@@ -81,7 +87,9 @@ static const struct option opt_long[] = {
 	{ .name = "batch", .has_arg = no_argument, .val = OPT_BATCH_VAL },
 	{ .name = "reexec", .has_arg = no_argument, .val = OPT_REEXEC_VAL },
 	{ .name = "state-log", .has_arg = no_argument, .val = OPT_STATE_LOG_VAL },
-	{NULL}
+	{ .name = "ask-approval", .has_arg = required_argument, .val = OPT_ASK_APPROVAL_VAL },
+	{ .name = "approve", .has_arg = required_argument, .val = OPT_APPROVE_VAL },
+	{ .name = NULL }
 };
 
 // Builds new result with any number of error messages. But specify their count as
@@ -177,6 +185,12 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 			case OPT_STATE_LOG_VAL:
 				result_extend(&res_count, &result, COT_STATE_LOG, NULL);
 				break;
+			case OPT_ASK_APPROVAL_VAL:
+				result_extend(&res_count, &result, COT_ASK_APPROVAL, optarg);
+				break;
+			case OPT_APPROVE_VAL:
+				result_extend(&res_count, &result, COT_APPROVE, optarg);
+				break;
 			default:
 				assert(0);
 		}
@@ -202,7 +216,9 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 			case COT_STATE_LOG:
 			case COT_SYSLOG_LEVEL:
 			case COT_STDERR_LEVEL:
-			case COT_SYSLOG_NAME: {
+			case COT_SYSLOG_NAME:
+			case COT_ASK_APPROVAL:
+			case COT_APPROVE: {
 				struct cmd_op tmp = result[i];
 				for (size_t j = i; j > set_pos; j --)
 					result[j] = result[j - 1];
