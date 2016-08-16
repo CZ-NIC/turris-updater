@@ -118,7 +118,29 @@ valgrind-locks: $(O)/bin/locks
 test: test-locks
 valgrind: valgrind-locks
 
-check: test valgrind luac-autoload luacheck
+.PHONY: cppcheck
+define DO_STATIC_C_TEST
+
+cppcheck: cppcheck-$(1)-$(2)
+
+.PHONY: cppcheck-$(1)
+cppcheck-$(1): cppcheck-$(1)-$(2)
+
+.PHONY: cppcheck-$(1)-$(2)
+cppcheck-$(1)-$(2): $(S)/$(3)/$(2).c
+	cppcheck --inline-suppr --error-exitcode=1  $$<
+
+endef
+
+CPPCHECK_MODULES = src/lib/libupdater src/opkg-trans/opkg-trans src/pkgupdate/pkgupdate
+# We are ignoring *.embed because those are generated and we spare them of checking.
+$(eval $(foreach GROUP,$(CPPCHECK_MODULES), \
+	$(foreach MOD,$(filter-out %.embed,$($(notdir $(GROUP))_MODULES)), \
+		$(call DO_STATIC_C_TEST,$(notdir $(GROUP)),$(MOD),$(dir $(GROUP))) \
+	) \
+))
+
+check: test valgrind luac-autoload luacheck cppcheck
 
 include $(S)/tests/lunit-launch/Makefile.dir
 include $(S)/tests/system/Makefile.dir

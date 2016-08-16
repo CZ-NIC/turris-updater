@@ -85,6 +85,8 @@ static void journal_write(enum record_type type, size_t num_params, const size_t
 	for (size_t i = 0; i < num_params; i ++) {
 		uint32_t len = lens[i];
 		memcpy(record->data + i * sizeof(uint32_t), &len, sizeof(uint32_t));
+		// This is workaround for cppcheck. This "for" is not recognized as memory initialization and would be reported as error.
+		// cppcheck-suppress uninitStructMember
 		memcpy(record->data + pos, params[i], lens[i]);
 		pos += lens[i];
 	}

@@ -951,8 +951,10 @@ int interpreter_collect_results(struct interpreter *interpreter, const char *spe
 	va_list args;
 	va_start(args, spec);
 	for (; *spec; spec ++) {
-		if (pos >= top)
+		if (pos >= top) {
+			va_end(args);
 			return pos;
+		}
 		switch (*spec) {
 			case 'b': {
 				bool *b = va_arg(args, bool *);
