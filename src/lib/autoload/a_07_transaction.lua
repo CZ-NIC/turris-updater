@@ -410,8 +410,9 @@ function approval_hash()
 end
 
 -- Provide a human-readable report of the queued tasks
-function approval_report()
-	return table.concat(queued_tasks())
+function task_report(prefix)
+	prefix = prefix or ''
+	return table.concat(utils.map(queued_tasks(), function (i, str) return i, prefix .. str end))
 end
 
 return _M
