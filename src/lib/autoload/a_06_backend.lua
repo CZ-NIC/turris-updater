@@ -622,6 +622,55 @@ function collision_check(current_status, remove_pkgs, add_pkgs)
 	return collisions, remove
 end
 
+--[[
+Prepares table which is used for steal_config. Keys are all configuration files
+of all not-installed packages. As values are tables with name of package (key pkg)
+and hash (key hash).
+--]]
+function not_installed_confs(current_status)
+	local not_installed_confs = {}
+	for pkg, status in pairs(current_status) do
+		if status.Status[3] == "not-installed" then
+			for conf, hash in pairs(status.Conffiles) do
+				not_installed_confs[conf] = { pkg = pkg, hash = hash }
+			end
+		end
+	end
+	return not_installed_confs
+end
+
+--[[
+Checks if configs aren't part of some not installed package. If such configuration
+is located, it is removed from not installed package and if it is last config,
+not-installed package entry is removed.
+
+The current_status is what is returned from status_parse(). The not_installed_confs
+is what not_installed_confs function returns. The configs is table of new
+configuration files.
+
+Returns table where key is configuration file name and value is hash.
+--]]
+function steal_configs(current_status, not_installed_confs, configs)
+	local steal = {}
+	-- Go trough all configs and check if they are not in not_installed_confs
+	for conf, _ in pairs(configs) do
+		if not_installed_confs[conf] then
+			local pkg = not_installed_confs[conf].pkg
+			DBG("Stealing \"" .. conf .. "\" from package " .. pkg)
+			steal[conf] = not_installed_confs[conf].hash
+			not_installed_confs[conf] = nil
+			-- Remove config from not-installed package
+			current_status[pkg].Conffiles[conf] = nil
+			-- Remove package if it has no other coffiles.
+			if not next(current_status[pkg].Conffiles) then
+				DBG("not-installed package " .. pkg .. " has no more conffiles, removing.")
+				current_status[pkg] = nil
+			end
+		end
+	end
+	return steal
+end
+
 -- Ensure the given directory exists
 function dir_ensure(dir)
 	-- Try creating it.

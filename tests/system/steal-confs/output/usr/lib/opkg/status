@@ -1,0 +1,34 @@
+Package: dnsmasq-dhcpv6
+Version: 2.73-1
+Depends: libc
+Status: install user installed
+Architecture: mpc85xx
+Conffiles:
+ /etc/config/dhcp f81fe9bd228dede2165be71e5c9dcf76cc298bc8b6c877974a172a66fac7cf45
+ /etc/dnsmasq.conf 1e6ab19c1ae5e70d609ac7b6246541d52042e4dee1892f825266507ef52d7dfd
+Installed-Time: 0
+
+Package: libgcc
+Version: 4.8-linaro-3
+Status: install user installed
+Architecture: mpc85xx
+Installed-Time: 0
+
+Package: libc
+Version: 0.9.33.2-3
+Depends: libgcc
+Status: install user installed
+Architecture: mpc85xx
+Installed-Time: 0
+
+Package: dropbear
+Version: 2015.67-1
+Depends: libc
+Status: install user installed
+Architecture: mpc85xx
+Conffiles:
+ /etc/config/dropbear 0198dbc97b5a9aac76a5c6233684571ccdcc91fcb735e91c36d2b06a98158589
+ /etc/dropbear/dropbear_rsa_host_key e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+ /etc/dropbear/dropbear_dss_host_key e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+Installed-Time: 0
+

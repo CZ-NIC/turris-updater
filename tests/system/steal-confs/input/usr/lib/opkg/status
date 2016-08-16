@@ -1,0 +1,31 @@
+Package: libc
+Version: 0.9.33.2-3
+Depends: libgcc
+Status: install user installed
+Architecture: mpc85xx
+Installed-Time: 1471265962
+
+Package: libgcc
+Version: 4.8-linaro-3
+Status: install user installed
+Architecture: mpc85xx
+Installed-Time: 1471265957
+
+Package: dnsmasq-full
+Version: 2.73-1
+Depends: libc, libnettle, kmod-ipt-ipset
+Status: install user not-installed
+Architecture: mpc85xx
+Conffiles:
+ /etc/config/dhcp f81fe9bd228dede2165be71e5c9dcf76cc298bc8b6c877974a172a66fac7cf45
+Installed-Time: 1471261541
+
+Package: dropbear
+Version: 2015.67-1
+Depends: libc
+Status: install user not-installed
+Architecture: mpc85xx
+Conffiles:
+ /etc/config/dropbear 0198dbc97b5a9aac76a5c6233684571ccdcc91fcb735e91c36d2b06a98158589
+Installed-Time: 1471266108
+

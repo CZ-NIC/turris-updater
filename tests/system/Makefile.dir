@@ -7,7 +7,8 @@ TRANS_SYS_TESTS := \
 
 UPD_SYS_TESTS := \
 	plan \
-	plan-unapproved
+	plan-unapproved \
+	steal-confs
 
 .PHONY: test-sys valgrind-sys check
 

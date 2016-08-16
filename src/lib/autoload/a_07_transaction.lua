@@ -139,6 +139,9 @@ local function pkg_collision_check(status, to_remove, to_install)
 end
 
 local function pkg_move(status, plan, errors_collected)
+	-- Prepare table of not installed confs for config stealing
+	local not_installed_confs = backend.not_installed_confs(status)
+
 	local all_configs = {}
 	-- Go through the list once more and perform the prepared operations
 	for _, op in ipairs(plan) do
@@ -154,6 +157,8 @@ local function pkg_move(status, plan, errors_collected)
 			else
 				script(errors_collected, op.control.Package, "preinst", "install", op.control.Version)
 			end
+			local steal = backend.steal_configs(status, not_installed_confs, op.configs)
+			utils.table_merge(op.old_configs, steal)
 			backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.old_configs)
 			status[op.control.Package] = op.control
 		end
