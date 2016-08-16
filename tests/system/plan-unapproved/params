@@ -1,1 +1,1 @@
-file://$ROOT_DIR/config --batch -R "$ROOT_DIR" --ask-approval=$ROOT_DIR/action_plan
+file://$ROOT_DIR/config --batch -R "$ROOT_DIR" --ask-approval=$ROOT_DIR/action_plan --task-log="$ROOT_DIR/task-log"

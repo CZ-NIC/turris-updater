@@ -56,6 +56,8 @@ enum cmd_op_type {
 	COT_STDERR_LEVEL,
 	// Name of the syslog
 	COT_SYSLOG_NAME,
+	// Log tasks into a file
+	COT_TASK_LOG,
 	// Argument isn't option.
 	COT_NO_OP,
 	// Automatic last dummy value to know size of enum

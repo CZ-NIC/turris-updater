@@ -631,14 +631,19 @@ function test_approval_hash()
 	}))
 end
 
-function test_approval_report()
-	assert_equal('', transaction.approval_report())
+function test_task_report()
+	assert_equal('', transaction.task_report())
+	assert_equal('', transaction.task_report('prefix '))
 	transaction.queue_install_downloaded('', "pkg1", 13)
 	transaction.queue_remove("pkg2")
 	assert_equal([[
 install	13	pkg1
 remove	-	pkg2
-]], transaction.approval_report())
+]], transaction.task_report())
+	assert_equal([[
+prefix install	13	pkg1
+prefix remove	-	pkg2
+]], transaction.task_report('prefix '))
 end
 
 function teardown()

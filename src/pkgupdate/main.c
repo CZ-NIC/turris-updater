@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <time.h>
 
 // From the embed file, embedded files to binary
 extern struct file_index_element uriinternal[];
@@ -45,7 +46,7 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 }
 
 static const enum cmd_op_type cmd_op_allows[] = {
-	COT_BATCH, COT_NO_OP, COT_REEXEC, COT_STATE_LOG, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_LAST
+	COT_BATCH, COT_NO_OP, COT_REEXEC, COT_STATE_LOG, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_TASK_LOG, COT_LAST
 };
 
 static void print_help() {
@@ -81,14 +82,22 @@ static bool approved(struct interpreter *interpreter, const char *approval_file,
 	// Note we need to write the hash out before we start manipulating interpreter again
 	fputs(hash, report_file);
 	fputc('\n', report_file);
-	err = interpreter_call(interpreter, "transaction.approval_report", &result_count, "");
+	err = interpreter_call(interpreter, "transaction.task_report", &result_count, "");
 	ASSERT_MSG(!err, "%s", err);
-	ASSERT_MSG(result_count == 1, "Wrong number of results from transaction.approval_report: %zu", result_count);
+	ASSERT_MSG(result_count == 1, "Wrong number of results from transaction.task_report: %zu", result_count);
 	const char *report;
-	ASSERT_MSG(interpreter_collect_results(interpreter, "s", &report) == -1, "The result of transaction.approval_report is not a string");
+	ASSERT_MSG(interpreter_collect_results(interpreter, "s", &report) == -1, "The result of transaction.task_report is not a string");
 	fputs(report, report_file);
 	fclose(report_file);
 	return false;
+}
+
+static const char *time_load(void) {
+	static char timebuf[18]; // "YYYY-MM-DD HH:mm\t\0"
+	time_t tm = time(NULL);
+	size_t result = strftime(timebuf, sizeof timebuf, "%F %R\t", gmtime(&tm));
+	ASSERT(result == sizeof timebuf - 1);
+	return timebuf;
 }
 
 int main(int argc, char *argv[]) {
@@ -105,6 +114,7 @@ int main(int argc, char *argv[]) {
 	const char *approval_file = NULL;
 	const char **approvals = NULL;
 	size_t approval_count = 0;
+	const char *task_log = NULL;
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
 			case COT_HELP: {
@@ -155,6 +165,9 @@ int main(int argc, char *argv[]) {
 				approvals[approval_count - 1] = op->parameter;
 				break;
 			}
+			case COT_TASK_LOG:
+				task_log = op->parameter;
+				break;
 			default:
 				DIE("Unknown COT");
 		}
@@ -202,11 +215,34 @@ int main(int argc, char *argv[]) {
 		setenv("ROOT_DIR", root_dir, true);
 		exec_dir(events, hook_path);
 	}
+	if (task_log) {
+		FILE *log = fopen(task_log, "a");
+		if (log) {
+			const char *timebuf = time_load();
+			fprintf(log, "%sTRANSACTION START\n", timebuf);
+			err = interpreter_call(interpreter, "transaction.task_report", &result_count, "s", timebuf);
+			ASSERT_MSG(!err, "%s", err);
+			const char *content;
+			ASSERT_MSG(result_count == 1, "Wrong number of results of transaction.task_report (%zu)", result_count);
+			ASSERT_MSG(interpreter_collect_results(interpreter, "s", &content) == -1, "The result of transaction.task_report is not string");
+			fputs(content, log);
+			fclose(log);
+		} else
+			WARN("Couldn't store task log %s: %s", task_log, strerror(errno));
+	}
 	err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
 	ASSERT_MSG(!err, "%s", err);
 	trans_ok = results_interpret(interpreter, result_count);
 	err = interpreter_call(interpreter, "updater.cleanup", NULL, "b", trans_ok);
 	ASSERT_MSG(!err, "%s", err);
+	if (task_log) {
+		FILE *log = fopen(task_log, "a");
+		if (log) {
+			fprintf(log, "%sTRANSACTION END\n", time_load());
+			fclose(log);
+		} else
+			WARN("Could not store task log end %s: %s", task_log, strerror(errno));
+	}
 	INFO("Executing postupdate hooks...");
 	const char *hook_path = aprintf("%s%s", root_dir, hook_postupdate);
 	setenv("SUCCESS", trans_ok ? "true" : "false", true); // ROOT_DIR is already set
