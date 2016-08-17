@@ -37,6 +37,11 @@ We provide several kinds of variables:
   expression must be true when the package is installed, but we don't
   care about its value when it is not), we are free to produce only
   one direction of value enforcement (eg. propagating down).
+* Penalty variables. When we choose from multiple options, we want to
+  prefer some based on local criteria. These variables are added to
+  these choices and are forced to false whenever a non-optimal choice
+  needs to be done. By preferring these variables to be true, we
+  prefer the better choices.
 
 Further, we describe the relations. The SAT solver takes CNF, but we
 describe the relations as other relations besides disjunctions here.
@@ -60,11 +65,17 @@ package name variable. Each dependency with version is handled with a
 request variable.
 
 The complex dependencies are handled by adding the corresponding
-variables. The `And` operator adds multiple separate clauses, similar
-to how dependencies of a candidate are handled. The `Or` produces
-single clause. The `Not` operator expects there's only single child
-(that should be handled by the normalisation) and `Not` produces an
-implication.
+variables. The values are forced to correspond to the values of
+subexpressions.
+
+We add a penalty variable to each `Or` that is forced to false if
+another but first option is selected (this is different than not
+selecting the first one, as it may be possible to choose both).
+
+We also penalize any candidates that are not latest. We add a penalty
+variable for each not latest candidate. We also imply from the older
+penalty variables to the newer ones, so we can express that version 1
+is even less preferred than version 2 (which is worse than version 3).
 
 We can consider package blocking as a `And(Not(*), Not(*), …)`.
 
@@ -118,25 +129,14 @@ At the end of this phase we have determined all the requests we can
 satisfy and fixed them. We also can produce warnings about which
 requests we were unable to meet.
 
-Package versions
-----------------
+Package versions & alternatives
+-------------------------------
 
-We need to choose which packages and in what versions we want to
-install them. We don't want to install any more packages than we have
-to and we want to install the newest possible version of each package.
-However, the newest possible version has precedence over the minimal
-set of packages (eg. we want to install newer version of a package,
-even when it has an extra dependency).
-
-In general, having to keep an old version of package should be rare.
-Therefore, we start assuming any older version of package is not
-installed and try if it is satisfiable. If so, we fix these assumptions
-and move on. If it is not satisfiable, we ask for the maximal
-satisfiable subset. We take the packages with all their version
-assumptions satisfied and fix these. Then we pick a single package
-that is not yet fixed and relax its assumptions by a single version
-(eg. now it has two newest versions enabled) and try again. We repeat
-this until we reach satisfiability again.
+We choose the `Or`-alternatives and candidates by using the penalty
+variables. We first choose the `Or`-alternatives. We try to assume all
+the `Or`-penalty variables are true, and fix them (or the maximal
+satisfiable subset, if it can't be done). We do the same with the
+candidates penalty variables.
 
 [NOTE]
 We currently computed which versions of packages will *not*
@@ -172,4 +172,6 @@ constant value.
 [NOTE]
 We still might want to improve this further, so the solver prefers
 already existing or close solution. But that is something to think
-about later.
+about later. We may do that by choosing all the maximal satisfiable
+sets and picking the lexicographically smallest, or something like
+that.
