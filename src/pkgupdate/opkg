@@ -43,7 +43,7 @@ while [ "$1" ]; do
 			break
 			;;
 		upgrade)
-			echo "Using opkg for upgrading is discouraged! Use update.sh instead."
+			echo "Using opkg for upgrading is discouraged! Use updater.sh instead."
 			echo "Press CTRL+C to abort, return to continue anyway."
 			read
 			;;
