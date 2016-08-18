@@ -46,6 +46,7 @@ while [ "$1" ]; do
 			echo "Using opkg for upgrading is discouraged! Use updater.sh instead."
 			echo "Press CTRL+C to abort, return to continue anyway."
 			read
+			ARGS="$ARGS $1"
 			;;
 		*)
 			ARGS="$ARGS $1"
