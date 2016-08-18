@@ -153,6 +153,8 @@ if $NEED_APPROVAL ; then
 fi
 # Run the actual updater
 timeout 3000 pkgupdate --batch --state-log --task-log=/usr/share/updater/updater-log $APPROVALS
+EXIT_CODE="$?"
+
 if [ -f "$APPROVAL_ASK_FILE" ] ; then
 	read HASH <"$APPROVAL_ASK_FILE"
 	if ! grep -q "^$HASH" "$APPROVAL_GRANTED_FILE" ; then
@@ -163,9 +165,17 @@ if [ -f "$APPROVAL_ASK_FILE" ] ; then
 			timeout 120 create_notification -s update "Updater žádá o autorizaci akcí. Autorizaci můžete přidělit v administračním rozhraní Foris." "The updater requests an autorisation of its planned actions. You can grant it in the Foris administrative interface." || echo "Create notification failed" | logger -t updater -p daemon.error
 		fi
 	fi
+else
+	if [ "$EXIT_CODE" = 0 ] ; then
+		# When we run successfully and didn't need any further approval, we
+		# used up all the current approvals by that (if we ever want to
+		# do the same thing again, we need to ask again). So delete all
+		# the granted and asked lines ‒ asked might have reached approval
+		# by being there long enough. Keep any other (like denied) permanently.
+		sed -i -e '/asked/d;/granted/d' "$APPROVAL_GRANTED_FILE"
+	fi
 fi
 # Evaluate what has run
-EXIT_CODE="$?"
 STATE=$(cat "$STATE_DIR"/state)
 if [ "$EXIT_CODE" != "0" ] && [ "$STATE" != "error" ] ; then
 	echo lost >"$STATE_DIR"/state
