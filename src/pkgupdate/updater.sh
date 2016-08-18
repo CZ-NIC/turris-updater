@@ -38,6 +38,8 @@ STATE_DIR=/tmp/update-state
 LOCK_DIR="$STATE_DIR/lock"
 LOG_FILE="$STATE_DIR/log2"
 PID_FILE="$STATE_DIR/pid"
+APPROVAL_ASK_FILE=/usr/share/updater/need_approval
+APPROVAL_GRANTED_FILE=/usr/share/updater/approvals
 EXIT_CODE=1
 BACKGROUND=false
 BACKGROUNDED=false
@@ -126,8 +128,42 @@ trap_handler() {
 }
 trap trap_handler EXIT INT QUIT TERM ABRT
 
+# Check if we need an approval and if so, if wi get it.
+APPROVALS=
+NEED_APPROVAL=$( (uci -q get updater.approvals.need || echo false) | sed -e 's/0/false/;s/1/true/')
+if $NEED_APPROVAL ; then
+	APPROVALS=--ask-approval="$APPROVAL_ASK_FILE"
+	AUTO_GRANT=$(uci -q get updater.approvals.auto_grant_seconds)
+	AUTO_GRANT_TRESHOLD=
+	if [ "$AUTO_GRANT" ] ; then
+		AUTO_GRANT_TRESHOLD=$(expr $(date +%s) - $AUTO_GRANT)
+	fi
+	while read HASH MODE TIME ; do
+		case "$MODE" in
+			granted)
+				APPROVALS="$APPROVALS --approve=$HASH"
+				;;
+			asked)
+				if [ "$AUTO_GRANT" -a "$TIME" -le "$AUTO_GRANT_TRESHOLD" ] ; then
+					APPROVALS="$APPROVALS --approve=$HASH"
+				fi
+				;;
+		esac
+	done <"$APPROVAL_GRANTED_FILE"
+fi
 # Run the actual updater
-timeout 3000 pkgupdate --batch --state-log --task-log=/usr/share/updater/updater-log
+timeout 3000 pkgupdate --batch --state-log --task-log=/usr/share/updater/updater-log $APPROVALS
+if [ -f "$APPROVAL_ASK_FILE" ] ; then
+	read HASH <"$APPROVAL_ASK_FILE"
+	if ! grep -q "^$HASH" "$APPROVAL_GRANTED_FILE" ; then
+		echo "$HASH asked $(date +%s)" >>"$APPROVAL_GRANTED_FILE"
+		NOTIFY_APPROVAL=$( (uci -q get updater.approvals.notify || echo true) | sed -e 's/0/false/;s/1/true/')
+		echo "Asking for authorisation $HASH" | logger -t updater -p daemon.info
+		if $NOTIFY_APPROVAL ; then
+			timeout 120 create_notification -s update "Updater žádá o autorizaci akcí. Autorizaci můžete přidělit v administračním rozhraní Foris." "The updater requests an autorisation of its planned actions. You can grant it in the Foris administrative interface." || echo "Create notification failed" | logger -t updater -p daemon.error
+		fi
+	fi
+fi
 # Evaluate what has run
 EXIT_CODE="$?"
 STATE=$(cat "$STATE_DIR"/state)
