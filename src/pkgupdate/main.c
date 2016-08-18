@@ -161,6 +161,7 @@ int main(int argc, char *argv[]) {
 				approval_file = op->parameter;
 				break;
 			case COT_APPROVE: {
+				// cppcheck-suppress memleakOnRealloc
 				approvals = realloc(approvals, (++ approval_count) * sizeof *approvals);
 				approvals[approval_count - 1] = op->parameter;
 				break;

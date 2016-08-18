@@ -258,6 +258,7 @@ void args_backup(int argc, const char **argv) {
 	char *result = NULL;
 	do {
 		s += 128;
+		// cppcheck-suppress memleakOnRealloc
 		orig_wd = realloc(orig_wd, s);
 		result = getcwd(orig_wd, s);
 	} while (result == NULL && errno == ERANGE); // Need more space?
