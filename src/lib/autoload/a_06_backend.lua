@@ -560,6 +560,9 @@ with removed packages.
 Note that when upgrading, the old packages needs to be considered removed
 (and listed in the remove_pkgs set).
 
+Note that we are only working with files and directories they are in. Directories
+containing no files are not checked.
+
 The current_status is what is returned from status_parse(). The remove_pkgs
 is set of package names (without versions) to remove. It's not a problem if
 the package is not installed. The add_pkgs is a table, keys are names of packages
@@ -569,31 +572,144 @@ It returns a table, values are name of files where are new collisions, values
 are tables where the keys are names of packages and values are either `existing`
 or `new`.
 
-The second result is a set of all the files that shall disappear after
+The second result is table of file-directory/directory-file collisions, those can be
+resolvable by early deletions. Keys are names of packages and values are sets of
+all files to be deleted.
+
+The third result is a set of all the files that shall disappear after
 performing these operations.
 ]]
 function collision_check(current_status, remove_pkgs, add_pkgs)
-	-- List of all files in the OS
-	local files_all = {}
-	-- Files that might disappear (but we need to check if another package claims them as well)
-	local remove_candidates = {}
-	-- Mark the given file as belonging to the package. Return if there's a collision.
-	local function file_insert(fname, pkg_name, when)
-		local collision = true
-		-- The file hasn't existed yet, so there's no collision
-		if not files_all[fname] then
-			files_all[fname] = {}
-			collision = false
+	--[[
+	This is tree constructed with tables. There can be two kinds of nodes,
+	directories and others. Directories contains field "nodes" containing
+	other nodes. Other non-directory nodes has package they belong to under "pkg"
+	key, one of string "to-remove", "existing" or "new" under "when" key. And
+	both have full path under "path" key.
+	--]]
+	local files_tree = {}
+	-- First returned result. Table with collisions. Key is collision path and value is table with packages names as keys and "when" as values.
+	local collisions = {}
+	-- Second returned result. We fill this with nodes we want to remove before given package is merged to file system
+	local early_remove = {}
+	-- Iterates trough all non-directory nodes from given node.
+	local function files_tree_iterate(root_node)
+		local function iterate_internal(nodes)
+			if #nodes == 0 then
+				return nil
+			end
+			local n = nodes[#nodes]
+			nodes[#nodes] = nil
+			if n.nodes then
+				local indx = 0
+				utils.arr_append(nodes, utils.map(n.nodes, function (_, val)
+					indx = indx + 1
+					return indx, val
+				end
+				))
+				return iterate_internal(nodes)
+			end
+			return nodes, n
 		end
-		files_all[fname][pkg_name] = when
-		return collision
+		return iterate_internal, { root_node }
 	end
-	-- Build the structure for the current state
+	-- Adds file to files tree and detect collisions
+	local function file_insert(fname, pkg_name, when)
+		-- Returns node for given path. If node contains "pkg" field then it is not directory. If it contains "nodes" field, then it is directory. If it has neither then it was newly created.
+		local function files_tree_node(path)
+			local node = files_tree
+			local ppath = ""
+			for n in path:gmatch("[^/]+") do
+				ppath = ppath .. "/" .. n
+				if node.pkg then -- Node is file. We can't continue.
+					return false, node
+				else -- Node is not file or unknown
+					if not node.nodes then node.nodes = {} end
+					if not node.nodes[n] then node.nodes[n] = {} end
+					node = node.nodes[n]
+					node.path = ppath
+				end
+			end
+			return true, node
+		end
+		local function set_node(node)
+			node.pkg = pkg_name
+			node.when = when
+			return node
+		end
+		local function add_collision(path, coll)
+			if collisions[path] then
+				utils.table_merge(collisions[path], coll)
+			else
+				collisions[path] = coll
+			end
+		end
+		local function set_early_remove(node)
+			if not early_remove[pkg_name] then
+				early_remove[pkg_name] = {}
+			end
+			for _, n in files_tree_iterate(node) do
+				early_remove[pkg_name][n.path] = true
+				n.pkg = nil -- Drop package name. This effectively makes it to not appear in "remove" list
+			end
+			node.nodes = nil -- Drop whole tree. It should be freed by GC except some nodes that might be in remove_candidates list.
+		end
+
+		local ok, node = files_tree_node(fname)
+		if not ok then -- We collided to file
+			-- We are trying to replace file with directory
+			if node.when == "to-remove" then
+				set_early_remove(node)
+				return file_insert(fname, pkg_name, when)
+			else
+				add_collision(node.path, {
+					[pkg_name] = when,
+					[node.pkg] = node.when
+				})
+				return nil
+			end
+		else -- Required node returned
+			if node.nodes then
+				-- Trying replace directory with file.
+				local coll = {}
+				for _, snode in files_tree_iterate(node) do
+					if snode.when ~= "to-remove" then
+						coll[snode.pkg] = snode.when
+					end
+				end
+				if next(coll) then
+					coll[pkg_name] = when
+					add_collision(node.path, coll)
+					return nil
+				else
+					-- We can remove this directory
+					set_early_remove(node)
+					return set_node(node)
+				end
+			else
+				if node.pkg and node.pkg ~= pkg_name and node.when ~= "to-remove" then
+					-- File with file collision
+					add_collision(node.path, {
+						[pkg_name] = when,
+						[node.pkg] = node.when
+					})
+					return nil
+				else
+					-- This is new non-directory node or node of same package or previous node was marked as to-remove
+					return set_node(node)
+				end
+			end
+		end
+	end
+
+	-- Non-directory nodes that might disappear (but we need to check if another package claims them as well)
+	local remove_candidates = {}
+	-- Build tree of current state.
 	for name, status in pairs(current_status) do
 		if remove_pkgs[name] then
 			-- If we remove the package, all its files might disappear
 			for f in pairs(status.files or {}) do
-				remove_candidates[f] = true
+				remove_candidates[f] = file_insert(f, name, "to-remove")
 			end
 		else
 			-- Otherwise, the file is in the OS
@@ -602,24 +718,23 @@ function collision_check(current_status, remove_pkgs, add_pkgs)
 			end
 		end
 	end
-	local collisions = {}
-	-- No go through the new packages and check if there are any new collisions
+	-- No collisions should happen until this point. If it does, we ignore it (it shouldn't be caused by us)
+	collisions = {}
+	early_remove = {}
+	-- Now go through the new packages
 	for name, files in pairs(add_pkgs) do
 		for f in pairs(files) do
-			if file_insert(f, name, 'new') then
-				-- In the end, there'll be the newest version of the table with all the collisions
-				collisions[f] = files_all[f]
-			end
+			file_insert(f, name, "new")
 		end
 	end
 	-- Files that shall really disappear
 	local remove = {}
-	for f in pairs(remove_candidates) do
-		if not files_all[f] then
+	for f, node in pairs(remove_candidates) do
+		if node.pkg and node.when == "to-remove" then
 			remove[f] = true
 		end
 	end
-	return collisions, remove
+	return collisions, early_remove, remove
 end
 
 --[[
