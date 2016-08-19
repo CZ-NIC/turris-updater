@@ -11,3 +11,5 @@ pkgupdate_MODULES := \
 	uriinternal.embed
 
 pkgupdate_LOCAL_LIBS := updater
+
+DOCS += src/pkgupdate/interaction
