@@ -132,24 +132,18 @@ trap trap_handler EXIT INT QUIT TERM ABRT
 APPROVALS=
 NEED_APPROVAL=$( (uci -q get updater.approvals.need || echo false) | sed -e 's/0/false/;s/1/true/')
 if $NEED_APPROVAL ; then
-	APPROVALS=--ask-approval="$APPROVAL_ASK_FILE"
-	AUTO_GRANT=$(uci -q get updater.approvals.auto_grant_seconds)
-	AUTO_GRANT_TRESHOLD=
-	if [ "$AUTO_GRANT" ] ; then
-		AUTO_GRANT_TRESHOLD=$(expr $(date +%s) - $AUTO_GRANT)
-	fi
-	while read HASH MODE TIME ; do
-		case "$MODE" in
-			granted)
-				APPROVALS="$APPROVALS --approve=$HASH"
-				;;
-			asked)
-				if [ "$AUTO_GRANT" -a "$TIME" -le "$AUTO_GRANT_TRESHOLD" ] ; then
-					APPROVALS="$APPROVALS --approve=$HASH"
-				fi
-				;;
-		esac
-	done <"$APPROVAL_GRANTED_FILE"
+	# Get a treshold time when we grant approval automatically. In case we don't, we set the time to
+	# 1, which is long long time ago in the glorious times when automatic updaters were not
+	# needed.
+	AUTO_GRANT_TRESHOLD=$(expr $(date -u +%s) - $(uci -q get updater.approvals.auto_grant_seconds) 2>/dev/null || echo 1)
+	# Compute the approval parameters. To get the granted approvals, filter only the ones
+	# that are „granted“ and „asked“. The „granted“ get moved to time 0, so they are before
+	# even the treshold when we don't auto-approve. The asked ones retain their own time.
+	# We also insert a mark at the trashold time.
+	#
+	# We sort all these events according to their time they happened and cut off anything that
+	# at the treshold time or newer.
+	APPROVALS=--ask-approval="$APPROVAL_ASK_FILE $( (sed -ne 's/\(.*\) asked \(.*\)/\2 \1/p;s/\(.*\) granted .*/0 \1/p' "$APPROVAL_GRANTED_FILE" 2>/dev/null ; echo "$AUTO_GRANT_TRESHOLD" cutoff) | sort -n | sed -ne '/cutoff/q;s/.* /--approve=/p' )"
 fi
 # Run the actual updater
 timeout 3000 pkgupdate --batch --state-log --task-log=/usr/share/updater/updater-log $APPROVALS
@@ -158,7 +152,7 @@ EXIT_CODE="$?"
 if [ -f "$APPROVAL_ASK_FILE" ] ; then
 	read HASH <"$APPROVAL_ASK_FILE"
 	if ! grep -q "^$HASH" "$APPROVAL_GRANTED_FILE" ; then
-		echo "$HASH asked $(date +%s)" >>"$APPROVAL_GRANTED_FILE"
+		echo "$HASH asked $(date -u +%s)" >>"$APPROVAL_GRANTED_FILE"
 		NOTIFY_APPROVAL=$( (uci -q get updater.approvals.notify || echo true) | sed -e 's/0/false/;s/1/true/')
 		echo "Asking for authorisation $HASH" | logger -t updater -p daemon.info
 		if $NOTIFY_APPROVAL ; then
