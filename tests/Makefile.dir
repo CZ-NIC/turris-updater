@@ -128,7 +128,7 @@ cppcheck-$(1): cppcheck-$(1)-$(2)
 
 .PHONY: cppcheck-$(1)-$(2)
 cppcheck-$(1)-$(2): $(S)/$(3)/$(2).c
-	cppcheck --inline-suppr --error-exitcode=1  $$<
+	cppcheck --enable=style --enable=warning --std=c99 --suppress=allocaCalled --template='{file}:{line},{severity},{id},{message}' --inline-suppr --error-exitcode=1  $$<
 
 endef
 

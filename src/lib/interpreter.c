@@ -915,6 +915,7 @@ const char *interpreter_call(struct interpreter *interpreter, const char *functi
 				break; \
 			}
 			// Represent bool as int, because of C type promotions
+			// cppcheck-suppress va_end_missing (false positive: look just below the for cycle)
 			CASE(int, 'b', boolean);
 			case 'n': // No param here
 				lua_pushnil(L);
