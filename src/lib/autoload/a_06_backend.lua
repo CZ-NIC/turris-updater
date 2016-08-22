@@ -75,6 +75,9 @@ pkg_temp_dir = pkg_temp_dir_suffix
 -- A file with the flags from various scripts
 local flags_storage_suffix = "/usr/share/updater/flags"
 flags_storage = flags_storage_suffix
+-- Directory where we move files and directories that weren't part of any package.
+local dir_opkg_collided_suffix = "/var/opkg-collided"
+dir_opkg_collided = dir_opkg_collided_suffix
 -- Time after which we SIGTERM external commands. Something incredibly long, just prevent them from being stuck.
 cmd_timeout = 600000
 -- Time after which we SIGKILL external commands
@@ -91,6 +94,7 @@ function root_dir_set(dir)
 	info_dir = dir .. info_dir_suffix
 	pkg_temp_dir = dir .. pkg_temp_dir_suffix
 	flags_storage = dir .. flags_storage_suffix
+	dir_opkg_collided = dir .. dir_opkg_collided_suffix
 	journal.path = dir .. "/usr/share/updater/journal"
 end
 
@@ -797,10 +801,31 @@ function dir_ensure(dir)
 			-- It does not create, so creation failed for some reason
 			error(err)
 		elseif tp ~= "d" then
-			error("Could not create dir '" .. dir .. "', file of type " .. tp .. " is already in place")
+			-- It failed because there is some file
+			return false
 		end
 		-- else ‒ there's the given directory, so it failed because it pre-existed. That's OK.
 	end
+	return true
+end
+
+-- Move anything on given path to dir_opkg_collided. This backups and removes original files.
+local function user_path_move(path)
+	-- At first create same parent directory relative to dir_opkg_collided
+	local fpath = ""
+	for dir in (dir_opkg_collided .. path):gsub("[^/]*/?$", ""):gmatch("[^/]+") do
+		local randex = ""
+		while not dir_ensure(fpath .. "/" .. dir .. randex) do
+			-- If there is file with same name, then append some random extension
+			randex = "." .. utils.randstr(6)
+		end
+		fpath = fpath .. "/" .. dir .. randex
+	end
+	WARN("Collision with existing path. Moving " .. path .. " to " .. fpath)
+	 -- fpath is directory so path will be placed to that directory
+	 -- If in fpath is file of same name, then it is replaced. And if there is
+	 -- directory of same name then it is placed inside. But lets not care.
+	move(path, fpath)
 end
 
 --[[
@@ -832,7 +857,12 @@ function pkg_merge_files(dir, dirs, files, configs)
 	end)
 	for _, new_dir in ipairs(dirs_sorted) do
 		DBG("Creating dir " .. new_dir)
-		dir_ensure(root_dir .. new_dir)
+		local dir = root_dir .. new_dir
+		if not dir_ensure(dir) then
+			-- There is some file that user created. Move it away
+			user_path_move(dir)
+			dir_ensure(dir)
+		end
 	end
 	--[[
 	Now move all the files in place.
@@ -848,6 +878,10 @@ function pkg_merge_files(dir, dirs, files, configs)
 			if hash and config_modified(result, hash) then
 				WARN("Config file " .. f .. " modified by the user. Backing up the new one into " .. f .. "-opkg")
 				result = result .. "-opkg"
+			end
+			if lstat(result) == "d" then
+				-- If there is directory on target path, file would be places inside that directory without warning. Move it away instead.
+				user_path_move(result)
 			end
 			move(dir .. f, result)
 		end
