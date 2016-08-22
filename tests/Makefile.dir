@@ -1,5 +1,5 @@
 
-.PHONY: check-clean test valgrind luacheck check test-locks valgrind-locks
+.PHONY: check-clean test valgrind luacheck check test-locks valgrind-locks luac-autoload luacheck
 
 BINARIES_NOTARGET += tests/locks
 locks_MODULES += locks
@@ -38,9 +38,8 @@ LUA_TESTS := \
 	utils \
 	uri
 
-LUA_AUTOLOAD = $(patsubst a_%.lua,%,$(notdir $(wildcard $(S)/src/lib/autoload/a_*.lua)))
 # Ignore stacktraceplus and dumper, not our creation.
-LUA_AUTOLOAD := $(sort $(filter-out 01_stacktraceplus 05_dumper,$(LUA_AUTOLOAD)))
+LUA_AUTOLOAD := $(filter-out 01_stacktraceplus 05_dumper,$(patsubst a_%.lua,%,$(notdir $(wildcard $(S)/src/lib/autoload/a_*.lua))))
 
 TEST_URIINTERNAL := $(abspath $(wildcard $(S)/tests/internal/*))
 $(O)/.gen/tests/uriinternal.embedlist: $(S)/src/lib/gen_embed.sh $(S)/src/lib/embed_types.h $(TEST_URIINTERNAL)
@@ -61,53 +60,39 @@ $(O)/bin/ctest-$(1): $(O)/tests/check-compiled/compiled
 
 test: test-c-$(1)
 valgrind: valgrind-c-$(1)
-.PHONY: test-c-$(1) valgrind-c-$(1)
-
-test-c-$(1): $(O)/bin/ctest-$(1)
-	mkdir -p $(O)/testdir
-	SUPPRESS_LOG=1 S=$(S) TMPDIR=$(abspath $(O)/testdir) $(O)/bin/ctest-$(1)
-
-valgrind-c-$(1): $(O)/bin/ctest-$(1)
-	mkdir -p $(O)/testdir
-	CK_FORK=no SUPPRESS_LOG=1 S=$(S) TMPDIR=$(abspath $(O)/testdir) $(VALGRIND) $(O)/bin/ctest-$(1)
-
-endef
-
-define DO_LUA_TEST
-
-test: test-lua-$(1)
-valgrind: valgrind-lua-$(1)
-.PHONY: test-lua-$(1) valgrind-lua-$(1)
-
-test-lua-$(1): $(O)/bin/lulaunch $(S)/tests/$(1).lua
-	mkdir -p $(O)/testdir
-	SUPPRESS_LOG=1 S=$(S) TMPDIR=$(abspath $(O)/testdir) $(O)/bin/lulaunch $(S)/tests/$(1).lua
-
-valgrind-lua-$(1): $(O)/bin/lulaunch $(S)/tests/$(1).lua
-	mkdir -p $(O)/testdir
-	SUPPRESS_LOG=1 S=$(S) TMPDIR=$(abspath $(O)/testdir) $(VALGRIND) $(O)/bin/lulaunch $(S)/tests/$(1).lua
-
-endef
-
-.PHONY: luac-autoload
-.PHONY: luacheck
-define DO_LUA_LINT
-
-luac-autoload: luac-autoload-$(1)
-.PHONY: luac-autoload-$(1)
-luac-autoload-$(1): $(S)/src/lib/autoload/a_$(1).lua
-	luac -p $$<
-
-luacheck: luacheck-$(1)
-.PHONY: luacheck-$(1)
-luacheck-$(1): $(S)/src/lib/autoload/a_$(1).lua $(O)/tests/luacheck-compiled/bin/luacheck $(S)/tests/luacheck.config
-	$(O)/tests/luacheck-compiled/bin/luacheck --config $(S)/tests/luacheck.config $$<
 
 endef
 
 $(eval $(foreach TEST,$(C_TESTS),$(call DO_C_TEST,$(TEST))))
-$(eval $(foreach TEST,$(LUA_TESTS),$(call DO_LUA_TEST,$(TEST))))
-$(eval $(foreach TEST,$(LUA_AUTOLOAD),$(call DO_LUA_LINT,$(TEST))))
+test: $(addprefix test-lua-,$(LUA_TESTS))
+valgrind: $(addprefix valgrind-lua-,$(LUA_TESTS))
+luac-autoload: $(addprefix luac-autoload-,$(LUA_AUTOLOAD))
+luacheck: $(addprefix luacheck-,$(LUA_AUTOLOAD))
+
+# Use the FORCE target instead of .PHONY, since .PHONY doesn't work well
+# with patterned recipes. The FORCE comes from our shared build system.
+
+test-c-%: $(O)/bin/ctest-% FORCE
+	mkdir -p $(O)/testdir
+	SUPPRESS_LOG=1 S=$(S) TMPDIR=$(abspath $(O)/testdir) $<
+
+valgrind-c-%: $(O)/bin/ctest-% FORCE
+	mkdir -p $(O)/testdir
+	CK_FORK=no SUPPRESS_LOG=1 S=$(S) TMPDIR=$(abspath $(O)/testdir) $(VALGRIND) $<
+
+test-lua-%: $(S)/tests/%.lua $(O)/bin/lulaunch FORCE
+	mkdir -p $(O)/testdir
+	SUPPRESS_LOG=1 S=$(S) TMPDIR=$(abspath $(O)/testdir) $(O)/bin/lulaunch $<
+
+valgrind-lua-%: $(S)/tests/%.lua $(O)/bin/lulaunch FORCE
+	mkdir -p $(O)/testdir
+	SUPPRESS_LOG=1 S=$(S) TMPDIR=$(abspath $(O)/testdir) $(VALGRIND) $(O)/bin/lulaunch $<
+
+luac-autoload-%: $(S)/src/lib/autoload/a_%.lua FORCE
+	luac -p $<
+
+luacheck-%: $(S)/src/lib/autoload/a_%.lua $(O)/tests/luacheck-compiled/bin/luacheck $(S)/tests/luacheck.config FORCE
+	$(O)/tests/luacheck-compiled/bin/luacheck --config $(S)/tests/luacheck.config $<
 
 test-locks: $(O)/bin/locks
 	$(O)/bin/locks
