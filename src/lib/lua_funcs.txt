@@ -199,6 +199,35 @@ The format of journal returned by recover is a table with records.
 Each record contains `type` ‒ one of the types above, and `params` ‒
 table with all the parameters stored with the record.
 
+Pisocat
+-------
+
+Picosat can be used trough module `picosat`. Here is briefly described
+its interface as it can be used from Lua. For more information about
+usage see Picosat documentation in its source file.
+
+You can create picosat instance by calling `picosat.new` function.
+It returns object with following methods:
+
+  var(count):: Creates given number of new variables and returns them.
+    If no argument is given, it returns one new variable.
+  clause(var, ...):: Adds clause. Arguments `var` are variables
+    previously created with `var` method. Appending minus before variable
+    adds boolean negation.
+  assume(var):: Adds assumption about value `val` for next satisfiable
+    check. Appending minus before `var` assumes false, not appending it
+    assumes true.
+  satisfiable():: Checks if clauses are satisfiable with given
+    assumptions. Returns true or false accordingly.
+  max_satisfiable():: Generates maximal satisfiable subset of assumptions.
+    Can be called only after `satisfiable` returned false. Returns set
+    of all assumptions that can be assumed at the same time.
+
+After calling `satisfiable` you can access assigned values by indexing
+object with variable you are interested in. It returns true or false.
+It can also return nil if variable was added after `satisfiable` method
+call.
+
 Others
 ------
 
