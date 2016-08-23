@@ -6,6 +6,7 @@ DESIGN_DOCS := \
 	morpher \
 	internals \
 	testing \
-	battleplan
+	battleplan \
+	deps
 
 DOCS += $(addprefix design/,$(DESIGN_DOCS))
