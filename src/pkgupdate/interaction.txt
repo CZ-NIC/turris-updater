@@ -3,7 +3,7 @@ Interaction with the rest of the system
 
 The updater interacts with other components on the system. In addition
 to the obvious (it updates them), it has some configuration and
-reports its doings. Part of the interaction is done by the
+reports its doings. A part of the interaction is done by the
 `updater.sh` wrapper script.
 
 Overriding its default behaviour
@@ -80,7 +80,7 @@ the actions performed, or with an error message).
 Approvals
 ---------
 
-The updater may be made to ask for approval of its actions. There are
+The updater may be made to ask for an approval of its actions. There are
 three options regarding this:
 
   `updater.approvals.need`::
