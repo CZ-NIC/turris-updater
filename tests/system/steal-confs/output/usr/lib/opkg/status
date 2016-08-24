@@ -5,7 +5,7 @@ Status: install user installed
 Architecture: mpc85xx
 Conffiles:
  /etc/config/dhcp f81fe9bd228dede2165be71e5c9dcf76cc298bc8b6c877974a172a66fac7cf45
- /etc/dnsmasq.conf 1e6ab19c1ae5e70d609ac7b6246541d52042e4dee1892f825266507ef52d7dfd
+ /etc/dnsmasq.conf 7311778e5950cfc6b97e8d49626b4d4d3b562e9c14c1f45728ea23f989c1c0f1
 Installed-Time: 0
 
 Package: libgcc
@@ -27,8 +27,8 @@ Depends: libc
 Status: install user installed
 Architecture: mpc85xx
 Conffiles:
- /etc/config/dropbear 0198dbc97b5a9aac76a5c6233684571ccdcc91fcb735e91c36d2b06a98158589
- /etc/dropbear/dropbear_rsa_host_key e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
- /etc/dropbear/dropbear_dss_host_key e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+ /etc/config/dropbear 5f3acc990c0042ea2922c3cdf060266cd5cea84d480a77896d2ddef6d630234f
+ /etc/dropbear/dropbear_rsa_host_key a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975
+ /etc/dropbear/dropbear_dss_host_key a7998f247bd965694ff227fa325c81169a07471a8b6808d3e002a486c4e65975
 Installed-Time: 0
 

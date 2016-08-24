@@ -1,7 +1,7 @@
 sed -i -e 's/^Installed-Time: .*/Installed-Time: 0/' "$ROOT_DIR"/usr/lib/opkg/status
 rm "$ROOT_DIR"/config
 rm -r "$ROOT_DIR"/repo
-for file in `ls "$ROOT_DIR"/usr/lib/opkg/info/*.list`; do
+for file in "$ROOT_DIR"/usr/lib/opkg/info/*.list; do
 	LC_ALL=C sort -d -o "$file".out "$file"
 	mv -f "$file".out "$file"
 done
