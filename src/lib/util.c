@@ -145,7 +145,7 @@ static void exec_dir_callback(struct wait_id id __attribute__((unused)), void *d
 		ERROR("Subprogram output: %s:\n%s", (char *)data, err);
 		ERROR("End of subprogram output");
 	}
-	if (out_size <= 0 && err_size <= 0)
+	if (out_size == 0 && err_size == 0)
 		INFO("Executed: %s", (char *)data);
 	if (status)
 		ERROR("Execution failed with status: %d, %s", status, (char *)data);
@@ -166,7 +166,7 @@ void exec_dir(struct events *events, const char *dir) {
 	for (int i = 0; i < count; i++) {
 		char *fpath = aprintf("%s/%s", dir, namelist[i]->d_name);
 		if (!access(fpath, X_OK)) {
-			struct wait_id wid = run_command(events, exec_dir_callback, NULL, fpath, 0, NULL, -1, -1, fpath, NULL);
+			struct wait_id wid = run_command(events, exec_dir_callback, NULL, fpath, 0, NULL, -1, -1, fpath, (const char *)NULL);
 			events_wait(events, 1, &wid);
 		} else
 			DBG("File not executed, not executable: %s", namelist[i]->d_name);

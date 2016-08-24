@@ -50,6 +50,7 @@ static int lua_acquire(lua_State *L) {
 	// Set the corresponding meta table, so we know how to close it when necessary
 	luaL_getmetatable(L, LOCK_META);
 	lua_setmetatable(L, -2);
+	// cppcheck-suppress redundantAssignment ‒ As luaL_getmetatable can longjump, we need to make sure we would be consistent ‒ we need that redundant assignment
 	lock->fd = creat(path, S_IRUSR | S_IWUSR);
 	if (lock->fd == -1)
 		return luaL_error(L, "Failed to create the lock file %s: %s", path, strerror(errno));
