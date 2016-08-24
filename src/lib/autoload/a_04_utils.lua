@@ -245,6 +245,17 @@ function strip(str)
 end
 
 --[[
+Returns random string in given length.
+]]
+function randstr(len)
+	local str = ""
+	for _ =  1,len do
+		str = str .. string.char(math.random(33, 126))
+	end
+	return str
+end
+
+--[[
 Create a new table that will be an overlay of another table. Values that are
 set here are remembered. Lookups of other values are propagated to the original
 table.

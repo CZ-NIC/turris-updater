@@ -1,0 +1,9 @@
+Package: dep-package
+Version: 1
+Source: package/dep
+License: GPL-2.0
+Section: none
+Architecture: all
+Installed-Size: 24000
+Description:  Test dependency package. Nothing special here.
+
