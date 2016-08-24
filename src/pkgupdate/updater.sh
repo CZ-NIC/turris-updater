@@ -128,7 +128,7 @@ trap_handler() {
 }
 trap trap_handler EXIT INT QUIT TERM ABRT
 
-# Check if we need an approval and if so, if wi get it.
+# Check if we need an approval and if so, if we get it.
 APPROVALS=
 NEED_APPROVAL=$( (uci -q get updater.approvals.need || echo false) | sed -e 's/0/false/;s/1/true/')
 if $NEED_APPROVAL ; then
