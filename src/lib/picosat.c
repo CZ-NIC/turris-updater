@@ -78,6 +78,7 @@ static int lua_picosat_assume(lua_State *L) {
 	if (lua_gettop(L) < 2)
 		return luaL_error(L, "picosat:assume requires one argument.");
 	int assum = luaL_checkinteger(L, 2);
+	ASSERT(assum != 0);
 	picosat_assume(ps->sat, assum);
 	return 0;
 }

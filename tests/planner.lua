@@ -20,6 +20,7 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 require 'lunit'
 
 local planner = require 'planner'
+local utils = require "utils"
 
 module("planner-tests", package.seeall, lunit.testcase)
 
@@ -32,7 +33,7 @@ dependencies.
 function test_no_deps()
 	local pkgs = {
 		pkg1 = {
-			candidates = {{Package = 'pkg1', Depends = {}, repo = def_repo}},
+			candidates = {{Package = 'pkg1', deps = {}, repo = def_repo}},
 			modifier = {}
 		},
 		pkg2 = {
@@ -59,20 +60,20 @@ function test_no_deps()
 	}
 	local result = planner.required_pkgs(pkgs, requests)
 	local expected = {
-		{
+		pkg1 = {
 			action = "require",
-			package = {Package = 'pkg1', Depends = {}, repo = def_repo},
+			package = {Package = 'pkg1', deps = {}, repo = def_repo},
 			modifier = {},
 			name = "pkg1"
 		},
-		{
+		pkg2 = {
 			action = "require",
 			package = {Package = 'pkg2', repo = def_repo},
 			modifier = {},
 			name = "pkg2"
 		}
 	}
-	assert_table_equal(expected, result)
+	assert_plan_dep_order(expected, result)
 end
 
 function test_reinstall()
@@ -145,20 +146,24 @@ function test_reinstall_upgrade()
 	}
 	local result = planner.required_pkgs(pkgs, requests)
 	local expected = {
-		{
+		pkg1 = {
 			action = "reinstall",
 			package = {Package = 'pkg1', repo = def_repo},
 			modifier = {},
 			name = 'pkg1'
 		},
-		{
+		pkg2 = {
 			action = "require",
 			package = {Package = 'pkg2', repo = def_repo},
 			modifier = {},
 			name = 'pkg2'
 		}
 	}
-	assert_table_equal(expected, result)
+	-- We don't care about order, just compare that expected packages are there in expected form
+	assert_table_equal(expected, utils.map(result, function(_, v)
+				return v.name, v
+			end
+		))
 end
 
 --[[
@@ -170,8 +175,8 @@ function test_deps()
 	local pkgs = {
 		dep1 = {
 			candidates = {
-				{Package = 'dep1', Depends = {}, Version = "1", repo = def_repo},
-				{Package = 'dep1', Depends = {}, Version = "2", repo = def_repo}
+				{Package = 'dep1', deps = {}, Version = "1", repo = def_repo},
+				{Package = 'dep1', deps = {}, Version = "2", repo = def_repo}
 			},
 			modifier = {}
 		},
@@ -192,13 +197,13 @@ function test_deps()
 			}
 		},
 		pkg1 = {
-			candidates = {{Package = 'pkg1', Depends = {}, repo = def_repo}},
+			candidates = {{Package = 'pkg1', deps ={}, repo = def_repo}},
 			modifier = {
 				deps = "dep1"
 			}
 		},
 		pkg2 = {
-			candidates = {{Package = 'pkg2', Depends = {'dep2', 'dep3'}, repo = def_repo}},
+			candidates = {{Package = 'pkg2', deps = {'dep2', 'dep3'}, repo = def_repo}},
 			modifier = {}
 		}
 	}
@@ -215,48 +220,49 @@ function test_deps()
 			tp = 'install',
 			package = {
 				tp = 'package',
-				name = 'pkg2'
+				name = 'pkg2',
+				group = pkgs.pkg2
 			}
 		}
 	}
 	local result = planner.required_pkgs(pkgs, requests)
 	local expected = {
-		{
-			action = "require",
-			package = {Package = 'dep1', Depends = {}, Version = "2", repo = def_repo},
+		dep1 = {
+			action = 'require',
+			package = {Package = 'dep1', deps = {}, Version = "2", repo = def_repo},
 			modifier = {},
-			name = "dep1"
+			name = 'dep1'
 		},
-		{
-			action = "require",
-			package = {Package = 'pkg1', Depends = {}, repo = def_repo},
-			modifier = {
-				deps = "dep1"
-			},
-			name = "pkg1"
-		},
-		{
-			action = "require",
+		dep2 = {
+			action = 'require',
 			package = {Package = 'dep2', repo = def_repo},
 			modifier = {},
-			name = "dep2"
+			name = 'dep2'
 		},
-		{
-			action = "require",
+		dep3 = {
+			action = 'require',
 			package = {Package = 'dep3', repo = def_repo},
 			modifier = {
 				deps = "dep1"
 			},
-			name = "dep3"
+			name = 'dep3'
 		},
-		{
-			action = "require",
-			package = {Package = 'pkg2', Depends = {'dep2', 'dep3'}, repo = def_repo},
+		pkg1 = {
+			action = 'require',
+			package = {Package = 'pkg1', deps ={}, repo = def_repo},
+			modifier = {
+				deps = "dep1"
+			},
+			name = 'pkg1'
+		},
+		pkg2 = {
+			action = 'require',
+			package = {Package = 'pkg2', deps = {'dep2', 'dep3'}, repo = def_repo},
 			modifier = {},
-			name = "pkg2"
+			name = 'pkg2'
 		}
 	}
-	assert_table_equal(expected, result)
+	assert_plan_dep_order(expected, result)
 end
 
 --[[
@@ -265,7 +271,7 @@ A dependency doesn't exist. It should fail.
 function test_missing_dep()
 	local pkgs = {
 		pkg = {
-			candidates = {{Package = 'pkg', Depends = {'nothere'}, repo = def_repo}},
+			candidates = {{Package = 'pkg', deps = {'nothere'}, repo = def_repo}},
 			modifier = {}
 		}
 	}
@@ -282,11 +288,11 @@ function test_missing_dep()
 	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent')
 end
 
--- It is able to detect a circular dependency and doesn't stack overflow
+-- It is able to solve a circular dependency and doesn't stack overflow
 function test_circular_deps()
 	local pkgs = {
 		pkg1 = {
-			candidates = {{Package = 'pkg1', Depends = {'pkg2'}, repo = def_repo}},
+			candidates = {{Package = 'pkg1', deps = {'pkg2'}, repo = def_repo}},
 			modifier = {}
 		},
 		pkg2 = {
@@ -305,7 +311,145 @@ function test_circular_deps()
 			}
 		}
 	}
-	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent')
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		pkg1 = {
+			action = 'require',
+			package = {Package = 'pkg1', deps = {'pkg2'}, repo = def_repo},
+			modifier = {},
+			name = 'pkg1'
+		},
+		pkg2 = {
+			action = 'require',
+			package = {Package = 'pkg2', repo = def_repo},
+			modifier = {
+				deps = "pkg1"
+			},
+			name = 'pkg2'
+		}
+	}
+	-- We don't care about order, just compare that expected packages are there in expected form
+	assert_table_equal(expected, utils.map(result, function(_, v)
+				return v.name, v
+			end
+		))
+end
+
+-- It is able to detect a circular dependency for critival package
+function test_circular_deps_critical()
+	local pkgs = {
+		critic = {
+			candidates = {{Package = 'critic', deps = {'pkg'}, repo = def_repo}},
+			modifier = { }
+		},
+		pkg = {
+			candidates = {{Package = 'pkg', repo = def_repo}},
+			modifier = {
+				deps = "critic"
+			}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'critic'
+			},
+			critical = true
+		}
+	}
+	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent-critical')
+end
+
+function test_priority()
+	local pkgs = {
+		pkg1 = {
+			candidates = {{Package = 'pkg1', deps = {}, repo = def_repo}},
+			modifier = {}
+		},
+		pkg2 = {
+			candidates = {{Package = 'pkg2', repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1',
+			},
+			priority = 70
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1',
+			},
+			reinstall = true
+		},
+		{
+			tp = 'uninstall',
+			package = {
+				tp = 'package',
+				name = 'pkg1',
+			},
+			priority = 40
+		},
+		{
+			tp = 'uninstall',
+			package = {
+				tp = 'package',
+				name = 'pkg2'
+			}
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg2'
+			},
+			priority = 20
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		pkg1 = {
+			action = "reinstall",
+			package = {Package = 'pkg1', deps = {}, repo = def_repo},
+			modifier = {},
+			name = "pkg1"
+		}
+	}
+	assert_plan_dep_order(expected, result)
+end
+
+function test_request_collision()
+	local pkgs = {
+		pkg1 = {
+			candidates = {{Package = 'pkg1', deps = {}, repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1',
+			}
+		},
+		{
+			tp = 'uninstall',
+			package = {
+				tp = 'package',
+				name = 'pkg1',
+			}
+		}
+	}
+	assert_exception(function() planner.required_pkgs(pkgs, requests) end, 'invalid-request')
 end
 
 function test_filter_required()
@@ -500,7 +644,7 @@ end
 function test_missing_install()
 	local pkgs = {
 		pkg1 = {
-			candidates = {{Package = 'pkg1', Depends = {}, repo = def_repo}},
+			candidates = {{Package = 'pkg1', deps = {}, repo = def_repo}},
 			modifier = {}
 		}
 	}
@@ -526,7 +670,7 @@ function test_missing_install()
 	local expected = {
 		{
 			action = "require",
-			package = {Package = 'pkg1', Depends = {}, repo = def_repo},
+			package = {Package = 'pkg1', deps = {}, repo = def_repo},
 			modifier = {},
 			name = "pkg1"
 		}
@@ -534,10 +678,10 @@ function test_missing_install()
 	assert_table_equal(expected, result)
 end
 
-function test_missing_dep()
+function test_missing_dep_ignore()
 	local pkgs = {
 		pkg1 = {
-			candidates = {{Package = 'pkg1', Depends = {'pkg2'}, repo = def_repo}},
+			candidates = {{Package = 'pkg1', deps = {'pkg2'}, repo = def_repo}},
 			modifier = {
 				ignore = {"deps"}
 			},
@@ -558,7 +702,7 @@ function test_missing_dep()
 	local expected = {
 		{
 			action = "require",
-			package = {Package = 'pkg1', Depends = {'pkg2'}, repo = def_repo},
+			package = {Package = 'pkg1', deps = {'pkg2'}, repo = def_repo},
 			modifier = {
 				ignore = {"deps"}
 			},
@@ -627,14 +771,70 @@ function test_complex_deps()
 		}
 	}
 	local result = planner.required_pkgs(pkgs, requests)
-	local expected = utils.map({"pkg1", "pkg2", "pkg3", "pkg4", "pkg7", "meta"}, function (i, name)
+	local expected = utils.map({"pkg1", "pkg2", "pkg3", "pkg4", "pkg7", "meta"}, function (_, name)
 		local p = pkgs[name]
-		return i, {
+		return name, {
 			action = "require",
 			package = p.candidates[1],
 			modifier = p.modifier,
 			name = name
 		}
 	end)
-	assert_table_equal(expected, result)
+	assert_plan_dep_order(expected, result)
+end
+
+function test_pkg_dep_iterate()
+	local dep = {
+		tp = "dep-and",
+		sub = {
+			{
+				tp = 'dep-or',
+				sub = { 'pkg1', 'pkg2' }
+			},
+			{
+				tp = 'dep-and',
+				sub = { {tp = 'dep-package'}, 'pkg3' }
+			},
+			'pkg4'
+		}
+	}
+	local expected = {
+		pkg1 = true,
+		pkg2 = true,
+		pkg3 = true,
+		pkg4 = true,
+	}
+	for _, pkg in planner.pkg_dep_iterate(dep) do
+		if type(pkg) == 'table' then
+			assert_table_equal({tp = 'dep-package'}, pkg)
+		else
+			assert_true(expected[pkg])
+			expected[pkg] = nil
+		end
+	end
+	assert_nil(next(expected))
+end
+
+-- This checks plan order by checking dependencies and tables in plan are checked agains expected ones by name of package
+function assert_plan_dep_order(expected, plan)
+	local p2i = {}
+	for key, p in ipairs(plan) do
+		assert_table_equal(expected[p.name], p)
+		expected[p.name] = nil -- We checked this one, by this we ensure that it wont be used again and we can check that all that shoudl be is in plan
+		p2i[p.name] = key
+	end
+	for _, p in ipairs(plan) do
+		local alldeps = {p.modifier.deps}
+		utils.arr_append(alldeps, p.package.deps or {})
+		local pi = p2i[p.name]
+		for _, dep in ipairs(alldeps) do
+			for _, pkg in planner.pkg_dep_iterate(dep) do
+				local name = pkg.name or pkg
+				if p2i[name] then -- We ignore packages thats are not in plan
+					assert_true(pi > p2i[name])
+				end
+			end
+		end
+	end
+	assert_nil(next(expected))
 end

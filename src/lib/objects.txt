@@ -83,3 +83,7 @@ script::
 dep-and, dep-or, dep-not::
   Dependency composition objects. They contain the field `sub`, which
   is a table of sub-dependencies.
+dep-package::
+  Package description from dependencies. It must contain field `name`
+  containing name of package group and optionally also field
+  `version` containing version limitations.
