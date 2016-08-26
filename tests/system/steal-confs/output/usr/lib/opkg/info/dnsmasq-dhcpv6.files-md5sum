@@ -1,5 +1,5 @@
-c7aebce025c9585baab03f89855e4030  /usr/sbin/dnsmasq
-7ec9daa92bc5616dc1f1735ce5f84e19  /etc/config/dhcp
-67e9e2b04e47f252b1f0c9ad1f91bb9c  /etc/hotplug.d/iface/25-dnsmasq
-946a3c0f3bafc4fa843cc1a69f296549  /etc/init.d/dnsmasq
-7cf378e58d3fe5db31f4116a16c15c61  /etc/dnsmasq.conf
+63342b534fc8233f963a5e1ece132bbd  /etc/dnsmasq.conf
+1f4468bc9ce4e0e846dacdd9276f4782  /etc/config/dhcp
+ed15d8d243811ec2640276ea21f84ad8  /etc/init.d/dnsmasq
+83b3af54f1e79d502f0d09d79457057c  /etc/hotplug.d/iface/25-dnsmasq
+35fd4cfdd440700dc220a8ec82e96247  /usr/sbin/dnsmasq

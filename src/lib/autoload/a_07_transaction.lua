@@ -122,7 +122,7 @@ local function pkg_unpack(operations, status)
 end
 
 local function pkg_collision_check(status, to_remove, to_install)
-	local collisions, removes = backend.collision_check(status, to_remove, to_install)
+	local collisions, early_remove, removes = backend.collision_check(status, to_remove, to_install)
 	if next(collisions) then
 		--[[
 		Collisions:
@@ -135,20 +135,27 @@ local function pkg_collision_check(status, to_remove, to_install)
 			end)), ", "), true
 		end)), "\n"))
 	end
-	return removes
+	return removes, early_remove
 end
 
-local function pkg_move(status, plan, errors_collected)
+local function pkg_move(status, plan, early_remove, errors_collected)
 	-- Prepare table of not installed confs for config stealing
 	local not_installed_confs = backend.not_installed_confs(status)
 
 	local all_configs = {}
+	-- Build list of all configs and steal from not-installed
+	for _, op in ipairs(plan) do
+		if op.op == "install" then
+			local steal = backend.steal_configs(status, not_installed_confs, op.configs)
+			utils.table_merge(op.old_configs, steal)
+			utils.table_merge(all_configs, op.old_configs)
+		end
+	end
 	-- Go through the list once more and perform the prepared operations
 	for _, op in ipairs(plan) do
 		if op.op == "install" then
 			state_dump("install")
 			log_event("I", op.control.Package .. " " .. op.control.Version)
-			utils.table_merge(all_configs, op.old_configs)
 			-- Unfortunately, we need to merge the control files first, otherwise the maintainer scripts won't run. They expect to live in the info dir when they are run. And we need to run the preinst script before merging the files.
 			backend.pkg_merge_control(op.dir .. "/control", op.control.Package, op.control.files)
 			if utils.multi_index(status, op.control.Package, "Status", 3) == "installed" then
@@ -157,8 +164,9 @@ local function pkg_move(status, plan, errors_collected)
 			else
 				script(errors_collected, op.control.Package, "preinst", "install", op.control.Version)
 			end
-			local steal = backend.steal_configs(status, not_installed_confs, op.configs)
-			utils.table_merge(op.old_configs, steal)
+			if early_remove[op.control.Package] then
+				backend.pkg_cleanup_files(early_remove[op.control.Package], all_configs)
+			end
 			backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.old_configs)
 			status[op.control.Package] = op.control
 		end
@@ -215,7 +223,7 @@ local function perform_internal(operations, journal_status, run_state)
 	- journal_type: One of the constants from journal module. This is the type
 	  of record written into the journal.
 	- fun: The function performing the actual step.
-	- sync: If true, the file system is synced before marking the journal.
+	- flush: If true, the file system is synced before marking the journal.
 	- ...: Parameters for the function.
 
 	All the results from the step are stored in the journal and also returned.
@@ -252,9 +260,9 @@ local function perform_internal(operations, journal_status, run_state)
 		-- Drop the operations. This way, if we are tail-called, then the package buffers may be garbage-collected
 		operations = nil
 		-- Check for collisions
-		local removes = step(journal.CHECKED, pkg_collision_check, false, status, to_remove, to_install)
+		local removes, early_remove = step(journal.CHECKED, pkg_collision_check, false, status, to_remove, to_install)
 		local all_configs
-		status, errors_collected, all_configs = step(journal.MOVED, pkg_move, true, status, plan, errors_collected)
+		status, errors_collected, all_configs = step(journal.MOVED, pkg_move, true, status, plan, early_remove, errors_collected)
 		status, errors_collected = step(journal.SCRIPTS, pkg_scripts, true, status, plan, removes, to_install, errors_collected, all_configs)
 	end)
 	-- Make sure the temporary dirs are removed even if it fails. This will probably be slightly different with working journal.

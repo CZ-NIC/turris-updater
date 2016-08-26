@@ -468,7 +468,7 @@ static int lua_move(lua_State *L) {
 	struct events *events = extract_registry(L, "events");
 	ASSERT(events);
 	struct mv_result_data mv_result_data = { .err = NULL };
-	struct wait_id id = run_command(events, mv_result, NULL, &mv_result_data, 0, NULL, -1, -1, "/bin/mv", "-f", old, new, NULL);
+	struct wait_id id = run_command(events, mv_result, NULL, &mv_result_data, 0, NULL, -1, -1, "/bin/mv", "-f", old, new, (const char *)NULL);
 	events_wait(events, 1, &id);
 	if (mv_result_data.status) {
 		lua_pushfstring(L, "Failed to move '%s' to '%s': %s (ecode %d)", old, new, mv_result_data.err, mv_result_data.status);
@@ -917,6 +917,7 @@ const char *interpreter_call(struct interpreter *interpreter, const char *functi
 				break; \
 			}
 			// Represent bool as int, because of C type promotions
+			// cppcheck-suppress va_end_missing (false positive: look just below the for cycle)
 			CASE(int, 'b', boolean);
 			case 'n': // No param here
 				lua_pushnil(L);
