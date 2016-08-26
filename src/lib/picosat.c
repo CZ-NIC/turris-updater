@@ -52,9 +52,8 @@ static int lua_picosat_var(lua_State *L) {
 	else
 		count = 1; // If no argument given, create one variable.
 
-	int var;
 	for (int i = 0; i < count; i++) {
-		var = picosat_inc_max_var(ps->sat);
+		int var = picosat_inc_max_var(ps->sat);
 		lua_pushinteger(L, var);
 	}
 	return count;
@@ -65,9 +64,8 @@ static int lua_picosat_clause(lua_State *L) {
 	int count = lua_gettop(L) - 1;
 	if (count < 1)
 		return luaL_error(L, "picosat:clause requires at least one argument");
-	int var;
 	for (int i = 0; i < count; i++) {
-		var = luaL_checkinteger(L, i + 2);
+		int var = luaL_checkinteger(L, i + 2);
 		ASSERT(var != 0);
 		picosat_add(ps->sat, var);
 	}
