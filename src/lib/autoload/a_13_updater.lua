@@ -38,7 +38,7 @@ module "updater"
 
 local cleanup_actions = {}
 
-function prepare(entrypoint)
+function required_pkgs(entrypoint)
 	-- Get the top-level script
 	local tlc = sandbox.new('Full')
 	local ep_uri = uri(tlc, entrypoint)
@@ -54,7 +54,11 @@ function prepare(entrypoint)
 	state_dump("examine")
 	-- Go through all the requirements and decide what we need
 	postprocess.run()
-	local required = planner.required_pkgs(postprocess.available_packages, requests.content_requests)
+	return planner.required_pkgs(postprocess.available_packages, requests.content_requests)
+end
+
+function prepare(entrypoint)
+	local required = required_pkgs(entrypoint)
 	local run_state = backend.run_state()
 	backend.flags_load()
 	local tasks = planner.filter_required(run_state.status, required)
