@@ -50,7 +50,7 @@ static const enum cmd_op_type cmd_op_allows[] = {
 };
 
 static void print_help() {
-	fputs("Usage: updater [OPTION]...\n", stderr);
+	fputs("Usage: pkgupdate [OPTION]...\n", stderr);
 	cmd_args_help(cmd_op_allows);
 }
 
