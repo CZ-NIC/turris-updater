@@ -25,8 +25,12 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-DISABLED=$( (uci -q get updater.override.disable || echo false) | sed -e 's/0/false/;s/1/true/')
-if $DISABLED ; then
+. /lib/functions.sh
+
+config_load updater
+config_get_bool DISABLED override disable 0
+
+if [ "$DISABLED" = "1" ] ; then
 	echo "Updater disabled" | logger -t daemon.warning
 	echo "Updater disabled" >&2
 	exit 0
@@ -38,6 +42,8 @@ STATE_DIR=/tmp/update-state
 LOCK_DIR="$STATE_DIR/lock"
 LOG_FILE="$STATE_DIR/log2"
 PID_FILE="$STATE_DIR/pid"
+APPROVAL_ASK_FILE=/usr/share/updater/need_approval
+APPROVAL_GRANTED_FILE=/usr/share/updater/approvals
 EXIT_CODE=1
 BACKGROUND=false
 BACKGROUNDED=false
@@ -126,10 +132,49 @@ trap_handler() {
 }
 trap trap_handler EXIT INT QUIT TERM ABRT
 
+# Check if we need an approval and if so, if we get it.
+APPROVALS=
+config_get_bool NEED_APPROVAL approvals need 0
+if [ "$NEED_APPROVAL" = "1" ] ; then
+	# Get a treshold time when we grant approval automatically. In case we don't, we set the time to
+	# 1, which is long long time ago in the glorious times when automatic updaters were not
+	# needed.
+	config_get AUTO_GRANT_TIME approvals auto_grant_seconds
+	AUTO_GRANT_TRESHOLD=$(expr $(date -u +%s) - $AUTO_GRANT_TIME 2>/dev/null || echo 1)
+	# Compute the approval parameters. To get the granted approvals, filter only the ones
+	# that are „granted“ and „asked“. The „granted“ get moved to time 0, so they are before
+	# even the treshold when we don't auto-approve. The asked ones retain their own time.
+	# We also insert a mark at the trashold time.
+	#
+	# We sort all these events according to their time they happened and cut off anything that
+	# at the treshold time or newer.
+	APPROVALS=--ask-approval="$APPROVAL_ASK_FILE $( (sed -ne 's/\(.*\) asked \(.*\)/\2 \1/p;s/\(.*\) granted .*/0 \1/p' "$APPROVAL_GRANTED_FILE" 2>/dev/null ; echo "$AUTO_GRANT_TRESHOLD" cutoff) | sort -n | sed -ne '/cutoff/q;s/.* /--approve=/p' )"
+fi
 # Run the actual updater
-timeout 3000 pkgupdate --batch --state-log --task-log=/usr/share/updater/updater-log
-# Evaluate what has run
+timeout 3000 pkgupdate --batch --state-log --task-log=/usr/share/updater/updater-log $APPROVALS
 EXIT_CODE="$?"
+
+if [ -f "$APPROVAL_ASK_FILE" ] ; then
+	read HASH <"$APPROVAL_ASK_FILE"
+	if ! grep -q "^$HASH" "$APPROVAL_GRANTED_FILE" ; then
+		echo "$HASH asked $(date -u +%s)" >>"$APPROVAL_GRANTED_FILE"
+		config_get_bool NOTIFY_APPROVAL approvals notify 1
+		echo "Asking for authorisation $HASH" | logger -t updater -p daemon.info
+		if [ "$NOTIFY_APPROVAL" = "1" ] ; then
+			timeout 120 create_notification -s update "Updater žádá o autorizaci akcí. Autorizaci můžete přidělit v administračním rozhraní Foris." "The updater requests an autorisation of its planned actions. You can grant it in the Foris administrative interface." || echo "Create notification failed" | logger -t updater -p daemon.error
+		fi
+	fi
+else
+	if [ "$EXIT_CODE" = 0 ] ; then
+		# When we run successfully and didn't need any further approval, we
+		# used up all the current approvals by that (if we ever want to
+		# do the same thing again, we need to ask again). So delete all
+		# the granted and asked lines ‒ asked might have reached approval
+		# by being there long enough. Keep any other (like denied) permanently.
+		sed -i -e '/asked/d;/granted/d' "$APPROVAL_GRANTED_FILE" 2>/dev/null
+	fi
+fi
+# Evaluate what has run
 STATE=$(cat "$STATE_DIR"/state)
 if [ "$EXIT_CODE" != "0" ] && [ "$STATE" != "error" ] ; then
 	echo lost >"$STATE_DIR"/state
