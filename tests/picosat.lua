@@ -80,6 +80,9 @@ function test_assume()
 	assert_false(ps:satisfiable())
 	ps:assume(-var2)
 	assert_true(ps:satisfiable())
+	ps:assume(var3)
+	ps:assume(-var1)
+	assert_true(ps:satisfiable())
 end
 
 function test_max_satisfiable()
@@ -98,4 +101,18 @@ function test_max_satisfiable()
 	assert_true((not maxassum[var2] and maxassum[var3] == nil) or (maxassum[var2] == nil and maxassum[var3]))
 	-- and souldn't contain var1
 	assert_nil(maxassum[var1])
+	-- Drop reassumed assumptions
+	assert_false(ps:satisfiable())
+
+	-- Check if we get all assumptions even when it is satisfiable
+	ps:assume(-var1)
+	ps:assume(var2)
+	ps:assume(var3)
+	assert_true(ps:satisfiable())
+	local maxassum = ps:max_satisfiable()
+	assert_true(maxassum[-var1])
+	assert_true(maxassum[var2])
+	assert_true(maxassum[var3])
+	-- Drop reassumed assumptions
+	assert_true(ps:satisfiable())
 end

@@ -92,10 +92,12 @@ static int lua_picosat_satisfiable(lua_State *L) {
 
 static int lua_picosat_max_satisfiable(lua_State *L) {
 	struct picosat *ps = luaL_checkudata(L, 1, PICOSAT_META);
-	ASSERT_MSG(picosat_res(ps->sat) == PICOSAT_UNSATISFIABLE, "picosat:satisfiable can be called only when picosat:satisfiable returns false.");
+	lua_newtable(L);
+	if (picosat_inconsistent(ps->sat))
+		// If there is some empty clause, then there are no valid assumptions, return empty table.
+		return 1;
 	// TODO this might be faster if we would set phase for assumptions to true. See picosat documentation for more details.
 	const int *assum = picosat_maximal_satisfiable_subset_of_assumptions(ps->sat);
-	lua_newtable(L);
 	while(*assum != 0) {
 		lua_pushinteger(L, *assum);
 		lua_pushboolean(L, true);
