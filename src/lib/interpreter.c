@@ -178,6 +178,10 @@ static void extract_registry_value(lua_State *L, char *name) {
 	lua_getfield(L, LUA_REGISTRYINDEX, REGISTRY_NAME);
 	// Get the value
 	lua_getfield(L, -1, name);
+	// Delete the value the from registry table
+	lua_pushnil(L);
+	// The table is now at -3, because we added the result and the nil on top of stack
+	lua_setfield(L, -3, name);
 	// Remove the registry table
 	lua_remove(L, -2);
 
@@ -929,6 +933,16 @@ const char *interpreter_call(struct interpreter *interpreter, const char *functi
 				break;
 			}
 			CASE(double, 'f', number);
+			case 'r': {
+				const char *s = va_arg(args, const char *);
+				// Get the registry table
+				lua_getfield(L, LUA_REGISTRYINDEX, REGISTRY_NAME);
+				// Get the value
+				lua_getfield(L, -1, s);
+				// Remove the registry table. This way we added only the extracted value.
+				lua_remove(L, -2);
+				break;
+			}
 			default:
 				DIE("Unknown type specifier '%c' passed", *param_spec);
 #undef CASE
@@ -998,6 +1012,11 @@ int interpreter_collect_results(struct interpreter *interpreter, const char *spe
 				} else
 					return pos;
 				break;
+			case 'r': {
+				char **name = va_arg(args, char **);
+				*name = register_value(L, pos + 1);
+				break;
+			}
 			default:
 				DIE("Invalid type specifier '%c' passed", *spec);
 		}
@@ -1005,6 +1024,12 @@ int interpreter_collect_results(struct interpreter *interpreter, const char *spe
 	}
 	va_end(args);
 	return -1;
+}
+
+void interpreter_registry_release(struct interpreter *interpreter, char *name) {
+	extract_registry_value(interpreter->state, name);
+	// Get rid of the value on top of the stack as well
+	lua_pop(interpreter->state, 1);
 }
 
 void interpreter_destroy(struct interpreter *interpreter) {

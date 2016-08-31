@@ -86,6 +86,9 @@ const char *interpreter_autoload(struct interpreter *interpreter) __attribute__(
  * - s: string (null-terminated)
  * - S: binary string (with extra parameter ‒ size_t ‒ length)
  * - f: double
+ * - r: A value in registry. When collecting, it is stored in the registry and a string is
+ *      stored in corresponding variable. When calling, pass the name back and it will be
+ *      extracted. Free it with interpreter_registry_release after it is no longer needed.
  *
  * We use the „usual“ C types (eg. int, not lua_Integer). These functions may not be
  * used in case of more complex data types.
@@ -100,6 +103,9 @@ const char *interpreter_autoload(struct interpreter *interpreter) __attribute__(
  */
 const char *interpreter_call(struct interpreter *interpreter, const char *function, size_t *result_count, const char *param_spec, ...);
 int interpreter_collect_results(struct interpreter *interpreter, const char *spec, ...);
+
+// Release the value stored as 'r' type from interpreter_collect_results. Free the name parameter.
+void interpreter_registry_release(struct interpreter *interpreter, char *name);
 /*
  * Destroy an interpreter and return its memory.
  */

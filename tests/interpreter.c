@@ -262,6 +262,35 @@ START_INTERPRETER_TEST(test_mkdtemp) {
 }
 END_INTERPRETER_TEST
 
+START_INTERPRETER_TEST(call_registry) {
+	size_t results;
+	const char *error = interpreter_call(interpreter, "testing.values", &results, "");
+	ck_assert_msg(!error, "Failed to run the function: %s", error);
+	ck_assert_uint_eq(2, results);
+	char *n1, *n2;
+	// Extract the two values to registry
+	ck_assert_int_eq(-1, interpreter_collect_results(interpreter, "rr", &n1, &n2));
+	// Use one of them as an input to other call
+	error = interpreter_call(interpreter, "testing.subtable.echo", &results, "r", n2);
+	ck_assert_msg(!error, "Failed to run the function: %s", error);
+	ck_assert_uint_eq(1, results);
+	// Check the value matches
+	const char *s;
+	ck_assert_int_eq(-1, interpreter_collect_results(interpreter, "s", &s));
+	ck_assert_str_eq(s, "hello");
+	// Try with the other one
+	error = interpreter_call(interpreter, "testing.subtable.echo", &results, "r", n1);
+	ck_assert_msg(!error, "Failed to run the function: %s", error);
+	ck_assert_uint_eq(1, results);
+	int i;
+	ck_assert_int_eq(-1, interpreter_collect_results(interpreter, "i", &i));
+	ck_assert_int_eq(42, i);
+	// Free them
+	interpreter_registry_release(interpreter, n1);
+	interpreter_registry_release(interpreter, n2);
+}
+END_INTERPRETER_TEST
+
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Lua interpreter");
 	TCase *interpreter = tcase_create("loading");
@@ -273,6 +302,7 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(interpreter, call_method);
 	tcase_add_test(interpreter, call_echo);
 	tcase_add_test(interpreter, test_mkdtemp);
+	tcase_add_test(interpreter, call_registry);
 	suite_add_tcase(result, interpreter);
 	return result;
 }
