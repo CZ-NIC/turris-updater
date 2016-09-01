@@ -1,0 +1,8 @@
+BINARIES += src/migrator/pkgmigrate
+
+# TODO: What about the embedded config?
+
+pkgmigrate_MODULES := \
+	main
+
+pkgmigrate_LOCAL_LIBS := updater
