@@ -648,7 +648,7 @@ end
 
 function teardown()
 	-- A trick to clean up the queue
-	mocks_install('transaction.perform', function () return {} end)
+	mock_gen('transaction.perform', function () return {} end)
 	transaction.perform_queue()
 	mocks_reset()
 end
