@@ -1,10 +1,6 @@
 BINARIES += src/pkgupdate/pkgupdate
 
-PKGUPDATE_EMBED := $(abspath $(wildcard $(S)/src/pkgupdate/internal/*))
-$(O)/.gen/src/pkgupdate/uriinternal.embedlist: $(S)/src/lib/gen_embed.sh $(S)/src/lib/embed_types.h $(PKGUPDATE_EMBED)
-	$(M) GEN $@
-	$(Q)mkdir -p $(dir $@)
-	$(Q)$< "" uriinternal $(S)/src/lib/embed_types.h $(PKGUPDATE_EMBED) >$@
+$(O)/.gen/src/pkgupdate/uriinternal.embedlist: EMBEDS := $(wildcard $(S)/src/pkgupdate/internal/*)
 
 pkgupdate_MODULES := \
 	main \

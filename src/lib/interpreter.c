@@ -47,7 +47,7 @@
 static const char *crash_file = "/tmp/updater_crash.log";
 
 // From the embed file, lua things that are auto-loaded
-extern struct file_index_element autoload[];
+extern struct file_index_element lautoload[];
 
 struct interpreter {
 	lua_State *state;
@@ -843,7 +843,7 @@ const char *interpreter_include(struct interpreter *interpreter, const char *cod
 }
 
 const char *interpreter_autoload(struct interpreter *interpreter) {
-	for (struct file_index_element *el = autoload; el->name; el ++) {
+	for (struct file_index_element *el = lautoload; el->name; el ++) {
 		const char *underscore = rindex(el->name, '_');
 		// Use the part after the last underscore as the name
 		const char *name = underscore ? underscore + 1 : el->name;

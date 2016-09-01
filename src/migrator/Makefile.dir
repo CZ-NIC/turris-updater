@@ -1,8 +1,10 @@
 BINARIES += src/migrator/pkgmigrate
 
-# TODO: What about the embedded config?
+# Borrow the file from there. But for now, we embed just this one.
+$(O)/.gen/src/migrator/uriinternal.embedlist: EMBEDS := $(S)/src/pkgupdate/internal/entry.lua
 
 pkgmigrate_MODULES := \
-	main
+	main \
+	uriinternal.embed
 
 pkgmigrate_LOCAL_LIBS := updater

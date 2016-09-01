@@ -26,6 +26,8 @@
 #include <string.h>
 #include <errno.h>
 
+extern struct file_index_element uriinternal[];
+
 static const enum cmd_op_type cmd_op_allowed[] = {
 	COT_BATCH, COT_NO_OP, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_OUTPUT, COT_LAST
 };
@@ -42,7 +44,7 @@ int main(int argc, char *argv[]) {
 	// Parse the arguments
 	struct cmd_op *ops = cmd_args_parse(argc, argv, cmd_op_allowed);
 	struct cmd_op *op = ops;
-	const char *top_level_config = NULL;
+	const char *top_level_config = "internal:entry_lua";
 	const char *root_dir = NULL;
 	const char *output = "/etc/updater/auto.lua";
 	bool batch = false, early_exit = false;
@@ -92,8 +94,7 @@ int main(int argc, char *argv[]) {
 
 	// The interpreter and other environment
 	struct events *events = events_new();
-	// TODO: Internal URIs?
-	struct interpreter *interpreter = interpreter_create(events, NULL);
+	struct interpreter *interpreter = interpreter_create(events, uriinternal);
 	const char *error = interpreter_autoload(interpreter);
 	ASSERT_MSG(!error, "%s", error);
 
