@@ -1,0 +1,2 @@
+rm "$ROOT_DIR"/config
+rm -r "$ROOT_DIR"/repo
