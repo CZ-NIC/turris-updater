@@ -27,8 +27,7 @@
 #include <errno.h>
 
 static const enum cmd_op_type cmd_op_allowed[] = {
-	COT_BATCH, COT_NO_OP, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_LAST
-	// TODO: Path to the config to be written
+	COT_BATCH, COT_NO_OP, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_OUTPUT, COT_LAST
 };
 
 void print_help() {
@@ -82,6 +81,9 @@ int main(int argc, char *argv[]) {
 				log_stderr_level(level);
 				break;
 			}
+			case COT_OUTPUT:
+				output = op->parameter;
+				break;
 			default:
 				DIE("Unknown COT");
 		}

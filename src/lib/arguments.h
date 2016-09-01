@@ -56,6 +56,8 @@ enum cmd_op_type {
 	COT_STDERR_LEVEL,
 	// Name of the syslog
 	COT_SYSLOG_NAME,
+	// Put the output into a file
+	COT_OUTPUT,
 	// Log tasks into a file
 	COT_TASK_LOG,
 	// Argument isn't option.

@@ -68,6 +68,8 @@ static const char *opt_help[COT_LAST] = {
 		"--ask-approval=<report-file>	Require user's approval to proceed (abort if --approve with appropriate ID is not present, plan of action is put into the report-file if approval is needed)\n",
 	[COT_APPROVE] =
 		"--approve=<id>			Approve actions with given ID (multiple allowed, from a corresponding report-file).\n",
+	[COT_OUTPUT] =
+		"--output=<file>		Put the output to given file.\n",
 	[COT_TASK_LOG] =
 		"--task-log=<file>		Append list of executed tasks into a log file.\n"
 };
@@ -78,6 +80,7 @@ enum option_val {
 	OPT_REEXEC_VAL,
 	OPT_ASK_APPROVAL_VAL,
 	OPT_APPROVE_VAL,
+	OPT_OUTPUT,
 	OPT_TASK_LOG_VAL,
 	OPT_LAST
 };
@@ -93,6 +96,7 @@ static const struct option opt_long[] = {
 	{ .name = "state-log", .has_arg = no_argument, .val = OPT_STATE_LOG_VAL },
 	{ .name = "ask-approval", .has_arg = required_argument, .val = OPT_ASK_APPROVAL_VAL },
 	{ .name = "approve", .has_arg = required_argument, .val = OPT_APPROVE_VAL },
+	{ .name = "output", .has_arg = required_argument, .val = OPT_OUTPUT },
 	{ .name = "task-log", .has_arg = required_argument, .val = OPT_TASK_LOG_VAL },
 	{ .name = NULL }
 };
@@ -111,6 +115,7 @@ static const struct simple_opt {
 	[OPT_STATE_LOG_VAL] = { COT_STATE_LOG, false, true },
 	[OPT_ASK_APPROVAL_VAL] = { COT_ASK_APPROVAL, true, true },
 	[OPT_APPROVE_VAL] = { COT_APPROVE, true, true },
+	[OPT_OUTPUT] = { COT_OUTPUT, true, true },
 	[OPT_TASK_LOG_VAL] = { COT_TASK_LOG, true, true }
 };
 
@@ -214,6 +219,7 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 			case COT_STDERR_LEVEL:
 			case COT_SYSLOG_NAME:
 			case COT_ASK_APPROVAL:
+			case COT_OUTPUT:
 			case COT_APPROVE:
 			case COT_TASK_LOG: {
 				struct cmd_op tmp = result[i];
