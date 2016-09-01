@@ -42,6 +42,7 @@ local run_command = run_command
 local utils = require "utils"
 local DBG = DBG
 local uri_internal_get = uri_internal_get
+local sha256 = sha256
 
 module "uri"
 
@@ -253,10 +254,25 @@ function parse(context, uri)
 	return handler
 end
 
+--[[
+This function stores the content in a file with name corresponding to the hash of the content.
+That ensures that we create only one temporary file of each content. This doesn't solve
+the problem of leftover files completely, but makes it non-fatal (there's no chance
+this would eat all the available space in /tmp).
+]]
+local function hashed_file(content)
+	local hash = sha256(content)
+	local name, f = tempfile()
+	f:write(content)
+	f:close()
+	local renamed = name:gsub("[^/]*$", hash)
+	os.rename(name, renamed)
+	return renamed
+end
+
 function new(context, uri, verification)
 	DBG("Creating new URI: ", uri)
 	local handler = parse(context, uri)
-	-- TODO: Check restricted URIs
 	-- Prepare verification
 	verification = verification or {}
 	local context_nocheck_cache
@@ -285,14 +301,6 @@ function new(context, uri, verification)
 		callbacks = {},
 		events = {}
 	}
-	local tmp_files = {}
-	-- Called when everything is done, to remove some temporary files (will not be needed once we move to libcurl)
-	local function cleanup()
-		for _, fname in ipairs(tmp_files) do
-			os.remove(fname)
-		end
-		tmp_files = {}
-	end
 	-- Prepare the result and callbacks into the handler
 	function result:ok()
 		if self.done then
@@ -310,7 +318,6 @@ function new(context, uri, verification)
 		result.done = true
 		result.err = err
 		result.events = {}
-		cleanup()
 		return result
 	end
 	local vermode = ver_lookup('verification', handler.def_verif)
@@ -322,12 +329,11 @@ function new(context, uri, verification)
 	if do_cert then
 		local ca, ca_context = ver_lookup('ca', nil, true)
 		local function pem_get(uris, context)
-			local fname, f = tempfile()
-			table.insert(tmp_files, fname)
 			if type(uris) == 'string' then
 				uris = {uris}
 			end
 			if type(uris) == 'table' then
+				local all = ''
 				for _, curi in ipairs(uris) do
 					local u = new(context, curi, {verification = 'none'})
 					local ok, content = u:get()
@@ -335,13 +341,12 @@ function new(context, uri, verification)
 						give_up(content)
 						return nil
 					end
-					f:write(content)
+					all = all .. content
 				end
+				return hashed_file(all)
 			else
 				error(utils.exception('bad value', "The ca and crl must be either string or table, not " .. type(uris)))
 			end
-			f:close()
-			return fname
 		end
 		use_ca = pem_get(ca, ca_context)
 		if not use_ca then
@@ -428,7 +433,6 @@ function new(context, uri, verification)
 			end
 		end
 		if result.done then
-			cleanup()
 			result.events = {}
 			for _, cback in ipairs(result.callbacks) do
 				cback(result:get())
