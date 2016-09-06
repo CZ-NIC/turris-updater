@@ -757,7 +757,7 @@ function not_installed_confs(current_status)
 	local not_installed_confs = {}
 	for pkg, status in pairs(current_status) do
 		if status.Status[3] == "not-installed" then
-			for conf, hash in pairs(status.Conffiles) do
+			for conf, hash in pairs(status.Conffiles or {}) do
 				not_installed_confs[conf] = { pkg = pkg, hash = hash }
 			end
 		end
