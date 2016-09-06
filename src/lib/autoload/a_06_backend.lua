@@ -57,6 +57,13 @@ local locks = require "locks"
 
 module "backend"
 
+-- Functions and variables used in other files
+-- luacheck: globals pkg_temp_dir repo_parse status_dump pkg_unpack pkg_examine collision_check not_installed_confs steal_configs dir_ensure pkg_merge_files pkg_merge_control pkg_config_info pkg_cleanup_files control_cleanup version_cmp flags_load flags_get script_run flags_get_ro flags_write flags_mark run_state
+-- Variables that we want to access from outside (ex. for testing purposes)
+-- luacheck: globals status_file info_dir root_dir pkg_temp_dir flags_storage cmd_timeout cmd_kill_timeout stored_flags dir_opkg_collided
+-- Functions that we want to access from outside (ex. for testing purposes)
+-- luacheck: globals root_dir_set block_parse block_split block_dump_ordered pkg_status_dump package_postprocess status_parse get_parent config_modified
+
 --[[
 Configuration of the module. It is supported (yet unlikely to be
 needed) to modify these variables.

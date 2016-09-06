@@ -39,6 +39,8 @@ local uri = require "uri"
 
 module "postprocess"
 
+-- luacheck: globals get_repos deps_canon available_packages pkg_aggregate run
+
 function get_repos()
 	DBG("Getting repos")
 	--[[

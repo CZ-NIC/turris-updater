@@ -46,6 +46,8 @@ local sha256 = sha256
 
 module "transaction"
 
+-- luacheck: globals perform recover empty perform_queue recover_pretty queue_remove queue_install queue_install_downloaded approval_hash task_report
+
 -- Wrap the call to the maintainer script, and store any possible errors for later use
 local function script(errors_collected, name, suffix, ...)
 	local ok, stderr = backend.script_run(name, suffix, ...)

@@ -36,6 +36,8 @@ local transaction = require "transaction"
 
 module "updater"
 
+-- luacheck: globals prepare cleanup
+
 local cleanup_actions = {}
 
 function prepare(entrypoint)

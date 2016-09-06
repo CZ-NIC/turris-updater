@@ -37,6 +37,8 @@ local WARN = WARN
 
 module "requests"
 
+-- luacheck: globals known_packages package_wrap known_repositories known_repositories_all repo_serial repository repository_get content_requests install uninstall script store_flags
+
 -- Create a set of allowed names of extra options.
 local allowed_package_extras = utils.arr2set({
 	"virtual",

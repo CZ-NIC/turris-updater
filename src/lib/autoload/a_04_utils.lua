@@ -31,6 +31,8 @@ local run_command = run_command
 
 module "utils"
 
+-- luacheck: globals lines2set map set2arr arr2set cleanup_dirs slurp clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay randstr
+
 --[[
 Convert provided text into set of lines. Doesn't care about the order.
 You may override the separator, if your lines aren't terminated by \n.

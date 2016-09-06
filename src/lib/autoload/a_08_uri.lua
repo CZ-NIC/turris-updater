@@ -46,6 +46,8 @@ local sha256 = sha256
 
 module "uri"
 
+-- luacheck: globals wait signature_check parse new
+
 local function percent_decode(text)
 	return text:gsub('%%(..)', function (encoded)
 		local cnum = tonumber(encoded, 16)

@@ -32,6 +32,8 @@ local backend = require "backend"
 
 module "planner"
 
+-- luacheck: globals candidate_choose required_pkgs filter_required
+
 --[[
 Choose the best candidate to install.
 ]]

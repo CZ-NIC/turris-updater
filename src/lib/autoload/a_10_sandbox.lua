@@ -49,6 +49,8 @@ end
 
 module "sandbox"
 
+-- luacheck: globals morpher state_vars level new run_sandboxed
+
 -- WARNING: BEGIN_MAGIC (read the design morphers documentation)
 
 --[[
