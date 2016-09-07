@@ -32,11 +32,7 @@ We provide several kinds of variables:
   version-dependencies.
 * Auxiliary variables. As there may be complex dependencies, it is
   easier to use something like Tseytin transformation ‒ have a
-  „result“ variable for each `Or`, `And` and `Not` operator. Note that
-  since a dependency on the expression is an implication (the
-  expression must be true when the package is installed, but we don't
-  care about its value when it is not), we are free to produce only
-  one direction of value enforcement (eg. propagating down).
+  „result“ variable for each `Or`, `And` and `Not` operator.
 * Penalty variables. When we choose from multiple options, we want to
   prefer some based on local criteria. These variables are added to
   these choices and are forced to false whenever a non-optimal choice
