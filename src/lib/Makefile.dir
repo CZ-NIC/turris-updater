@@ -3,7 +3,8 @@ LIBRARIES += src/lib/libupdater
 $(O)/.gen/src/%.embedlist: $(S)/src/lib/gen_embed.sh $(S)/src/lib/embed_types.h
 	$(M) GEN $@
 	$(Q)mkdir -p $(dir $@)
-	$(Q)$< "$(SUFFIX)" $(basename $(notdir $@)) $(S)/src/lib/embed_types.h $(abspath $(filter-out $(S)/src/lib/gen_embed.sh, $(filter-out $(S)/src/lib/embed_types.h, $^))) >$@
+	# The filter-out leaves embed_types.h in. But this one is used by the script (not to be embedded, though, it's a different kind of parameter than the rest of them).
+	$(Q)$< "$(SUFFIX)" $(basename $(notdir $@)) $(abspath $(filter-out $<, $^)) >$@
 
 $(O)/.gen/src/lib/lautoload.embedlist: $(wildcard $(S)/src/lib/autoload/*.lua)
 $(O)/.gen/src/lib/lautoload.embedlist: SUFFIX := .lua
