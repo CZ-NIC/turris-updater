@@ -1,10 +1,12 @@
 LIBRARIES += src/lib/libupdater
 
-OPKG_AUTOLOAD := $(abspath $(wildcard $(S)/src/lib/autoload/*.lua))
-$(O)/.gen/src/lib/lautoload.embedlist: $(S)/src/lib/gen_embed.sh $(S)/src/lib/embed_types.h $(OPKG_AUTOLOAD)
+$(O)/.gen/src/%.embedlist: $(S)/src/lib/gen_embed.sh $(S)/src/lib/embed_types.h
 	$(M) GEN $@
 	$(Q)mkdir -p $(dir $@)
-	$(Q)$< .lua autoload $(S)/src/lib/embed_types.h $(OPKG_AUTOLOAD) >$@
+	$(Q)$< "$(SUFFIX)" $(basename $(notdir $@)) $(S)/src/lib/embed_types.h $(abspath $(filter-out $(S)/src/lib/gen_embed.sh, $(filter-out $(S)/src/lib/embed_types.h, $^))) >$@
+
+$(O)/.gen/src/lib/lautoload.embedlist: $(wildcard $(S)/src/lib/autoload/*.lua)
+$(O)/.gen/src/lib/lautoload.embedlist: SUFFIX := .lua
 
 libupdater_MODULES := \
 	arguments \

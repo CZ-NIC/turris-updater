@@ -10,6 +10,7 @@
 *.so
 /src/opkg-trans/opkg-trans
 /src/pkgupdate/pkgupdate
+/src/migrator/pkgmigrate
 # Stuff dump core all over the place.
 core
 vgcore.*
