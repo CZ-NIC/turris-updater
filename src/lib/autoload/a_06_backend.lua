@@ -178,10 +178,7 @@ function pkg_status_dump(status)
 	return block_dump_ordered({
 		raw "Package",
 		raw "Version",
-		line("Depends", function (deps)
-			-- Join the dependencies together, separated by commas
-			return table.concat(deps, ', ')
-		end),
+		raw "Depends",
 		raw "Conflicts",
 		line("Status", function (status)
 			-- Join status flags together, separated by spaces
@@ -297,13 +294,7 @@ function package_postprocess(status)
 	-- Conffiles are lines with two „words“
 	replace("Conffiles", "\n", "%s*(%S+)%s+(%S+)")
 	status.Conffiles = slashes_sanitize(status.Conffiles)
-	-- Depends are separated by commas and may contain a version in parentheses
 	local idx = 0
-	replace("Depends", ",", function (s)
-		idx = idx + 1
-		return idx, s:gsub("^%s", ""):gsub("%s$", "")
-	end)
-	idx = 0
 	replace("Status", " ", function (s)
 		idx = idx + 1
 		return idx, s

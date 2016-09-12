@@ -1302,8 +1302,7 @@ function assert_plan_dep_order(expected, plan)
 	-- Check that objects are in correct order
 	local p2i = utils.map(plan, function(k, v) return v.name, k end)
 	for _, p in ipairs(plan) do
-		local alldeps = {p.modifier.deps}
-		utils.arr_append(alldeps, p.package.deps or {})
+		local alldeps = utils.arr_prune({p.modifier.deps, p.package.deps})
 		local pi = p2i[p.name]
 		for _, dep in ipairs(alldeps) do
 			for _, pkg in planner.pkg_dep_iterate(dep) do

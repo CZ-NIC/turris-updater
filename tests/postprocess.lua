@@ -51,7 +51,7 @@ local example_output = {
 				list = {
 					["6in4"] = {
 						Architecture = "all",
-						Depends = {"libc", "kmod-sit"},
+						Depends = "libc, kmod-sit",
 						Description = [[Provides support for 6in4 tunnels in /etc/config/network.
  Refer to http://wiki.openwrt.org/doc/uci/network for
  configuration details.]],
@@ -70,7 +70,7 @@ local example_output = {
 					},
 					["6rd"] = {
 						Architecture = "all",
-						Depends = {"libc", "kmod-sit"},
+						Depends = "libc, kmod-sit",
 						Description = [[Provides support for 6rd tunnels in /etc/config/network.
  Refer to http://wiki.openwrt.org/doc/uci/network for
  configuration details.]],
@@ -188,7 +188,8 @@ function test_pkg_merge()
 					tp = 'pkg-list',
 					list = {
 						xyz = {Package = "xyz", Version = "1"},
-						abc = {Package = "abc", Version = "2"}
+						abc = {Package = "abc", Version = "2", Depends = "cde"},
+						cde = {Package = "cde", Version = "1"}
 					}
 				}
 			}
@@ -247,10 +248,14 @@ function test_pkg_merge()
 	local exp = {
 		abc = {
 			candidates = {
-				{Package = "abc", Version = "2", repo = requests.known_repositories_all[1]},
+				{Package = "abc", Depends = "cde", deps = "cde", Version = "2", repo = requests.known_repositories_all[1]},
 				{Package = "abc", Version = "1", repo = requests.known_repositories_all[2]}
 			},
 			modifier = {name = "abc"}
+		},
+		cde = {
+			candidates = {{Package = "cde", Version = "1", repo = requests.known_repositories_all[1]}},
+			modifier = {name = "cde"}
 		},
 		another = {
 			candidates = {{Package = "another", Version = "4", repo = requests.known_repositories_all[2]}},
@@ -305,6 +310,7 @@ function test_deps_canon()
 	assert_equal("x", postprocess.deps_canon("x"))
 	assert_equal("x", postprocess.deps_canon(" x "))
 	assert_equal("x", postprocess.deps_canon({"x"}))
+	assert_equal("x", postprocess.deps_canon({"x", ""}))
 	assert_equal("x", postprocess.deps_canon({tp = 'dep-and', sub = {"x"}}))
 	assert_equal("x", postprocess.deps_canon({tp = 'dep-or', sub = {"x"}}))
 	assert_equal("x", postprocess.deps_canon("x ( )"))

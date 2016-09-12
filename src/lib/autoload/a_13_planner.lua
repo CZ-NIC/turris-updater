@@ -330,8 +330,7 @@ local function build_plan(pkgs, requests, sat, satmap)
 		-- Recursively add all packages this package depends on --
 		inwstack[name] = #wstack + 1 -- Signal that we are working on this package group.
 		table.insert(wstack, name)
-		local alldeps = { utils.multi_index(pkg, 'modifier', 'deps') }
-		table.insert(alldeps, (candidate or {}).deps or {})
+		local alldeps = utils.arr_prune({ utils.multi_index(pkg, 'modifier', 'deps'), (candidate or {}).deps })
 		for _, p in pkg_dep_iterate(alldeps) do
 			pkg_plan(p, ignore_missing or utils.arr2set(utils.multi_index(pkg, 'modifier', 'ignore') or {})["deps"], false, "Package " .. name .. " requires package")
 		end
@@ -410,6 +409,7 @@ function required_pkgs(pkgs, requests)
 			table.insert(reqs_critical, req)
 		else
 			if not req.priority then req.priority = 50 end
+			
 			if not reqs_by_priority[req.priority] then reqs_by_priority[req.priority] = {} end
 			if req.tp ~= (utils.map(reqs_by_priority[req.priority], function(_, r) return r.package.name, r.tp end)[req.package.name] or req.tp) then
 				error(utils.exception('invalid-request', 'Requested both Install and Uninstall with same priority for package ' .. req.package.name))
@@ -417,12 +417,7 @@ function required_pkgs(pkgs, requests)
 			table.insert(reqs_by_priority[req.priority], req)
 		end
 	end
-	local prios = utils.set2arr(reqs_by_priority)
-	table.sort(prios, function(a, b) return a > b end)
-	local reqs_prior = {}
-	for _, p in ipairs(prios) do
-		table.insert(reqs_prior, reqs_by_priority[p])
-	end
+	reqs_by_priority = utils.arr_inv(utils.arr_prune(reqs_by_priority))
 
 	-- Executes sat solver and adds clauses for maximal satisfiable set
 	local function clause_max_satisfiable()
@@ -446,7 +441,7 @@ function required_pkgs(pkgs, requests)
 
 	-- Install and Uninstall requests.
 	DBG("Resolving Install and Uninstall requests")
-	for _, reqs in ipairs(reqs_prior) do
+	for _, reqs in ipairs(reqs_by_priority) do
 		for _, req in pairs(reqs) do
 			-- Assume all request for this priority
 			sat:assume(satmap.req2sat[req])

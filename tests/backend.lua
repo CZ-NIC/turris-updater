@@ -127,7 +127,7 @@ function test_package_postprocces()
 	assert_equal(package, output)
 	assert_table_equal({"install", "user", "installed"}, output.Status)
 	assert_table_equal({["/etc/config/dhcp"] = "f81fe9bd228dede2165be71e5c9dcf76cc", ["/etc/dnsmasq.conf"] = "1e6ab19c1ae5e70d609ac7b6246541d520"}, output.Conffiles)
-	assert_table_equal({"libc", "kernel (= 3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10)", "kmod-nls-base"}, output.Depends)
+	assert_table_equal("libc, kernel (= 3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10), kmod-nls-base", output.Depends)
 	--[[
 	Now check it doesn't get confused when some of the modified fields aren't there
 	(or none, in this case).
@@ -166,11 +166,7 @@ function test_status_parse()
 		["Installed-Size"] = "22537",
 		Description = "Kernel support for USB Mass Storage devices",
 		["Installed-Time"] = "1453896142",
-		Depends = {
-			"kernel (=3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10)",
-			"kmod-scsi-core",
-			"kmod-usb-core"
-		},
+		Depends = "kernel (=3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10), kmod-scsi-core, kmod-usb-core",
 		Status = std_status,
 		files = {
 			["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
@@ -189,7 +185,7 @@ function test_status_parse()
 		["Installed-Size"] = "5822",
 		Description = "Terminal Info Database (ncurses)",
 		["Installed-Time"] = "1453896265",
-		Depends = {"libc"},
+		Depends = "libc",
 		Status = std_status,
 		files = {
 			["/usr/share/terminfo/x/xterm"] = true,
@@ -218,7 +214,7 @@ function test_status_parse()
  
  This is a variant with DHCPv6 support]],
 		["Installed-Time"] = "1453896240",
-		Depends = {"libc"},
+		Depends = "libc",
 		Status = std_status,
 		files = {
 			["/etc/dnsmasq.conf"] = true,
@@ -238,7 +234,7 @@ function test_status_parse()
 		Version = "27",
 		Architecture = "mpc85xx",
 		["Installed-Time"] = "1453896279",
-		Depends = {"libc", "ucollect-prog"},
+		Depends = "libc, ucollect-prog",
 		Status = std_status,
 		files = {}
 	})
@@ -339,7 +335,7 @@ function test_pkg_unpack()
 		Architecture = "mpc85xx",
 		["Installed-Size"] = "14773",
 		Description = "updater",
-		Depends = {"libc", "vixie-cron", "openssl-util", "libatsha204", "curl", "cert-backup", "opkg", "bzip2", "cznic-cacert-bundle"},
+		Depends = "libc, vixie-cron, openssl-util, libatsha204, curl, cert-backup, opkg, bzip2, cznic-cacert-bundle",
 		Conffiles = conffiles,
 		Status = {"install", "user", "installed"},
 		files = files
@@ -688,13 +684,13 @@ Installed-Time: 1
 	Version = "1",
 	["Installed-Time"] = "1",
 	Extra = "xxxx",
-	Depends = { "dep1", "dep2" },
+	Depends = "dep1, dep2",
 	Status = { "flag" },
 	Conffiles = { ["file"] = "1234567890123456" }
 	}))
 end
 
-function test_status_dump()
+function test_status_parse_dump()
 	-- Read the status
 	local status = B.status_parse()
 	-- Make a copy of the status file, we'are going to write into it
@@ -710,7 +706,7 @@ function test_status_dump()
 		Package = "New",
 		Version = "1",
 		["Installed-Time"] = "1",
-		Depends = { "Dep1", "dep2" },
+		Depends = "Dep1, dep2",
 		Status = { "flag" }
 	}
 	-- Do one more store-read-compare cycle
@@ -850,12 +846,12 @@ function test_repo_parse()
 		["base-files"] = {
 			Package = "base-files",
 			Version = "160-r49274",
-			Depends = {"libc", "netifd", "procd", "jsonfilter"}
+			Depends = "libc, netifd, procd, jsonfilter"
 		},
 		["block-mount"] = {
 			Package = "block-mount",
 			Version = "2015-05-24-09027fc86babc3986027a0e677aca1b6999a9e14",
-			Depends = {"libc", "ubox", "libubox", "libuci"}
+			Depends = "libc, ubox, libubox, libuci"
 		}
 	}, B.repo_parse([[
 Package: base-files
