@@ -37,7 +37,9 @@ LUA_TESTS := \
 	sandbox \
 	transaction \
 	utils \
-	uri
+	uri \
+	picosat \
+	sat
 
 # Ignore stacktraceplus and dumper, not our creation.
 LUA_AUTOLOAD := $(filter-out 01_stacktraceplus 05_dumper,$(patsubst a_%.lua,%,$(notdir $(wildcard $(S)/src/lib/autoload/a_*.lua))))

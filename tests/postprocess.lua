@@ -236,20 +236,20 @@ function test_pkg_merge()
 	-- Build the expected data structure
 	local exp = {
 		abc = {
-			candidates = {{Package = "abc"}, {Package = "abc"}},
+			candidates = {{Package = "abc", deps = {}}, {Package = "abc", deps = {}}},
 			modifier = {name = "abc"}
 		},
 		another = {
-			candidates = {{Package = "another"}},
+			candidates = {{Package = "another", deps = {}}},
 			modifier = {name = "another"}
 		},
 		virt = {
-			candidates = {{tp = "package", name = "virt", deps = {"xyz", "abc"}, virtual = true}},
+			candidates = {{tp = "package", name = "virt", deps = {tp = "dep-and", sub = {"xyz", "abc"}}, virtual = true}},
 			modifier = {name = "virt"},
 			virtual = true
 		},
 		xyz = {
-			candidates = {{Package = "xyz"}},
+			candidates = {{Package = "xyz", deps = {}}},
 			modifier = {
 				name = "xyz",
 				order_after = {abc = true},
@@ -294,9 +294,12 @@ function test_deps_canon()
 	assert_equal("x", postprocess.deps_canon({"x"}))
 	assert_equal("x", postprocess.deps_canon({tp = 'dep-and', sub = {"x"}}))
 	assert_equal("x", postprocess.deps_canon({tp = 'dep-or', sub = {"x"}}))
+	assert_equal("x", postprocess.deps_canon("x ( )"))
+	assert_table_equal({tp = "dep-package", name = "x", version = ">1.25"}, postprocess.deps_canon("x (>1.25)"))
+	assert_table_equal({tp = "dep-package", name = "x", version = ">v_12"}, postprocess.deps_canon("x ( >v_12)"))
 	assert_table_equal({tp = "dep-not", sub = {"x"}}, postprocess.deps_canon({tp = 'dep-not', sub = {"x"}}))
-	assert_table_equal({tp = "dep-and", sub = {"x", "y"}}, postprocess.deps_canon("x y"))
-	assert_table_equal({tp = "dep-and", sub = {"x", "y"}}, postprocess.deps_canon({"x y"}))
+	assert_table_equal({tp = "dep-and", sub = {"x", "y"}}, postprocess.deps_canon("x, y"))
+	assert_table_equal({tp = "dep-and", sub = {"x", "y"}}, postprocess.deps_canon({"x, y"}))
 	assert_table_equal({tp = "dep-and", sub = {"x", "y"}}, postprocess.deps_canon({"x", "y"}))
 	assert_table_equal({tp = "dep-and", sub = {"x", "y"}}, postprocess.deps_canon({"x", {"y "}}))
 	assert_table_equal({tp = "dep-and", sub = {"x", "y"}}, postprocess.deps_canon({"x", {tp = 'dep-and', sub = {"y "}}}))

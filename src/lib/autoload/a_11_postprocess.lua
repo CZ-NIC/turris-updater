@@ -157,23 +157,34 @@ end
 
 --[[
 Canonicize the dependencies somewhat. This does several things:
-• Splits dependencies from strings (eg. "a b c" becomes a real dep-and object holding "a", "b", "c").
+• Splits dependencies from strings (eg. "a, b, c" becomes a real dep-and object holding "a", "b", "c").
+• Splits version limitations from dependency string (ex.: "a (>=1)" becomes { tp="dep-package", name="a", version=">=1" }).
 • Table dependencies are turned to real dep-and object.
 • Empty dependencies are turned to nil.
 • Single dependencies are turned to just the string (except with the not dependency)
-TODO: There may be versions. These are ignored for now.
 ]]
 function deps_canon(old_deps)
 	if type(old_deps) == 'string' then
-		if old_deps:match('%s') then
+		if old_deps:match(',') then
 			local sub = {}
-			for dep in old_deps:gmatch('%S+') do
-				table.insert(sub, dep)
+			for dep in old_deps:gmatch('[^,]+') do
+				table.insert(sub, deps_canon(dep))
 			end
 			return deps_canon({
 				tp = 'dep-and',
 				sub = sub
 			})
+		elseif old_deps:match('%s') then
+			-- When there is space in parsed name, then there might be version specified
+			local dep = old_deps:gsub('^%s', ''):gsub('%s$', '')
+			local name = dep:match('^%S+')
+			local version = dep:match('%(.+%)$')
+			version = version and version:sub(2,-2):gsub('^%s', ''):gsub('%s$', '')
+			if not version or version == "" then
+				return name -- No version detected, use just name.
+			else
+				return { tp = "dep-package", name = name, version = version }
+			end
 		elseif old_deps == '' then
 			return nil
 		else
@@ -327,6 +338,12 @@ function pkg_aggregate()
 			modifier.replan = modifier.replan or m.replan
 		end
 		modifier.deps = deps_canon(modifier.deps)
+		for _, candidate in ipairs(pkg_group.candidates or {}) do
+			candidate.deps = deps_canon(candidate.deps) or {} -- deps from updater configuration file
+			for _, d in ipairs(candidate.Depends or {}) do -- Depends from repository
+				table.insert(candidate.deps, deps_canon(d))
+			end
+		end
 		pkg_group.modifier = modifier
 		-- We merged them together, they are no longer needed separately
 		pkg_group.modifiers = nil

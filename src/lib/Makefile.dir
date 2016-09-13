@@ -18,9 +18,14 @@ libupdater_MODULES := \
 	events \
 	journal \
 	locks \
-	util \
+	picosat \
+	util
+
+libupdater_MODULES_3RDPARTY := \
 	md5 \
-	sha256
+	sha256 \
+	picosat-960/picosat
+
 libupdater_PKG_CONFIGS := $(LUA_NAME) libevent
 # Workaround, lua.pc doesn't containd -ldl, even when it uses dlopen
 libupdater_SO_LIBS += dl
