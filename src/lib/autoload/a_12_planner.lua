@@ -29,10 +29,10 @@ local table = table
 local DIE = DIE
 local DBG = DBG
 local WARN = WARN
+local picosat = picosat
 local utils = require "utils"
 local backend = require "backend"
 local requests = require "requests"
-local sat = require "sat"
 
 module "planner"
 
@@ -73,7 +73,6 @@ function candidates_choose(candidates, version, repository)
 	end
 	return compliant
 end
-
 --[[
 Build dependencies for all touched packages. We do it recursively across
 dependencies of requested packages, this makes searched space smaller and building
@@ -388,7 +387,7 @@ constructed from package objects during the aggregation, holding additional proc
 info (hooks, etc).
 ]]
 function required_pkgs(pkgs, requests)
-	local sat = sat.new()
+	local sat = picosat.new()
 	-- Tables that's mapping packages, requests and candidates with sat variables
 	local satmap = {
 		pkg2sat = {},
