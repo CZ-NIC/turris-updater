@@ -48,7 +48,6 @@ function test_no_deps()
 			package = {
 				tp = 'package',
 				name = 'pkg1',
-				group = pkgs.pkg1
 			}
 		},
 		{
@@ -214,7 +213,6 @@ function test_deps()
 			package = {
 				tp = 'package',
 				name = 'pkg1',
-				group = pkgs.pkg1
 			}
 		},
 		{
@@ -222,7 +220,6 @@ function test_deps()
 			package = {
 				tp = 'package',
 				name = 'pkg2',
-				group = pkgs.pkg2
 			}
 		}
 	}
@@ -282,7 +279,6 @@ function test_missing_dep()
 			package = {
 				tp = 'package',
 				name = 'pkg',
-				group = pkgs.pkg
 			}
 		}
 	}
@@ -935,7 +931,6 @@ function test_missing_install()
 			package = {
 				tp = 'package',
 				name = 'pkg1',
-				group = pkgs.pkg1
 			}
 		},
 		{
@@ -975,7 +970,6 @@ function test_missing_dep_ignore()
 			package = {
 				tp = 'package',
 				name = 'pkg1',
-				group = pkgs.pkg1
 			}
 		}
 	}
@@ -1006,7 +1000,6 @@ function test_complex_deps()
 	local pkg2 = {
 		tp = "package",
 		name = "pkg2",
-		group = pkgs.pkg2
 	}
 	pkgs.meta = {
 		candidates = {{Package = "meta", repo = def_repo}},
@@ -1047,7 +1040,6 @@ function test_complex_deps()
 			package = {
 				tp = 'package',
 				name = 'meta',
-				group = pkgs.meta
 			}
 		}
 	}

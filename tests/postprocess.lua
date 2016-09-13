@@ -300,7 +300,6 @@ function test_pkg_merge()
 		end
 	end
 	assert_table_equal(exp, postprocess.available_packages)
-	assert_table_equal(utils.private(postprocess.available_packages.virt.candidates[1]).group, exp.virt)
 end
 
 function test_deps_canon()

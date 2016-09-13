@@ -261,7 +261,6 @@ function pkg_aggregate()
 			available_packages[pkg.name] = {candidates = {}, modifiers = {}}
 		end
 		local pkg_group = available_packages[pkg.name]
-		utils.private(pkg).group = pkg_group
 		if pkg.virtual then
 			table.insert(pkg_group.candidates, pkg)
 			pkg_group.virtual = true
