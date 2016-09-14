@@ -71,8 +71,8 @@ local function build_deps(sat, satmap, pkgs, requests)
 		end
 		-- Create new variable for this package and new sat clauses batch
 		local pkg_var = sat:var()
+		DBG("SAT add package " .. name .. " with var: " .. tostring(pkg_var))
 		satmap.pkg2sat[name] = pkg_var
-		DBG("Adding dependencies for package " .. name)
 		local pkg = pkgs[name]
 		local candidate
 		if pkg and pkg.candidates and next(pkg.candidates) then
@@ -347,6 +347,7 @@ function required_pkgs(pkgs, requests)
 	end
 
 	-- Install critical packages requests (set all critical packages to be true)
+	DBG("Resolving critical packages")
 	for _, req in ipairs(reqs_critical) do
 		sat:clause(satmap.req2sat[req])
 	end
@@ -356,6 +357,7 @@ function required_pkgs(pkgs, requests)
 	end
 
 	-- Install and Uninstall requests.
+	DBG("Resolving Install and Uninstall requests")
 	for _, reqs in ipairs(reqs_prior) do
 		for _, req in pairs(reqs) do
 			-- Assume all request for this priority
@@ -365,6 +367,7 @@ function required_pkgs(pkgs, requests)
 	end
 
 	-- Deny any packages missing or without candidates if possible
+	DBG("Denying packages without any candidate")
 	for name, var in pairs(satmap.pkg2sat) do
 		local pkg = pkgs[name]
 		if not pkg or not pkg.candidates or not next(pkg.candidates) then
@@ -374,12 +377,14 @@ function required_pkgs(pkgs, requests)
 	clause_max_satisfiable()
 
 	-- Chose alternatives with penalty variables
+	DBG("Forcing penalty on expressions with free alternatives")
 	for var, _ in pairs(satmap.penaltysat) do
 		sat:assume(var)
 	end
 	clause_max_satisfiable()
 
 	-- Now solve all packages selections from dependencies of already selected packages
+	DBG("Deducing minimal set of required packages")
 	for _, var in pairs(satmap.pkg2sat) do
 		-- We assume false (not selected) for all packages
 		sat:assume(-var)
