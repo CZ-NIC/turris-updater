@@ -187,8 +187,8 @@ function test_pkg_merge()
 				[""] = {
 					tp = 'pkg-list',
 					list = {
-						xyz = {Package = "xyz"},
-						abc = {Package = "abc"}
+						xyz = {Package = "xyz", Version = "1"},
+						abc = {Package = "abc", Version = "2"}
 					}
 				}
 			}
@@ -198,19 +198,23 @@ function test_pkg_merge()
 				a = {
 					tp = 'pkg-list',
 					list = {
-						abc = {Package = "abc"}
+						abc = {Package = "abc", Version = "1"}
 					}
 				},
 				b = {
 					tp = 'pkg-list',
 					list = {
-						another = {Package = "another"}
+						another = {Package = "another", Version = "4"}
 					}
 				},
 				c = utils.exception("Just an exception", "Just an exception")
 			}
 		}
 	}
+	requests.known_repositories_all[1].content[""].list.xyz.repo = requests.known_repositories_all[1]
+	requests.known_repositories_all[1].content[""].list.abc.repo = requests.known_repositories_all[1]
+	requests.known_repositories_all[2].content.a.list.abc.repo = requests.known_repositories_all[2]
+	requests.known_repositories_all[2].content.b.list.another.repo = requests.known_repositories_all[2]
 	requests.known_packages = {
 		{
 			tp = 'package',
@@ -236,11 +240,14 @@ function test_pkg_merge()
 	-- Build the expected data structure
 	local exp = {
 		abc = {
-			candidates = {{Package = "abc", deps = {}}, {Package = "abc", deps = {}}},
+			candidates = {
+				{Package = "abc", Version = "2", deps = {}, repo = requests.known_repositories_all[1]},
+				{Package = "abc", Version = "1", deps = {}, repo = requests.known_repositories_all[2]}
+			},
 			modifier = {name = "abc"}
 		},
 		another = {
-			candidates = {{Package = "another", deps = {}}},
+			candidates = {{Package = "another", Version = "4", deps = {}, repo = requests.known_repositories_all[2]}},
 			modifier = {name = "another"}
 		},
 		virt = {
@@ -249,7 +256,7 @@ function test_pkg_merge()
 			virtual = true
 		},
 		xyz = {
-			candidates = {{Package = "xyz", deps = {}}},
+			candidates = {{Package = "xyz", Version = "1", deps = {}, repo = requests.known_repositories_all[1]}},
 			modifier = {
 				name = "xyz",
 				order_after = {abc = true},
