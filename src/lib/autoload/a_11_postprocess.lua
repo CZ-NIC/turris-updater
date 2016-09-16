@@ -340,10 +340,9 @@ function pkg_aggregate()
 		-- Canonize dependencies
 		modifier.deps = deps_canon(modifier.deps)
 		for _, candidate in ipairs(pkg_group.candidates or {}) do
-			candidate.deps = deps_canon(candidate.deps) or {} -- deps from updater configuration file
-			for _, d in ipairs(candidate.Depends or {}) do -- Depends from repository
-				table.insert(candidate.deps, deps_canon(d))
-			end
+			local candidate_deps = { candidate.deps } -- deps from updater configuration file
+			table.insert(candidate_deps, candidate.Depends) -- Depends from repository)
+			candidate.deps = deps_canon(candidate_deps)
 		end
 		pkg_group.modifier = modifier
 		-- We merged them together, they are no longer needed separately

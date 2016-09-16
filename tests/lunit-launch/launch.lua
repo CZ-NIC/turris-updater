@@ -50,7 +50,7 @@ function assert_table_equal(t1, t2, tables, checked)
 	end
 end
 
-function assert_exception(func, reason, msg)
+function assert_exception(func, reason, msg, extra)
 	local ok, err = pcall(func)
 	lunit.assert_false(ok, "It hasn't failed")
 	local dumped, result = pcall(DataDumper, err)
@@ -61,6 +61,13 @@ function assert_exception(func, reason, msg)
 	lunit.assert_equal(reason, err.reason, "Failed with a wrong reason " .. (err.reason or err))
 	if msg then
 		lunit.assert_equal(msg, err.msg, "Failed with a wrong message " .. (err.msg or msg))
+	end
+	if extra then
+		local eerr = utils.shallow_copy(extra)
+		eerr.tp = 'error'
+		eerr.reason = err.reason
+		eerr.msg = err.msg
+		assert_table_equal(eerr, err)
 	end
 end
 
