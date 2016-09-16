@@ -241,13 +241,13 @@ function test_pkg_merge()
 	local exp = {
 		abc = {
 			candidates = {
-				{Package = "abc", Version = "2", deps = {}, repo = requests.known_repositories_all[1]},
-				{Package = "abc", Version = "1", deps = {}, repo = requests.known_repositories_all[2]}
+				{Package = "abc", Version = "2", repo = requests.known_repositories_all[1]},
+				{Package = "abc", Version = "1", repo = requests.known_repositories_all[2]}
 			},
 			modifier = {name = "abc"}
 		},
 		another = {
-			candidates = {{Package = "another", Version = "4", deps = {}, repo = requests.known_repositories_all[2]}},
+			candidates = {{Package = "another", Version = "4", repo = requests.known_repositories_all[2]}},
 			modifier = {name = "another"}
 		},
 		virt = {
@@ -256,7 +256,7 @@ function test_pkg_merge()
 			virtual = true
 		},
 		xyz = {
-			candidates = {{Package = "xyz", Version = "1", deps = {}, repo = requests.known_repositories_all[1]}},
+			candidates = {{Package = "xyz", Version = "1", repo = requests.known_repositories_all[1]}},
 			modifier = {
 				name = "xyz",
 				order_after = {abc = true},
