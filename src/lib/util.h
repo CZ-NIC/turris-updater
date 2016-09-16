@@ -47,6 +47,14 @@ void log_internal(enum log_level level, const char *file, size_t line, const cha
 #define ASSERT_MSG(COND, ...) do { if (!(COND)) DIE(__VA_ARGS__); } while (0)
 #define ASSERT(COND) do { if (!(COND)) DIE("Failed assert: " #COND); } while (0)
 
+// If prepare of log would be long, check if it would be printed first.
+bool would_log(enum log_level level);
+
+#define WOULD_ERROR() would_log(LL_ERROR)
+#define WOULD_WARN() would_log(LL_WARN)
+#define WOULD_INFO() would_log(LL_INFO)
+#define WOULD_DBG() would_log(LL_DBG)
+
 enum log_level log_level_get(const char *str) __attribute__((nonnull));
 
 // Sets if state and error should be dumped into files in /tmp/updater-state directory

@@ -105,6 +105,10 @@ void log_internal(enum log_level level, const char *file, size_t line, const cha
 	}
 }
 
+bool would_log(enum log_level level) {
+	return (level <= syslog_level) || (level <= stderr_level);
+}
+
 void log_syslog_level(enum log_level level) {
 	syslog_level = level;
 }

@@ -24,7 +24,6 @@ local setmetatable = setmetatable
 local unpack = unpack
 local table = table
 local picosat = picosat
-local DBG = DBG
 
 module "sat"
 
@@ -92,11 +91,6 @@ local function __index(sat, key)
 	return sat._picosat[key]
 end
 
-local function clause(sat, ...)
-	DBG('SAT add clause: ' .. table.concat({...}, ', '))
-	return sat._picosat:clause(...)
-end
-
 --[[
 Creates new sat object. It is extension for picosat, so you can call all methods
 from picosat in addition to "new_batch".
@@ -107,9 +101,8 @@ function new()
 		tp = "sat",
 		_picosat = picosat,
 		new_batch = new_batch,
-		clause = clause
 	}
-	for _, c in pairs({ 'var', 'assume', 'satisfiable', 'max_satisfiable' }) do
+	for _, c in pairs({ 'var', 'assume', 'clause', 'satisfiable', 'max_satisfiable', 'print_trace' }) do
 		sat[c] = function(sat, ...)
 			return sat._picosat[c](sat._picosat, unpack({...}))
 		end
