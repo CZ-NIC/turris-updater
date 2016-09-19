@@ -31,6 +31,7 @@ local DBG = DBG
 local WARN = WARN
 local utils = require "utils"
 local backend = require "backend"
+local requests = require "requests"
 local sat = require "sat"
 
 module "planner"
@@ -39,20 +40,38 @@ module "planner"
 
 -- Choose candidates that compliant version requirement.
 -- TODO support rexexp version specification
--- TODO support repository specification
-function candidates_choose(candidates, version)
-	assert(version)
-	local cmp_start, cmp_end = version:gsub('^[%s]*', ''):find('^[<>=]+') -- locate compare string in version
-	local cmp_str = version:sub(cmp_start, cmp_end)
-	version = version:sub(cmp_end + 1):gsub('^[%s]*', ''):gsub('[%s]*$', '')
+function candidates_choose(candidates, version, repository)
+	assert(version or repository)
+	local cmp_str
+	if version then
+		-- version is in format [><=]VERSION
+		local cmp_start, cmp_end = version:gsub('^[%s]*', ''):find('^[<>=]+') -- locate compare string in version
+		cmp_str = version:sub(cmp_start, cmp_end)
+		version = version:sub(cmp_end + 1):gsub('^[%s]*', ''):gsub('[%s]*$', '')
+	end
+	-- repository is table of strings and objects, canonize to objects.
+	local repos = {}
+	for _, repo in pairs(repository or {}) do
+		assert(type(repo) == 'string' or type(repo) == 'table')
+		if type(repo) == 'string' then
+			repos[requests.known_repositories[repo]] = true
+		else
+			repos[repo] = true
+		end
+	end
 
 	local compliant = {}
 	for _, candidate in pairs(candidates) do
-		assert(candidate.Version)
-		local cmp = backend.version_cmp(version, candidate.Version)
-		if (cmp_str:find('>', 1, true) and cmp == -1) or
-			(cmp_str:find('=', 1, true) and cmp == 0) or
-			(cmp_str:find('<', 1, true) and cmp == 1) then
+		assert(candidate.Version or utils.multi_index(candidate, "modifier", "virtual"))
+		assert(candidate.repo)
+		local cmp = not version or backend.version_cmp(version, candidate.Version)
+		if (not version or (
+				(cmp_str:find('>', 1, true) and cmp == -1) or
+				(cmp_str:find('=', 1, true) and cmp == 0) or
+				(cmp_str:find('<', 1, true) and cmp == 1))
+			) and (
+				not repository or repos[candidate.repo]
+			) then
 			table.insert(compliant, candidate)
 		end
 	end
@@ -136,14 +155,14 @@ local function build_deps(sat, satmap, pkgs, requests)
 		return pkg_var
 	end
 	-- Returns sat variable for specified requirements on given package. 
-	local function dep(pkg, version)
+	local function dep(pkg, version, repository)
 		local name = pkg.name or pkg
 		local group_var = dep_pkg_group(name) -- This also ensures that candidates are in sat
 		-- If we specify version then this is request not to whole package group but to some selection of candidates
-		if version then
+		if version or repository then
 			assert(type(pkg) == 'table') -- If version specified than we should have package not just package group name
 			local var = sat:var()
-			local chosen_candidates = candidates_choose(pkgs[name].candidates, version)
+			local chosen_candidates = candidates_choose(pkgs[name].candidates, version, repository)
 			if next(chosen_candidates) then
 				-- We add here basically or, but without penalizations. Penalization is ensured from dep_pkg_group.
 				local vars = utils.map(chosen_candidates, function(i, candidate)
@@ -204,7 +223,7 @@ local function build_deps(sat, satmap, pkgs, requests)
 	-- Go trough requests and add them to SAT
 	for _, req in ipairs(requests) do
 		local req_var = sat:var()
-		local target_var = dep(req.package, req.version)
+		local target_var = dep(req.package, req.version, req.repository)
 		if req.tp == 'install' then
 			sat:clause(-req_var, target_var) -- implies true
 		elseif req.tp == 'uninstall' then

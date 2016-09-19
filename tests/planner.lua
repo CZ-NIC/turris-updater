@@ -20,6 +20,7 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 require 'lunit'
 
 local planner = require 'planner'
+local requests = require 'requests'
 local utils = require "utils"
 
 module("planner-tests", package.seeall, lunit.testcase)
@@ -727,40 +728,75 @@ function test_replan()
 end
 
 function test_candidate_choose()
+	-- Create dummy repositories in requests module
+	requests.known_repositories = {
+		repo1 = {priority = 50, serial = 1},
+		repo2 = {priority = 50, serial = 2}
+	}
 	local candidates = {
 		{
 			Version = "1",
-			repo = def_repo
+			repo = requests.known_repositories.repo1
+		},
+		{
+			Version = "1",
+			repo = requests.known_repositories.repo2
 		},
 		{
 			Version = "3",
-			repo = def_repo
+			repo = requests.known_repositories.repo1
 		},
 		{
 			Version = "2",
-			repo = def_repo
+			repo = requests.known_repositories.repo1
 		},
 		{
 			Version = "4",
-			repo = def_repo
+			repo = requests.known_repositories.repo2
 		}
 	}
 	assert_table_equal({
 		candidates[1],
-		candidates[3]
-	}, planner.candidates_choose(candidates, "<3"))
-	assert_table_equal({
-		candidates[4]
-	}, planner.candidates_choose(candidates, ">3"))
-	assert_table_equal({
 		candidates[2],
 		candidates[4]
-	}, planner.candidates_choose(candidates, ">=3"))
+	}, planner.candidates_choose(candidates, "<3", nil))
+	assert_table_equal({
+		candidates[1],
+		candidates[4]
+	}, planner.candidates_choose(candidates, "<3", {'repo1'}))
+	assert_table_equal({
+		candidates[1],
+		candidates[2],
+		candidates[4]
+	}, planner.candidates_choose(candidates, "<3", {'repo1', requests.known_repositories.repo2}))
+	assert_table_equal({
+		candidates[5]
+	}, planner.candidates_choose(candidates, ">3", nil))
+	assert_table_equal({
+		candidates[3],
+		candidates[5]
+	}, planner.candidates_choose(candidates, ">=3", nil))
+	assert_table_equal({
+		candidates[5]
+	}, planner.candidates_choose(candidates, ">=3", {'repo2'}))
+	assert_table_equal({
+		candidates[3],
+		candidates[5]
+	}, planner.candidates_choose(candidates, ">=3", {'repo2', 'repo1'}))
+	assert_table_equal({
+		candidates[3],
+		candidates[4],
+		candidates[5]
+	}, planner.candidates_choose(candidates, "=>2", nil))
 	assert_table_equal({
 		candidates[2],
+		candidates[5]
+	}, planner.candidates_choose(candidates, nil, {'repo2'}))
+	assert_table_equal({
+		candidates[1],
 		candidates[3],
 		candidates[4]
-	}, planner.candidates_choose(candidates, "=>2"))
+	}, planner.candidates_choose(candidates, nil, {requests.known_repositories.repo1}))
 end
 
 function test_missing_install()
