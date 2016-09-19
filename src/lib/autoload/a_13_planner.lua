@@ -98,6 +98,7 @@ local function build_deps(sat, satmap, pkgs, requests)
 			return penalty_group_id -- skip first one, it isn't penalized.
 		end
 		local penalty = sat:var()
+		DBG("SAT add penalty variable " .. tostring(penalty) .. " for variable " .. tostring(var))
 		-- penalty => not var
 		sat:clause(-penalty, -var)
 		if #penalty_group[penalty_group_id] ~= 0 then
@@ -126,6 +127,7 @@ local function build_deps(sat, satmap, pkgs, requests)
 		-- At first we just add variables for them
 		for _, candidate in ipairs(candidates) do
 			local var = sat:var()
+			DBG("SAT add candidate " .. candidate.Package .. " version:" .. (candidate.Version or "") .. " var:" .. tostring(var))
 			satmap.candidate2sat[candidate] = var
 			sat:clause(-var, pkg_var) -- candidate implies its package group
 			for _, o_cand in pairs(sat_candidates) do
@@ -162,6 +164,7 @@ local function build_deps(sat, satmap, pkgs, requests)
 		if version or repository then
 			assert(type(pkg) == 'table') -- If version specified than we should have package not just package group name
 			local var = sat:var()
+			DBG("SAT add candidate selection " .. name .. " var:" .. tostring(var))
 			local chosen_candidates = candidates_choose(pkgs[name].candidates, version, repository)
 			if next(chosen_candidates) then
 				-- We add here basically or, but without penalizations. Penalization is ensured from dep_pkg_group.
@@ -170,6 +173,7 @@ local function build_deps(sat, satmap, pkgs, requests)
 				end)
 				sat:clause(-var, unpack(vars)) -- imply that at least one of the possible candidates is chosen
 			else
+				DBG("SAT candidate selection empty")
 				satmap.missing[pkg] = var -- store that this variable points to no candidate
 			end
 			-- Also imply group it self. If we have some candidates, then its just
@@ -194,6 +198,7 @@ local function build_deps(sat, satmap, pkgs, requests)
 		end
 		local wvar = sat:var()
 		if deps.tp == 'dep-and' then
+			DBG("SAT dep and var: " .. tostring(wvar))
 			-- wid <=> var for every variable. Result is that they are all in and statement.
 			for _, sub in ipairs(deps.sub or deps) do
 				local var = dep_traverse(sub)
@@ -201,6 +206,7 @@ local function build_deps(sat, satmap, pkgs, requests)
 				sat:clause(-var, wvar)
 			end
 		elseif deps.tp == 'dep-or' then
+			DBG("SAT dep or var: " .. tostring(wvar))
 			-- If wvar is true, at least one of sat variables must also be true, so vwar => vars...
 			-- Same as if one of vars is true, wvar must be also true, so var => wvar
 			local vars = {}
@@ -223,6 +229,7 @@ local function build_deps(sat, satmap, pkgs, requests)
 	-- Go trough requests and add them to SAT
 	for _, req in ipairs(requests) do
 		local req_var = sat:var()
+		DBG("SAT add request for " .. req.package.name .. " var:" .. tostring(req_var))
 		local target_var = dep(req.package, req.version, req.repository)
 		if req.tp == 'install' then
 			sat:clause(-req_var, target_var) -- implies true
