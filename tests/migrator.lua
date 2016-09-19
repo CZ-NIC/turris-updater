@@ -36,7 +36,7 @@ YYY
 ]], migrator.pkgs_format(pkgs, "", ""))
 end
 
-function test_extra_pkgs()
+local function mocks(status_mod)
 	mock_gen("updater.required_pkgs", function () return {
 		{
 			action = 'reinstall',
@@ -61,8 +61,15 @@ function test_extra_pkgs()
 		end)
 		-- This one is mentioned but not actually installed, so check it doesn't get confused by that
 		status.pkg4.Status[3] = 'not-installed'
+		if status_mod then
+			status_mod(status)
+		end
 		return status
 	end)
+end
+
+function test_extra_pkgs()
+	mocks()
 	local result = migrator.extra_pkgs('epoint')
 	--[[
 	pkg1 not present, since it is required by the current configs
@@ -84,6 +91,31 @@ function test_extra_pkgs()
 	}, mocks_called)
 end
 
+-- Just like test_extra_pkgs, but pkg3 depends on pkg5. Therefore we don't list pkg5.
+function test_extra_pkgs_dep_status()
+	mocks(function (status) status.pkg5.Depends = {"pkg3 (>= 14.4)"} end)
+	local result = migrator.extra_pkgs('epoint')
+	assert_table_equal({pkg5 = true}, result)
+end
+
+-- The same as test_extra_pkgs_dep_status, but the dep is added as a modifier
+function test_extra_pkgs_dep_modifier()
+	mocks()
+	postprocess.available_packages.pkg5 = {
+		tp = "package",
+		name = "pkg5",
+		modifier = {
+			deps = {
+				tp = 'dep-and',
+				sub = {'pkg3'}
+			}
+		}
+	}
+	local result = migrator.extra_pkgs('epoint')
+	assert_table_equal({pkg5 = true}, result)
+end
+
 function teardown()
+	postprocess.available_packages = {}
 	mocks_reset()
 end
