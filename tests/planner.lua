@@ -452,6 +452,154 @@ function test_request_collision()
 	assert_exception(function() planner.required_pkgs(pkgs, requests) end, 'invalid-request')
 end
 
+function test_penalty()
+	local pkgs = {
+		pkg = {
+			candidates = {{Package = 'pkg', deps = {}, repo = def_repo}},
+			modifier = {
+				deps = {
+					tp = "dep-or",
+					sub = {"dep1", "dep2", "dep3", "dep4"}
+				}
+			}
+		},
+		dep1 = {
+			candidates = {{Package = 'dep1', deps = {}, repo = def_repo}},
+			modifier = {}
+		},
+		dep2 = {
+			candidates = {{Package = 'dep2', deps = {}, repo = def_repo}},
+			modifier = {}
+		},
+		dep3 = {
+			candidates = {{Package = 'dep3', deps = {}, repo = def_repo}},
+			modifier = {}
+		},
+		dep4 = {
+			candidates = {{Package = 'dep4', deps = {}, repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg',
+			}
+		}
+	}
+	local expected = {
+		pkg = {
+			action = "require",
+			package = {Package = 'pkg', deps = {}, repo = def_repo},
+			modifier = {
+				deps = {
+					tp = "dep-or",
+					sub = {"dep1", "dep2", "dep3", "dep4"}
+				}
+			},
+			name = "pkg"
+		},
+		dep1 = {
+			action = "require",
+			package = {Package = 'dep1', deps = {}, repo = def_repo},
+			modifier = {},
+			name = "dep1"
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	assert_plan_dep_order(expected, result)
+
+	table.insert(requests, {
+		tp = 'install',
+		package = {
+			tp = 'package',
+			name = 'dep3'
+		}
+	})
+	expected['dep1'] = nil
+	expected['dep3'] = {
+		action = "require",
+		package = {Package = 'dep3', deps = {}, repo = def_repo},
+		modifier = {},
+		name = 'dep3'
+	}
+	result = planner.required_pkgs(pkgs, requests)
+	assert_plan_dep_order(expected, result)
+end
+
+function test_penalty_and_missing()
+	local pkgs = {
+		pkg = {
+			candidates = {{Package = 'pkg', deps = {}, repo = def_repo}},
+			modifier = {
+				deps = {
+					tp = "dep-or",
+					sub = {"dep1", "dep2", "dep3", "dep4"}
+				}
+			}
+		},
+		dep1 = {
+			candidates = {},
+			modifier = {}
+		},
+		dep2 = {
+			candidates = {{Package = 'dep2', deps = {}, repo = def_repo}},
+			modifier = {}
+		},
+		dep3 = {
+			candidates = {{Package = 'dep3', deps = {}, repo = def_repo}},
+			modifier = {}
+		},
+		dep4 = {
+			candidates = {},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg',
+			}
+		}
+	}
+	local expected = {
+		pkg = {
+			action = "require",
+			package = {Package = 'pkg', deps = {}, repo = def_repo},
+			modifier = {
+				deps = {
+					tp = "dep-or",
+					sub = {"dep1", "dep2", "dep3", "dep4"}
+				}
+			},
+			name = "pkg"
+		},
+		dep2 = {
+			action = "require",
+			package = {Package = 'dep2', deps = {}, repo = def_repo},
+			modifier = {},
+			name = "dep2"
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	assert_plan_dep_order(expected, result)
+
+	pkgs.dep2.candidates = {}
+	expected.dep2 = nil
+	expected.dep3 = {
+		action = 'require',
+		package = {Package = 'dep3', deps = {}, repo = def_repo},
+		modifier = {},
+		name = "dep3"
+	}
+	result = planner.required_pkgs(pkgs, requests)
+	assert_plan_dep_order(expected, result)
+end
+
 function test_filter_required()
 	local status = {
 		pkg1 = {
@@ -815,14 +963,12 @@ function test_pkg_dep_iterate()
 	assert_nil(next(expected))
 end
 
--- This checks plan order by checking dependencies and tables in plan are checked agains expected ones by name of package
+-- This checks plan order by checking dependencies and tables in plan are checked against expected ones by name of package
 function assert_plan_dep_order(expected, plan)
-	local p2i = {}
-	for key, p in ipairs(plan) do
-		assert_table_equal(expected[p.name], p)
-		expected[p.name] = nil -- We checked this one, by this we ensure that it wont be used again and we can check that all that shoudl be is in plan
-		p2i[p.name] = key
-	end
+	-- Check that plan contains all and only expected entries
+	assert_table_equal(expected, utils.map(plan, function(_, p) return p.name, p end))
+	-- Check that objects are in correct order
+	local p2i = utils.map(plan, function(k, v) return v.name, k end)
 	for _, p in ipairs(plan) do
 		local alldeps = {p.modifier.deps}
 		utils.arr_append(alldeps, p.package.deps or {})
@@ -836,5 +982,4 @@ function assert_plan_dep_order(expected, plan)
 			end
 		end
 	end
-	assert_nil(next(expected))
 end

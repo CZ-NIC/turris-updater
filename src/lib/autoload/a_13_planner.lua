@@ -71,8 +71,8 @@ local function build_deps(sat, satmap, pkgs, requests)
 		end
 		-- Create new variable for this package and new sat clauses batch
 		local pkg_var = sat:var()
+		DBG("SAT add package " .. name .. " with var: " .. tostring(pkg_var))
 		satmap.pkg2sat[name] = pkg_var
-		DBG("Adding dependencies for package " .. name)
 		local pkg = pkgs[name]
 		local candidate
 		if pkg and pkg.candidates and next(pkg.candidates) then
@@ -86,14 +86,12 @@ local function build_deps(sat, satmap, pkgs, requests)
 		utils.arr_append(alldeps, (candidate or {}).deps or {})
 		-- Note that for no dependencies we will receive dummy variable that isn't in any clause.
 		local dep_var = dep_traverse(alldeps)
-		-- TODO when penalty variables are added, we should make from this implication equivalence.
-		sat:clause(-pkg_var, dep_var)
+		sat:clause(-pkg_var, dep_var) -- We only do implication here. Equivalence could result in package selection because its dependencies are satisfied.
 		-- And return variable for this package
 		return pkg_var
 	end
 	-- Recursively adds implications for given package to its dependencies. It returns sat variable for whole dependency.
 	-- As additional to canonized dependencies it also supports table without any type as and, this is for convenience.
-	-- TODO when penalty variables are added, we should make from all of implications here equivalences.
 	function dep_traverse(deps)
 		if type(deps) == 'string' or deps.tp == 'package' or deps.tp == 'dep-package' then
 			local name = deps
@@ -109,13 +107,34 @@ local function build_deps(sat, satmap, pkgs, requests)
 		end
 		local wvar = sat:var()
 		if (type(deps) == 'table' and not deps.tp) or deps.tp == 'dep-and' then
-			-- wid implies all variables, in result they are all in and statement if wid is true
+			-- wid <=> var for every variable. Result is that they are all in and statement.
 			for _, sub in ipairs(deps.sub or deps) do
-				sat:clause(-wvar, dep_traverse(sub))
+				local var = dep_traverse(sub)
+				sat:clause(-wvar, var)
+				sat:clause(-var, wvar)
 			end
 		elseif deps.tp == 'dep-or' then
 			-- If wvar is true, at least one of sat variables must also be true, so vwar => vars...
-			local vars = utils.map(deps.sub, function(key, sub) return key, dep_traverse(sub) end)
+			-- Same as if one of vars is true, wvar must be also true, so var => wvar
+			local vars = {}
+			local prev_penalty = nil
+			for _, sub in ipairs(deps.sub) do
+				local var = dep_traverse(sub)
+				-- var => wvar
+				sat:clause(-var, wvar)
+				-- penalty => not var and potentially prev_penalty => penalty
+				if #vars ~= 0 then -- skip first one, it isn't penalized.
+					local penalty = sat:var()
+					if prev_penalty then
+						sat:clause(-prev_penalty, penalty)
+					end
+					sat:clause(-penalty, -var)
+					prev_penalty = penalty
+					satmap.penaltysat[penalty] = true -- store that this is penalty variable
+				end
+				-- wvar => vars...
+				table.insert(vars, var)
+			end
 			sat:clause(-wvar, unpack(vars))
 		else
 			error(utils.exception('bad value', "Invalid dependency description " .. (deps.tp or "<nil>")))
@@ -290,6 +309,7 @@ function required_pkgs(pkgs, requests)
 		pkg2sat = {},
 		req2sat = {},
 		pkg2candidate = {}, -- TODO replace with candidate2sat
+		penaltysat = {} -- Set of all penalty variables
 	}
 	-- Build dependencies
 	build_deps(sat, satmap, pkgs, requests)
@@ -327,6 +347,7 @@ function required_pkgs(pkgs, requests)
 	end
 
 	-- Install critical packages requests (set all critical packages to be true)
+	DBG("Resolving critical packages")
 	for _, req in ipairs(reqs_critical) do
 		sat:clause(satmap.req2sat[req])
 	end
@@ -336,6 +357,7 @@ function required_pkgs(pkgs, requests)
 	end
 
 	-- Install and Uninstall requests.
+	DBG("Resolving Install and Uninstall requests")
 	for _, reqs in ipairs(reqs_prior) do
 		for _, req in pairs(reqs) do
 			-- Assume all request for this priority
@@ -345,18 +367,24 @@ function required_pkgs(pkgs, requests)
 	end
 
 	-- Deny any packages missing or without candidates if possible
-	-- TODO use penalty variables for this
+	DBG("Denying packages without any candidate")
 	for name, var in pairs(satmap.pkg2sat) do
 		local pkg = pkgs[name]
-		if not pkg or not pkg.candidates or next(pkg.candidates) then
+		if not pkg or not pkg.candidates or not next(pkg.candidates) then
 			sat:assume(-var)
 		end
 	end
 	clause_max_satisfiable()
 
-	-- TODO add penalty variables and go trough them here
+	-- Chose alternatives with penalty variables
+	DBG("Forcing penalty on expressions with free alternatives")
+	for var, _ in pairs(satmap.penaltysat) do
+		sat:assume(var)
+	end
+	clause_max_satisfiable()
 
 	-- Now solve all packages selections from dependencies of already selected packages
+	DBG("Deducing minimal set of required packages")
 	for _, var in pairs(satmap.pkg2sat) do
 		-- We assume false (not selected) for all packages
 		sat:assume(-var)
