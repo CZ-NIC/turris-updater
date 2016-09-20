@@ -70,7 +70,7 @@ function extra_pkgs(entry_point)
 			end -- Ignore all the dep-or and dep-not stuff as too complex
 		end
 	end
-	for name in pairs(utils.shallow_copy(result)) do -- Iterate over a copy, so we don't delete one dep and then miss its deps because it was no longer ehere
+	for name in pairs(utils.shallow_copy(result)) do -- Iterate over a copy, so we don't delete one dep and then miss its deps because it was no longer there
 		-- As we don't want to care about choosing the candidate, use what is installed. But clean up the dependencies first.
 		eliminate(postprocess.deps_canon(utils.multi_index(installed, name, "Depends") or {}))
 		-- The modifier is common for all. Use that one.
