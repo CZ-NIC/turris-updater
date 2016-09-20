@@ -27,8 +27,16 @@
 
 set -ex
 
-# This script migrates from the old updater to updater-ng. We want something
-# better in future.
+if grep -q '-- Auto-migration performed' /etc/updater/auto.lua ; then
+	echo "Updater migration already performed" | logger -t daemon.info
+	echo "Updater migration already performed" >&2
+	exit 0
+fi
+
+# If run with --batch, pass it to certain other commands. We don't expect anything else here and don't check, with such a single-purpose script (it would crash anyway later on).
+BATCH="$1"
+
+# This script migrates from the old updater to updater-ng. First, migrate the config.
 
 BRANCH=$(uci -q get updater.override.branch)
 if [ -z "$BRANCH" ] ; then
@@ -44,6 +52,15 @@ if [ "$BRANCH" ] ; then
 else
 	uci delete updater.override.override
 fi
-uci commit
+uci commit updater
 
-pkgupdate file:///etc/updater/entry.lua --batch
+# Now create a new configuration
+pkgmigrate $BATCH
+
+# The old updater now gets inserted in the auto.lua, since the usual config doesn't contain it and it is installed right now. So get rid of it.
+sed -i -e '/"updater"/d' /etc/updater/auto.lua
+# Also, after we run this script, we want the migrator to be removed and not have it any more.
+sed -i -e '/"updater-migrate"/' /etc/updater/auto.lua
+
+# Cool. Now try the updater, please (the backend of it, without all the notification stuff, etc).
+exec pkgupdate $BATCH
