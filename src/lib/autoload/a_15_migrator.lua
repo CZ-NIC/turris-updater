@@ -20,10 +20,13 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 -- luacheck: globals extra_pkgs pkgs_format
 
 local pairs = pairs
+local ipairs = ipairs
+local type = type
 local table = table
 local utils = require "utils"
 local backend = require "backend"
 local updater = require "updater"
+local postprocess = require "postprocess"
 
 module "migrator"
 
@@ -43,6 +46,35 @@ function extra_pkgs(entry_point)
 				result[name] = true
 			end
 		end
+	end
+	--[[
+	Eliminate packages that are depended on by other packages that we
+	want to list. That way we would only list the „heads“, and wouldn't
+	pull in all the list of deep dependencies.
+	]]
+	local function eliminate(dep)
+		local tp = type(dep)
+		if tp == 'string' then
+			result[dep] = nil
+		elseif tp == 'table' then
+			if dep.tp == 'package' or dep.tp == 'dep-package' then
+				result[dep.name] = nil
+			elseif dep.tp == 'dep-and' then
+				-- The real dependencies are in sub
+				return eliminate(dep.sub)
+			elseif dep.tp == nil then
+				-- Just a plain table
+				for _, d in ipairs(dep) do
+					eliminate(d)
+				end
+			end -- Ignore all the dep-or and dep-not stuff as too complex
+		end
+	end
+	for name in pairs(utils.shallow_copy(result)) do -- Iterate over a copy, so we don't delete one dep and then miss its deps because it was no longer there
+		-- As we don't want to care about choosing the candidate, use what is installed. But clean up the dependencies first.
+		eliminate(postprocess.deps_canon(utils.multi_index(installed, name, "Depends") or {}))
+		-- The modifier is common for all. Use that one.
+		eliminate(utils.multi_index(postprocess.available_packages, name, "modifier", "deps"))
 	end
 	return result
 end
