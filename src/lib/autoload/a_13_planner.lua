@@ -31,6 +31,7 @@ local DBG = DBG
 local WARN = WARN
 local utils = require "utils"
 local backend = require "backend"
+local requests = require "requests"
 local sat = require "sat"
 
 module "planner"
@@ -38,21 +39,35 @@ module "planner"
 -- luacheck: globals candidates_choose required_pkgs filter_required pkg_dep_iterate plan_sorter
 
 -- Choose candidates that complies to version requirement.
--- TODO support repository specification
-function candidates_choose(candidates, version)
-	assert(version)
+function candidates_choose(candidates, version, repository)
+	assert(version or repository)
 	-- We don't expect that version it self have space in it self, any space is removed.
-	local wildmatch, cmp_str, vers = version:gsub('%s*$', ''):match('^%s*(~?)([<>=]*)%s*(.*)$')
+	local wildmatch, cmp_str, vers = (version or ""):gsub('%s*$', ''):match('^%s*(~?)([<>=]*)%s*(.*)$')
 	if wildmatch == '~' then vers = cmp_str .. vers end -- prepend cmd_str to vers if we have wildmatch
+	-- repository is table of strings and objects, canonize to objects and add it to set.
+	local repos = {}
+	for _, repo in pairs(repository or {}) do
+		assert(type(repo) == 'string' or type(repo) == 'table')
+		if type(repo) == 'string' then
+			repos[requests.known_repositories[repo]] = true
+		else
+			repos[repo] = true
+		end
+	end
 
 	local compliant = {}
 	for _, candidate in pairs(candidates) do
 		assert(candidate.Version)
-		local cmp = (wildmatch == '~') or backend.version_cmp(vers, candidate.Version)
-		if (wildmatch == '~' and candidate.Version:match(vers)) or
-			(cmp_str:find('>', 1, true) and cmp == -1) or
-			(cmp_str:find('=', 1, true) and cmp == 0) or
-			(cmp_str:find('<', 1, true) and cmp == 1) then
+		assert(candidate.repo)
+		local cmp = not version or (wildmatch == '~') or backend.version_cmp(vers, candidate.Version)
+		if (not version or (
+				(wildmatch == '~' and candidate.Version:match(vers)) or
+				(cmp_str:find('>', 1, true) and cmp == -1) or
+				(cmp_str:find('=', 1, true) and cmp == 0) or
+				(cmp_str:find('<', 1, true) and cmp == 1))
+			) and (
+				not repository or repos[candidate.repo]
+			) then
 			table.insert(compliant, candidate)
 		end
 	end
@@ -79,6 +94,7 @@ local function build_deps(sat, satmap, pkgs, requests)
 			return penalty_group_id -- skip first one, it isn't penalized.
 		end
 		local penalty = sat:var()
+		DBG("SAT add penalty variable " .. tostring(penalty) .. " for variable " .. tostring(var))
 		-- penalty => not var
 		sat:clause(-penalty, -var)
 		if #penalty_group[penalty_group_id] ~= 0 then
@@ -107,6 +123,7 @@ local function build_deps(sat, satmap, pkgs, requests)
 		-- At first we just add variables for them
 		for _, candidate in ipairs(candidates) do
 			local var = sat:var()
+			DBG("SAT add candidate " .. candidate.Package .. " version:" .. (candidate.Version or "") .. " var:" .. tostring(var))
 			satmap.candidate2sat[candidate] = var
 			sat:clause(-var, pkg_var) -- candidate implies its package group
 			for _, o_cand in pairs(sat_candidates) do
@@ -136,14 +153,15 @@ local function build_deps(sat, satmap, pkgs, requests)
 		return pkg_var
 	end
 	-- Returns sat variable for specified requirements on given package. 
-	local function dep(pkg, version)
+	local function dep(pkg, version, repository)
 		local name = pkg.name or pkg
 		local group_var = dep_pkg_group(name) -- This also ensures that candidates are in sat
 		-- If we specify version then this is request not to whole package group but to some selection of candidates
-		if version then
+		if version or repository then
 			assert(type(pkg) == 'table') -- If version specified than we should have package not just package group name
 			local var = sat:var()
-			local chosen_candidates = candidates_choose(pkgs[name].candidates, version)
+			DBG("SAT add candidate selection " .. name .. " var:" .. tostring(var))
+			local chosen_candidates = candidates_choose(pkgs[name].candidates, version, repository)
 			if next(chosen_candidates) then
 				-- We add here basically or, but without penalizations. Penalization is ensured from dep_pkg_group.
 				local vars = utils.map(chosen_candidates, function(i, candidate)
@@ -151,6 +169,7 @@ local function build_deps(sat, satmap, pkgs, requests)
 				end)
 				sat:clause(-var, unpack(vars)) -- imply that at least one of the possible candidates is chosen
 			else
+				DBG("SAT candidate selection empty")
 				satmap.missing[pkg] = var -- store that this variable points to no candidate
 			end
 			-- Also imply group it self. If we have some candidates, then its just
@@ -175,6 +194,7 @@ local function build_deps(sat, satmap, pkgs, requests)
 		end
 		local wvar = sat:var()
 		if deps.tp == 'dep-and' then
+			DBG("SAT dep and var: " .. tostring(wvar))
 			-- wid <=> var for every variable. Result is that they are all in and statement.
 			for _, sub in ipairs(deps.sub or deps) do
 				local var = dep_traverse(sub)
@@ -182,6 +202,7 @@ local function build_deps(sat, satmap, pkgs, requests)
 				sat:clause(-var, wvar)
 			end
 		elseif deps.tp == 'dep-or' then
+			DBG("SAT dep or var: " .. tostring(wvar))
 			-- If wvar is true, at least one of sat variables must also be true, so vwar => vars...
 			-- Same as if one of vars is true, wvar must be also true, so var => wvar
 			local vars = {}
@@ -204,7 +225,8 @@ local function build_deps(sat, satmap, pkgs, requests)
 	-- Go trough requests and add them to SAT
 	for _, req in ipairs(requests) do
 		local req_var = sat:var()
-		local target_var = dep(req.package, req.version)
+		DBG("SAT add request for " .. req.package.name .. " var:" .. tostring(req_var))
+		local target_var = dep(req.package, req.version, req.repository)
 		if req.tp == 'install' then
 			sat:clause(-req_var, target_var) -- implies true
 		elseif req.tp == 'uninstall' then

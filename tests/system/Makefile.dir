@@ -9,7 +9,8 @@ UPD_SYS_TESTS := \
 	plan \
 	plan-unapproved \
 	steal-confs \
-	simple-update
+	simple-update \
+	multiple-repos
 
 MIGRATE_SYS_TESTS := \
 	auto-migrate-pkgs
