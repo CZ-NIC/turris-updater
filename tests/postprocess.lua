@@ -262,9 +262,12 @@ function test_pkg_merge()
 			modifier = {name = "another"}
 		},
 		virt = {
-			candidates = {{tp = "package", name = "virt", deps = {tp = "dep-and", sub = {"xyz", "abc"}}, virtual = true}},
-			modifier = {name = "virt"},
-			virtual = true
+			candidates = {},
+			modifier = {
+				name = "virt",
+				deps = {tp = "dep-and", sub = {"xyz", "abc"}},
+				virtual = true
+			},
 		},
 		xyz = {
 			candidates = {{Package = "xyz", Version = "1", repo = requests.known_repositories_all[1]}},

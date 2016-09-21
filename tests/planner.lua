@@ -285,6 +285,67 @@ function test_missing_dep()
 	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent')
 end
 
+function test_virtual()
+	local pkgs = {
+		virt1 = {
+			modifier = {
+				virtual = true,
+				deps = "pkg"
+			}
+		},
+		virt2 = {
+			modifier = {
+				virtual = true
+			}
+		},
+		pkg = {
+			candidates = {{Package = 'pkg', Version = "1", deps = 'virt2', repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'virt1',
+			}
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		pkg = {
+			action = 'require',
+			package = {Package = 'pkg', Version = "1", deps = "virt2", repo = def_repo},
+			modifier = {},
+			name = 'pkg'
+		}
+	}
+	assert_plan_dep_order(expected, result)
+end
+
+function test_virtual_version()
+	local pkgs = {
+		virt = {
+			modifier = {
+				virtual = true,
+				deps = "pkg"
+			}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'virt',
+				version = '1'
+			}
+		}
+	}
+	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent')
+end
+
 -- It is able to solve a circular dependency and doesn't stack overflow
 function test_circular_deps()
 	local pkgs = {

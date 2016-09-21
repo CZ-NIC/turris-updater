@@ -261,10 +261,7 @@ function pkg_aggregate()
 			available_packages[pkg.name] = {candidates = {}, modifiers = {}}
 		end
 		local pkg_group = available_packages[pkg.name]
-		if pkg.virtual then
-			table.insert(pkg_group.candidates, pkg)
-			pkg_group.virtual = true
-		elseif pkg.content then
+		if pkg.content then
 			-- If it has content, then it is both modifier AND candidate
 			table.insert(pkg_group.modifiers, pkg)
 			table.insert(pkg_group.candidates, pkg)
@@ -273,10 +270,6 @@ function pkg_aggregate()
 		end
 	end
 	for name, pkg_group in pairs(available_packages) do
-		-- Check if theres at most one of each virtual package.
-		if pkg_group.virtual and #pkg_group.candidates > 1 then
-			error(utils.exception("inconsistent", "More than one candidate with a virtual package " .. name))
-		end
 		-- Merge the modifiers together to form single one.
 		local modifier = {
 			tp = 'package',
@@ -302,6 +295,10 @@ function pkg_aggregate()
 			candidates and the deps could differ.
 			]]
 			table.insert(modifier.deps, m.deps or {})
+			-- Check if theres no candidate for virtual package
+			if m.virtual and #pkg_group.candidates > 0 then
+				error(utils.exception("inconsistent", "Candidate exists for virtual package " .. name))
+			end
 			-- Take a single value or a list from the source and merge it into a set in the destination
 			local function set_merge(name)
 				local src = m[name]
@@ -335,6 +332,7 @@ function pkg_aggregate()
 				modifier.reboot = m.reboot
 			end
 			modifier.replan = modifier.replan or m.replan
+			modifier.virtual = modifier.virtual or m.virtual
 		end
 		-- Canonize dependencies
 		modifier.deps = deps_canon(modifier.deps)

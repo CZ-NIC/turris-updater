@@ -414,8 +414,7 @@ This command allows amending a package from a repository. It allows
 for adding dependencies (even negative or alternative dependencies).
 It allows for specifying hooks ‒ functions that are run at specific
 times. It also allows creation of virtual packages ‒ a package that
-doesn't really exist, but can have hooks and dependencies and
-participates in the dependency computation.
+doesn't really exist, but can participates in the dependency computation.
 
 A package may be amended multiple times. Each time the options are
 merged into the package options.

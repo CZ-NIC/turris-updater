@@ -142,7 +142,9 @@ local function build_deps(sat, satmap, pkgs, requests)
 		if next(sat_candidates) then
 			sat:clause(-pkg_var, unpack(sat_candidates)) -- package group implies that at least one candidate is chosen
 		else
-			satmap.missing[name] = pkg_var -- store that this package group has no candidates
+			if not utils.multi_index(pkg, "modifier", "virtual") then -- For virtual package, no candidates is correct state
+				satmap.missing[name] = pkg_var -- store that this package group has no candidates
+			end
 		end
 		-- Add dependencies of package group
 		local deps = utils.multi_index(pkg, 'modifier', 'deps')
@@ -161,6 +163,11 @@ local function build_deps(sat, satmap, pkgs, requests)
 			assert(type(pkg) == 'table') -- If version specified than we should have package not just package group name
 			local var = sat:var()
 			DBG("SAT add candidate selection " .. name .. " var:" .. tostring(var))
+			if pkgs[name].modifier.virtual then
+				WARN('Package ' .. name .. ' requested with version or repository, but it is virtual. Resolved as missing.')
+				satmap.missing[pkg] = var
+				return var
+			end
 			local chosen_candidates = candidates_choose(pkgs[name].candidates, version, repository)
 			if next(chosen_candidates) then
 				-- We add here basically or, but without penalizations. Penalization is ensured from dep_pkg_group.
@@ -449,7 +456,6 @@ function required_pkgs(pkgs, requests)
 
 	-- Deny any packages missing, without candidates or dependency on missing version if possible
 	DBG("Denying packages without any candidate")
-	-- TODO add support for virtual packages (we don't want to deny virtual packages)
 	for _, var in pairs(satmap.missing) do
 		sat:assume(-var)
 	end
@@ -502,11 +508,11 @@ function filter_required(status, requests)
 	-- Go through the requests and look which ones are needed and which ones are satisfied
 	for _, request in ipairs(requests) do
 		local installed_version = installed[request.name]
-		-- TODO: Handle virtual and stand-alone packages
-		local requested_version = request.package.Version or ""
+		-- TODO: Handle stand-alone packages
+		local requested_version = utils.multi_index(request, "package", "Version") or ""
 		if request.action == "require" then
 			if not installed_version or installed_version ~= requested_version then
-				DBG("Want to install/upgrade " .. request.name)
+				DBG("Want to install " .. request.name)
 				table.insert(result, request)
 			else
 				DBG("Package " .. request.name .. " already installed")
