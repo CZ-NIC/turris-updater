@@ -717,9 +717,6 @@ function test_filter_required()
 		},
 		pkg4 = {
 			Version = "4"
-		},
-		pkg5 = {
-			Version = "5"
 		}
 	}
 	local requests = {
@@ -753,22 +750,13 @@ function test_filter_required()
 			},
 			modifier = {}
 		},
-		{
-			-- Installed and we want to remove it
-			action = "remove",
-			name = "pkg4",
-			package = {
-				Version = "4",
-				repo = def_repo
-			}
-		},
-		-- The pkg5 is not mentioned, it shall be uninstalled at the end
+		-- The pkg4 is not mentioned, it shall be uninstalled at the end
 		{
 			-- Not installed and we want it
 			action = "require",
-			name = "pkg6",
+			name = "pkg5",
 			package = {
-				Version = "6",
+				Version = "5",
 				repo = def_repo
 			},
 			modifier = {}
@@ -787,12 +775,11 @@ function test_filter_required()
 			modifier = {}
 		},
 		requests[4],
-		requests[5],
 		{
 			action = "remove",
-			name = "pkg5",
+			name = "pkg4",
 			package = {
-				Version = "5"
+				Version = "4"
 				-- No repo field here, this comes from the status, there are no repositories
 			}
 		}
