@@ -337,16 +337,33 @@ function pkg_aggregate()
 			end
 			modifier.replan = modifier.replan or m.replan
 		end
+		-- Canonize dependencies
 		modifier.deps = deps_canon(modifier.deps)
 		for _, candidate in ipairs(pkg_group.candidates or {}) do
-			candidate.deps = deps_canon(candidate.deps) or {} -- deps from updater configuration file
-			for _, d in ipairs(candidate.Depends or {}) do -- Depends from repository
-				table.insert(candidate.deps, deps_canon(d))
-			end
+			local candidate_deps = { candidate.deps } -- deps from updater configuration file
+			table.insert(candidate_deps, candidate.Depends) -- Depends from repository)
+			candidate.deps = deps_canon(candidate_deps)
 		end
 		pkg_group.modifier = modifier
 		-- We merged them together, they are no longer needed separately
 		pkg_group.modifiers = nil
+		-- Sort candidates
+		if pkg_group.candidates then
+			table.sort(pkg_group.candidates, function(a, b)
+				if a.repo.priority ~= b.repo.priority then -- Check repository priority
+					return a.repo.priority > b.repo.priority
+				end
+				local vers_cmp = backend.version_cmp(a.Version, b.Version)
+				if vers_cmp ~= 0 then -- Check version of package
+					return vers_cmp == 1 -- a is newer version than b
+				end
+				if a.repo.serial ~= b.repo.serial then -- Check repo order of introduction
+					return a.repo.serial < b.repo.serial
+				end
+				WARN("Multiple candidates from same repository with same version for package " .. a.Package)
+				return true -- lets prioritize a, for no reason, lets make b angry.
+			end)
+		end
 	end
 end
 

@@ -112,6 +112,13 @@ function test_exception()
 		msg = "Error message"
 	}, e)
 	assert_equal("Error message", tostring(e))
+	local e = U.exception("reason", "msg", { extra = true })
+	assert_table_equal({
+		tp = "error",
+		reason = "reason",
+		msg = "msg",
+		extra = true
+	}, e)
 end
 
 function test_multi_index()

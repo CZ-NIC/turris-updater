@@ -24,6 +24,7 @@ local error = error
 local type = type
 local setmetatable = setmetatable
 local getmetatable = getmetatable
+local assert = assert
 local io = io
 local unpack = unpack
 local events_wait = events_wait
@@ -159,12 +160,15 @@ local error_meta = {
 }
 
 -- Generate an exception/error object. It can be further modified, of course.
-function exception(reason, msg)
-	return setmetatable({
+function exception(reason, msg, extra)
+	local except = {
 		tp = "error",
 		reason = reason,
 		msg = msg
-	}, error_meta)
+	}
+	assert(not(extra and (extra.tp or extra.reason or extra.msg)))
+	table_merge(except, extra or {})
+	return setmetatable(except, error_meta)
 end
 
 --[[
