@@ -716,7 +716,11 @@ function test_filter_required()
 			Version = "3"
 		},
 		pkg4 = {
+			Depends = "pkg5 nonexist",
 			Version = "4"
+		},
+		pkg5 = {
+			Version = "5"
 		}
 	}
 	local requests = {
@@ -750,13 +754,13 @@ function test_filter_required()
 			},
 			modifier = {}
 		},
-		-- The pkg4 is not mentioned, it shall be uninstalled at the end
+		-- The pkg4 and pkg5 are not mentioned, they shall be uninstalled at the end
 		{
 			-- Not installed and we want it
 			action = "require",
-			name = "pkg5",
+			name = "pkg6",
 			package = {
-				Version = "5",
+				Version = "6",
 				repo = def_repo
 			},
 			modifier = {}
@@ -779,7 +783,16 @@ function test_filter_required()
 			action = "remove",
 			name = "pkg4",
 			package = {
+				Depends = "pkg5 nonexist",
 				Version = "4"
+				-- No repo field here, this comes from the status, there are no repositories
+			}
+		},
+		{
+			action = "remove",
+			name = "pkg5",
+			package = {
+				Version = "5"
 				-- No repo field here, this comes from the status, there are no repositories
 			}
 		}

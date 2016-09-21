@@ -33,6 +33,7 @@ local picosat = picosat
 local utils = require "utils"
 local backend = require "backend"
 local requests = require "requests"
+local postprocess = require "postprocess"
 
 module "planner"
 
@@ -523,15 +524,33 @@ function filter_required(status, requests)
 		end
 	end
 	-- Go through the packages that are installed and nobody mentioned them and mark them for removal
-	-- TODO: Order them according to dependencies
-	for pkg in pairs(unused) do
-		DBG("Want to remove left-over package " .. pkg)
-		table.insert(result, {
-			action = "remove",
-			name = pkg,
-			package = status[pkg]
-		})
+	-- TODO report cycles in dependencies
+	local unused_sorted = {}
+	local sort_buff = {}
+	local function sort_unused(pkg)
+		if not sort_buff[pkg] then
+			sort_buff[pkg] = true
+			-- Unfortunately we have to go trough all dependencies to ensure correct order.
+			local deps = postprocess.deps_canon(utils.multi_index(status, pkg, "Depends") or {})
+			for _, deppkg in pkg_dep_iterate(deps) do
+				sort_unused(deppkg.name or deppkg)
+			end
+			if unused[pkg] then
+				unused[pkg] = nil
+				DBG("Want to remove left-over package " .. pkg)
+				table.insert(unused_sorted, {
+					action = "remove",
+					name = pkg,
+					package = status[pkg]
+				})
+			end
+			-- Ignore packages that are used or not installed at all
+		end
 	end
+	for pkg in pairs(unused) do
+		sort_unused(pkg)
+	end
+	utils.arr_append(result, utils.arr_inv(unused_sorted))
 	-- If we are requested to replan after some package, wipe the rest of the plan
 	local wipe = false
 	for i, request in ipairs(result) do
