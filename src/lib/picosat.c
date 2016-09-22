@@ -34,6 +34,7 @@ struct picosat {
 static int lua_picosat_new(lua_State *L) {
 	struct picosat *ps = lua_newuserdata(L, sizeof *ps);
 	ps->sat = picosat_init(); // Always successful. Calls abort if fails.
+	picosat_enable_trace_generation(ps->sat);
 	// Set corresponding meta table
 	luaL_getmetatable(L, PICOSAT_META);
 	lua_setmetatable(L, -2);
@@ -63,22 +64,37 @@ static int lua_picosat_clause(lua_State *L) {
 	struct picosat *ps = luaL_checkudata(L, 1, PICOSAT_META);
 	int count = lua_gettop(L) - 1;
 	if (count < 1)
-		return luaL_error(L, "picosat:clause requires at least one argument");
+		return luaL_error(L, "clause requires at least one argument");
+	FILE *dbg = NULL;
+	char *dbg_buff;
+	size_t dbg_len;
+	if (would_log(LL_DBG))
+		dbg = open_memstream(&dbg_buff, &dbg_len);
+	if (dbg)
+		fputs("clause: ", dbg);
+
 	for (int i = 0; i < count; i++) {
 		int var = luaL_checkinteger(L, i + 2);
 		ASSERT(var != 0);
+		if (dbg)
+			fprintf(dbg, "%d ", var);
 		picosat_add(ps->sat, var);
 	}
-	picosat_add(ps->sat, 0);
+	picosat_add(ps->sat, 0); // close clause
+
+	if (dbg) {
+		fclose(dbg);
+		DBG("%s", dbg_buff);
+		free(dbg_buff);
+	}
 	return 0;
 }
 
 static int lua_picosat_assume(lua_State *L) {
 	struct picosat *ps = luaL_checkudata(L, 1, PICOSAT_META);
-	if (lua_gettop(L) < 2)
-		return luaL_error(L, "picosat:assume requires one argument.");
 	int assum = luaL_checkinteger(L, 2);
 	ASSERT(assum != 0);
+	DBG("assume %d", assum);
 	picosat_assume(ps->sat, assum);
 	return 0;
 }
@@ -86,24 +102,55 @@ static int lua_picosat_assume(lua_State *L) {
 static int lua_picosat_satisfiable(lua_State *L) {
 	struct picosat *ps = luaL_checkudata(L, 1, PICOSAT_META);
 	int res = picosat_sat(ps->sat, -1);
-	ASSERT(res != PICOSAT_UNKNOWN); // Unknown should never happen. We don't limit number of decisions.
+	ASSERT_MSG(res == PICOSAT_SATISFIABLE || res == PICOSAT_UNSATISFIABLE, "We expect only SATISFIABLE and UNSATISFIABLE from picosat.");
 	lua_pushboolean(L, res == PICOSAT_SATISFIABLE);
+	if (!WOULD_DBG())
+		return 1;
+	if (res == PICOSAT_SATISFIABLE) {
+		DBG("satisfiable");
+	} else {
+		char *buffer;
+		size_t len;
+		FILE *file = open_memstream(&buffer, &len);
+		ASSERT(file);
+		picosat_write_compact_trace(ps->sat, file);
+		fclose(file);
+		buffer[len - 1] = '\0'; // Dump last char, picosat always ends this output with new line char.
+		DBG("unsatisfiable, trace follows\n%s", buffer);
+		free(buffer);
+	}
 	return 1;
 }
 
 static int lua_picosat_max_satisfiable(lua_State *L) {
 	struct picosat *ps = luaL_checkudata(L, 1, PICOSAT_META);
 	lua_newtable(L);
-	if (picosat_inconsistent(ps->sat))
+	if (picosat_inconsistent(ps->sat)) {
+		DBG("max-assume: "); // For consistency with following code we print this not saying line.
 		// If there is some empty clause, then there are no valid assumptions, return empty table.
 		return 1;
+	}
+	FILE *dbg = NULL;
+	char *dbg_buff;
+	size_t dbg_len;
+	if (WOULD_DBG())
+		dbg = open_memstream(&dbg_buff, &dbg_len);
+	if (dbg)
+		fputs("max-assume: ", dbg);
 	// TODO this might be faster if we would set phase for assumptions to true. See picosat documentation for more details.
 	const int *assum = picosat_maximal_satisfiable_subset_of_assumptions(ps->sat);
 	while(*assum != 0) {
+		if (dbg)
+			fprintf(dbg, "%d ", *assum);
 		lua_pushinteger(L, *assum);
 		lua_pushboolean(L, true);
 		lua_settable(L, -3);
 		assum++;
+	}
+	if (dbg) {
+		fclose(dbg);
+		DBG("%s", dbg_buff);
+		free(dbg_buff);
 	}
 	return 1;
 }
