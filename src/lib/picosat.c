@@ -104,7 +104,7 @@ static int lua_picosat_satisfiable(lua_State *L) {
 	int res = picosat_sat(ps->sat, -1);
 	ASSERT_MSG(res == PICOSAT_SATISFIABLE || res == PICOSAT_UNSATISFIABLE, "We expect only SATISFIABLE and UNSATISFIABLE from picosat.");
 	lua_pushboolean(L, res == PICOSAT_SATISFIABLE);
-	if (!WOULD_DBG())
+	if (!would_log(LL_DBG))
 		return 1;
 	if (res == PICOSAT_SATISFIABLE) {
 		DBG("satisfiable");
@@ -133,7 +133,7 @@ static int lua_picosat_max_satisfiable(lua_State *L) {
 	FILE *dbg = NULL;
 	char *dbg_buff;
 	size_t dbg_len;
-	if (WOULD_DBG())
+	if (would_log(LL_DBG))
 		dbg = open_memstream(&dbg_buff, &dbg_len);
 	if (dbg)
 		fputs("max-assume: ", dbg);
