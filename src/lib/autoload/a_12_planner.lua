@@ -29,10 +29,10 @@ local table = table
 local DIE = DIE
 local DBG = DBG
 local WARN = WARN
+local picosat = picosat
 local utils = require "utils"
 local backend = require "backend"
 local requests = require "requests"
-local sat = require "sat"
 
 module "planner"
 
@@ -73,7 +73,6 @@ function candidates_choose(candidates, version, repository)
 	end
 	return compliant
 end
-
 --[[
 Build dependencies for all touched packages. We do it recursively across
 dependencies of requested packages, this makes searched space smaller and building
@@ -330,8 +329,7 @@ local function build_plan(pkgs, requests, sat, satmap)
 		-- Recursively add all packages this package depends on --
 		inwstack[name] = #wstack + 1 -- Signal that we are working on this package group.
 		table.insert(wstack, name)
-		local alldeps = { utils.multi_index(pkg, 'modifier', 'deps') }
-		table.insert(alldeps, (candidate or {}).deps or {})
+		local alldeps = utils.arr_prune({ utils.multi_index(pkg, 'modifier', 'deps'), (candidate or {}).deps })
 		for _, p in pkg_dep_iterate(alldeps) do
 			pkg_plan(p, ignore_missing or utils.arr2set(utils.multi_index(pkg, 'modifier', 'ignore') or {})["deps"], false, "Package " .. name .. " requires package")
 		end
@@ -373,15 +371,13 @@ Take list of available packages (in the format of pkg candidate groups
 produced in postprocess.available_packages) and list of requests what
 to install and remove. Produce list of packages, in the form:
 {
-  {action = "require"/"reinstall"/"remove", package = pkg_source, modifier = modifier}
+  {action = "require"/"reinstall", package = pkg_source, modifier = modifier}
 }
 
 The action specifies if the package should be made present in the system (installed
-if missing), reinstalled (installed no matter if it is already present) or
-removed from the system.
+if missing) or reinstalled (installed no matter if it is already present)
 • Required to be installed
 • Required to be reinstalled even when already present (they ARE part of the previous set)
-• Required to be removed if present (they are not present in the previous two lists)
 
 The pkg_source is the package object (in case it contains the source field or is virtual)
 or the description produced from parsing the repository. The modifier is the object
@@ -389,7 +385,7 @@ constructed from package objects during the aggregation, holding additional proc
 info (hooks, etc).
 ]]
 function required_pkgs(pkgs, requests)
-	local sat = sat.new()
+	local sat = picosat.new()
 	-- Tables that's mapping packages, requests and candidates with sat variables
 	local satmap = {
 		pkg2sat = {},
@@ -410,6 +406,7 @@ function required_pkgs(pkgs, requests)
 			table.insert(reqs_critical, req)
 		else
 			if not req.priority then req.priority = 50 end
+			
 			if not reqs_by_priority[req.priority] then reqs_by_priority[req.priority] = {} end
 			if req.tp ~= (utils.map(reqs_by_priority[req.priority], function(_, r) return r.package.name, r.tp end)[req.package.name] or req.tp) then
 				error(utils.exception('invalid-request', 'Requested both Install and Uninstall with same priority for package ' .. req.package.name))
@@ -417,12 +414,7 @@ function required_pkgs(pkgs, requests)
 			table.insert(reqs_by_priority[req.priority], req)
 		end
 	end
-	local prios = utils.set2arr(reqs_by_priority)
-	table.sort(prios, function(a, b) return a > b end)
-	local reqs_prior = {}
-	for _, p in ipairs(prios) do
-		table.insert(reqs_prior, reqs_by_priority[p])
-	end
+	reqs_by_priority = utils.arr_inv(utils.arr_prune(reqs_by_priority))
 
 	-- Executes sat solver and adds clauses for maximal satisfiable set
 	local function clause_max_satisfiable()
@@ -446,7 +438,7 @@ function required_pkgs(pkgs, requests)
 
 	-- Install and Uninstall requests.
 	DBG("Resolving Install and Uninstall requests")
-	for _, reqs in ipairs(reqs_prior) do
+	for _, reqs in ipairs(reqs_by_priority) do
 		for _, req in pairs(reqs) do
 			-- Assume all request for this priority
 			sat:assume(satmap.req2sat[req])
@@ -492,9 +484,10 @@ function required_pkgs(pkgs, requests)
 end
 
 --[[
-Go through the list of requests on the input. Pass the needed ones through
-and leave the extra (eg. requiring already installed package) out. Add
-requests to remove not required packages.
+Go through the list of requests on the input. Pass the needed ones through and
+leave the extra (eg. requiring already installed package) out. And creates
+additional requests with action "remove", such package is present on system, but
+is not required any more and should be removed.
 ]]
 function filter_required(status, requests)
 	local installed = {}
@@ -520,21 +513,10 @@ function filter_required(status, requests)
 			unused[request.name] = nil
 		elseif request.action == "reinstall" then
 			-- Make a shallow copy and change the action requested
-			local new_req = {}
-			for k, v in pairs(request) do
-				new_req[k] = v
-			end
+			local new_req = utils.shallow_copy(request)
 			new_req.action = "require"
 			DBG("Want to reinstall " .. request.name)
 			table.insert(result, new_req)
-			unused[request.name] = nil
-		elseif request.action == "remove" then
-			if installed[request.name] then
-				DBG("Want to remove " .. request.name)
-				table.insert(result, request)
-			else
-				DBG("Package " .. request.name .. " not installed, ignoring request to remove")
-			end
 			unused[request.name] = nil
 		else
 			DIE("Unknown action " .. request.action)

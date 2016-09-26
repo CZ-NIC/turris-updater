@@ -17,6 +17,7 @@ You should have received a copy of the GNU General Public License
 along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
+local string = string
 require "lunit"
 local U = require "utils"
 
@@ -55,6 +56,18 @@ end
 
 function test_arr2set()
 	assert_table_equal({a = true, b = true}, U.arr2set({"a", "b"}))
+end
+
+function test_arr_prune()
+	assert_table_equal({}, U.arr_prune({nil, nil, nil, nil}))
+	assert_table_equal({"a", "b", "c"}, U.arr_prune({"a", "b", "c"}))
+	assert_table_equal({"a", "b", "c"}, U.arr_prune({nil, "a", "b", nil, nil, "c"}))
+end
+
+function test_arr_inv()
+	assert_table_equal({}, U.arr_inv({}))
+	assert_table_equal({"c", "b", "a"}, U.arr_inv({"a", "b", "c"}))
+	assert_table_equal({"d", "c", "b", "a"}, U.arr_inv({"a", "b", "c", "d"}))
 end
 
 function test_clone()
@@ -165,6 +178,11 @@ function test_strip()
 	assert_equal("test test", U.strip(" test test"))
 	assert_equal(42, U.strip(42))
 	assert_nil(U.strip(nil))
+end
+
+function test_randstr()
+	assert_equal(4, string.len(U.randstr(4)))
+	assert_equal(18, string.len(U.randstr(18)))
 end
 
 function test_arr_append()

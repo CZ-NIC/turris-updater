@@ -25,6 +25,9 @@ local type = type
 local setmetatable = setmetatable
 local getmetatable = getmetatable
 local assert = assert
+local table = table
+local string = string
+local math = math
 local io = io
 local unpack = unpack
 local events_wait = events_wait
@@ -32,7 +35,7 @@ local run_command = run_command
 
 module "utils"
 
--- luacheck: globals lines2set map set2arr arr2set cleanup_dirs slurp clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay randstr
+-- luacheck: globals lines2set map set2arr arr2set cleanup_dirs slurp clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay randstr arr_prune arr_inv
 
 --[[
 Convert provided text into set of lines. Doesn't care about the order.
@@ -73,6 +76,29 @@ end
 
 function arr2set(arr)
 	return map(arr, function (_, name) return name, true end)
+end
+
+-- Removes all nil values by shifting upper elements down.
+function arr_prune(arr)
+	local indxs = set2arr(arr)
+	table.sort(indxs)
+	local res = {}
+	for _, i in ipairs(indxs) do
+		table.insert(res, arr[i])
+	end
+	return res
+end
+
+-- Inverts order of array
+function arr_inv(arr)
+	local mid = math.modf(#arr / 2)
+	local endi = #arr + 1
+	for i = 1, mid do
+		local v = arr[i]
+		arr[i] = arr[endi - i]
+		arr[endi - i] = v
+	end
+	return arr
 end
 
 -- Run rm -rf on all dirs in the provided table
