@@ -728,6 +728,45 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_uri_internal_get, "uri_internal_get" }
 };
 
+#ifdef COVERAGE
+// From the embed file. Coverage lua code.
+extern struct file_index_element lcoverage[];
+
+static int interpreter_coverage_dump(lua_State *L) {
+	char *out_dir = getenv("COVERAGEDIR");
+	if (!out_dir) {
+		WARN("COVERAGEDIR variable not specified. Skipping coverage dump");
+		return 0;
+	}
+	DBG("Executing coverage data dump.");
+	int handler = push_err_handler(L);
+	lua_getfield(L, LUA_GLOBALSINDEX, "coverage");
+	lua_getfield(L, -1, "dump"); // called function
+	lua_pushstring(L, out_dir); // argument
+	if (lua_pcall(L, 1, 0, handler))
+		ERROR("Coverage data dump failed: %s", interpreter_error_result(L));
+	lua_pop(L, 1); // pop coverage module from stack
+	lua_remove(L, handler);
+	return 0;
+}
+
+static void interpreter_load_coverage(struct interpreter *interpreter) {
+	lua_State *L = interpreter->state;
+	DBG("Initializing Lua code coverage");
+	if (!interpreter_include(interpreter, (const char *) lcoverage->data, lcoverage->size, "coverage")) {
+		lua_getfield(L, LUA_GLOBALSINDEX, "coverage"); // get this module
+		lua_newuserdata(L, 1); // push to stack dummy user data. They are freed by Lua it self not our code.
+		lua_newtable(L); // new meta table for user data
+		lua_pushcfunction(L, interpreter_coverage_dump);
+		lua_setfield(L, -2, "__gc"); // set function to to new table
+		lua_setmetatable(L, -2); // set new table as user data meta table
+		lua_setfield(L, -2, "gc_udata"); // Set dummy user data to coverage.gc_udata
+		lua_pop(L, 1); // Pop coverage module from stack
+	} else
+		WARN("Loading of Lua coverage code failed.");
+}
+#endif
+
 struct interpreter *interpreter_create(struct events *events, const struct file_index_element *uriinter) {
 	uriinternal = uriinter;
 	struct interpreter *result = malloc(sizeof *result);
@@ -754,6 +793,9 @@ struct interpreter *interpreter_create(struct events *events, const struct file_
 	journal_mod_init(L);
 	locks_mod_init(L);
 	picosat_mod_init(L);
+#ifdef COVERAGE
+	interpreter_load_coverage(result);
+#endif
 	return result;
 }
 

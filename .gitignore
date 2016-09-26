@@ -5,12 +5,16 @@
 /.deps/
 /.objs/
 /.gen/
+/.lua_coverage/
 # The desired results
 *.html
 *.so
 /src/opkg-trans/opkg-trans
 /src/pkgupdate/pkgupdate
 /src/migrator/pkgmigrate
+# Some stuff for debugging
+/.coverage.info
+/coverage/
 # Stuff dump core all over the place.
 core
 vgcore.*

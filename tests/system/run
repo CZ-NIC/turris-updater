@@ -47,6 +47,7 @@ if [ -f "$DEFINITION"/setup ] ; then
 fi
 find "$TMP_DIR" -type f -name .keep -exec rm {} \;
 # Launch it
+export COVERAGEDIR="$O/.lua_coverage"
 eval $LAUNCHER "$O"/bin/"$1" $(cat "$DEFINITION"/params)
 # Do we need to de-randomize the output somehow?
 if [ -f "$DEFINITION"/cleanup ] ; then

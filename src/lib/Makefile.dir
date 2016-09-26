@@ -9,6 +9,9 @@ $(O)/.gen/src/%.embedlist: $(S)/src/lib/gen_embed.sh $(S)/src/lib/embed_types.h
 $(O)/.gen/src/lib/lautoload.embedlist: $(wildcard $(S)/src/lib/autoload/*.lua)
 $(O)/.gen/src/lib/lautoload.embedlist: SUFFIX := .lua
 
+$(O)/.gen/src/lib/lcoverage.embedlist: $(S)/src/lib/coverage.lua
+$(O)/.gen/src/lib/lcoverage.embedlist: SUFFIX := .lua
+
 libupdater_MODULES := \
 	arguments \
 	inject \
@@ -20,6 +23,9 @@ libupdater_MODULES := \
 	locks \
 	picosat \
 	util
+ifdef COV
+libupdater_MODULES += lcoverage.embed
+endif
 
 libupdater_MODULES_3RDPARTY := \
 	md5 \

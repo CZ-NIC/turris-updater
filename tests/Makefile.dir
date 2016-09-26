@@ -1,5 +1,5 @@
 
-.PHONY: check-clean test valgrind luacheck check test-locks valgrind-locks luac-autoload luacheck
+.PHONY: check-clean test valgrind luacheck check test-locks valgrind-locks luac-autoload luacheck coverage $(O)/.coverage.info
 
 BINARIES_NOTARGET += tests/locks
 locks_MODULES += locks
@@ -40,6 +40,26 @@ LUA_TESTS := \
 	uri \
 	picosat
 
+ifdef COV
+LUA_TESTS += coverage
+
+# Aggregates coverage to info file for genhtml.
+# It uses lcov for coverage from C sources and our script for coverage from Lua
+# No dependencies are intentional, this way coverage can be run for all tests or
+# just for small subset of them. It's on user to prepare data by launching tests.
+$(O)/.coverage.info:
+	lcov --capture --directory $(O) --base-directory $(S) --output-file $@
+	$(S)/tests/lua_coverage2info.pl $(O)/.lua_coverage $@ $(S)
+
+coverage: $(O)/.coverage.info
+	genhtml $< --output-directory $(O)/coverage
+endif
+clean: clean-coverage
+clean-coverage:
+	rm -rf $(O)/.lua_coverage
+	rm -f  $(O)/.coverage.info
+	rm -rf $(O)/coverage
+
 # Ignore stacktraceplus and dumper, not our creation.
 LUA_AUTOLOAD := $(filter-out 01_stacktraceplus 05_dumper,$(patsubst a_%.lua,%,$(notdir $(wildcard $(S)/src/lib/autoload/a_*.lua))))
 
@@ -74,21 +94,23 @@ luacheck: $(addprefix luacheck-,$(LUA_AUTOLOAD))
 # Use the FORCE target instead of .PHONY, since .PHONY doesn't work well
 # with patterned recipes. The FORCE comes from our shared build system.
 
+TESTS_ENV = SUPPRESS_LOG=1 S=$(S) TMPDIR=$(abspath $(O)/testdir) COVERAGEDIR=$(abspath $(O)/.lua_coverage)
+
 test-c-%: $(O)/bin/ctest-% FORCE
 	mkdir -p $(O)/testdir
-	SUPPRESS_LOG=1 S=$(S) TMPDIR=$(abspath $(O)/testdir) $<
+	$(TESTS_ENV) $<
 
 valgrind-c-%: $(O)/bin/ctest-% FORCE
 	mkdir -p $(O)/testdir
-	CK_FORK=no SUPPRESS_LOG=1 S=$(S) TMPDIR=$(abspath $(O)/testdir) $(VALGRIND) $<
+	CK_FORK=no $(TESTS_ENV) $(VALGRIND) $<
 
 test-lua-%: $(S)/tests/%.lua $(O)/bin/lulaunch FORCE
 	mkdir -p $(O)/testdir
-	SUPPRESS_LOG=1 S=$(S) TMPDIR=$(abspath $(O)/testdir) $(O)/bin/lulaunch $<
+	$(TESTS_ENV) $(O)/bin/lulaunch $<
 
 valgrind-lua-%: $(S)/tests/%.lua $(O)/bin/lulaunch FORCE
 	mkdir -p $(O)/testdir
-	SUPPRESS_LOG=1 S=$(S) TMPDIR=$(abspath $(O)/testdir) $(VALGRIND) $(O)/bin/lulaunch $<
+	$(TESTS_ENV) $(VALGRIND) $(O)/bin/lulaunch $<
 
 luac-autoload-%: $(S)/src/lib/autoload/a_%.lua FORCE
 	luac -p $<
