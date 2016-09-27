@@ -27,7 +27,7 @@
 
 set -ex
 
-if grep -q '-- Auto-migration performed' /etc/updater/auto.lua ; then
+if grep -q -e '-- Auto-migration performed' /etc/updater/auto.lua ; then
 	echo "Updater migration already performed" | logger -t daemon.info
 	echo "Updater migration already performed" >&2
 	exit 0
