@@ -54,13 +54,9 @@ else
 fi
 uci commit updater
 
-# Now create a new configuration
-pkgmigrate $BATCH
-
-# The old updater now gets inserted in the auto.lua, since the usual config doesn't contain it and it is installed right now. So get rid of it.
-sed -i -e '/"updater"/d' /etc/updater/auto.lua
-# Also, after we run this script, we want the migrator to be removed and not have it any more.
-sed -i -e '/"updater-migrate"/' /etc/updater/auto.lua
+# Now create a new configuration. Exclude the old updater (it is installed,
+# but we don't want it) and this migration script.
+pkgmigrate --exclude=updater --exclude=updater-migrate $BATCH
 
 # Cool. Now try the updater, please (the backend of it, without all the notification stuff, etc).
 exec pkgupdate $BATCH

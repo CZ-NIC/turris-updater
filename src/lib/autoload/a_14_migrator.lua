@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
--- luacheck: globals extra_pkgs pkgs_format
+-- luacheck: globals extra_pkgs pkgs_format exclude
 
 local pairs = pairs
 local ipairs = ipairs
@@ -77,6 +77,10 @@ function extra_pkgs(entry_point)
 		eliminate(utils.multi_index(postprocess.available_packages, name, "modifier", "deps"))
 	end
 	return result
+end
+
+function exclude(result, value)
+	result[value] = nil
 end
 
 function pkgs_format(pkgs, prefix, suffix)

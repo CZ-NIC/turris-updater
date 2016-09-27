@@ -29,7 +29,7 @@
 extern struct file_index_element uriinternal[];
 
 static const enum cmd_op_type cmd_op_allowed[] = {
-	COT_BATCH, COT_NO_OP, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_OUTPUT, COT_LAST
+	COT_BATCH, COT_NO_OP, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_OUTPUT, COT_EXCLUDE, COT_LAST
 };
 
 void print_help() {
@@ -47,6 +47,8 @@ int main(int argc, char *argv[]) {
 	const char *top_level_config = "internal:entry_lua";
 	const char *root_dir = NULL;
 	const char *output = "/etc/updater/auto.lua";
+	const char **excludes = NULL;
+	size_t exclude_count = 0;
 	bool batch = false, early_exit = false;
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
@@ -86,6 +88,11 @@ int main(int argc, char *argv[]) {
 			case COT_OUTPUT:
 				output = op->parameter;
 				break;
+			case COT_EXCLUDE:
+				// cppcheck-suppress memleakOnRealloc
+				excludes = realloc(excludes, (++ exclude_count) * sizeof *excludes);
+				excludes[exclude_count - 1] = op->parameter;
+				break;
 			default:
 				DIE("Unknown COT");
 		}
@@ -113,6 +120,11 @@ int main(int argc, char *argv[]) {
 	// As the result is a table, we want to store it to the registry
 	char *extra_pkg_table;
 	ASSERT_MSG(interpreter_collect_results(interpreter, "r", &extra_pkg_table) == -1, "Couldn't store the result table");
+	for (size_t i = 0; i < exclude_count; i ++) {
+		error = interpreter_call(interpreter, "migrator.exclude", &result_count, "rs", extra_pkg_table, excludes[i]);
+		ASSERT_MSG(!error, "%s", error);
+		ASSERT_MSG(result_count == 0, "Wrong number of results of migrator.exclude");
+	}
 	if (!batch) {
 		// We are in the interactive mode. Ask for confirmation
 		printf("There are the extra packages I'll put into %s:\n", output);
@@ -132,7 +144,7 @@ int main(int argc, char *argv[]) {
 	const char *install_list;
 	ASSERT_MSG(result_count == 1, "Wrong number of results of migrator.pkgs_format");
 	ASSERT_MSG(interpreter_collect_results(interpreter, "s", &install_list) == -1, "Couldn't extract package installation list");
-	FILE *fout = fopen(output, "w");
+	FILE *fout = fopen(output, "a");
 	ASSERT_MSG(fout, "Couldn't open output file %s: %s\n", output, strerror(errno));
 	fprintf(fout, "-- Auto-migration performed (do not delete this line, or it may attempt doing so again)\n");
 	fputs(install_list, fout);
