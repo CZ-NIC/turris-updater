@@ -70,6 +70,8 @@ static const char *opt_help[COT_LAST] = {
 		"--approve=<id>			Approve actions with given ID (multiple allowed, from a corresponding report-file).\n",
 	[COT_OUTPUT] =
 		"--output=<file>		Put the output to given file.\n",
+	[COT_EXCLUDE] =
+		"--exclude=<name>		Exclude this from output.\n",
 	[COT_TASK_LOG] =
 		"--task-log=<file>		Append list of executed tasks into a log file.\n"
 };
@@ -82,6 +84,7 @@ enum option_val {
 	OPT_APPROVE_VAL,
 	OPT_OUTPUT,
 	OPT_TASK_LOG_VAL,
+	OPT_EXCLUDE,
 	OPT_LAST
 };
 
@@ -98,6 +101,7 @@ static const struct option opt_long[] = {
 	{ .name = "approve", .has_arg = required_argument, .val = OPT_APPROVE_VAL },
 	{ .name = "output", .has_arg = required_argument, .val = OPT_OUTPUT },
 	{ .name = "task-log", .has_arg = required_argument, .val = OPT_TASK_LOG_VAL },
+	{ .name = "exclude", .has_arg = required_argument, .val = OPT_EXCLUDE },
 	{ .name = NULL }
 };
 
@@ -116,7 +120,8 @@ static const struct simple_opt {
 	[OPT_ASK_APPROVAL_VAL] = { COT_ASK_APPROVAL, true, true },
 	[OPT_APPROVE_VAL] = { COT_APPROVE, true, true },
 	[OPT_OUTPUT] = { COT_OUTPUT, true, true },
-	[OPT_TASK_LOG_VAL] = { COT_TASK_LOG, true, true }
+	[OPT_TASK_LOG_VAL] = { COT_TASK_LOG, true, true },
+	[OPT_EXCLUDE] = { COT_EXCLUDE, true, true }
 };
 
 // Builds new result with any number of error messages. But specify their count as
