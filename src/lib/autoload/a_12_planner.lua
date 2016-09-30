@@ -87,23 +87,20 @@ local function build_deps(sat, satmap, pkgs, requests)
 	-- Adds penalty variable for given var.
 	-- Penalty is added to penalty_group to table on index penalty_group_id.
 	-- penalty_group_id can be nil, then new id is created.
-	local function penalize(var, penalty_group, penalty_group_id)
-		if not penalty_group_id then
-			penalty_group_id = #penalty_group + 1
-			penalty_group[penalty_group_id] = {}
-			return penalty_group_id -- skip first one, it isn't penalized.
+	local function penalize(pen, penalty_group, lastpen)
+		if not lastpen then
+			return 0 -- skip first one, it isn't penalized.
 		end
 		local penalty = sat:var()
-		DBG("SAT add penalty variable " .. tostring(penalty) .. " for variable " .. tostring(var))
-		-- penalty => not var
-		sat:clause(-penalty, -var)
-		if #penalty_group[penalty_group_id] ~= 0 then
+		DBG("SAT add penalty variable " .. tostring(penalty) .. " for variable " .. tostring(pen))
+		-- penalty => not pen
+		sat:clause(-penalty, -pen)
+		if lastpen ~= 0 then
 			-- previous penalty variable implies this one
-			local prev = penalty_group[penalty_group_id][#penalty_group[penalty_group_id]]
-			sat:clause(-prev, penalty)
+			sat:clause(-lastpen, penalty)
 		end
-		table.insert(penalty_group[penalty_group_id], penalty)
-		return penalty_group_id
+		table.insert(penalty_group, penalty)
+		return penalty
 	end
 	-- Returns sat variable for given package group. If it is not yet added, then we create new variable for it and also for all its dependencies and candidates.
 	local function dep_pkg_group(name)
@@ -117,26 +114,27 @@ local function build_deps(sat, satmap, pkgs, requests)
 		local pkg = pkgs[name]
 		-- Add candidates for this package group
 		local sat_candidates = {}
-		local penalty_group_id = nil
+		local lastpen = nil
 		local candidates = (pkg and pkg.candidates) or {}
 		-- We expect here that candidates are sorted by their priority.
 		-- At first we just add variables for them
 		for _, candidate in ipairs(candidates) do
-			local var = sat:var()
-			DBG("SAT add candidate " .. candidate.Package .. " version:" .. (candidate.Version or "") .. " var:" .. tostring(var))
-			satmap.candidate2sat[candidate] = var
-			sat:clause(-var, pkg_var) -- candidate implies its package group
+			local cand = sat:var()
+			DBG("SAT add candidate " .. candidate.Package .. " version:" .. (candidate.Version or "") .. " var:" .. tostring(cand))
+			satmap.candidate2sat[candidate] = cand
+			sat:clause(-cand, pkg_var) -- candidate implies its package group
 			for _, o_cand in pairs(sat_candidates) do
-				sat:clause(-var, -o_cand) -- ensure candidates exclusivity
+				sat:clause(-cand, -o_cand) -- ensure candidates exclusivity
 			end
-			penalty_group_id = penalize(var, satmap.penalty_candidates, penalty_group_id)
-			table.insert(sat_candidates, var)
+			lastpen = penalize(cand, satmap.penalty_candidates, lastpen) -- penalize candidates
+			table.insert(sat_candidates, cand)
 		end
 		-- We solve dependency afterward to ensure that even when they are cyclic, we won't encounter package group in sat that don't have its candidates in sat yet.
 		-- Field deps for candidates and modifier of package group should be string or table of type 'dep-*'. nil or empty table means no dependencies.
 		for i = 1, #sat_candidates do
 			if candidates[i].deps and (type(candidates[i].deps) ~= 'table' or next(candidates[i].deps)) then
-				sat:clause(-sat_candidates[i], dep_traverse(candidates[i].deps)) -- candidate implies its dependencies
+				local dep = dep_traverse(candidates[i].deps)
+				sat:clause(-sat_candidates[i], dep) -- candidate implies its dependencies
 			end
 		end
 		if next(sat_candidates) then
@@ -149,7 +147,8 @@ local function build_deps(sat, satmap, pkgs, requests)
 		-- Add dependencies of package group
 		local deps = utils.multi_index(pkg, 'modifier', 'deps')
 		if deps and (type(deps) ~= 'table' or deps.tp) then
-			sat:clause(-pkg_var, dep_traverse(deps)) -- We only do implication here. Equivalence could result in package selection because its dependencies are satisfied.
+			local dep = dep_traverse(deps)
+			sat:clause(-pkg_var, dep)
 		end
 		-- And return variable for this package
 		return pkg_var
@@ -172,6 +171,7 @@ local function build_deps(sat, satmap, pkgs, requests)
 			if next(chosen_candidates) then
 				-- We add here basically or, but without penalizations. Penalization is ensured from dep_pkg_group.
 				local vars = utils.map(chosen_candidates, function(i, candidate)
+					assert(satmap.candidate2sat[candidate]) -- candidate we require should be already in sat
 					return i, satmap.candidate2sat[candidate]
 				end)
 				sat:clause(-var, unpack(vars)) -- imply that at least one of the possible candidates is chosen
@@ -189,36 +189,42 @@ local function build_deps(sat, satmap, pkgs, requests)
 			return group_var
 		end
 	end
-	-- Recursively adds dependency to sat. It returns sat variable for whole dependency.
-	function dep_traverse(deps)
+	-- Recursively adds dependency to sat. It returns sat variable for whole dependency and another variable for penalty variable if reqpenalty argument is true
+	function dep_traverse(deps, reqpenalty)
 		if type(deps) == 'string' or deps.tp == 'package' or deps.tp == 'dep-package' then
-			return dep(deps, deps.version)
+			local var = dep(deps, deps.version)
+			return var, var
 		end
 		if deps.tp == 'dep-not' then
 			assert(#deps.sub == 1)
 			-- just do negation of var, so 'not' is propagated to upper clause
-			return -dep_traverse(deps.sub[1])
+			local var, pen = dep_traverse(deps.sub[1], reqpenalty)
+			return -var, -pen
 		end
 		local wvar = sat:var()
+		local pvar = nil
+		if reqpenalty then
+			pvar = sat:var()
+		end
 		if deps.tp == 'dep-and' then
-			DBG("SAT dep and var: " .. tostring(wvar))
-			-- wid <=> var for every variable. Result is that they are all in and statement.
+			DBG("SAT dep and var: " .. tostring(wvar) .. " penvar: " .. tostring(pvar))
+			-- wid => var for every variable. Result is that they are all in and statement.
+			local pens = {}
 			for _, sub in ipairs(deps.sub or deps) do
-				local var = dep_traverse(sub)
+				local var, pen = dep_traverse(sub, reqpenalty)
 				sat:clause(-wvar, var)
-				sat:clause(-var, wvar)
+				if reqpenalty then table.insert(pens, -pen) end
 			end
+			if pvar then sat:clause(pvar, unpack(pens)) end -- (pen and pen and ...) => pvar
 		elseif deps.tp == 'dep-or' then
-			DBG("SAT dep or var: " .. tostring(wvar))
+			DBG("SAT dep or var: " .. tostring(wvar) .. " penvar: " .. tostring(pvar))
 			-- If wvar is true, at least one of sat variables must also be true, so vwar => vars...
-			-- Same as if one of vars is true, wvar must be also true, so var => wvar
 			local vars = {}
-			local penalty_group_id = nil
+			local lastpen = nil
 			for _, sub in ipairs(deps.sub) do
-				local var = dep_traverse(sub)
-				-- var => wvar
-				sat:clause(-var, wvar)
-				penalty_group_id = penalize(var, satmap.penalty_or, penalty_group_id)
+				local var, pen = dep_traverse(sub, true)
+				if pvar then sat:clause(-pen, pvar) end -- pen => pvar
+				lastpen = penalize(pen, satmap.penalty_or, lastpen)
 				-- wvar => vars...
 				table.insert(vars, var)
 			end
@@ -226,7 +232,7 @@ local function build_deps(sat, satmap, pkgs, requests)
 		else
 			error(utils.exception('bad value', "Invalid dependency description " .. (deps.tp or "<nil>")))
 		end
-		return wvar
+		return wvar, pvar
 	end
 
 	-- Go trough requests and add them to SAT
@@ -396,12 +402,12 @@ function required_pkgs(pkgs, requests)
 	local sat = picosat.new()
 	-- Tables that's mapping packages, requests and candidates with sat variables
 	local satmap = {
-		pkg2sat = {},
-		req2sat = {},
-		candidate2sat = {},
+		pkg2sat = {}, -- Name of package group to associated sat variable
+		candidate2sat = {}, -- Candidate object to associated sat variable
+		req2sat = {}, -- Request object to associated sat variable
 		missing = {}, -- Table of all package groups (key is string) and dependencies on specific candidates (key is table), where value is sat variable
-		penalty_candidates = {}, -- Array of arrays of penalty variables for candidates. In this case we don't require them to be sorted, but to reuse code for penalty_or, they are.
-		penalty_or = {} -- Array of arrays of penalty variables for or dependencies. They are sorted so upper or in dependency is first.
+		penalty_candidates = {}, -- Array of arrays of penalty variables for candidates.
+		penalty_or = {} -- Array of arrays of penalty variables for or dependencies.
 	}
 	-- Build dependencies
 	build_deps(sat, satmap, pkgs, requests)
@@ -464,10 +470,8 @@ function required_pkgs(pkgs, requests)
 	-- Chose alternatives with penalty variables
 	DBG("Forcing penalty on expressions with free alternatives")
 	local function penalize(penalties)
-		for _, pgroup in ipairs(penalties) do
-			for _, penalty in pairs(pgroup) do
-				sat:assume(penalty)
-			end
+		for _, penalty in ipairs(penalties) do
+			sat:assume(penalty)
 		end
 		clause_max_satisfiable()
 	end
