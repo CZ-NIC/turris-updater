@@ -1048,6 +1048,117 @@ function test_missing_dep_ignore()
 	assert_table_equal(expected, result)
 end
 
+function test__deps_twoalts()
+	local pkgs = {}
+	for i = 1, 3 do
+		local pkgname = 'pkg' .. tostring(i)
+		pkgs[pkgname] = {
+			candidates = {
+				{Package = pkgname, deps = {tp = 'dep-package', name = "pkg" .. tostring(i + 1), version = "=2"}, Version = "2", repo = def_repo},
+				{Package = pkgname, deps = {tp = 'dep-package', name = "pkg" .. tostring(i + 1), version = "=1"}, Version = "1", repo = def_repo}
+			},
+			modifier = {}
+		}
+	end
+	pkgs['pkg4'] = {
+		candidates = {
+			{Package = 'pkg4', Version = "2", repo = def_repo},
+			{Package = 'pkg4', Version = "1", repo = def_repo}
+		},
+		modifier = {}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1',
+			}
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {}
+	for i = 1, 4 do
+		local pkgname = 'pkg' .. tostring(i)
+		expected[pkgname] = {
+			action = 'require',
+			package = pkgs[pkgname].candidates[1],
+			modifier = {},
+			name = pkgname
+		}
+	end
+	assert_plan_dep_order(expected, result)
+end
+
+function test_deps_alt2alt()
+	local pkgs = {
+		pkg1 = {
+			candidates = {
+				{Package = 'pkg1', Version = '2', repo = def_repo, deps = {
+					tp = 'dep-and',
+					sub = {
+						'pkg2',
+						{tp = 'dep-package', name = 'dep', version = '=2'}
+					}
+				}},
+				{Package = 'pkg1', Version = '1', repo = def_repo, deps = {
+					tp = 'dep-and',
+					sub = {
+						'pkg2',
+						{tp = 'dep-package', name = 'dep', version = '=1'}
+					}
+				}}
+			},
+			modifier = {}
+		},
+		pkg2 = {
+			candidates = {
+				{Package = 'pkg2', deps = {tp = 'dep-package', name = 'dep', version = '=2'}, Version = '2', repo = def_repo},
+				{Package = 'pkg2', deps = {tp = 'dep-package', name = 'dep', version = '=1'}, Version = '1', repo = def_repo}
+			},
+			modifier = {}
+		},
+		dep = {
+			candidates = {
+				{Package = 'dep', Version = '2', repo = def_repo},
+				{Package = 'dep', Version = '1', repo = def_repo}
+			},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1',
+			}
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		pkg1 = {
+			action = 'require',
+			package = pkgs['pkg1'].candidates[1],
+			modifier = {},
+			name = 'pkg1'
+		},
+		pkg2 = {
+			action = 'require',
+			package = pkgs['pkg2'].candidates[1],
+			modifier = {},
+			name = 'pkg2'
+		},
+		dep = {
+			action = 'require',
+			package = pkgs['dep'].candidates[1],
+			modifier = {},
+			name = 'dep'
+		}
+	}
+	assert_plan_dep_order(expected, result)
+end
+
 function test_complex_deps()
 	local pkgs = {}
 	for i = 1, 7 do
