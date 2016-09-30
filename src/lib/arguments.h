@@ -60,6 +60,8 @@ enum cmd_op_type {
 	COT_OUTPUT,
 	// Log tasks into a file
 	COT_TASK_LOG,
+	// Exclude this from output
+	COT_EXCLUDE,
 	// Argument isn't option.
 	COT_NO_OP,
 	// Automatic last dummy value to know size of enum
