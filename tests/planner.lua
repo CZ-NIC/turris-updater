@@ -484,6 +484,74 @@ function test_priority()
 	assert_plan_dep_order(expected, result)
 end
 
+function test_request_unsat()
+	local pkgs = {
+		pkg1 = {
+			candidates = {{Package = 'pkg1', deps = {tp = 'dep-not', sub = {"pkg2"}}, repo = def_repo}},
+			modifier = {deps = "dep"}
+		},
+		pkg2 = {
+			candidates = {{Package = 'pkg2', deps = {}, repo = def_repo}},
+			modifier = {}
+		},
+		dep = {
+			candidates = {{Package = 'dep', deps = {}, repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1',
+			}
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg2',
+			}
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'dep',
+			}
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	-- We should chose pkg1 or pkg2. Not depending on chose of dep.
+	local respkgs = utils.map(result, function(_, val) return val.name, true end)
+	local expected = {
+		dep = {
+			action = "require",
+			package = {Package = 'dep', deps = {}, repo = def_repo},
+			modifier = {},
+			name = "dep"
+		}
+	}
+	if respkgs.pkg1 then
+		expected.pkg1 = {
+			action = "require",
+			package = {Package = 'pkg1', deps = {tp = 'dep-not', sub = {"pkg2"}}, repo = def_repo},
+			modifier = {deps = 'dep'},
+			name = "pkg1"
+		}
+	end
+	if respkgs.pkg2 then
+		expected.pkg2 = {
+			action = "require",
+			package = {Package = 'pkg2', deps = {}, repo = def_repo},
+			modifier = {},
+			name = "pkg2"
+		}
+	end
+	assert_plan_dep_order(expected, result)
+end
+
 function test_request_collision()
 	local pkgs = {
 		pkg1 = {
@@ -1048,7 +1116,7 @@ function test_missing_dep_ignore()
 	assert_table_equal(expected, result)
 end
 
-function test__deps_twoalts()
+function test_deps_twoalts()
 	local pkgs = {}
 	for i = 1, 3 do
 		local pkgname = 'pkg' .. tostring(i)
