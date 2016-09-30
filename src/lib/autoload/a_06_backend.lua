@@ -589,7 +589,7 @@ function collision_check(current_status, remove_pkgs, add_pkgs)
 	key, one of string "to-remove", "existing" or "new" under "when" key. And
 	both have full path under "path" key.
 	--]]
-	local files_tree = {}
+	local files_tree = {path = "/"}
 	-- First returned result. Table with collisions. Key is collision path and value is table with packages names as keys and "when" as values.
 	local collisions = {}
 	-- Second returned result. We fill this with nodes we want to remove before given package is merged to file system

@@ -461,20 +461,19 @@ function test_collisions()
 	-- A collision between two new packages
 	test_pkg['another'] = test_pkg['package']
 	local col, erem, rem = B.collision_check(status, {['kmod-usb-storage'] = true}, test_pkg)
-	assert_not_equal({
-		["/etc/modules.d/usb-storage"] = true
-	}, utils.map(col, function (k) return k, true end))
 	assert_table_equal({
-		["package"] = "new",
-		["another"] = "new"
-	}, col["/etc/modules.d/usb-storage"])
+		["/etc/modules.d/usb-storage"] = {
+			["package"] = "new",
+			["another"] = "new"
+		}
+	}, col)
 	assert_table_equal({}, erem)
 	assert_table_equal({
 		["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
 		["/etc/modules-boot.d/usb-storage"] = true
 		-- The usb-storage file is taken over, it doesn't disappear
 	}, rem)
-	-- Collision resolved with early file remove in favor of new directory
+	-- Collision of file with new directory
 	local test_pkg = {
 		["package"] = {
 			["/etc/modules.d/usb-storage/other-file"] = true,
@@ -482,6 +481,16 @@ function test_collisions()
 			["/etc/test-package"] = true
 		}
 	}
+	local col, erem, rem = B.collision_check(status, {}, test_pkg)
+	assert_table_equal({
+		["/etc/modules.d/usb-storage"] = {
+			["package"] = "new",
+			["kmod-usb-storage"] = "existing"
+		}
+	}, col)
+	assert_table_equal({}, erem)
+	assert_table_equal({}, rem)
+	-- Collision resolved with early file remove in favor of new directory
 	local col, erem, rem = B.collision_check(status, {['kmod-usb-storage'] = true}, test_pkg)
 	assert_table_equal({}, col)
 	assert_table_equal({
@@ -493,13 +502,23 @@ function test_collisions()
 		["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
 		["/etc/modules-boot.d/usb-storage"] = true,
 	}, rem)
-	-- Collision resolved with early directory remove in favor of new file
+	-- Collision of directory with new file
 	local test_pkg = {
 		["package"] = {
 			["/usr/share/terminfo"] = true,
-			["/etc/modules.d/usb-storage"] = true
 		}
 	}
+	local col, erem, rem = B.collision_check(status, {}, test_pkg)
+	assert_table_equal({
+		["/usr/share/terminfo"] = {
+			["package"] = "new",
+			["terminfo"] = "existing"
+		}
+	}, col)
+	assert_table_equal({}, erem)
+	assert_table_equal({}, rem)
+	-- Collision resolved with early directory remove in favor of new file
+	test_pkg.package["/etc/modules.d/usb-storage"] = true
 	local col, erem, rem = B.collision_check(status, {['terminfo'] = true}, test_pkg)
 	assert_table_equal({
 		["/etc/modules.d/usb-storage"] = {
