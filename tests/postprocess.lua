@@ -328,6 +328,7 @@ function test_deps_canon()
 	assert_table_equal({tp = "dep-or", sub = {"x", {tp = "dep-or", sub = {"y", "z"}}}}, postprocess.deps_canon({tp = "dep-or", sub = {"x", {tp = 'dep-or', sub = {"y ", "z"}}}}))
 	assert_table_equal({tp = "dep-or", sub = {"x", {tp = "dep-and", sub = {"y", "z"}}}}, postprocess.deps_canon({tp = "dep-or", sub = {"x", {"y", "z"}}}))
 	assert_table_equal({tp = "package", a = "b"}, postprocess.deps_canon({tp = "package", a = "b"}))
+	assert_table_equal({tp = "dep-package", a = "b"}, postprocess.deps_canon({tp = "dep-package", a = "b"}))
 end
 
 function teardown()

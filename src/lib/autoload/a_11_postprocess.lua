@@ -219,7 +219,7 @@ function deps_canon(old_deps)
 				old_deps.sub[i] = deps_canon(val)
 			end
 			return dep_size_check(old_deps)
-		elseif tp == 'package' then
+		elseif tp == 'package' or tp == 'dep-package' then
 			-- Single package dependency (an object instead of name) ‒ leave it as it is
 			return old_deps
 		else
