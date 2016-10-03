@@ -35,7 +35,7 @@ function assert_table_equal(t1, t2, tables, checked)
 			local v2 = t2[k]
 			if type(v) ~= "table" or type(v2) ~= "table" then
 				-- In case of two tables, we have special comparison below
-				lunit.assert_equal(v, v2, "Values for key '" .. k .. "' differ, " .. name .. " tables: " .. tables)
+				lunit.assert_equal(v, v2, "Values for key '" .. tostring(k) .. "' differ, " .. name .. " tables: " .. tables)
 			end
 		end
 	end
