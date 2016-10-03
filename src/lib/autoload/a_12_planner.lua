@@ -237,6 +237,9 @@ local function build_deps(sat, satmap, pkgs, requests)
 
 	-- Go trough requests and add them to SAT
 	for _, req in ipairs(requests) do
+		if not pkgs[req.package.name] and not utils.arr2set(req.ignore or {})["missing"] then
+			error(utils.exception('inconsistent', "Requested package " .. req.package.name .. " doesn't exists."))
+		end
 		local req_var = sat:var()
 		DBG("SAT add request for " .. req.package.name .. " var:" .. tostring(req_var))
 		local target_var = dep(req.package, req.version, req.repository)
