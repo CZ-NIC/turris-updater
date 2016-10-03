@@ -139,7 +139,7 @@ int main(int argc, char *argv[]) {
 		getchar();
 	}
 	// Compute the list of packages to install additionally and store it into the file
-	error = interpreter_call(interpreter, "migrator.pkgs_format", &result_count, "rss", extra_pkg_table, "Install \"", "\"");
+	error = interpreter_call(interpreter, "migrator.pkgs_format", &result_count, "rss", extra_pkg_table, "Install \"", "\" { ignore = { \"missing\" } }");
 	ASSERT_MSG(!error, "%s", error);
 	const char *install_list;
 	ASSERT_MSG(result_count == 1, "Wrong number of results of migrator.pkgs_format");

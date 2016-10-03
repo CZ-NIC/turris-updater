@@ -55,8 +55,10 @@ fi
 uci commit updater
 
 # Now create a new configuration. Exclude the old updater (it is installed,
-# but we don't want it) and this migration script.
-pkgmigrate --exclude=updater --exclude=updater-migrate --exclude=updater-deps $BATCH
+# but we don't want it) and this migration script. Also, exclude some packages
+# that no longer exist and are left on the blue turris during an early stage
+# of update.
+pkgmigrate --exclude=updater --exclude=updater-migrate --exclude=updater-deps --exclude=libelf --exclude=mtd-utils-flash-info --exclude=kmod-ipt-nathelper --exclude=6relayd --exclude=kmod-ipv6 --exclude=init-thermometer --exclude=kmod-crypto-aes --exclude=kmod-crypto-core --exclude=luci-i18n-czech --exclude=luci-i18n-english $BATCH
 
 # Cool. Now try the updater, please (the backend of it, without all the notification stuff, etc).
 exec pkgupdate $BATCH
