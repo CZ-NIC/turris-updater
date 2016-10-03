@@ -38,7 +38,7 @@ BATCH="$1"
 
 # This script migrates from the old updater to updater-ng. First, migrate the config.
 
-BRANCH=$(uci -q get updater.override.branch)
+BRANCH=$(uci -q get updater.override.branch || true)
 if [ -z "$BRANCH" ] ; then
 	BRANCH=$(grep '^src/gz.*/base$' /etc/opkg/distfeeds.conf  | sed -e 's#.*openwrt-repo/##;s#/.*##')
 fi
@@ -56,7 +56,7 @@ uci commit updater
 
 # Now create a new configuration. Exclude the old updater (it is installed,
 # but we don't want it) and this migration script.
-pkgmigrate --exclude=updater --exclude=updater-migrate $BATCH
+pkgmigrate --exclude=updater --exclude=updater-migrate --exclude=updater-deps $BATCH
 
 # Cool. Now try the updater, please (the backend of it, without all the notification stuff, etc).
 exec pkgupdate $BATCH
