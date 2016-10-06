@@ -48,14 +48,16 @@ function test_no_deps()
 			package = {
 				tp = 'package',
 				name = 'pkg1',
-			}
+			},
+			priority = 50
 		},
 		{
 			tp = 'install',
 			package = {
 				tp = 'package',
 				name = 'pkg2'
-			}
+			},
+			priority = 50
 		}
 	}
 	local result = planner.required_pkgs(pkgs, requests)
@@ -90,7 +92,8 @@ function test_reinstall()
 				tp = 'package',
 				name = 'pkg1'
 			},
-			reinstall = true
+			reinstall = true,
+			priority = 50
 		}
 	}
 	local result = planner.required_pkgs(pkgs, requests)
@@ -124,7 +127,8 @@ function test_reinstall_upgrade()
 			package = {
 				tp = 'package',
 				name = 'pkg1'
-			}
+			},
+			priority = 50
 		},
 		{
 			-- Just a package in the middle, so we are sure the following reschedule doesn't reorder things.
@@ -132,7 +136,8 @@ function test_reinstall_upgrade()
 			package = {
 				tp = 'package',
 				name = 'pkg2'
-			}
+			},
+			priority = 50
 		},
 		{
 			-- Second instance with reinstall. That one should reschedule it as „reinstall“
@@ -141,7 +146,8 @@ function test_reinstall_upgrade()
 				tp = 'package',
 				name = 'pkg1'
 			},
-			reinstall = true
+			reinstall = true,
+			priority = 50
 		}
 	}
 	local result = planner.required_pkgs(pkgs, requests)
@@ -213,14 +219,16 @@ function test_deps()
 			package = {
 				tp = 'package',
 				name = 'pkg1',
-			}
+			},
+			priority = 50,
 		},
 		{
 			tp = 'install',
 			package = {
 				tp = 'package',
 				name = 'pkg2',
-			}
+			},
+			priority = 50,
 		}
 	}
 	local result = planner.required_pkgs(pkgs, requests)
@@ -279,7 +287,8 @@ function test_missing_dep()
 			package = {
 				tp = 'package',
 				name = 'pkg',
-			}
+			},
+			priority = 50,
 		}
 	}
 	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent')
@@ -309,7 +318,8 @@ function test_virtual()
 			package = {
 				tp = 'package',
 				name = 'virt1',
-			}
+			},
+			priority = 50,
 		}
 	}
 	local result = planner.required_pkgs(pkgs, requests)
@@ -340,7 +350,8 @@ function test_virtual_version()
 				tp = 'package',
 				name = 'virt',
 				version = '1'
-			}
+			},
+			priority = 50,
 		}
 	}
 	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent')
@@ -366,7 +377,8 @@ function test_circular_deps()
 			package = {
 				tp = 'package',
 				name = 'pkg1'
-			}
+			},
+			priority = 50,
 		}
 	}
 	local result = planner.required_pkgs(pkgs, requests)
@@ -446,7 +458,8 @@ function test_priority()
 				tp = 'package',
 				name = 'pkg1',
 			},
-			reinstall = true
+			reinstall = true,
+			priority = 50,
 		},
 		{
 			tp = 'uninstall',
@@ -461,7 +474,8 @@ function test_priority()
 			package = {
 				tp = 'package',
 				name = 'pkg2'
-			}
+			},
+			priority = 50,
 		},
 		{
 			tp = 'install',
@@ -505,21 +519,24 @@ function test_request_unsat()
 			package = {
 				tp = 'package',
 				name = 'pkg1',
-			}
+			},
+			priority = 50,
 		},
 		{
 			tp = 'install',
 			package = {
 				tp = 'package',
 				name = 'pkg2',
-			}
+			},
+			priority = 50,
 		},
 		{
 			tp = 'install',
 			package = {
 				tp = 'package',
 				name = 'dep',
-			}
+			},
+			priority = 50,
 		}
 	}
 	local result = planner.required_pkgs(pkgs, requests)
@@ -565,14 +582,16 @@ function test_request_collision()
 			package = {
 				tp = 'package',
 				name = 'pkg1',
-			}
+			},
+			priority = 50,
 		},
 		{
 			tp = 'uninstall',
 			package = {
 				tp = 'package',
 				name = 'pkg1',
-			}
+			},
+			priority = 50,
 		}
 	}
 	assert_exception(function() planner.required_pkgs(pkgs, requests) end, 'invalid-request')
@@ -595,7 +614,8 @@ function test_critical_request()
 			package = {
 				tp = 'package',
 				name = 'pkg1',
-			}
+			},
+			priority = 50,
 		},
 		{
 			tp = 'install',
@@ -603,7 +623,8 @@ function test_critical_request()
 				tp = 'package',
 				name = 'pkg2',
 			},
-			critical = true
+			critical = true,
+			priority = 50,
 		}
 	}
 	local result = planner.required_pkgs(pkgs, requests)
@@ -636,7 +657,8 @@ function test_critical_request_unsat()
 				tp = 'package',
 				name = 'pkg1',
 			},
-			critical = true
+			critical = true,
+			priority = 50,
 		},
 		{
 			tp = 'install',
@@ -644,7 +666,8 @@ function test_critical_request_unsat()
 				tp = 'package',
 				name = 'pkg2',
 			},
-			critical = true
+			critical = true,
+			priority = 50,
 		}
 	}
 	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent', nil, { critical = true })
@@ -684,7 +707,8 @@ function test_penalty()
 			package = {
 				tp = 'package',
 				name = 'pkg',
-			}
+			},
+			priority = 50,
 		}
 	}
 	local expected = {
@@ -714,7 +738,8 @@ function test_penalty()
 		package = {
 			tp = 'package',
 			name = 'dep3'
-		}
+		},
+		priority = 50,
 	})
 	expected['dep1'] = nil
 	expected['dep3'] = {
@@ -772,21 +797,24 @@ function test_penalty_most_common()
 			package = {
 				tp = 'package',
 				name = 'pkg1',
-			}
+			},
+			priority = 50,
 		},
 		{
 			tp = 'install',
 			package = {
 				tp = 'package',
 				name = 'pkg2',
-			}
+			},
+			priority = 50,
 		},
 		{
 			tp = 'install',
 			package = {
 				tp = 'package',
 				name = 'pkg3',
-			}
+			},
+			priority = 50,
 		}
 	}
 	local expected = {
@@ -868,7 +896,8 @@ function test_penalty_and_missing()
 			package = {
 				tp = 'package',
 				name = 'pkg',
-			}
+			},
+			priority = 50,
 		}
 	}
 	local expected = {
@@ -1126,7 +1155,8 @@ function test_missing_request()
 			package = {
 				tp = 'package',
 				name = 'missing'
-			}
+			},
+			priority = 50,
 		}
 	}
 	assert_exception(function () planner.required_pkgs({}, requests) end, 'inconsistent')
@@ -1145,7 +1175,8 @@ function test_missing_install()
 			package = {
 				tp = 'package',
 				name = 'pkg1',
-			}
+			},
+			priority = 50,
 		},
 		{
 			tp = 'install',
@@ -1153,7 +1184,8 @@ function test_missing_install()
 				tp = 'package',
 				name = 'pkg2'
 			},
-			ignore = {'missing'}
+			ignore = {'missing'},
+			priority = 50,
 		}
 	}
 	local result = planner.required_pkgs(pkgs, requests)
@@ -1184,7 +1216,8 @@ function test_missing_dep_ignore()
 			package = {
 				tp = 'package',
 				name = 'pkg1',
-			}
+			},
+			priority = 50,
 		}
 	}
 	local result = planner.required_pkgs(pkgs, requests)
@@ -1226,7 +1259,8 @@ function test_deps_twoalts()
 			package = {
 				tp = 'package',
 				name = 'pkg1',
-			}
+			},
+			priority = 50,
 		}
 	}
 	local result = planner.required_pkgs(pkgs, requests)
@@ -1285,7 +1319,8 @@ function test_deps_alt2alt()
 			package = {
 				tp = 'package',
 				name = 'pkg1',
-			}
+			},
+			priority = 50,
 		}
 	}
 	local result = planner.required_pkgs(pkgs, requests)
@@ -1365,7 +1400,8 @@ function test_complex_deps()
 			package = {
 				tp = 'package',
 				name = 'meta',
-			}
+			},
+			priority = 50,
 		}
 	}
 	local result = planner.required_pkgs(pkgs, requests)
@@ -1405,7 +1441,8 @@ function test_version_request()
 				tp = 'package',
 				name = 'pkg1',
 			},
-			version = '>1'
+			version = '>1',
+			priority = 50,
 		},
 		{
 			tp = 'install',
@@ -1413,7 +1450,8 @@ function test_version_request()
 				tp = 'package',
 				name = 'pkg2',
 			},
-			version = '=1'
+			version = '=1',
+			priority = 50,
 		}
 	}
 	local result = planner.required_pkgs(pkgs, requests)
@@ -1501,7 +1539,8 @@ function test_version_deps()
 			package = {
 				tp = 'package',
 				name = 'pkg',
-			}
+			},
+			priority = 50,
 		}
 	}
 	local result = planner.required_pkgs(pkgs, requests)
@@ -1554,7 +1593,8 @@ function test_version_missing_dep()
 			package = {
 				tp = 'package',
 				name = 'pkg',
-			}
+			},
+			priority = 50,
 		}
 	}
 	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent')
@@ -1574,7 +1614,8 @@ function test_version_missing_request()
 				tp = 'package',
 				name = 'pkg',
 			},
-			version = '>1'
+			version = '>1',
+			priority = 50,
 		}
 	}
 	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent')

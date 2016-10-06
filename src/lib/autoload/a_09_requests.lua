@@ -226,6 +226,7 @@ local function content_request(context, cmd, allowed, ...)
 					request[name] = opt
 				end
 			end
+			request.priority = request.priority or 50
 			table.insert(content_requests, request)
 		end
 		batch = {}
