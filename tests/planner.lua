@@ -1047,6 +1047,19 @@ function test_candidate_choose()
 	assert_table_equal({}, planner.candidates_choose(candidates, "=~1"))
 end
 
+function test_missing_request()
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'missing'
+			}
+		}
+	}
+	assert_exception(function () planner.required_pkgs({}, requests) end, 'inconsistent')
+end
+
 function test_missing_install()
 	local pkgs = {
 		pkg1 = {
