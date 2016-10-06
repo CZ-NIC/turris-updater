@@ -461,7 +461,7 @@ function required_pkgs(pkgs, requests)
 	end
 	if not sat:satisfiable() then
 		-- TODO This exception should probably be saying more about why. We can assume variables first and inspect maximal satisfiable set then.
-		utils.exception('inconsistent', "Packages marked as critical can't satisfy their dependencies together.")
+		error(utils.exception('inconsistent', "Packages marked as critical can't satisfy their dependencies together.", {critical = true}))
 	end
 
 	-- Install and Uninstall requests.

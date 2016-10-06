@@ -578,6 +578,78 @@ function test_request_collision()
 	assert_exception(function() planner.required_pkgs(pkgs, requests) end, 'invalid-request')
 end
 
+function test_critical_request()
+	local pkgs = {
+		pkg1 = {
+			candidates = {{Package = 'pkg1', deps = {tp = "dep-not", sub = {"pkg2"}}, repo = def_repo}},
+			modifier = {}
+		},
+		pkg2 = {
+			candidates = {{Package = 'pkg2', deps = {}, repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1',
+			}
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg2',
+			},
+			critical = true
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		pkg2 = {
+			action = "require",
+			package = {Package = 'pkg2', deps = {}, repo = def_repo},
+			modifier = {},
+			name = "pkg2"
+		}
+	}
+	assert_plan_dep_order(expected, result)
+end
+
+function test_critical_request_unsat()
+	local pkgs = {
+		pkg1 = {
+			candidates = {{Package = 'pkg1', deps = {tp = "dep-not", sub = {"pkg2"}}, repo = def_repo}},
+			modifier = {}
+		},
+		pkg2 = {
+			candidates = {{Package = 'pkg2', deps = {}, repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1',
+			},
+			critical = true
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg2',
+			},
+			critical = true
+		}
+	}
+	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent', nil, { critical = true })
+end
+
 function test_penalty()
 	local pkgs = {
 		pkg = {
