@@ -374,6 +374,17 @@ local function build_plan(pkgs, requests, sat, satmap)
 			if req.critical and inconsistent[req.package.name] then -- Check if critical didn't end up in cyclic dependency
 				error(utils.exception('inconsistent', 'Package ' .. req.package.name .. ' is requested as critical. Cyclic dependency is not allowed for critical requests.', { critical = true }))
 			end
+		else
+			-- We don't expect critical. If critical request wasn't satisfied we already failed.
+			local str_ver = ""
+			if req.version then
+				str_ver = " version:" .. tostring(req.package.version)
+			end
+			local str_repo = ""
+			if req.repository then
+				str_repo = " repository:" .. tostring(req.repository.name)
+			end
+			WARN("Request not satisfied to " .. req.tp .. " package: " .. req.package.name .. str_ver .. str_repo)
 		end
 	end
 
