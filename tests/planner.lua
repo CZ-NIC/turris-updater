@@ -1612,6 +1612,182 @@ function test_pkg_dep_iterate()
 	assert_nil(next(expected))
 end
 
+local function sat_dummy()
+	local sat = {
+		clauses = {},
+		varcount = 0
+	}
+	function sat:var(count)
+		assert_nil(count) -- we don't support this now here
+		self.varcount = self.varcount + 1
+		return self.varcount
+	end
+	function sat:clause(...)
+		table.insert(self.clauses, {...})
+	end
+	function sat:assume()
+		assert(false) -- not supported in here
+	end
+	function sat:satisfiable()
+		assert(false) -- not supported in here
+	end
+	function sat:max_satisfiable()
+		assert(false) -- not supported in here
+	end
+	return sat
+end
+
+function test_sat_penalize()
+	local state = {
+		sat = sat_dummy()
+		-- other fields in state shouldn't be required
+	}
+	local lastpen = nil
+	local penalty_group = {}
+	lastpen = planner.sat_penalize(state, state.sat:var(), penalty_group, lastpen)
+	assert_equal(0, lastpen)
+	lastpen = planner.sat_penalize(state, state.sat:var(), penalty_group, lastpen)
+	assert_equal(3, lastpen)
+	lastpen = planner.sat_penalize(state, state.sat:var(), penalty_group, lastpen)
+	assert_equal(5, lastpen)
+	assert_equal(5, state.sat.varcount)
+	assert_table_equal({{-3, -2}, {-5, -4}, {-3, 5}}, state.sat.clauses)
+end
+
+function test_sat_dep_traverse()
+	local state = {
+		pkg2sat = {
+			["pkg1"] = 1,
+			["pkg2"] = 2,
+			["pkg3"] = 3,
+			["pkg4"] = 4
+		},
+		penalty_or = {},
+		sat = sat_dummy()
+		-- candidate2sat, req2sat, missing, penalty_candidates and pkgs shouldn't be required
+	}
+	state.sat.varcount = 4
+	local dep = {
+		tp = "dep-and",
+		sub = {
+			{
+				tp = "dep-not",
+				sub = {"pkg1"}
+			},
+			{
+				tp = "dep-or",
+				sub = {
+					{
+						tp = "dep-package",
+						name = "pkg2"
+					},
+					{
+						tp = "dep-and",
+						sub = {
+							{
+								tp = "package",
+								name = "pkg3"
+							},
+							{
+								tp = "dep-not",
+								sub = {"pkg4"}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	local wvar, pvar = planner.sat_dep_traverse(state, dep)
+	assert_nil(pvar) -- we didn't requested penalty dependencies
+	assert_equal(5, wvar) -- created as fist after call
+	assert_table_equal({9}, state.penalty_or)
+	assert_table_equal({
+		-- and implies not pkg1
+		{-5,  -1},
+		-- pkg2 or (pkg3 and not pkg4)
+		{-7, 3}, -- and variable implies pkg3
+		{-7, -4}, -- and variable implies not pkg4
+		{8, -3, 4}, -- penalty and variable
+		{-9, -8}, -- penalty variable implies on penalty dependency
+		{-6, 2, 7}, -- or variable implies pkg2 or second and variable
+		{-5, 6} -- and variable implies or variable
+	}, state.sat.clauses)
+end
+
+function test_sat_pkg_group()
+	local state = {
+		pkg2sat = {["otherpkg"] = 1, ["deppkg"] = 2},
+		candidate2sat = {},
+		penalty_candidates = {},
+		pkgs = {
+			pkg = {
+				candidates = {
+					{Package = "pkg", deps = "otherpkg", Version = "2", repo = def_repo},
+					{Package = "pkg", Version = "1", repo = def_repo}
+				},
+				modifier = {deps = "deppkg"}
+			}
+		},
+		sat = sat_dummy()
+		-- req2sat, missing and penalty_or shouldn't be required
+	}
+	state.sat.varcount = 2
+	local satvar = planner.sat_pkg_group(state, "pkg")
+	assert_equal(3, satvar)
+	assert_table_equal({
+		["otherpkg"] = 1,
+		["deppkg"] = 2,
+		["pkg"] = 3
+	}, state.pkg2sat)
+	assert_table_equal({
+		[state.pkgs.pkg.candidates[1]] = 4,
+		[state.pkgs.pkg.candidates[2]] = 5
+	}, state.candidate2sat)
+	assert_table_equal({6}, state.penalty_candidates)
+	assert_equal(6, state.sat.varcount)
+	assert_table_equal({
+		{-4, 3}, -- candidate version 2 implies its package group
+		{-5, 3}, -- candidate version 1 implies its package group
+		{-5, -4}, -- candidates are exclusive
+		{-6, -5}, -- penalize second candidate
+		{-4, 1}, -- candidate version 2 depends on otherpkg
+		{-3, 4, 5}, -- package group implies that one of candidates is chosen
+		{-3, 2} -- package group implies its dependencies
+	}, state.sat.clauses)
+end
+
+function test_sat_dep()
+	local pkgs = {
+		pkg = {
+			candidates = {
+				{Package = "pkg", Version = "2", repo = def_repo},
+				{Package = "pkg", Version = "1", repo = def_repo}
+			},
+			modifier = {}
+		}
+	}
+	local state = {
+		pkg2sat = {
+			["pkg"] = 1
+		},
+		candidate2sat = {
+			[pkgs.pkg.candidates[1]] = 2,
+			[pkgs.pkg.candidates[2]] = 3
+		},
+		pkgs = pkgs,
+		sat = sat_dummy()
+		-- req2sat, missing, penalty_candidates and penalty_or shouldn't be required
+	}
+	state.sat.varcount = 3
+	local var = planner.sat_dep(state, {tp = "package", name = "pkg"}, ">=1")
+	assert_equal(4, var)
+	assert_table_equal({
+		{-4, 2, 3}, -- candidate selection variable implies at least one of candidates are chosen
+		{-4, 1} -- candidate selection implies target package group
+	}, state.sat.clauses)
+end
+
 -- This checks plan order by checking dependencies and tables in plan are checked against expected ones by name of package
 function assert_plan_dep_order(expected, plan)
 	-- Check that plan contains all and only expected entries
