@@ -163,7 +163,7 @@ function test_perform_empty()
 	local expected = tables_join(intro, {
 		{
 			f = "journal.write",
-			p = {journal.UNPACKED, {}, {}, {}, {}}
+			p = {journal.UNPACKED, {}, {}, {}, {}, {}}
 		},
 		{
 			f = "backend.collision_check",
@@ -246,11 +246,13 @@ function test_perform_ok()
 						dirs = { d = true },
 						files = { f = true },
 						op = "install",
-						old_configs = { c = "12345678901234567890123456789012" }
+						old_configs = { c = "12345678901234567890123456789012" },
+						reboot_immediate = false
 					},
 					{ name = "pkg-rem", op = "remove" }
 				},
-				{"pkg_dir"}
+				{"pkg_dir"},
+				{}
 			}
 		},
 		{
@@ -342,7 +344,7 @@ function test_perform_ok()
 	assert_table_equal(expected, mocks_called)
 end
 
--- Test it stops when it finds collisions
+-- Test if it stops when it finds collisions
 function test_perform_collision()
 	mocks_install()
 	mock_gen("backend.collision_check", function () return {f = {["<pkg1name>"] = "new", ["<pkg2name>"] = "new", ["other"] = "existing"}}, {} end)
@@ -393,7 +395,8 @@ function test_perform_collision()
 						dirs = { d = true },
 						files = { f = true },
 						op = "install",
-						old_configs = { c = "1234567890123456" }
+						old_configs = { c = "1234567890123456" },
+						reboot_immediate = false
 					},
 					{
 						configs = { c = "1234567890123456" },
@@ -402,10 +405,12 @@ function test_perform_collision()
 						dirs = { d = true },
 						files = { f = true },
 						op = "install",
-						old_configs = { c = "1234567890123456" }
+						old_configs = { c = "1234567890123456" },
+						reboot_immediate = false
 					}
 				},
-				{"<pkg1dir>", "<pkg2dir>"}
+				{"<pkg1dir>", "<pkg2dir>"},
+				{}
 			}
 		},
 		{
@@ -495,7 +500,8 @@ function test_recover_late()
 					},
 					{ name = "pkg-rem", op = "remove" }
 				},
-				{"pkg_dir"}
+				{"pkg_dir"},
+				{}
 			} },
 			{ type = journal.CHECKED, params = { {["d2"] = true} } },
 			{ type = journal.MOVED, params = {
@@ -573,47 +579,47 @@ function test_approval_hash()
 	-- The same lists of operations return the same hash
 	assert_true(equal(
 	{
-		{'install_downloaded', '', 'pkg', 13},
+		{'install_downloaded', '', 'pkg', 13, {}},
 		{'remove', 'pkg2'}
 	},
 	{
-		{'install_downloaded', '', 'pkg', 13},
+		{'install_downloaded', '', 'pkg', 13, {}},
 		{'remove', 'pkg2'}
 	}))
 	-- The order doesn't matter (since we are not sure if the planner is deterministic in that regard)
 	assert_true(equal(
 	{
-		{'install_downloaded', '', 'pkg', 13},
+		{'install_downloaded', '', 'pkg', 13, {}},
 		{'remove', 'pkg2'}
 	},
 	{
 		{'remove', 'pkg2'},
-		{'install_downloaded', '', 'pkg', 13}
+		{'install_downloaded', '', 'pkg', 13, {}}
 	}))
 	-- Package version changes the hash
 	assert_false(equal(
 	{
-		{'install_downloaded', '', 'pkg', 13},
+		{'install_downloaded', '', 'pkg', 13, {}},
 		{'remove', 'pkg2'}
 	},
 	{
-		{'install_downloaded', '', 'pkg', 14},
+		{'install_downloaded', '', 'pkg', 14, {}},
 		{'remove', 'pkg2'}
 	}))
 	-- Package name changes the hash
 	assert_false(equal(
 	{
-		{'install_downloaded', '', 'pkg', 13},
+		{'install_downloaded', '', 'pkg', 13, {}},
 		{'remove', 'pkg2'}
 	},
 	{
-		{'install_downloaded', '', 'pkg3', 13},
+		{'install_downloaded', '', 'pkg3', 13, {}},
 		{'remove', 'pkg2'}
 	}))
 	-- Package the operation changes the hash
 	assert_false(equal(
 	{
-		{'install_downloaded', '', 'pkg', 13},
+		{'install_downloaded', '', 'pkg', 13, {}},
 		{'remove', 'pkg2'}
 	},
 	{
@@ -623,7 +629,7 @@ function test_approval_hash()
 	-- Omitting one of the tasks changes the hash
 	assert_false(equal(
 	{
-		{'install_downloaded', '', 'pkg', 13},
+		{'install_downloaded', '', 'pkg', 13, {}},
 		{'remove', 'pkg2'}
 	},
 	{
@@ -634,7 +640,7 @@ end
 function test_task_report()
 	assert_equal('', transaction.task_report())
 	assert_equal('', transaction.task_report('prefix '))
-	transaction.queue_install_downloaded('', "pkg1", 13)
+	transaction.queue_install_downloaded('', "pkg1", 13, {reboot = "finished"})
 	transaction.queue_remove("pkg2")
 	assert_equal([[
 install	13	pkg1

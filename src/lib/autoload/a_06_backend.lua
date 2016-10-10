@@ -831,6 +831,9 @@ Merge the given package into the live system and remove the temporary directory.
 
 The configs parameter describes the previous version of the package, not
 the current one.
+
+Return value is boolean. False is returned if files were already merged and
+true if files were merged in this function.
 ]]
 function pkg_merge_files(dir, dirs, files, configs)
 	if stat(dir) == nil then
@@ -840,7 +843,7 @@ function pkg_merge_files(dir, dirs, files, configs)
 		from journal), so skip it completely.
 		]]
 		DBG("Skipping installation of temporary dir " .. dir .. ", no longer present")
-		return
+		return false
 	end
 	--[[
 	First, create the needed directories. Sort them according to
@@ -886,6 +889,7 @@ function pkg_merge_files(dir, dirs, files, configs)
 	end
 	-- Remove the original directory
 	utils.cleanup_dirs({dir})
+	return true
 end
 
 --[[

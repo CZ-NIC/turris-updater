@@ -666,8 +666,14 @@ static int lua_sha256(lua_State *L) {
 	return 1;
 }
 
-static int lua_reexec(lua_State *L __attribute__((unused))) {
-	reexec();
+static int lua_reexec(lua_State *L) {
+	size_t args_c = lua_gettop(L);
+	const char *args[args_c];
+	size_t i;
+	for (i = 0; i < args_c; i++) {
+		args[i] = luaL_checkstring(L, i + 1);
+	}
+	reexec(args_c, (char**) args);
 	return 0;
 }
 
@@ -686,6 +692,12 @@ static int lua_uri_internal_get(lua_State *L) {
 		return luaL_error(L, "No internal with name: %s", name);
 	lua_pushlstring(L, (const char *)file->data, file->size);
 	return 1;
+}
+
+static int lua_system_reboot(lua_State *L) {
+	bool stick = lua_toboolean(L, 1);
+	system_reboot(stick);
+	return 0;
 }
 
 extern bool state_log_enabled; // defined in util.c
@@ -725,7 +737,8 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_md5, "md5" },
 	{ lua_sha256, "sha256" },
 	{ lua_reexec, "reexec" },
-	{ lua_uri_internal_get, "uri_internal_get" }
+	{ lua_uri_internal_get, "uri_internal_get" },
+	{ lua_system_reboot, "system_reboot" }
 };
 
 struct interpreter *interpreter_create(struct events *events, const struct file_index_element *uriinter) {

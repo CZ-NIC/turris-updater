@@ -46,7 +46,7 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 }
 
 static const enum cmd_op_type cmd_op_allows[] = {
-	COT_BATCH, COT_NO_OP, COT_REEXEC, COT_STATE_LOG, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_TASK_LOG, COT_LAST
+	COT_BATCH, COT_NO_OP, COT_REEXEC, COT_REBOOT, COT_STATE_LOG, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_TASK_LOG, COT_LAST
 };
 
 static void print_help() {
@@ -56,6 +56,7 @@ static void print_help() {
 
 const char *hook_preupdate = "/etc/updater/hook_preupdate";
 const char *hook_postupdate = "/etc/updater/hook_postupdate";
+const char *hook_reboot_delayed = "/etc/updater/hook_reboot_required";
 
 static bool approved(struct interpreter *interpreter, const char *approval_file, const char **approvals, size_t approval_count) {
 	if (!approval_file)
@@ -110,7 +111,7 @@ int main(int argc, char *argv[]) {
 	struct cmd_op *op = ops;
 	const char *top_level_config = "internal:entry_lua";
 	const char *root_dir = NULL;
-	bool batch = false, early_exit = false, replan = false;
+	bool batch = false, early_exit = false, replan = false, reboot_finished = false;
 	const char *approval_file = NULL;
 	const char **approvals = NULL;
 	size_t approval_count = 0;
@@ -134,6 +135,9 @@ int main(int argc, char *argv[]) {
 				break;
 			case COT_REEXEC:
 				replan = true;
+				break;
+			case COT_REBOOT:
+				reboot_finished = true;
 				break;
 			case COT_ROOT_DIR:
 				root_dir = op->parameter;
@@ -234,7 +238,16 @@ int main(int argc, char *argv[]) {
 	err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
 	ASSERT_MSG(!err, "%s", err);
 	trans_ok = results_interpret(interpreter, result_count);
-	err = interpreter_call(interpreter, "updater.cleanup", NULL, "b", trans_ok);
+	err = interpreter_call(interpreter, "updater.pre_cleanup", NULL, "");
+	ASSERT_MSG(!err, "%s", err);
+	bool reboot_delayed;
+	ASSERT(interpreter_collect_results(interpreter, "bb", &reboot_delayed, &reboot_finished) == -1);
+	if (reboot_delayed) {
+		INFO("Executing reboot_required hooks...");
+		const char *hook_path = aprintf("%s%s", root_dir, hook_reboot_delayed);
+		exec_dir(events, hook_path);
+	}
+	err = interpreter_call(interpreter, "updater.cleanup", NULL, "bb", trans_ok, reboot_finished);
 	ASSERT_MSG(!err, "%s", err);
 	if (task_log) {
 		FILE *log = fopen(task_log, "a");
@@ -253,6 +266,8 @@ CLEANUP:
 	interpreter_destroy(interpreter);
 	events_destroy(events);
 	arg_backup_clear();
+	if (reboot_finished)
+		system_reboot(false);
 	if (exit_type == COT_EXIT) {
 		if (trans_ok) {
 			state_dump("done");

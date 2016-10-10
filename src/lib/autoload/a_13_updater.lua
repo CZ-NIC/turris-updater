@@ -36,9 +36,7 @@ local transaction = require "transaction"
 
 module "updater"
 
--- luacheck: globals prepare cleanup required_pkgs
-
-local cleanup_actions = {}
+-- luacheck: globals prepare pre_cleanup cleanup required_pkgs
 
 function required_pkgs(entrypoint)
 	-- Get the top-level script
@@ -103,12 +101,9 @@ function prepare(entrypoint)
 						error(utils.exception("corruption", "The sha256 sum of " .. task.name .. " does not match"))
 					end
 				end
-				transaction.queue_install_downloaded(data, task.name, task.package.Version)
+				transaction.queue_install_downloaded(data, task.name, task.package.Version, task.modifier)
 			else
 				error(data)
-			end
-			if task.modifier.replan then
-				cleanup_actions.replan = true
 			end
 		elseif task.action == "remove" then
 			INFO("Queue removal of " .. task.name)
@@ -119,9 +114,27 @@ function prepare(entrypoint)
 	end
 end
 
-function cleanup(success)
-	if cleanup_actions.replan then
-		reexec()
+-- Only cleanup actions that we want to give chance to program to react on
+function pre_cleanup()
+	local reboot_delayed = false
+	local reboot_finished = false
+	if transaction.cleanup_actions.reboot == "delayed" then
+		WARN("Restart your device to apply all changes.")
+		reboot_delayed = true
+	elseif transaction.cleanup_actions.reboot == "finished" then
+		reboot_finished = true
+	end
+	return reboot_delayed, reboot_finished
+end
+
+-- Note: This function don't have to return
+function cleanup(success, reboot_finished)
+	if transaction.cleanup_actions.replan then
+		if reboot_finished then
+			reexec('--reboot-finished')
+		else
+			reexec()
+		end
 	end
 	if success then
 		backend.flags_write(true)

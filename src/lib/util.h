@@ -69,6 +69,9 @@ bool dump2file (const char *file, const char *text) __attribute__((nonnull,nonnu
 // Executes all executable files in given directory
 void exec_dir(struct events *events, const char *dir) __attribute__((nonnull));
 
+// Reboot system. Argument stick signals if updater should stick or continue.
+void system_reboot(bool stick);
+
 // Compute the size needed (including \0) to format given message
 size_t printf_len(const char *msg, ...) __attribute__((format(printf, 1, 2)));
 // Like sprintf, but returs the string. Expects there's enough space.

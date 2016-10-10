@@ -46,12 +46,12 @@ function test_package()
 		tp = "package",
 		name = "pkg_name"
 	}, p1)
-	local p2 = run_sandbox_fun "Package 'pkg_name' {replan = true, reboot = true}"
+	local p2 = run_sandbox_fun "Package 'pkg_name' {replan = true, reboot = 'delayed'}"
 	assert_table_equal({
 		tp = "package",
 		name = "pkg_name",
 		replan = true,
-		reboot = true
+		reboot = "delayed"
 	}, p2)
 	assert_table_equal({p1, p2}, requests.known_packages)
 end

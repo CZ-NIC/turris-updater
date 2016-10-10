@@ -27,6 +27,8 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <signal.h>
+#include <poll.h>
 
 struct level_info {
 	const char *prefix;
@@ -177,6 +179,20 @@ void exec_dir(struct events *events, const char *dir) {
 		free(namelist[i]);
 	}
 	free(namelist);
+}
+
+void system_reboot(bool stick) {
+	WARN("Performing system reboot.");
+	if (!fork()) {
+		ASSERT_MSG(execvp("reboot",(char*[]){NULL}), "Execution of reboot command failed");
+	}
+	if (stick) {
+		sigset_t sigmask;
+		sigfillset(&sigmask);
+		while (1) {
+			ppoll(NULL, 0, NULL, sigmask);
+		}
+	}
 }
 
 size_t printf_len(const char *msg, ...) {
