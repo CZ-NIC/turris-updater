@@ -444,8 +444,7 @@ function required_pkgs(pkgs, requests)
 		if req.tp == 'install' and req.critical then
 			table.insert(reqs_critical, req)
 		else
-			if not req.priority then req.priority = 50 end
-			
+			assert(req.priority)
 			if not reqs_by_priority[req.priority] then reqs_by_priority[req.priority] = {} end
 			if req.tp ~= (utils.map(reqs_by_priority[req.priority], function(_, r) return r.package.name, r.tp end)[req.package.name] or req.tp) then
 				error(utils.exception('invalid-request', 'Requested both Install and Uninstall with same priority for package ' .. req.package.name))

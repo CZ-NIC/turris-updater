@@ -128,11 +128,11 @@ function test_install_uninstall()
 		req(1, "install", 45),
 		req(2, "install", 45),
 		req(3, "install", 14),
-		req(4, "install"),
-		req(5, "install"),
+		req(4, "install", 50),
+		req(5, "install", 50),
 		req(6, "uninstall", 75),
-		req(7, "uninstall"),
-		req(8, "install")
+		req(7, "uninstall", 50),
+		req(8, "install", 50)
 	}, requests.content_requests)
 	assert_equal("context", result.tp, result.msg)
 end
@@ -151,7 +151,8 @@ function test_script()
 			package = {
 				tp = 'package',
 				name = 'pkg'
-			}
+			},
+			priority = 50
 		}
 	}, requests.content_requests)
 end
