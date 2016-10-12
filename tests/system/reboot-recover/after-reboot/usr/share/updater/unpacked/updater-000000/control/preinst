@@ -1,0 +1,2 @@
+#!/bin/sh
+echo "preinst" >> $ROOT_DIR/pkghooks

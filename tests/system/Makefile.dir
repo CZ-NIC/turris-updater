@@ -3,7 +3,8 @@ TRANS_SYS_TESTS := \
 	help \
 	install \
 	remove \
-	remove-nonexistent
+	remove-nonexistent \
+	reboot-recover
 
 UPD_SYS_TESTS := \
 	plan \
@@ -19,6 +20,10 @@ MIGRATE_SYS_TESTS := \
 .PHONY: test-sys valgrind-sys check
 
 check: test-sys valgrind-sys
+
+# As secondary tool we use pkgupdate in reboot-recover test
+test-sys-opkg-trans-reboot-recover: $(O)/bin/pkgupdate
+valgrind-sys-opkg-trans-reboot-recover: $(O)/bin/pkgupdate
 
 define DO_SYS_TEST
 
