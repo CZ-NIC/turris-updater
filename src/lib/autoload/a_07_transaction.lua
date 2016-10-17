@@ -439,7 +439,7 @@ function queue_install_downloaded(data, name, version, modifier)
 end
 
 local function queued_tasks()
-	return utils.map(queue, function (i, task) return i, table.concat({task.op, task.version or '-', task.name}, '	') .. "\n" end)
+	return utils.map(queue, function (i, task) return i, table.concat({task.op, task.version or '-', task.name, task.reboot or '-'}, '	') .. "\n" end)
 end
 
 -- Compute the approval hash of the queued operations

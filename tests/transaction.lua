@@ -643,12 +643,12 @@ function test_task_report()
 	transaction.queue_install_downloaded('', "pkg1", 13, {reboot = "finished"})
 	transaction.queue_remove("pkg2")
 	assert_equal([[
-install	13	pkg1
-remove	-	pkg2
+install	13	pkg1	finished
+remove	-	pkg2	-
 ]], transaction.task_report())
 	assert_equal([[
-prefix install	13	pkg1
-prefix remove	-	pkg2
+prefix install	13	pkg1	finished
+prefix remove	-	pkg2	-
 ]], transaction.task_report('prefix '))
 end
 
