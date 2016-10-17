@@ -27,6 +27,7 @@
 
 UPDATER_CONFIG=/etc/updater/auto.lua # Automatic updater configuration file
 OPKG=/bin/opkg-cl # Path to opkg
+LOCAL_STORE=/usr/share/updater/local-pkgs
 
 ARGS=""
 EXC=0
@@ -75,23 +76,51 @@ while [ "$1" ]; do
 	shift
 done
 
+# As first takes name of package to be added to config file. As optional second
+# argument it takes path to package content.
+config_add_pkg() {
+	if [ -n "$2" ]; then
+		mkdir -p "$LOCAL_STORE"
+		cp "$2" "$LOCAL_STORE" # Move content to local store
+		CONT=$LOCAL_STORE/$(basename "$2")
+		echo "Package \"$1\" { content = \"file://$CONT\" }" >>"$UPDATER_CONFIG"
+	fi
+	echo "Install \"$1\"" >>"$UPDATER_CONFIG"
+}
+
+# Takes single argument, name of package to be removed from config
+config_clean_pkg() {
+	# Cleanup content from local store
+	CONT=`grep -e "^Package \"$1\"" "$UPDATER_CONFIG" | sed -n 's/content="file:\/\/\([^"]*\)"/\1/p'`
+	if [ -n "$CONT" ] && [ -f "$CONT" ]; then
+		rm -f "$CONT"
+	fi
+	# Remove all Install and Package fields
+	sed -e "/^Install \"$1\"/d;/^Package \"$1\"/d" -i "$UPDATER_CONFIG"
+}
 
 install() {
-	if ! $OPKG $ARGS install "$1"; then
+	PKG="$1"
+	if ! $OPKG $ARGS install "$PKG"; then
 		# opkg failed, probably some problem with package. Lets not change anything
 		EXC=255
 		return
 	fi
-
-	if `echo "$1" | grep -q -E '.*(\.ipk|\.deb)$'`; then
-		echo "Warning: Locally installed packages will be removed with the next automatic update!" 1>&2
-		return
+	# Do additional steps for local files
+	if `echo "$PKG" | grep -q -E '.*(\.ipk|\.deb)$'`; then
+		# Source package name from package it self
+		PKGCONTENT=$PKG
+		TMPDIR1=`mktemp -d /tmp/updater-XXXXXX`
+		tar -xzf "$PKGCONTENT" -C "$TMPDIR1"
+		TMPDIR2=`mktemp -d /tmp/updater-XXXXXX`
+		tar -xzf "$TMPDIR1/control.tar.gz" -C "$TMPDIR2"
+		PKG=`sed -ne 's/^Package:[ ]*\([^ ]*\).*/\1/p' "$TMPDIR2/control"`
+		rm -rf "$TMPDIR1" "$TMPDIR2"
 	fi
-
-	if ! grep -q -e "^Install \"$1\"" "$UPDATER_CONFIG"; then
-		# Package wasn't installed
-		echo "Install \"$1\"" >>"$UPDATER_CONFIG"
-	fi
+	# Clean old lines for this package from config file
+	config_clean_pkg "$PKG"
+	# Add package to config file
+	config_add_pkg "$PKG" "$PKGCONTENT"
 }
 
 remove() {
@@ -99,8 +128,7 @@ remove() {
 		# opkg failed. But continue anyway
 		EXC=255
 	fi
-
-	sed -e "/^Install \"$1\"/d" -i "$UPDATER_CONFIG"
+	config_clean_pkg "$1"
 }
 
 
