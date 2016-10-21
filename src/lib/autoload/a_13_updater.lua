@@ -70,7 +70,7 @@ function prepare(entrypoint)
 	from being downloaded in any order.
 	]]
 	for _, task in ipairs(tasks) do
-		if task.action == "require" then
+		if task.action == "require" and not task.package.data then -- if we already have data, skip downloading
 			-- Strip sig verification off, packages from repos don't have their own .sig files, but they are checked by hashes in the (already checked) index.
 			local veriopts = utils.shallow_copy(task.package.repo)
 			local veri = veriopts.verification or utils.private(task.package.repo).context.verification or 'both'
@@ -88,27 +88,32 @@ function prepare(entrypoint)
 	-- Now push all data into the transaction
 	for _, task in ipairs(tasks) do
 		if task.action == "require" then
-			local ok, data = task.real_uri:get()
-			if ok then
-				INFO("Queue install of " .. task.name .. "/" .. task.package.repo.name .. "/" .. task.package.Version)
-				if task.package.MD5Sum then
-					local sum = md5(data)
-					if sum ~= task.package.MD5Sum then
-						error(utils.exception("corruption", "The md5 sum of " .. task.name .. " does not match"))
-					end
-				end
-				if task.package.SHA256Sum then
-					local sum = sha256(data)
-					if sum ~= task.package.SHA256Sum then
-						error(utils.exception("corruption", "The sha256 sum of " .. task.name .. " does not match"))
-					end
-				end
-				transaction.queue_install_downloaded(data, task.name, task.package.Version)
+			if task.package.data then -- package had content extra field and we already have data downloaded
+				INFO("Queue install of " .. task.name .. "//" .. task.package.Version)
+				transaction.queue_install_downloaded(task.package.data, task.name, task.package.Version)
 			else
-				error(data)
-			end
-			if task.modifier.replan then
-				cleanup_actions.replan = true
+				local ok, data = task.real_uri:get()
+				if ok then
+					INFO("Queue install of " .. task.name .. "/" .. task.package.repo.name .. "/" .. task.package.Version)
+					if task.package.MD5Sum then
+						local sum = md5(data)
+						if sum ~= task.package.MD5Sum then
+							error(utils.exception("corruption", "The md5 sum of " .. task.name .. " does not match"))
+						end
+					end
+					if task.package.SHA256Sum then
+						local sum = sha256(data)
+						if sum ~= task.package.SHA256Sum then
+							error(utils.exception("corruption", "The sha256 sum of " .. task.name .. " does not match"))
+						end
+					end
+					transaction.queue_install_downloaded(data, task.name, task.package.Version)
+				else
+					error(data)
+				end
+				if task.modifier.replan then
+					cleanup_actions.replan = true
+				end
 			end
 		elseif task.action == "remove" then
 			INFO("Queue removal of " .. task.name)

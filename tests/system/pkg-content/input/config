@@ -1,0 +1,3 @@
+testpkg = Package "test" { content = "file://%ROOT_DIR%/test.ipk" }
+
+Install "test"

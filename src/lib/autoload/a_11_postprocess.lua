@@ -24,11 +24,13 @@ local error = error
 local pcall = pcall
 local next = next
 local type = type
+local assert = assert
 local unpack = unpack
 local table = table
 local string = string
 local events_wait = events_wait
 local run_command = run_command
+local mkdtemp = mkdtemp
 local DBG = DBG
 local WARN = WARN
 local ERROR = ERROR
@@ -39,7 +41,7 @@ local uri = require "uri"
 
 module "postprocess"
 
--- luacheck: globals get_repos deps_canon available_packages pkg_aggregate run
+-- luacheck: globals get_repos deps_canon available_packages pkg_aggregate run get_content_pkgs
 
 function get_repos()
 	DBG("Getting repos")
@@ -141,6 +143,29 @@ function get_repos()
 		return multi
 	else
 		return nil
+	end
+end
+
+--[[
+We have to download and unpack packages with extra field content, because
+we don't know their version without seeing their values from field such as
+version.
+]]
+function get_content_pkgs()
+	for _, pkg in pairs(requests.known_content_packages) do
+		local ok, data = utils.private(pkg).content_uri:get()
+		if ok then
+			local tmpdir = mkdtemp()
+			local pkg_dir = backend.pkg_unpack(data, tmpdir)
+			local _, _, _, control = backend.pkg_examine(pkg_dir)
+			pkg.candidate = control
+			pkg.candidate.data = data
+			-- Remove unpacked package. Because we might run no far than planning.
+			-- If it is going to be installed, it will be unpacked again.
+			utils.cleanup_dirs({pkg_dir, tmpdir})
+		else
+			WARN("Can't get content for package " .. pkg.name .. ": " .. data.reason)
+		end
 	end
 end
 
@@ -262,12 +287,10 @@ function pkg_aggregate()
 		end
 		local pkg_group = available_packages[pkg.name]
 		if pkg.content then
-			-- If it has content, then it is both modifier AND candidate
-			table.insert(pkg_group.modifiers, pkg)
-			table.insert(pkg_group.candidates, pkg)
-		else
-			table.insert(pkg_group.modifiers, pkg)
+			assert(pkg.candidate)
+			table.insert(pkg_group.candidates, pkg.candidate)
 		end
+		table.insert(pkg_group.modifiers, pkg)
 	end
 	for name, pkg_group in pairs(available_packages) do
 		-- Merge the modifiers together to form single one.
@@ -370,6 +393,7 @@ function run()
 	if repo_errors then
 		WARN("Not all repositories are available")
 	end
+	get_content_pkgs()
 	pkg_aggregate()
 end
 

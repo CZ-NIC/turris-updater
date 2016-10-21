@@ -37,7 +37,7 @@ local WARN = WARN
 
 module "requests"
 
--- luacheck: globals known_packages package_wrap known_repositories known_repositories_all repo_serial repository repository_get content_requests install uninstall script store_flags
+-- luacheck: globals known_packages package_wrap known_repositories known_repositories_all repo_serial repository repository_get content_requests install uninstall script store_flags known_content_packages
 
 -- Create a set of allowed names of extra options.
 local allowed_package_extras = utils.arr2set({
@@ -70,6 +70,14 @@ We just store them in an array for future processing.
 known_packages = {}
 
 --[[
+We store here packages with content extra field. These must be
+downloaded and parsed before they are aggregated. But they are
+also added to known_packages, this is just list of packages needing
+special treatment.
+]]
+known_content_packages = {}
+
+--[[
 This package is just a promise of a real package in the future. It holds the
 name and possibly some additional info for the package. Once we go through
 the requests (Install and Uninstall), we gather all package objects with the
@@ -80,7 +88,7 @@ has been run).
 
 The package has no methods, it's just a stupid structure.
 ]]
-function package(result, _, pkg, extra)
+function package(result, content, pkg, extra)
 	extra = extra or {}
 	-- Minimal typo verification. Further verification is done when actually using the package.
 	for name in pairs(extra) do
@@ -93,6 +101,11 @@ function package(result, _, pkg, extra)
 	result.name = pkg
 	result.tp = "package"
 	table.insert(known_packages, result)
+	if extra.content then -- if content is specified, it requires special treatment before aggregation
+		table.insert(known_content_packages, result)
+		-- We start downloading right away
+		utils.private(result).content_uri = uri(content, extra.content, extra)
+	end
 end
 
 --[[
