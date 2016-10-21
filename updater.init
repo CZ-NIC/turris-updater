@@ -11,7 +11,7 @@ status() {
 
 start() {
 	# Just check if we should resume the updater
-	updater-resume.sh
+	updater-resume.sh 2> /var/log/updater-resume.log
 }
 
 stop() {
