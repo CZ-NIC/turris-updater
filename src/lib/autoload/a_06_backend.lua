@@ -354,7 +354,7 @@ function status_parse()
 		for block in block_split(content) do
 			local pkg = block_parse(block)
 			-- Don't read info files if package is not installed
-			if not pkg.Status:match("not%-installed") then
+			if not (pkg.Status or ""):match("not%-installed") then
 				merge(pkg, pkg_control(pkg.Package))
 				pkg.files = pkg_files(pkg.Package)
 			end
