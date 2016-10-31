@@ -52,6 +52,7 @@ local allowed_package_extras = utils.arr2set({
 	"reboot",
 	"replan",
 	"abi_change",
+	"abi_change_deep",
 	"content",
 	"verification",
 	"sig",
@@ -83,9 +84,26 @@ The package has no methods, it's just a stupid structure.
 function package(result, _, pkg, extra)
 	extra = extra or {}
 	-- Minimal typo verification. Further verification is done when actually using the package.
-	for name in pairs(extra) do
+	for name, value in pairs(extra) do
 		if not allowed_package_extras[name] then
 			WARN("There's no extra option " .. name .. " for a package")
+		end
+		-- TODO make top level type check for all extra fields
+		if name == "abi_change" then
+			if not value then
+				ERROR("Invalid value of extra option abi_change " .. tostring(value) .. ", package " .. pkg)
+				extra[name] = nil
+			elseif type(value) == "table" then
+				for _, v in pairs(value) do
+					if type(v) ~= "table" and type(v) ~= "string" and type(v) ~= "boolean" then
+						ERROR("Invalid type in extra option abi_change " .. type(v) .. ", package " .. pkg)
+					elseif type(v) == "boolean" and not v then
+						ERROR("Invalid value in extra option abi_change " .. tostring(v) .. ", package " .. pkg)
+					elseif type(v) == "table" and v.tp ~= "package" then
+						ERROR("Invalid type in extra option abi_change " .. tostring(v.tp) .. ", package " .. pkg)
+					end
+				end
+			end
 		end
 		-- TODO: Validate the types etc of extra options
 	end

@@ -275,6 +275,9 @@ end
 
 
 -- Iterate trough all packages in given dependency tree.
+-- TODO This goes trough all dependencies, so even negative dependencies and
+-- packages used only as conditionals are returned. This is harmless for what we
+-- are using it for, but would be better return only real dependencies.
 local function pkg_dep_iterate_internal(deps)
 	if #deps == 0 then
 		return nil
@@ -519,12 +522,10 @@ function required_pkgs(pkgs, requests)
 end
 
 --[[
-Go through the list of requests on the input. Pass the needed ones through and
-leave the extra (eg. requiring already installed package) out. And creates
-additional requests with action "remove", such package is present on system, but
-is not required any more and should be removed.
+Go trough the list of requests and create list of all packages required to be
+installed. Those packages are not on system at all or are in different versions.
 ]]
-function filter_required(status, requests)
+local function check_install_version(status, requests)
 	local installed = {}
 	for pkg, desc in pairs(status) do
 		if not desc.Status or desc.Status[3] == "installed" then
@@ -532,7 +533,7 @@ function filter_required(status, requests)
 		end
 	end
 	local unused = utils.clone(installed)
-	local result = {}
+	local install = {}
 	-- Go through the requests and look which ones are needed and which ones are satisfied
 	for _, request in ipairs(requests) do
 		local installed_version = installed[request.name]
@@ -541,23 +542,98 @@ function filter_required(status, requests)
 		if request.action == "require" then
 			if not installed_version or installed_version ~= requested_version then
 				DBG("Want to install " .. request.name)
-				table.insert(result, request)
+				install[request.name] = request
 			else
 				DBG("Package " .. request.name .. " already installed")
 			end
 			unused[request.name] = nil
 		elseif request.action == "reinstall" then
-			-- Make a shallow copy and change the action requested
-			local new_req = utils.shallow_copy(request)
-			new_req.action = "require"
 			DBG("Want to reinstall " .. request.name)
-			table.insert(result, new_req)
+			install[request.name] = request
 			unused[request.name] = nil
 		else
 			DIE("Unknown action " .. request.action)
 		end
 	end
-	-- Go through the packages that are installed and nobody mentioned them and mark them for removal
+	return install, unused
+end
+
+--[[
+Creates table containing inverted dependencies for given requests. Returned table
+has as key name of package and as value set of all packages depending on it.
+Example: A -> B -> C results to {["C"] = {["B"] = true}, ["B"] = {["A"] = true}}
+]]
+local function invert_dependencies(requests)
+	local inv = {}
+	for _, req in pairs(requests) do
+		local alldeps = utils.arr_prune({ req.package.deps, req.modifier.deps })
+		for _, dep in pkg_dep_iterate(alldeps) do
+			local dname = dep.name or dep
+			if not inv[dname] then inv[dname] = {} end
+			inv[dname][req.name] = true
+		end
+	end
+	return inv
+end
+
+--[[
+Go trough the list of requests and install package if it depends on package that
+changed its ABI. And also install additional packages listed in abi_change and
+abi_change_deep fields.
+]]
+local function check_abi_change(requests, install)
+	local reqs = utils.map(requests, function(_, v) return v.name, v end)
+	-- Build inverted dependencies
+	local invdep -- initialized 
+	local function abi_changed(name, abi_ch, causepkg)
+		-- Ignore package that we don't request. Also ignore if no abi change is
+		-- passed and package is not going to be installed.
+		if not reqs[name] or not (install[name] or abi_ch) then
+			return
+		end
+		if not install[name] then
+			DBG("ABI change of " .. causepkg .. " causes reinstall of " .. name)
+			install[name] = reqs[name]
+		end
+		local request = reqs[name]
+		local dep_abi_ch
+		for p in pairs(request.modifier.abi_change or {}) do
+			if type(p) == 'table' or type(p) == 'string' then
+				abi_changed(p.name or p, abi_ch or "shallow", name)
+			elseif type(p) == 'boolean' then
+				-- Note: shallow can be overridden by deep afterwards
+				dep_abi_ch = abi_ch or "shallow"
+			end
+		end
+		for p in pairs(request.modifier.abi_change_deep or {}) do
+			if type(p) == 'table' or type(p) == 'string' then
+				abi_changed(p.name or p, "deep", name)
+			elseif type(p) == 'boolean' then
+				dep_abi_ch = "deep"
+			end
+		end
+		if abi_ch == "deep" then
+			dep_abi_ch = abi_ch
+		end
+		if dep_abi_ch then
+			if not invdep then
+				invdep = invert_dependencies(requests)
+			end
+			for name in pairs(invdep[name] or {}) do
+				abi_changed(name, dep_abi_ch, name)
+			end
+		end
+	end
+	for reqname, _ in pairs(install) do
+		abi_changed(reqname, nil, "")
+	end
+	return install
+end
+
+--[[
+Go trough the list of unused installed packages and marks them for removal.
+]]
+local function check_removal(status, unused)
 	-- TODO report cycles in dependencies
 	local unused_sorted = {}
 	local sort_buff = {}
@@ -584,15 +660,38 @@ function filter_required(status, requests)
 	for pkg in pairs(unused) do
 		sort_unused(pkg)
 	end
-	utils.arr_append(result, utils.arr_inv(unused_sorted))
-	-- If we are requested to replan after some package, wipe the rest of the plan
-	local wipe = false
-	for i, request in ipairs(result) do
-		if wipe then
-			result[i] = nil
-		elseif request.action == "require" and request.modifier.replan then
-			wipe = true
+	return utils.arr_inv(unused_sorted)
+end
+
+--[[
+Go through the list of requests on the input. Pass the needed ones through and
+leave the extra (eg. requiring already installed package) out. And creates
+additional requests with action "remove", such package is present on system, but
+is not required any more and should be removed.
+]]
+function filter_required(status, requests)
+	local install, unused = check_install_version(status, requests)
+	install = check_abi_change(requests, install)
+	local result = {}
+	local replan = false -- If we are requested to replan after some package, drop the rest of the plan
+	for _, request in ipairs(requests) do
+		if install[request.name] then
+			local req = request
+			if request.action == "reinstall" then
+				-- Make a shallow copy and change the action requested
+				req = utils.shallow_copy(request)
+				req.action = "require"
+			end
+			table.insert(result, req)
+			if request.modifier.replan then
+				replan = true
+				break
+			end
 		end
+	end
+	if not replan then
+		-- We don't remove unused packages just yet if we replan, we do it after the replanning.
+		utils.arr_append(result, check_removal(status, unused))
 	end
 	return result
 end

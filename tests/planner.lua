@@ -1060,6 +1060,122 @@ function test_replan()
 	}, result)
 end
 
+function test_abi_change()
+	local status = {
+		pkg1 = {
+			Version = "1"
+		},
+		pkg2 = {
+			Version = "1"
+		},
+		pkg3 = {
+			Version = "1"
+		},
+		pkg4 = {
+			Version = "1"
+		},
+		pkg5 = {
+			Version = "1"
+		},
+		pkg6 = {
+			Version = "1"
+		},
+		pkg7 = {
+			Version = "1"
+		}
+	}
+	local requests = {
+		{
+			action = "require",
+			name = "pkg1",
+			package = {
+				Version = "2",
+				repo = def_repo
+			},
+			modifier = {
+				abi_change = {[true] = true, ['pkg2'] = true, ['pkg3'] = true}
+			}
+		},
+		-- Not depending on pkg1 but explicitly listed
+		{
+			action = "require",
+			name = "pkg2",
+			package = {
+				Version = "1",
+				repo = def_repo
+			},
+			modifier = {}
+		},
+		-- Depending on pkg1 and also explicitly listed
+		{
+			action = "require",
+			name = "pkg3",
+			package = {
+				deps = "pkg1",
+				Version = "1",
+				repo = def_repo
+			},
+			modifier = {}
+		},
+		-- Depending on pkg1
+		{
+			action = "require",
+			name = "pkg4",
+			package = {
+				deps = "pkg1",
+				Version = "1",
+				repo = def_repo
+			},
+			modifier = {}
+		},
+		-- Depending on pkg4 so indirectly on pkg1
+		{
+			action = "require",
+			name = "pkg5",
+			package = {
+				deps = "pkg4",
+				Version = "1",
+				repo = def_repo
+			},
+			modifier = {}
+		},
+		-- Not depending on pkg1, already installed and abi_change set
+		{
+			action = "require",
+			name = "pkg6",
+			package = {
+				Version = "1",
+				repo = def_repo
+			},
+			modifier = {abi_change = {[true] = true}}
+		},
+		-- Depends on pkg6 but it shouldn't be updated so no abi_change
+		{
+			action = "require",
+			name = "pkg7",
+			package = {
+				deps = "pkg6",
+				Version = "1",
+				repo = def_repo
+			},
+			modifier = {}
+		}
+	}
+	local result = planner.filter_required(status, requests)
+	local expected = {
+		requests[1],
+		requests[2],
+		requests[3],
+		requests[4]
+	}
+	assert_table_equal(expected, result)
+	-- Update abi_change to abi_change_deep and repeat
+	requests[1].modifier.abi_change_deep = requests[1].modifier.abi_change
+	table.insert(expected, requests[5])
+	result = planner.filter_required(status, requests)
+	assert_table_equal(expected, result)
+end
+
 function test_candidate_choose()
 	-- Create dummy repositories in requests module
 	requests.known_repositories = {
