@@ -195,7 +195,7 @@ function load_state_vars()
 	local status_ok, run_state = pcall(backend.run_state)
 	local status
 	if status_ok then
-		status = run_state
+		status = run_state.status
 	else
 		WARN("Couldn't read the status file: " .. tostring(run_state))
 		status = {}
