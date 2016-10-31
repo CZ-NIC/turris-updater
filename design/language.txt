@@ -552,6 +552,17 @@ Note that the command is not run interactively ‒ there's no way to
 communicate with the command. It is started, runs with preset input
 and then the output is presented.
 
+Logging
+~~~~~~~
+
+  DBG "debug text"
+  INFO "information text"
+  WARN "warning text"
+  ERROR "error text"
+
+These commands allows printing of messages for their corresponding
+verbosity levels.
+
 Variables
 ---------
 

@@ -182,7 +182,11 @@ local rest_available_funcs = {
 	"tostring",
 	"type",
 	"unpack",
-	"xpcall"
+	"xpcall",
+	"ERROR",
+	"WARN",
+	"INFO",
+	"DBG"
 }
 
 local status_ok, run_state = pcall(backend.run_state)
