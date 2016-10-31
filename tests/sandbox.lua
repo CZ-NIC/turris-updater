@@ -26,6 +26,7 @@ module("sandbox-tests", package.seeall, lunit.testcase)
 
 -- Test creating brand new contexts (no inheritance)
 function test_context_new()
+	sandbox.load_state_vars()
 	-- Set a state variable override for testing. Check it propagates.
 	sandbox.state_vars.model = 'test'
 	-- If we specify no parent and no security level, it fails
