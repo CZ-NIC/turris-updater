@@ -639,17 +639,26 @@ end
 
 function test_task_report()
 	assert_equal('', transaction.task_report())
+	assert_equal('', transaction.task_report('', true))
 	assert_equal('', transaction.task_report('prefix '))
 	transaction.queue_install_downloaded('', "pkg1", 13, {reboot = "finished"})
 	transaction.queue_remove("pkg2")
 	assert_equal([[
+install	13	pkg1
+remove	-	pkg2
+]], transaction.task_report())
+	assert_equal([[
 install	13	pkg1	finished
 remove	-	pkg2	-
-]], transaction.task_report())
+]], transaction.task_report('', true))
+	assert_equal([[
+prefix install	13	pkg1
+prefix remove	-	pkg2
+]], transaction.task_report('prefix '))
 	assert_equal([[
 prefix install	13	pkg1	finished
 prefix remove	-	pkg2	-
-]], transaction.task_report('prefix '))
+]], transaction.task_report('prefix ', true))
 end
 
 function teardown()

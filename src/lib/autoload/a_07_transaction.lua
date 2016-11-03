@@ -438,22 +438,28 @@ function queue_install_downloaded(data, name, version, modifier)
 	})
 end
 
-local function queued_tasks()
-	return utils.map(queue, function (i, task) return i, table.concat({task.op, task.version or '-', task.name, task.reboot or '-'}, '	') .. "\n" end)
+local function queued_tasks(extensive)
+	return utils.map(queue, function (i, task)
+		local d = {task.op, task.version or '-', task.name}
+		if extensive then
+			table.insert(d, task.reboot or '-')
+		end
+		return i, table.concat(d, '	') .. "\n"
+	end)
 end
 
 -- Compute the approval hash of the queued operations
 function approval_hash()
 	-- Convert the tasks into formatted lines, sort them and hash it.
-	local requests = queued_tasks()
+	local requests = queued_tasks(true)
 	table.sort(requests)
 	return sha256(table.concat(requests))
 end
 
 -- Provide a human-readable report of the queued tasks
-function task_report(prefix)
+function task_report(prefix, extensive)
 	prefix = prefix or ''
-	return table.concat(utils.map(queued_tasks(), function (i, str) return i, prefix .. str end))
+	return table.concat(utils.map(queued_tasks(extensive), function (i, str) return i, prefix .. str end))
 end
 
 return _M
