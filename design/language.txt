@@ -712,6 +712,10 @@ Restricted::
   * `type`.
   * `unpack`.
   * `xpcall`.
+  * `DBG`.
+  * `INFO`.
+  * `WARN`.
+  * `ERROR`.
 Local::
   * `uci` library.
 Full::
