@@ -189,7 +189,8 @@ function test_pkg_merge()
 					list = {
 						xyz = {Package = "xyz", Version = "1"},
 						abc = {Package = "abc", Version = "2", Depends = "cde"},
-						cde = {Package = "cde", Version = "1"}
+						cde = {Package = "cde", Version = "1"},
+						fgh = {Package = "fgh", Version = "1", Provides = "cde"}
 					}
 				}
 			}
@@ -254,8 +255,15 @@ function test_pkg_merge()
 			modifier = {name = "abc"}
 		},
 		cde = {
-			candidates = {{Package = "cde", Version = "1", repo = requests.known_repositories_all[1]}},
+			candidates = {
+				{Package = "cde", Version = "1", repo = requests.known_repositories_all[1]},
+				{Package = "fgh", Version = "1", Provides = "cde", repo = requests.known_repositories_all[1]}
+			},
 			modifier = {name = "cde"}
+		},
+		fgh = {
+			candidates = {{Package = "fgh", Version = "1", Provides = "cde", repo = requests.known_repositories_all[1]}},
+			modifier = {name = "fgh"}
 		},
 		another = {
 			candidates = {{Package = "another", Version = "4", repo = requests.known_repositories_all[2]}},

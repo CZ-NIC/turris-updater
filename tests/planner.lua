@@ -498,6 +498,133 @@ function test_priority()
 	assert_plan_dep_order(expected, result)
 end
 
+-- Test situation when there are candidates from other packages group added using "Provides" and requested package has no candidate on its own
+function test_provides_only()
+	local pkgs = {
+		req = {
+			candidates = {}, -- candidates are added later, because we require them to be same table as in given package group
+			modifier = {}
+		},
+		pkg1 = {
+			candidates = {{Package = 'pkg1', deps = {}, repo = def_repo}},
+			modifier = {}
+		},
+		pkg2 = {
+			candidates = {{Package = 'pkg2', repo = def_repo}},
+			modifier = {}
+		}
+	}
+	table.insert(pkgs.req.candidates, pkgs.pkg1.candidates[1])
+	table.insert(pkgs.req.candidates, pkgs.pkg2.candidates[1])
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'req',
+			},
+			priority = 50
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		pkg1 = {
+			action = "require",
+			package = {Package = 'pkg1', deps = {}, repo = def_repo},
+			modifier = {},
+			name = "pkg1"
+		}
+	}
+	assert_plan_dep_order(expected, result)
+end
+
+-- Test situation when there are candidates from other packages group added using "Provides", but requested packages has candidate on its own.
+function test_provides()
+	local pkgs = {
+		req = {
+			candidates = {{Package = 'req', deps = {}, repo = def_repo}}, -- other candidates are added later, because we require them to be same table as in given package group
+			modifier = {}
+		},
+		pkg1 = {
+			candidates = {{Package = 'pkg1', deps = {}, repo = def_repo}},
+			modifier = {}
+		},
+		pkg2 = {
+			candidates = {{Package = 'pkg2', repo = def_repo}},
+			modifier = {}
+		}
+	}
+	table.insert(pkgs.req.candidates, pkgs.pkg1.candidates[1])
+	table.insert(pkgs.req.candidates, pkgs.pkg2.candidates[1])
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'req',
+			},
+			priority = 50
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		req = {
+			action = "require",
+			package = {Package = 'req', deps = {}, repo = def_repo},
+			modifier = {},
+			name = "req"
+		}
+	}
+	assert_plan_dep_order(expected, result)
+end
+
+function test_provides_other_required()
+	local pkgs = {
+		req = {
+			candidates = {{Package = 'req', deps = {}, repo = def_repo}}, -- other candidates are added later, because we require them to be same table as in given package group
+			modifier = {}
+		},
+		pkg1 = {
+			candidates = {{Package = 'pkg1', deps = {}, repo = def_repo}},
+			modifier = {}
+		},
+		pkg2 = {
+			candidates = {{Package = 'pkg2', repo = def_repo}},
+			modifier = {}
+		}
+	}
+	table.insert(pkgs.req.candidates, pkgs.pkg1.candidates[1])
+	table.insert(pkgs.req.candidates, pkgs.pkg2.candidates[1])
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'req',
+			},
+			priority = 50
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg2',
+			},
+			priority = 50
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		pkg2 = {
+			action = "require",
+			package = {Package = 'pkg2', repo = def_repo},
+			modifier = {},
+			name = "pkg2"
+		}
+	}
+	assert_plan_dep_order(expected, result)
+end
+
 function test_request_unsat()
 	local pkgs = {
 		pkg1 = {
