@@ -80,6 +80,7 @@ enum option_val {
 	OPT_BATCH_VAL = 260,
 	OPT_STATE_LOG_VAL,
 	OPT_REEXEC_VAL,
+	OPT_REBOOT_VAL,
 	OPT_ASK_APPROVAL_VAL,
 	OPT_APPROVE_VAL,
 	OPT_OUTPUT,
@@ -96,6 +97,7 @@ static const struct option opt_long[] = {
 	{ .name = "remove", .has_arg = required_argument, .val = 'r' },
 	{ .name = "batch", .has_arg = no_argument, .val = OPT_BATCH_VAL },
 	{ .name = "reexec", .has_arg = no_argument, .val = OPT_REEXEC_VAL },
+	{ .name = "reboot-finished", .has_arg = no_argument, .val = OPT_REBOOT_VAL },
 	{ .name = "state-log", .has_arg = no_argument, .val = OPT_STATE_LOG_VAL },
 	{ .name = "ask-approval", .has_arg = required_argument, .val = OPT_ASK_APPROVAL_VAL },
 	{ .name = "approve", .has_arg = required_argument, .val = OPT_APPROVE_VAL },
@@ -116,6 +118,7 @@ static const struct simple_opt {
 	['e'] = { COT_STDERR_LEVEL, true, true },
 	[OPT_BATCH_VAL] = { COT_BATCH, false, true },
 	[OPT_REEXEC_VAL] = { COT_REEXEC, false, true },
+	[OPT_REBOOT_VAL] = { COT_REBOOT, false, true },
 	[OPT_STATE_LOG_VAL] = { COT_STATE_LOG, false, true },
 	[OPT_ASK_APPROVAL_VAL] = { COT_ASK_APPROVAL, true, true },
 	[OPT_APPROVE_VAL] = { COT_APPROVE, true, true },
@@ -285,17 +288,18 @@ void arg_backup_clear() {
 	orig_wd = NULL;
 }
 
-void reexec() {
+void reexec(int args_count, char *args[]) {
 	ASSERT_MSG(back_argv, "No arguments backed up");
 	// Try restoring the working directory to the original, but don't insist
 	if (orig_wd)
 		chdir(orig_wd);
-	// Extend back_argv by --reexec
-	char **argv;
-	argv = alloca((back_argc + 2) * sizeof *argv);
-	memcpy(argv, back_argv, back_argc * sizeof *back_argv);
-	argv[back_argc] = "--reexec";
-	argv[back_argc + 1] = NULL;
-	execvp(argv[0], argv);
-	DIE("Failed to reexec %s: %s", argv[0], strerror(errno));
+	// Extend back_argv by --reexec and additional arguments
+	char **new_argv;
+	new_argv = alloca((back_argc + args_count + 2) * sizeof *args);
+	memcpy(new_argv, back_argv, back_argc * sizeof *back_argv);
+	memcpy(new_argv + back_argc, args, args_count * sizeof *args);
+	new_argv[back_argc + args_count] = "--reexec";
+	new_argv[back_argc + args_count + 1] = NULL;
+	execvp(new_argv[0], new_argv);
+	DIE("Failed to reexec %s: %s", new_argv[0], strerror(errno));
 }

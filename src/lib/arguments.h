@@ -44,6 +44,8 @@ enum cmd_op_type {
 	COT_BATCH,
 	// Internally used when reexecuting. Informs program that this is restarted instance.
 	COT_REEXEC,
+	// Internally used when reexecuting to pass information that we should reboot after updater finishes.
+	COT_REBOOT,
 	// Enable dumping state to files in /tmp/updater-state directory
 	COT_STATE_LOG,
 	// Ask for approval of the operations by generating a report and requiring the --approve flag
@@ -108,7 +110,12 @@ void arg_backup_clear();
 /*
  * Exec the same binary with the same arguments, effectively
  * restarting the whole process.
+ * You can pass additional arguments that will be appended to end of original
+ * ones. Arguments args_count is number of arguments to be appended and args is
+ * array containing those arguments. You can pass (0, NULL) to append no
+ * arguments.
+ * This function newer returns so arguments can be allocated even on stack.
  */
-void reexec() __attribute__((noreturn));
+void reexec(int args_count, char *args[]) __attribute__((noreturn));
 
 #endif

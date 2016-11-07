@@ -43,10 +43,11 @@ local state_dump = state_dump
 local sync = sync
 local log_event = log_event
 local sha256 = sha256
+local system_reboot = system_reboot
 
 module "transaction"
 
--- luacheck: globals perform recover empty perform_queue recover_pretty queue_remove queue_install queue_install_downloaded approval_hash task_report
+-- luacheck: globals perform recover empty perform_queue recover_pretty queue_remove queue_install queue_install_downloaded approval_hash task_report cleanup_actions
 
 -- Wrap the call to the maintainer script, and store any possible errors for later use
 local function script(errors_collected, name, suffix, ...)
@@ -74,6 +75,7 @@ local function pkg_unpack(operations, status)
 	local to_install = {}
 	-- Plan of the operations we have prepared, similar to operations, but with different things in them
 	local plan = {}
+	local cleanup_actions = {}
 	for _, op in ipairs(operations) do
 		if op.op == "remove" then
 			if status[op.name] then
@@ -114,13 +116,20 @@ local function pkg_unpack(operations, status)
 				dirs = dirs,
 				configs = configs,
 				old_configs = old_configs,
-				control = control
+				control = control,
+				reboot_immediate = op.reboot == "immediate"
 			})
+			if op.replan then
+				cleanup_actions.reexec = true
+			end
+			if op.reboot == "finished" or (op.reboot == "delayed" and not cleanup_actions.reboot) then
+				cleanup_actions.reboot = op.reboot
+			end
 		else
 			error("Unknown operation " .. op.op)
 		end
 	end
-	return to_remove, to_install, plan, dir_cleanups
+	return to_remove, to_install, plan, dir_cleanups, cleanup_actions
 end
 
 local function pkg_collision_check(status, to_remove, to_install)
@@ -169,8 +178,13 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 			if early_remove[op.control.Package] then
 				backend.pkg_cleanup_files(early_remove[op.control.Package], all_configs)
 			end
-			backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.old_configs)
+			local did_merge = backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.old_configs)
 			status[op.control.Package] = op.control
+			if op.reboot_immediate and did_merge then -- we reboot only if we did merge, if files were already merged then we already rebooted.
+				-- We can't exit this function, so it could finish from journal after reboot. We stuck execution here.
+				-- Note: This causes reexecution of already executed preinst scripts.
+				system_reboot(true)
+			end
 		end
 		-- Ignore others, at least for now.
 	end
@@ -216,6 +230,14 @@ local function pkg_cleanup(status)
 	backend.status_dump(status)
 end
 
+--[[
+Set of actions updater should perform after transaction is done.
+• reexec - if updater should be re-executed afterward.
+• reboot - contains if system should be rebooted and when. Only possible values
+  are "finished" and "delayed". Where "finished" has precedence.
+]]
+cleanup_actions = {}
+
 -- The internal part of perform, re-run on journal recover
 -- The lock file is expected to be already acquired and is released at the end.
 local function perform_internal(operations, journal_status, run_state)
@@ -257,8 +279,9 @@ local function perform_internal(operations, journal_status, run_state)
 			backend.dir_ensure(created)
 		end
 		-- Look at what the current status looks like.
-		local to_remove, to_install, plan, new_dir_cleanups = step(journal.UNPACKED, pkg_unpack, true, operations, status)
-		dir_cleanups = new_dir_cleanups
+		local to_remove, to_install, plan
+		to_remove, to_install, plan, dir_cleanups, cleanup_actions = step(journal.UNPACKED, pkg_unpack, true, operations, status)
+		cleanup_actions = cleanup_actions or {} -- just to handle if journal contains no cleanup actions (journal from previous version)
 		-- Drop the operations. This way, if we are tail-called, then the package buffers may be garbage-collected
 		operations = nil
 		-- Check for collisions
@@ -300,6 +323,7 @@ is a single table, with these keys:
 • op: The operation to perform. It is one of:
   - install
   - remove
+• reboot: If and when system should be rebooted when this package is installed.
 • name: Name of the package, needed for remove.
 • data: Buffer containing the necessary data. It is needed in the case
   of install, when it contains the ipk package.
@@ -403,26 +427,39 @@ function queue_install(filename)
 	end
 end
 
-function queue_install_downloaded(data, name, version)
-	table.insert(queue, {op = "install", data = data, name = name, version = version})
+function queue_install_downloaded(data, name, version, modifier)
+	table.insert(queue, {
+		op = "install",
+		data = data,
+		name = name,
+		version = version,
+		reboot = modifier.reboot,
+		replan = modifier.replan
+	})
 end
 
-local function queued_tasks()
-	return utils.map(queue, function (i, task) return i, table.concat({task.op, task.version or '-', task.name}, '	') .. "\n" end)
+local function queued_tasks(extensive)
+	return utils.map(queue, function (i, task)
+		local d = {task.op, task.version or '-', task.name}
+		if extensive then
+			table.insert(d, task.reboot or '-')
+		end
+		return i, table.concat(d, '	') .. "\n"
+	end)
 end
 
 -- Compute the approval hash of the queued operations
 function approval_hash()
 	-- Convert the tasks into formatted lines, sort them and hash it.
-	local requests = queued_tasks()
+	local requests = queued_tasks(true)
 	table.sort(requests)
 	return sha256(table.concat(requests))
 end
 
 -- Provide a human-readable report of the queued tasks
-function task_report(prefix)
+function task_report(prefix, extensive)
 	prefix = prefix or ''
-	return table.concat(utils.map(queued_tasks(), function (i, str) return i, prefix .. str end))
+	return table.concat(utils.map(queued_tasks(extensive), function (i, str) return i, prefix .. str end))
 end
 
 return _M

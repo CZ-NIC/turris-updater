@@ -1,0 +1,8 @@
+Package: package
+Version: 1
+Status: install user installed
+Architecture: all
+Conffiles:
+ /etc/testpkg.conf e27123cf80e763aba0abbf86a0588f6e0f83aecd0765a911d4ad8ca95f003ffe
+Installed-Time: 0
+

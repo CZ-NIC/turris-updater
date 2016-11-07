@@ -94,6 +94,7 @@ int main(int argc, char *argv[]) {
 				const char *err = interpreter_call(interpreter, "transaction.recover_pretty", &result_count, "");
 				ASSERT_MSG(!err, "%s", err);
 				trans_ok = results_interpret(interpreter, result_count);
+				early_exit = true;
 				break;
 			}
 #define NIP(TYPE) case COT_##TYPE: fputs("Operation " #TYPE " not implemented yet\n", stderr); return 1
