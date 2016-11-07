@@ -158,6 +158,10 @@ function get_content_pkgs()
 			local tmpdir = mkdtemp()
 			local pkg_dir = backend.pkg_unpack(data, tmpdir)
 			local _, _, _, control = backend.pkg_examine(pkg_dir)
+			if pkg.name ~= control.Package then
+				ERROR("Package content specified for package " .. pkg.name .. ", but it contains package " .. control.Package .. ". Ignoring this content.")
+				return
+			end
 			pkg.candidate = control
 			pkg.candidate.data = data
 			-- Remove unpacked package. Because we might run no far than planning.
@@ -294,8 +298,8 @@ function pkg_aggregate()
 			available_packages[pkg.name] = {candidates = {}, modifiers = {}}
 		end
 		local pkg_group = available_packages[pkg.name]
-		if pkg.content then
-			assert(pkg.candidate)
+		if pkg.candidate then
+			assert(pkg.content) -- candidate can be there only from content option
 			table.insert(pkg_group.candidates, pkg.candidate)
 		end
 		table.insert(pkg_group.modifiers, pkg)
