@@ -305,7 +305,8 @@ function pkg_aggregate()
 			post_install = {},
 			post_remove = {},
 			reboot = false,
-			abi_change = {}
+			abi_change = {},
+			abi_change_deep = {}
 		}
 		for _, m in pairs(pkg_group.modifiers) do
 			m.final = modifier
@@ -342,6 +343,7 @@ function pkg_aggregate()
 			set_merge("post_install")
 			set_merge("post_remove")
 			set_merge("abi_change")
+			set_merge("abi_change_deep")
 			local reboot_vals = {
 				[false] = 0,
 				delayed = 1,

@@ -228,12 +228,14 @@ function test_pkg_merge()
 			order_after = "abc",
 			name = 'xyz',
 			reboot = 'finished',
+			abi_change = {'another'},
 			deps = "abc"
 		},
 		{
 			tp = 'package',
 			name = 'xyz',
 			replan = true,
+			abi_change = true,
 			deps = {"another", "xyz"}
 		},
 		{
@@ -279,6 +281,7 @@ function test_pkg_merge()
 					sub = {"abc", "another", "xyz"}
 				},
 				reboot = "finished",
+				abi_change = {[true] = true, ['another'] = true},
 				replan = true
 			}
 		}
@@ -287,6 +290,7 @@ function test_pkg_merge()
 	local modifier_def = {
 		tp = "package",
 		abi_change = {},
+		abi_change_deep = {},
 		order_after = {},
 		order_before = {},
 		post_install = {},

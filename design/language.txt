@@ -480,6 +480,11 @@ abi_change::
   reinstalled. If it is set to a table, it lists packages that need to
   be reinstalled. When merging `true` to a table, `true` is considered
   to be the list of packages depending on this one.
+abi_change_deep::
+  Same as abi_change, but also reinstall packages that depends indirectly on
+  package that changed its ABI. That means if some package is reinstalled because
+  of change of ABI, all packages that depends on it are also reinstalled and so
+  on.
 content::
   This is an alternative for the package being available from a
   repository. This lists an URI where the package lives.
