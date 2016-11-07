@@ -158,6 +158,10 @@ function get_content_pkgs()
 			local tmpdir = mkdtemp()
 			local pkg_dir = backend.pkg_unpack(data, tmpdir)
 			local _, _, _, control = backend.pkg_examine(pkg_dir)
+			if pkg.name ~= control.Package then
+				ERROR("Package content specified for package " .. pkg.name .. ", but it contains package " .. control.Package .. ". Ignoring this content.")
+				return
+			end
 			pkg.candidate = control
 			pkg.candidate.data = data
 			-- Remove unpacked package. Because we might run no far than planning.
@@ -277,6 +281,14 @@ function pkg_aggregate()
 						available_packages[name] = {candidates = {}, modifiers = {}}
 					end
 					table.insert(available_packages[name].candidates, candidate)
+					if candidate.Provides then -- Add this candidate to package it provides
+						for p in candidate.Provides:gmatch("[^,	]+") do
+							if not available_packages[p] then
+								available_packages[p] = {candidates = {}, modifiers = {}}
+							end
+							table.insert(available_packages[p].candidates, candidate)
+						end
+					end
 				end
 			end
 		end
@@ -286,8 +298,8 @@ function pkg_aggregate()
 			available_packages[pkg.name] = {candidates = {}, modifiers = {}}
 		end
 		local pkg_group = available_packages[pkg.name]
-		if pkg.content then
-			assert(pkg.candidate)
+		if pkg.candidate then
+			assert(pkg.content) -- candidate can be there only from content option
 			table.insert(pkg_group.candidates, pkg.candidate)
 		end
 		table.insert(pkg_group.modifiers, pkg)
@@ -376,12 +388,19 @@ function pkg_aggregate()
 				if a.repo.priority ~= b.repo.priority then -- Check repository priority
 					return a.repo.priority > b.repo.priority
 				end
-				local vers_cmp = backend.version_cmp(a.Version, b.Version)
-				if vers_cmp ~= 0 then -- Check version of package
-					return vers_cmp == 1 -- a is newer version than b
+				if a.Package == b.Package then -- Don't compare versions for different packages
+					local vers_cmp = backend.version_cmp(a.Version, b.Version)
+					if vers_cmp ~= 0 then -- Check version of package
+						return vers_cmp == 1 -- a is newer version than b
+					end
+				elseif (a.Package ~= name and b.Package == name) or (a.Package == name and b.Package ~= name) then -- When only one of packages is provided by some other packages candidate
+					return a.Package == name -- Prioritize candidates of package it self, not provided ones.
 				end
 				if a.repo.serial ~= b.repo.serial then -- Check repo order of introduction
 					return a.repo.serial < b.repo.serial
+				end
+				if a.Package ~= b.Package then -- As last resort when packages are not from same and not from provided package group
+					return a.Package < b.Package -- Sort alphabetically by package name
 				end
 				WARN("Multiple candidates from same repository with same version for package " .. a.Package)
 				return true -- lets prioritize a, for no reason, lets make b angry.

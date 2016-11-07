@@ -13,7 +13,8 @@ UPD_SYS_TESTS := \
 	simple-update \
 	multiple-repos \
 	pkg-content \
-	reboot
+	reboot \
+	provides
 
 MIGRATE_SYS_TESTS := \
 	auto-migrate-pkgs

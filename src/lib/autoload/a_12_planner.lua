@@ -109,9 +109,15 @@ function sat_pkg_group(state, name)
 	-- We expect here that candidates are sorted by their priority.
 	-- At first we just add variables for them
 	for _, candidate in ipairs(candidates) do
-		local cand = state.sat:var()
-		DBG("SAT add candidate " .. candidate.Package .. " version:" .. (candidate.Version or "") .. " var:" .. tostring(cand))
-		state.candidate2sat[candidate] = cand
+		local cand
+		-- Candidate might exists if it provides some other package
+		if not state.candidate2sat[candidate] then
+			cand = state.sat:var()
+			DBG("SAT add candidate " .. candidate.Package .. " for group: " .. name .. " version:" .. (candidate.Version or "") .. " var:" .. tostring(cand))
+			state.candidate2sat[candidate] = cand
+		else
+			cand = state.candidate2sat[candidate]
+		end
 		state.sat:clause(-cand, pkg_var) -- candidate implies its package group
 		for _, o_cand in pairs(sat_candidates) do
 			state.sat:clause(-cand, -o_cand) -- ensure candidates exclusivity
@@ -120,9 +126,13 @@ function sat_pkg_group(state, name)
 		table.insert(sat_candidates, cand)
 	end
 	-- We solve dependency afterward to ensure that even when they are cyclic, we won't encounter package group in sat that don't have its candidates in sat yet.
+	-- Candidate from other package might not be processed yet, we ensure here also that its package group is added
 	-- Field deps for candidates and modifier of package group should be string or table of type 'dep-*'. nil or empty table means no dependencies.
 	for i = 1, #sat_candidates do
-		if candidates[i].deps and (type(candidates[i].deps) ~= 'table' or next(candidates[i].deps)) then
+		if candidates[i].Package ~= name then
+			sat_pkg_group(state, candidates[i].Package) -- Ensure that candidate's package is also added
+			-- Note: not processing dependencies here ensures that dependencies are added only once
+		elseif candidates[i].deps and (type(candidates[i].deps) ~= 'table' or next(candidates[i].deps)) then
 			local dep = sat_dep_traverse(state, candidates[i].deps)
 			state.sat:clause(-sat_candidates[i], dep) -- candidate implies its dependencies
 		end
@@ -377,6 +387,10 @@ local function build_plan(pkgs, requests, sat, satmap)
 		inwstack[name] = nil -- Our recursive work on this package group ended.
 		if not candidate then -- If no candidate, then we have nothing to be planned
 			return
+		end
+		if candidate.Package ~= name then
+			-- If Candidate is from other group, then plan that group instead now.
+			return pkg_plan(candidate.Package, ignore_missing, ignore_missing_pkg, parent_str)
 		end
 		-- And finally plan it --
 		planned[name] = #plan + 1
