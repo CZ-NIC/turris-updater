@@ -1,0 +1,9 @@
+Package: dep_prov
+Version: 1
+License: GPL-2.0
+Section: none
+Provides: dep
+Architecture: all
+Installed-Size: 0
+Description:  Example package
+

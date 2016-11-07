@@ -11,7 +11,8 @@ UPD_SYS_TESTS := \
 	steal-confs \
 	simple-update \
 	multiple-repos \
-	pkg-content
+	pkg-content \
+	provides
 
 MIGRATE_SYS_TESTS := \
 	auto-migrate-pkgs
