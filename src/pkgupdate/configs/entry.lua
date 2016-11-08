@@ -47,6 +47,17 @@ local script_options = {
 if base_url then
 	-- The distribution script. It contains the repository and bunch of basic packages. The URI is computed based on the branch and the guessed board
 	Script("base",  base_url .. "base.lua", script_options)
+	-- Ask for a script specific for our serial. But ignore if it's not there (which is common).
+	if serial then
+		local script_options_ignore = {}
+		for n, v in pairs(script_options) do
+			script_options_ignore[n] = v
+		end
+		script_options_ignore.ignore = {"missing"}
+		-- First try just the revision
+		Script("revision-specific", base_url .. "revision/" .. serial:sub(1, 8) .. ".lua", script_options_ignore)
+		Script("serial-specific", base_url .. "serial/" .. serial .. ".lua", script_options_ignore)
+	end
 end
 
 -- Some provided by the user
