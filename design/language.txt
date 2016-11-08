@@ -254,6 +254,14 @@ restrict::
   referenced. If the level is `restricted` and this is not specified,
   a match for the protocol and hostname is constructed. It has no
   effect with higher security levels.
+ignore::
+  Ignore certain errors. If they happen, don't process such script,
+  but continue with the rest. This is a lua table with strings, each
+  one specifying a category of erorrs to ignore.
+  missing;;
+    If the script can't be found.
+  integrity;;
+    Some signatures don't match.
 verification::
 sig::
 pubkey::
