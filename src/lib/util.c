@@ -17,6 +17,8 @@
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#define _GNU_SOURCE
+
 #include "util.h"
 
 #include <stdio.h>
@@ -190,7 +192,7 @@ void system_reboot(bool stick) {
 		sigset_t sigmask;
 		sigfillset(&sigmask);
 		while (1) {
-			ppoll(NULL, 0, NULL, sigmask);
+			ppoll(NULL, 0, NULL, &sigmask);
 		}
 	}
 }
