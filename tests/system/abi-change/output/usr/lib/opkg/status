@@ -1,0 +1,13 @@
+Package: libtest
+Version: 2
+Status: install user installed
+Architecture: all
+Installed-Time: 0
+
+Package: apptest
+Version: 1
+Depends: libtest
+Status: install user installed
+Architecture: all
+Installed-Time: 0
+

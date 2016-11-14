@@ -14,7 +14,8 @@ UPD_SYS_TESTS := \
 	multiple-repos \
 	pkg-content \
 	reboot \
-	provides
+	provides \
+	abi-change
 
 MIGRATE_SYS_TESTS := \
 	auto-migrate-pkgs
