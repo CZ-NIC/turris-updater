@@ -612,6 +612,30 @@ turris_version
 
 Content of `/etc/turris-version`. Might be nil on non-Turris systems.
 
+self_version
+~~~~~~~~~~~~
+
+String containing version of updater.
+
+language_version
+~~~~~~~~~~~~~~~~
+
+Number signaling version of updater configuration language used. This
+is always `1` for language described in this document.
+
+features
+~~~~~~~~
+
+Set of features current updater supports. You can check for feature
+this way: `features['feature']`. These are currently available features:
+
+priorities::
+  Updater handles priorities between multiple requests for same package.
+provides::
+  Updater supports `Provides` control field.
+abi_change::
+  Updater can handle and propagate ABI change.
+
 installed
 ~~~~~~~~~
 

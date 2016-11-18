@@ -37,6 +37,11 @@ void print_help() {
 	cmd_args_help(cmd_op_allowed);
 }
 
+void print_version() {
+	fputs("pkgmigrate ", stderr);
+	cmd_args_version();
+}
+
 int main(int argc, char *argv[]) {
 	// Set up logging machinery
 	log_stderr_level(LL_INFO);
@@ -52,15 +57,17 @@ int main(int argc, char *argv[]) {
 	bool batch = false, early_exit = false;
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
-			case COT_HELP: {
+			case COT_HELP:
 				print_help();
 				early_exit = true;
 				break;
-			}
-			case COT_ERR_MSG: {
+			case COT_VERSION:
+				print_version();
+				early_exit = true;
+				break;
+			case COT_ERR_MSG:
 				fputs(op->parameter, stderr);
 				break;
-			}
 			case COT_NO_OP:
 				top_level_config = op->parameter;
 				break;

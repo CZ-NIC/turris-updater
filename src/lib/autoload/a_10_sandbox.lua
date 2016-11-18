@@ -38,6 +38,7 @@ local DBG = DBG
 local WARN = WARN
 local run_command = run_command
 local events_wait = events_wait
+local get_updater_version = get_updater_version
 local utils = require "utils"
 local backend = require "backend"
 local requests = require "requests"
@@ -50,6 +51,13 @@ end
 module "sandbox"
 
 -- luacheck: globals morpher state_vars level new run_sandboxed load_state_vars
+
+-- This can be changed often (always when we add some new feature). So it is defined here at top and not buried in code. 
+local updater_features = utils.arr2set({
+	'priorities',
+	'provides',
+	'abi_change'
+})
 
 -- WARNING: BEGIN_MAGIC (read the design morphers documentation)
 
@@ -214,6 +222,9 @@ function load_state_vars()
 		model = utils.strip(utils.slurp('/tmp/sysinfo/model')),
 		board_name = utils.strip(utils.slurp('/tmp/sysinfo/board_name')),
 		turris_version = utils.strip(utils.slurp('/etc/turris-version')),
+		self_version = get_updater_version(),
+		language_version = 1,
+		features = updater_features,
 		--[[
 		In case we fail to read that file (it is not there), we match against
 		an empty string, which produces nil ‒ the element won't be in there.
