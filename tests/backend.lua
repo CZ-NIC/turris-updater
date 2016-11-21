@@ -573,6 +573,16 @@ function test_collisions()
 		}
 	}, col)
 	-- For "erem" and "rem" see note few lines before this one.
+	-- Check if we handle if directory is given
+	local test_pkg = {
+		["package"] = {
+			["/etc/modules.d/"] = true,
+		}
+	}
+	local col, erem, rem = B.collision_check(status, {}, test_pkg)
+	assert_table_equal({}, col)
+	assert_table_equal({}, erem)
+	assert_table_equal({}, rem)
 end
 
 -- Test config_steal and not_installed_confs function
