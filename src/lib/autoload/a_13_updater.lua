@@ -134,7 +134,7 @@ end
 
 -- Note: This function don't have to return
 function cleanup(success, reboot_finished)
-	if transaction.cleanup_actions.replan then
+	if transaction.cleanup_actions.reexec then
 		if reboot_finished then
 			reexec('--reboot-finished')
 		else
