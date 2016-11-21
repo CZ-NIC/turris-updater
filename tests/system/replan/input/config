@@ -1,0 +1,7 @@
+Repository "test" "file://%ROOT_DIR%/repo"
+Package "package" {replan = true}
+Install "package"
+
+if installed['package'] then
+	Uninstall "package" {priority = 60}
+end

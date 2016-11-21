@@ -15,7 +15,8 @@ UPD_SYS_TESTS := \
 	pkg-content \
 	reboot \
 	provides \
-	abi-change
+	abi-change \
+	replan
 
 MIGRATE_SYS_TESTS := \
 	auto-migrate-pkgs
