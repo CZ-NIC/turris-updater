@@ -700,6 +700,11 @@ static int lua_system_reboot(lua_State *L) {
 	return 0;
 }
 
+static int lua_get_updater_version(lua_State *L) {
+	lua_pushstring(L, UPDATER_VERSION);
+	return 1;
+}
+
 extern bool state_log_enabled; // defined in util.c
 
 static int lua_state_log_enabled(lua_State *L) {
@@ -738,7 +743,8 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_sha256, "sha256" },
 	{ lua_reexec, "reexec" },
 	{ lua_uri_internal_get, "uri_internal_get" },
-	{ lua_system_reboot, "system_reboot" }
+	{ lua_system_reboot, "system_reboot" },
+	{ lua_get_updater_version, "get_updater_version" }
 };
 
 #ifdef COVERAGE

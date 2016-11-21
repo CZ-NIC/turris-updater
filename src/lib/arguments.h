@@ -28,6 +28,8 @@ enum cmd_op_type {
 	COT_EXIT,
 	// Print help.
 	COT_HELP,
+	// Print updater version.
+	COT_VERSION,
 	// Print error message stored in argument variable.
 	COT_ERR_MSG,
 	// Clean up any unfinished journal work and roll back whatever can be.
@@ -100,6 +102,11 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
  * Argument accepts is COT_LAST terminated array of all allowed operations.
  */
 void cmd_args_help(const enum cmd_op_type accepts[]);
+
+/*
+ * Prints message containing updater version
+ */
+void cmd_args_version(void);
 
 /*
  * Deep-copy the arguments. They can be used in the reexec() function.

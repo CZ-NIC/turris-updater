@@ -46,6 +46,11 @@ static void print_help() {
 	cmd_args_help(cmd_op_allows);
 }
 
+static void print_version() {
+	fputs("opkg-trans ", stderr);
+	cmd_args_version();
+}
+
 int main(int argc, char *argv[]) {
 	// Some setup of the machinery
 	log_stderr_level(LL_INFO);
@@ -68,15 +73,17 @@ int main(int argc, char *argv[]) {
 	bool early_exit = false;
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
-			case COT_HELP: {
+			case COT_HELP:
 				print_help();
 				early_exit = true;
 				break;
-			}
-			case COT_ERR_MSG: {
+			case COT_VERSION:
+				print_version();
+				early_exit = true;
+				break;
+			case COT_ERR_MSG:
 				fputs(op->parameter, stderr);
 				break;
-			}
 			case COT_INSTALL: {
 				const char *err = interpreter_call(interpreter, "transaction.queue_install", NULL, "s", op->parameter);
 				ASSERT_MSG(!err, "%s", err);

@@ -54,6 +54,11 @@ static void print_help() {
 	cmd_args_help(cmd_op_allows);
 }
 
+static void print_version() {
+	fputs("pkgupdate ", stderr);
+	cmd_args_version();
+}
+
 const char *hook_preupdate = "/etc/updater/hook_preupdate";
 const char *hook_postupdate = "/etc/updater/hook_postupdate";
 const char *hook_reboot_delayed = "/etc/updater/hook_reboot_required";
@@ -118,15 +123,17 @@ int main(int argc, char *argv[]) {
 	const char *task_log = NULL;
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
-			case COT_HELP: {
+			case COT_HELP:
 				print_help();
 				early_exit = true;
 				break;
-			}
-			case COT_ERR_MSG: {
+			case COT_VERSION:
+				print_version();
+				early_exit = true;
+				break;
+			case COT_ERR_MSG:
 				fputs(op->parameter, stderr);
 				break;
-			}
 			case COT_NO_OP:
 				top_level_config = op->parameter;
 				break;

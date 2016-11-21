@@ -35,8 +35,6 @@ libupdater_MODULES_3RDPARTY := \
 libupdater_PKG_CONFIGS := $(LUA_NAME) libevent
 # Workaround, lua.pc doesn't containd -ldl, even when it uses dlopen
 libupdater_SO_LIBS += dl
-# Enable tracing for picosat
-libupdater_CFLAGS := -DTRACE
 
 LIB_DOCS := \
 	journal \

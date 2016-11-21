@@ -42,6 +42,8 @@ static void result_extend(size_t *count, struct cmd_op **result, enum cmd_op_typ
 static const char *opt_help[COT_LAST] = {
 	[COT_HELP] =
 		"--help, -h			Prints this text.\n",
+	[COT_VERSION] =
+		"--version, -V			Prints version of updater.\n",
 	[COT_JOURNAL_ABORT] =
 		"--abort, -b			Abort interrupted work in the journal and clean.\n",
 	[COT_JOURNAL_RESUME] =
@@ -91,6 +93,7 @@ enum option_val {
 
 static const struct option opt_long[] = {
 	{ .name = "help", .has_arg = no_argument, .val = 'h' },
+	{ .name = "version", .has_arg = no_argument, .val = 'V' },
 	{ .name = "journal", .has_arg = no_argument, .val = 'j' },
 	{ .name = "abort", .has_arg = no_argument, .val = 'b' },
 	{ .name = "add", .has_arg = required_argument, .val = 'a' },
@@ -153,8 +156,8 @@ static void cmd_op_accepts_map(bool *map, const enum cmd_op_type accepts[]) {
 	for (size_t i = 0; accepts[i] != COT_LAST; i++) {
 		map[accepts[i]] = true;
 	}
-	// Always allow exits and help
-	map[COT_EXIT] = map[COT_CRASH] = map[COT_HELP] = true;
+	// Always allow exits, help and version
+	map[COT_EXIT] = map[COT_CRASH] = map[COT_HELP] = map[COT_VERSION] = true;
 }
 
 struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type accepts[]) {
@@ -167,7 +170,7 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 	int c, ilongopt;
 	bool accepts_map[COT_LAST];
 	cmd_op_accepts_map(accepts_map, accepts);
-	while ((c = getopt_long(argc, argv, ":hbja:r:R:s:e:S:", opt_long, &ilongopt)) != -1) {
+	while ((c = getopt_long(argc, argv, ":hVbja:r:R:s:e:S:", opt_long, &ilongopt)) != -1) {
 		const struct simple_opt *opt = &simple_args[c];
 		if (opt->active) {
 			if (opt->has_arg)
@@ -177,6 +180,10 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 			case 'h':
 				exclusive_cmd = true;
 				result_extend(&res_count, &result, COT_HELP, NULL);
+				break;
+			case 'V':
+				exclusive_cmd = true;
+				result_extend(&res_count, &result, COT_VERSION, NULL);
 				break;
 			case ':':
 				return cmd_arg_crash(result, 3, "Missing additional argument for ", argv[optind - 1], "\n");
@@ -256,6 +263,10 @@ void cmd_args_help(const enum cmd_op_type accepts[]) {
 		if (accepts_map[i] && opt_help[i])
 			fputs(opt_help[i], stderr);
 	}
+}
+
+void cmd_args_version(void) {
+	fputs(UPDATER_VERSION "\n", stderr);
 }
 
 static int back_argc;

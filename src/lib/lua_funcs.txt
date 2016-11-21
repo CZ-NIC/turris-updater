@@ -261,3 +261,6 @@ uri_internal_get(name)::
 system_reboot(stick)::
   Reboots system. Argument `stick` if set to true results in that this
   newer returns.
+
+get_updater_version()::
+  Returns string containing updater's version.
