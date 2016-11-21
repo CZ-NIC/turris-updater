@@ -324,7 +324,7 @@ List the variable names here. This way we ensure they are actually set in case
 they are nil. This helps in testing and also ensures some other global variable
 isn't mistaken for the actual value that isn't available.
 ]]
-for _, name in pairs({'model', 'board_name', 'turris_version', 'serial', 'architectures', 'installed'}) do
+for _, name in pairs({'model', 'board_name', 'turris_version', 'serial', 'architectures', 'installed', 'self_version', 'language_version', 'features'}) do
 	funcs.Restricted[name] = {
 		mode = "state",
 		value = name
