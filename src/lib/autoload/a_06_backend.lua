@@ -617,9 +617,6 @@ function collision_check(current_status, remove_pkgs, add_pkgs)
 	end
 	-- Adds file to files tree and detect collisions
 	local function file_insert(fname, pkg_name, when)
-		if fname:sub(-1,-1) == '/' then
-			return nil -- Just ignore directories. Do not add them.
-		end
 		-- Returns node for given path. If node contains "pkg" field then it is not directory. If it contains "nodes" field, then it is directory. If it has neither then it was newly created.
 		local function files_tree_node(path)
 			local node = files_tree
