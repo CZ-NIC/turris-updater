@@ -473,6 +473,25 @@ function test_collisions()
 		["/etc/modules-boot.d/usb-storage"] = true
 		-- The usb-storage file is taken over, it doesn't disappear
 	}, rem)
+	-- Packaage is updated and one of its original files should be removed
+	local test_pkg = {
+		['terminfo'] = {
+			["/usr/share/terminfo/x/xterm"] = true,
+			["/usr/share/terminfo/r/rxvt-unicode"] = true,
+			["/usr/share/terminfo/d/dumb"] = true,
+			["/usr/share/terminfo/a/ansi"] = true,
+			["/usr/share/terminfo/x/xterm-color"] = true,
+			["/usr/share/terminfo/r/rxvt"] = true,
+			["/usr/share/terminfo/s/screen"] = true,
+			["/usr/share/terminfo/x/xterm-256color"] = true,
+			["/usr/share/terminfo/l/linux"] = true,
+			["/usr/share/terminfo/v/vt102"] = true
+		}
+	}
+	local col, erem, rem = B.collision_check(status, {}, test_pkg)
+	assert_table_equal({}, col)
+	assert_table_equal({}, erem)
+	assert_table_equal({["/usr/share/terminfo/v/vt100"] = true}, rem)
 	-- Collision of file with new directory
 	local test_pkg = {
 		["package"] = {
