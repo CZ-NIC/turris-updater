@@ -384,9 +384,16 @@ function pkg_aggregate()
 		pkg_group.modifiers = nil
 		-- Sort candidates
 		if pkg_group.candidates then
+			local warn_local_remote = false
 			table.sort(pkg_group.candidates, function(a, b)
-				if a.repo.priority ~= b.repo.priority then -- Check repository priority
-					return a.repo.priority > b.repo.priority
+				-- The locally created packages (with content) have no repo, consider them as from a repo with infinite priority (or, higher than 100, as 100 is the max) to be preferred
+				if (a.repo and not b.repo) or (not a.repo and b.repo) then
+					warn_local_remote = true;
+				end
+				local a_repo = a.repo or {priority = 1000, serial = -1}
+				local b_repo = b.repo or {priority = 1000, serial = -1}
+				if a_repo.priority ~= b_repo.priority then -- Check repository priority
+					return a_repo.priority > b_repo.priority
 				end
 				if a.Package == b.Package then -- Don't compare versions for different packages
 					local vers_cmp = backend.version_cmp(a.Version, b.Version)
@@ -396,8 +403,8 @@ function pkg_aggregate()
 				elseif (a.Package ~= name and b.Package == name) or (a.Package == name and b.Package ~= name) then -- When only one of packages is provided by some other packages candidate
 					return a.Package == name -- Prioritize candidates of package it self, not provided ones.
 				end
-				if a.repo.serial ~= b.repo.serial then -- Check repo order of introduction
-					return a.repo.serial < b.repo.serial
+				if a_repo.serial ~= b_repo.serial then -- Check repo order of introduction
+					return a_repo.serial < b_repo.serial
 				end
 				if a.Package ~= b.Package then -- As last resort when packages are not from same and not from provided package group
 					return a.Package < b.Package -- Sort alphabetically by package name
@@ -405,6 +412,9 @@ function pkg_aggregate()
 				WARN("Multiple candidates from same repository with same version for package " .. a.Package)
 				return true -- lets prioritize a, for no reason, lets make b angry.
 			end)
+			if warn_local_remote then
+				WARN("Package " .. name .. " comes from both local content and a repository. The local content is preferred and no updates will happen to the package.")
+			end
 		end
 	end
 end
