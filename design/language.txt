@@ -495,7 +495,9 @@ abi_change_deep::
   on.
 content::
   This is an alternative for the package being available from a
-  repository. This lists an URI where the package lives.
+  repository. This lists an URI where the package lives. If the
+  package has all parameters same as one from a repository (eg.
+  priority, version), the one with content is preferred.
 verification::
 sig::
 pubkey::
@@ -504,6 +506,11 @@ crl::
   Options to verify the package integrity, if the content option is
   specified. These are ignored in virtual packages and packages from a
   repository.
+priority::
+  A priority for packages not coming from a repository (eg. with the
+  `content` option) to be used when choosing the right candidate.
+  Defaults to 50, as with repositories. It is ignored with packages
+  from repositories and has no meaning for virtual packages.
 ignore::
   Ignore listed categories of errors. This takes an array of strings,
   each string meaning one category to ignore.

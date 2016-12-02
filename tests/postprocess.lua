@@ -342,15 +342,17 @@ function test_local_and_repo()
 		xyz = {
 			tp = 'package',
 			name = 'xyz',
+			priority = 60,
 			candidate = {Package = "xyz", Version = "1", local_mark = true}, -- Mark the package so we recognize it got through unmodified
 			content = "dummy-content"
 		}
 	}
+	requests.known_packages.xyz.candidate.pkg = requests.known_packages.xyz
 	postprocess.pkg_aggregate()
 	local exp = {
 		xyz = {
 			candidates = {
-				{Package = "xyz", Version = "1", local_mark = true},
+				{Package = "xyz", Version = "1", local_mark = true, pkg = requests.known_packages.xyz},
 				{Package = "xyz", Version = "2", repo = requests.known_repositories_all[1]}
 			},
 			modifier = {
@@ -368,6 +370,12 @@ function test_local_and_repo()
 			}
 		}
 	}
+	assert_table_equal(exp, postprocess.available_packages)
+	-- Try again, but with the same priority ‒ versions should be used to sort them
+	postprocess.available_packages = {}
+	requests.known_packages.xyz.priority = nil
+	exp.xyz.candidates = {exp.xyz.candidates[2], exp.xyz.candidates[1]}
+	postprocess.pkg_aggregate()
 	assert_table_equal(exp, postprocess.available_packages)
 end
 

@@ -54,6 +54,7 @@ local allowed_package_extras = utils.arr2set({
 	"abi_change",
 	"abi_change_deep",
 	"content",
+	"priority",
 	"verification",
 	"sig",
 	"pubkey",

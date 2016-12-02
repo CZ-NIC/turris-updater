@@ -164,6 +164,7 @@ function get_content_pkgs()
 			end
 			pkg.candidate = control
 			pkg.candidate.data = data
+			pkg.candidate.pkg = pkg
 			-- Remove unpacked package. Because we might run no far than planning.
 			-- If it is going to be installed, it will be unpacked again.
 			utils.cleanup_dirs({pkg_dir, tmpdir})
@@ -384,14 +385,10 @@ function pkg_aggregate()
 		pkg_group.modifiers = nil
 		-- Sort candidates
 		if pkg_group.candidates then
-			local warn_local_remote = false
 			table.sort(pkg_group.candidates, function(a, b)
-				-- The locally created packages (with content) have no repo, consider them as from a repo with infinite priority (or, higher than 100, as 100 is the max) to be preferred
-				if (a.repo and not b.repo) or (not a.repo and b.repo) then
-					warn_local_remote = true;
-				end
-				local a_repo = a.repo or {priority = 1000, serial = -1}
-				local b_repo = b.repo or {priority = 1000, serial = -1}
+				-- The locally created packages (with content) have no repo, create a dummy one. Get its priority from the Package command, or the default 50
+				local a_repo = a.repo or {priority = utils.multi_index(a, "pkg", "priority") or 50, serial = -1}
+				local b_repo = b.repo or {priority = utils.multi_index(b, "pkg", "priority") or 50, serial = -1}
 				if a_repo.priority ~= b_repo.priority then -- Check repository priority
 					return a_repo.priority > b_repo.priority
 				end
@@ -412,9 +409,6 @@ function pkg_aggregate()
 				WARN("Multiple candidates from same repository with same version for package " .. a.Package)
 				return true -- lets prioritize a, for no reason, lets make b angry.
 			end)
-			if warn_local_remote then
-				WARN("Package " .. name .. " comes from both local content and a repository. The local content is preferred and no updates will happen to the package.")
-			end
 		end
 	end
 end
