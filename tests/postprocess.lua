@@ -317,6 +317,68 @@ function test_pkg_merge()
 	assert_table_equal(exp, postprocess.available_packages)
 end
 
+--[[
+Test we handle when a package has a candidate from a repository and from local content.
+The local one should be preferred.
+]]
+function test_local_and_repo()
+	requests.known_repositories_all = {
+		{
+			content = {
+				[""] = {
+					tp = 'pkg-list',
+					list = {
+						xyz = {Package = "xyz", Version = "2"},
+					}
+				}
+			},
+			priority = 50,
+			name = 'repo1',
+			sequence = 1
+		}
+	}
+	requests.known_repositories_all[1].content[""].list.xyz.repo = requests.known_repositories_all[1]
+	requests.known_packages = {
+		xyz = {
+			tp = 'package',
+			name = 'xyz',
+			priority = 60,
+			candidate = {Package = "xyz", Version = "1", local_mark = true}, -- Mark the package so we recognize it got through unmodified
+			content = "dummy-content"
+		}
+	}
+	requests.known_packages.xyz.candidate.pkg = requests.known_packages.xyz
+	postprocess.pkg_aggregate()
+	local exp = {
+		xyz = {
+			candidates = {
+				{Package = "xyz", Version = "1", local_mark = true, pkg = requests.known_packages.xyz},
+				{Package = "xyz", Version = "2", repo = requests.known_repositories_all[1]}
+			},
+			modifier = {
+				name = "xyz",
+				abi_change = {},
+				abi_change_deep = {},
+				order_after = {},
+				order_before = {},
+				post_install = {},
+				post_remove = {},
+				pre_install = {},
+				pre_remove = {},
+				reboot = false,
+				tp = "package"
+			}
+		}
+	}
+	assert_table_equal(exp, postprocess.available_packages)
+	-- Try again, but with the same priority ‒ versions should be used to sort them
+	postprocess.available_packages = {}
+	requests.known_packages.xyz.priority = nil
+	exp.xyz.candidates = {exp.xyz.candidates[2], exp.xyz.candidates[1]}
+	postprocess.pkg_aggregate()
+	assert_table_equal(exp, postprocess.available_packages)
+end
+
 function test_deps_canon()
 	assert_equal(nil, postprocess.deps_canon(nil))
 	assert_equal(nil, postprocess.deps_canon({}))

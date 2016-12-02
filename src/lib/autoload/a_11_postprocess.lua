@@ -164,6 +164,7 @@ function get_content_pkgs()
 			end
 			pkg.candidate = control
 			pkg.candidate.data = data
+			pkg.candidate.pkg = pkg
 			-- Remove unpacked package. Because we might run no far than planning.
 			-- If it is going to be installed, it will be unpacked again.
 			utils.cleanup_dirs({pkg_dir, tmpdir})
@@ -385,8 +386,11 @@ function pkg_aggregate()
 		-- Sort candidates
 		if pkg_group.candidates then
 			table.sort(pkg_group.candidates, function(a, b)
-				if a.repo.priority ~= b.repo.priority then -- Check repository priority
-					return a.repo.priority > b.repo.priority
+				-- The locally created packages (with content) have no repo, create a dummy one. Get its priority from the Package command, or the default 50
+				local a_repo = a.repo or {priority = utils.multi_index(a, "pkg", "priority") or 50, serial = -1}
+				local b_repo = b.repo or {priority = utils.multi_index(b, "pkg", "priority") or 50, serial = -1}
+				if a_repo.priority ~= b_repo.priority then -- Check repository priority
+					return a_repo.priority > b_repo.priority
 				end
 				if a.Package == b.Package then -- Don't compare versions for different packages
 					local vers_cmp = backend.version_cmp(a.Version, b.Version)
@@ -396,8 +400,8 @@ function pkg_aggregate()
 				elseif (a.Package ~= name and b.Package == name) or (a.Package == name and b.Package ~= name) then -- When only one of packages is provided by some other packages candidate
 					return a.Package == name -- Prioritize candidates of package it self, not provided ones.
 				end
-				if a.repo.serial ~= b.repo.serial then -- Check repo order of introduction
-					return a.repo.serial < b.repo.serial
+				if a_repo.serial ~= b_repo.serial then -- Check repo order of introduction
+					return a_repo.serial < b_repo.serial
 				end
 				if a.Package ~= b.Package then -- As last resort when packages are not from same and not from provided package group
 					return a.Package < b.Package -- Sort alphabetically by package name
