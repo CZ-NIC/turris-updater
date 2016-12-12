@@ -50,7 +50,7 @@ if [ "$BRANCH" ] ; then
 	uci set updater.override=override
 	uci set updater.override.branch="$BRANCH"
 else
-	uci delete updater.override.override
+	uci delete updater.override.override || true
 fi
 uci commit updater
 
