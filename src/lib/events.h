@@ -24,6 +24,7 @@
 
 #include <unistd.h>
 #include <stdint.h>
+#include <stdarg.h>
 
 struct events;
 struct watched_command *command;
@@ -131,6 +132,25 @@ typedef void (*post_fork_callback_t)(void *data);
 struct wait_id run_command(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, const char *command, ...) __attribute__((nonnull(1, 2, 9)));
 // Exactly the same as run_command, but with array for parameters.
 struct wait_id run_command_a(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, const char *command, const char **params) __attribute__((nonnull(1, 2, 9)));
+// Exactly the same as run_command, but with va_list for parameters. (va_list
+// isn't closed in function, so it have to be closed afterwards)
+struct wait_id run_command_v(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, const char *command, va_list params) __attribute__((nonnull(1, 2)));
+
+/*
+ * These functions are same as run_command except that you don't have to specify
+ * exact path to command and instead you specify busybox function (second argument
+ * to busybox binary call). This ensures that when we have busybox embedded then
+ * it is used and system binaries aren't, but when we don't we wont fail.
+ *
+ * These were added because we have to be able to run on broken system (when we
+ * break it while we are moving files around). So updater is able to embed busybox
+ * executable and use it instead of system utilities.
+ *
+ * Note when you are using any new function, you should add it to data structure
+ * run_util_command in events.c.
+ */
+struct wait_id run_util(struct events* events, command_callback_t callback, post_fork_callback_t post_fork, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, const char *function, ...) __attribute__((nonnull(1, 2)));
+struct wait_id run_util_a(struct events* events, command_callback_t callback, post_fork_callback_t post_fork, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, const char *function, const char **params) __attribute__((nonnull(1, 2)));
 
 /*
  * A callback called after download finished.

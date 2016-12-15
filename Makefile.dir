@@ -4,6 +4,9 @@ LUA_NAME := $(shell for lua in lua5.1 lua-5.1 lua51 lua ; do if pkg-config $$lua
 VALGRIND:=IN_VALGRIND=1 valgrind --leak-check=full --show-leak-kinds=all --track-fds=yes --trace-children=no --child-silent-after-fork=yes --error-exitcode=1
 # For picosat, it otherwise needs some headers not available on musl for a feature we don't need. And we need trace enabled.
 EXTRA_DEFINES := NGETRUSAGE TRACE UPDATER_VERSION='"$(UPDATER_VERSION)"'
+ifdef BUSYBOX_EXEC
+EXTRA_DEFINES += BUSYBOX_EMBED
+endif
 
 include $(S)/build/Makefile.top
 

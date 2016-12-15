@@ -39,6 +39,7 @@ local getcwd = getcwd
 local mkdtemp = mkdtemp
 local chdir = chdir
 local run_command = run_command
+local run_util = run_util
 local events_wait = events_wait
 local stat = stat
 local lstat = lstat
@@ -426,11 +427,11 @@ function pkg_unpack(package, tmp_dir)
 	local err
 	-- Unpack the ipk into s1dir, getting control.tar.gz and data.tar.gz
 	local function stage1()
-		events_wait(run_command(function (ecode, _, _, stderr)
+		events_wait(run_util(function (ecode, _, _, stderr)
 			if ecode ~= 0 then
 				err = "Stage 1 unpack failed: " .. stderr
 			end
-		end, function () chdir(s1dir) end, package, cmd_timeout, cmd_kill_timeout, "/bin/sh", "-c", "/bin/gzip -dc | /bin/tar x"))
+		end, function () chdir(s1dir) end, package, cmd_timeout, cmd_kill_timeout, "sh", "-c", "gzip -dc | tar x"))
 		-- TODO: Sanity check debian-binary
 		return err == nil
 	end
@@ -438,11 +439,11 @@ function pkg_unpack(package, tmp_dir)
 	local function unpack_archive(what)
 		local archive = s1dir .. "/" .. what .. ".tar.gz"
 		local dir = s2dir .. "/" .. what
-		return run_command(function (ecode, _, _, stderr)
+		return run_util(function (ecode, _, _, stderr)
 			if ecode ~= 0 then
 				err = "Stage 2 unpack of " .. what .. " failed: " .. stderr
 			end
-		end, nil, package, cmd_timeout, cmd_kill_timeout, "/bin/sh", "-c", "mkdir -p '" .. dir .. "' && cd '" .. dir .. "' && /bin/gzip -dc <'" .. archive .. "' | /bin/tar xp")
+		end, nil, package, cmd_timeout, cmd_kill_timeout, "sh", "-c", "mkdir -p '" .. dir .. "' && cd '" .. dir .. "' && gzip -dc <'" .. archive .. "' | tar xp")
 	end
 	local function stage2()
 		events_wait(unpack_archive("control"), unpack_archive("data"))
@@ -454,11 +455,11 @@ function pkg_unpack(package, tmp_dir)
 	local events = {}
 	local function remove(dir)
 		-- TODO: Would it be better to remove from within our code, without calling rm?
-		table.insert(events, run_command(function (ecode, _, _, stderr)
+		table.insert(events, run_util(function (ecode, _, _, stderr)
 			if ecode ~= 0 then
 				WARN("Failed to clean up work directory ", dir, ": ", stderr)
 			end
-		end, nil, nil, cmd_timeout, cmd_kill_timeout, "/bin/rm", "-rf", dir))
+		end, nil, nil, cmd_timeout, cmd_kill_timeout, "rm", "-rf", dir))
 	end
 	-- Intermediate work space, not needed by the caller
 	remove(s1dir)
@@ -503,7 +504,7 @@ function pkg_examine(dir)
 				err = stderr
 			end
 		end
-		local event = run_command(cback, function () chdir(data_dir) end, nil, cmd_timeout, cmd_kill_timeout, ...)
+		local event = run_util(cback, function () chdir(data_dir) end, nil, cmd_timeout, cmd_kill_timeout, ...)
 		table.insert(events, event)
 	end
 	local function find_result(text)
@@ -515,9 +516,9 @@ function pkg_examine(dir)
 	end
 	local files, dirs
 	-- One for non-directories
-	launch(function (text) files = slashes_sanitize(find_result(text)) end, "/usr/bin/find", "!", "-type", "d", "-print0")
+	launch(function (text) files = slashes_sanitize(find_result(text)) end, "find", "!", "-type", "d", "-print0")
 	-- One for directories
-	launch(function (text) dirs = slashes_sanitize(find_result(text)) end, "/usr/bin/find", "-type", "d", "-print0")
+	launch(function (text) dirs = slashes_sanitize(find_result(text)) end, "find", "-type", "d", "-print0")
 	-- Get list of config files, if there are any
 	local control_dir = dir .. "/control"
 	local cidx = io.open(control_dir .. "/conffiles")
@@ -932,10 +933,10 @@ function pkg_merge_control(dir, name, files)
 			WARN("Control file " .. fname .. " is not a file, skipping")
 		else
 			DBG("Putting control file " .. fname .. " into place")
-			table.insert(events, run_command(function (ecode, _, _, stderr)
+			table.insert(events, run_util(function (ecode, _, _, stderr)
 				ec = ecode
 				err = stderr
-			end, nil, nil, cmd_timeout, cmd_kill_timeout, "/bin/cp", "-Lpf", dir .. "/" .. fname, info_dir .. "/" .. name .. '.' .. fname))
+			end, nil, nil, cmd_timeout, cmd_kill_timeout, "cp", "-Lpf", dir .. "/" .. fname, info_dir .. "/" .. name .. '.' .. fname))
 		end
 		if ec ~= 0 then
 			error(err)

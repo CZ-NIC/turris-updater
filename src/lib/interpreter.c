@@ -282,7 +282,7 @@ static void push_wid(lua_State *L, const struct wait_id *id) {
 	lua_setmetatable(L, -2);
 }
 
-static int lua_run_command(lua_State *L) {
+static int lua_run_generic(lua_State *L, bool utils) {
 	// Flush the lua output (it seems to buffered separately)
 	do_flush(L, "stdout");
 	do_flush(L, "stderr");
@@ -296,7 +296,10 @@ static int lua_run_command(lua_State *L) {
 	int term_timeout = luaL_checkinteger(L, 4);
 	int kill_timeout = luaL_checkinteger(L, 5);
 	const char *command = luaL_checkstring(L, 6);
-	DBG("Command %s", command);
+	if (utils) {
+		DBG("Util command %s", command);
+	} else
+		DBG("Command %s", command);
 	// The rest of the args are args for the command ‒ get them into an array
 	const size_t arg_count = lua_gettop(L) - 6;
 	const char *args[arg_count + 1];
@@ -314,10 +317,22 @@ static int lua_run_command(lua_State *L) {
 	const char *input = NULL;
 	if (lua_isstring(L, 3))
 		input = lua_tolstring(L, 3, &input_size);
-	struct wait_id id = run_command_a(events, command_terminated, command_postfork, data, input_size, input, term_timeout, kill_timeout, command, args);
+	struct wait_id id;
+	if (utils)
+		id = run_util_a(events, command_terminated, command_postfork, data, input_size, input, term_timeout, kill_timeout, command, args);
+	else
+		id = run_command_a(events, command_terminated, command_postfork, data, input_size, input, term_timeout, kill_timeout, command, args);
 	push_wid(L, &id);
 	// Return 1 value ‒ the wait_id
 	return 1;
+}
+
+static int lua_run_command(lua_State *L) {
+	return lua_run_generic(L, false);
+}
+
+static int lua_run_util(lua_State *L) {
+	return lua_run_generic(L, true);
 }
 
 struct lua_download_data {
@@ -472,7 +487,7 @@ static int lua_move(lua_State *L) {
 	struct events *events = extract_registry(L, "events");
 	ASSERT(events);
 	struct mv_result_data mv_result_data = { .err = NULL };
-	struct wait_id id = run_command(events, mv_result, NULL, &mv_result_data, 0, NULL, -1, -1, "/bin/mv", "-f", old, new, (const char *)NULL);
+	struct wait_id id = run_util(events, mv_result, NULL, &mv_result_data, 0, NULL, -1, -1, "mv", "-f", old, new, (const char *)NULL);
 	events_wait(events, 1, &id);
 	if (mv_result_data.status) {
 		lua_pushfstring(L, "Failed to move '%s' to '%s': %s (ecode %d)", old, new, mv_result_data.err, mv_result_data.status);
@@ -722,6 +737,7 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_state_log_enabled, "state_log_enabled" },
 	{ lua_state_dump, "state_dump" },
 	{ lua_run_command, "run_command" },
+	{ lua_run_util, "run_util" },
 	{ lua_download, "download" },
 	{ lua_events_wait, "events_wait" },
 	/*
