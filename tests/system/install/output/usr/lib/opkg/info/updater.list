@@ -1,11 +1,11 @@
-/usr/share/updater/keys/standby.pem
+/etc/config/updater
 /etc/init.d/updater
 /etc/ssl/updater.pem
-/usr/bin/updater-unstuck.sh
-/usr/bin/updater-wipe.sh
 /usr/bin/updater-resume.sh
-/etc/config/updater
+/usr/bin/updater.sh
+/usr/bin/updater-unstuck.sh
+/usr/bin/updater-utils.sh
+/usr/bin/updater-wipe.sh
 /usr/bin/updater-worker.sh
 /usr/share/updater/keys/release.pem
-/usr/bin/updater-utils.sh
-/usr/bin/updater.sh
+/usr/share/updater/keys/standby.pem
