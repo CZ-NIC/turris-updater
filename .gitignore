@@ -1,0 +1,30 @@
+# Directories with some compilation products
+/docs/
+/bin/
+/lib/
+/.deps/
+/.objs/
+/.gen/
+/.lua_coverage/
+# The desired results
+*.html
+*.so
+/src/opkg-trans/opkg-trans
+/src/pkgupdate/pkgupdate
+/src/migrator/pkgmigrate
+# Some stuff for debugging
+/.coverage.info
+/coverage/
+# Stuff dump core all over the place.
+core
+vgcore.*
+# Development
+tags
+.tags
+.ycm_extra_conf.py
+.ycm_extra_conf.pyc
+# Test stuff
+tests/check-compiled
+tests/luacheck-compiled
+tests/arguments
+testdir

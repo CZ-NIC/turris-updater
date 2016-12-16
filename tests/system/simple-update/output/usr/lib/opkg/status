@@ -1,0 +1,15 @@
+Package: test-package
+Version: 2
+Depends: dep-package
+Status: install user installed
+Architecture: all
+Conffiles:
+ /etc/test/better-test-config caf8e11c60290080a1182ecc9b3f8c73dd520084421a4ffe3002bfdec7d11008
+Installed-Time: 0
+
+Package: dep-package
+Version: 1
+Status: install user installed
+Architecture: all
+Installed-Time: 0
+

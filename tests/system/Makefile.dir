@@ -1,0 +1,48 @@
+
+TRANS_SYS_TESTS := \
+	help \
+	install \
+	remove \
+	remove-nonexistent \
+	reboot-recover
+
+UPD_SYS_TESTS := \
+	plan \
+	plan-unapproved \
+	steal-confs \
+	simple-update \
+	multiple-repos \
+	pkg-content \
+	reboot \
+	provides \
+	abi-change \
+	replan
+
+MIGRATE_SYS_TESTS := \
+	auto-migrate-pkgs
+
+.PHONY: test-sys valgrind-sys check
+
+check: test-sys valgrind-sys
+
+# As secondary tool we use pkgupdate in reboot-recover test
+test-sys-opkg-trans-reboot-recover: $(O)/bin/pkgupdate
+valgrind-sys-opkg-trans-reboot-recover: $(O)/bin/pkgupdate
+
+define DO_SYS_TEST
+
+test-sys: test-sys-$(1)-$(2)
+valgrind-sys: valgrind-sys-$(1)-$(2)
+.PHONY: test-sys-$(1)-$(2) valgrind-sys-$(1)-$(2)
+
+test-sys-$(1)-$(2): $(O)/bin/$(1)
+	LAUNCHER= S=$(S) O=$(abspath $(O)) $(S)/tests/system/run $(1) $(S)/tests/system/$(2)
+
+valgrind-sys-$(1)-$(2): $(O)/bin/$(1)
+	LAUNCHER="$(VALGRIND)" S=$(S) O=$(abspath $(O)) $(S)/tests/system/run $(1) $(S)/tests/system/$(2)
+
+endef
+
+$(eval $(foreach TEST,$(TRANS_SYS_TESTS),$(call DO_SYS_TEST,opkg-trans,$(TEST))))
+$(eval $(foreach TEST,$(UPD_SYS_TESTS),$(call DO_SYS_TEST,pkgupdate,$(TEST))))
+$(eval $(foreach TEST,$(MIGRATE_SYS_TESTS),$(call DO_SYS_TEST,pkgmigrate,$(TEST))))

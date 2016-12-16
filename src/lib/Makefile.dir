@@ -1,0 +1,42 @@
+LIBRARIES += src/lib/libupdater
+
+$(O)/.gen/src/%.embedlist: $(S)/src/lib/gen_embed.sh $(S)/src/lib/embed_types.h
+	$(M) GEN $@
+	$(Q)mkdir -p $(dir $@)
+	@# The filter-out leaves embed_types.h in. But this one is used by the script (not to be embedded, though, it's a different kind of parameter than the rest of them).
+	$(Q)$< "$(SUFFIX)" $(basename $(notdir $@)) $(abspath $(filter-out $<, $^)) >$@
+
+$(O)/.gen/src/lib/lautoload.embedlist: $(wildcard $(S)/src/lib/autoload/*.lua)
+$(O)/.gen/src/lib/lautoload.embedlist: SUFFIX := .lua
+
+$(O)/.gen/src/lib/lcoverage.embedlist: $(S)/src/lib/coverage.lua
+$(O)/.gen/src/lib/lcoverage.embedlist: SUFFIX := .lua
+
+libupdater_MODULES := \
+	arguments \
+	inject \
+	interpreter \
+	lautoload.embed \
+	embed_types \
+	events \
+	journal \
+	locks \
+	picosat \
+	util
+ifdef COV
+libupdater_MODULES += lcoverage.embed
+endif
+
+libupdater_MODULES_3RDPARTY := \
+	md5 \
+	sha256 \
+	picosat-960/picosat
+
+libupdater_PKG_CONFIGS := $(LUA_NAME) libevent
+# Workaround, lua.pc doesn't containd -ldl, even when it uses dlopen
+libupdater_SO_LIBS += dl
+
+LIB_DOCS := \
+	journal \
+	objects
+DOCS += $(addprefix src/lib/,lua_funcs $(LIB_DOCS))

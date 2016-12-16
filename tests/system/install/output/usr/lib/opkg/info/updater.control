@@ -1,0 +1,9 @@
+Package: updater
+Version: 129
+Depends: libc, vixie-cron, openssl-util, libatsha204, curl, cert-backup, opkg, bzip2, cznic-cacert-bundle
+Source: feeds/turrispackages/cznic/updater
+Section: opt
+Maintainer: Michal Vaner <michal.vaner@nic.cz>
+Architecture: mpc85xx
+Installed-Size: 14773
+Description:  updater

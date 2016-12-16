@@ -1,0 +1,6 @@
+return {
+	["/path"] = {
+		["a"] = "hello",
+		["b"] = "hi"
+	}
+}

@@ -1,0 +1,23 @@
+#!/bin/bash
+# Usage: Just start this script in directory where you have all your packages
+
+# At beginning remove previous Packages.gz
+if [ -f Packages.gz ]; then rm Packages.gz; fi
+
+touch Packages
+for PKG in `ls *.ipk`; do
+	tar -xzf $PKG ./control.tar.gz
+	tar -xzf control.tar.gz ./control
+	rm control.tar.gz
+
+	DESCLINE=`grep -nE "^Description:" control | grep -oE "^[0-9]+"`
+	sed "$DESCLINE,\$d" control >> Packages
+	echo "Filename: $PKG" >> Packages
+	echo "MD5Sum: $(md5sum $PKG | awk '{print $1}')" >> Packages
+	echo "SHA256sum: $(sha256sum $PKG | awk '{print $1}')" >> Packages
+	sed "1,$(expr $DESCLINE - 1)d" control >> Packages
+
+	rm control
+done
+
+gzip Packages

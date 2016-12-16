@@ -1,0 +1,25 @@
+#!/bin/sh /etc/rc.common
+
+START=85
+
+status() {
+	return 0
+}
+
+start() {
+	# If journal recovery is successful then updater should be run again because
+	# it might not be finished because of replan package option.
+	opkg-trans -s dbg -j && updater.sh || true
+}
+
+stop() {
+	:
+}
+
+restart() {
+	:
+}
+
+reload() {
+	:
+}

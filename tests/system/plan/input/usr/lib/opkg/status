@@ -1,0 +1,6 @@
+Package: pkg
+Version: 1
+Depends: libc
+Status: install user installed
+Architecture: mpc85xx
+Installed-Time: 0

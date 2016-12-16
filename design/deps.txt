@@ -1,0 +1,173 @@
+Dependency computation
+======================
+
+We use a SAT solver to compute which packages and in what versions
+should be installed. We do so in phases and at the end we know the
+result (or that the requirements are so broken we can't do anything
+about them).
+
+The SAT construction
+--------------------
+
+The formula describes dependencies between packages. This is derived
+from the repository indices (and `Package` commands, if they are
+present), but it doesn't yet consider what packages the user requests
+to be installed.
+
+We provide several kinds of variables:
+
+* A variable for each package name that exists. Also, there include
+  virtual packages and „provided“ packages (eg. if a package has a
+  „Provides“ header).
+* A variable for each package candidate that can be installed. These
+  usually correspondent one to one with the package names. However, in
+  case of multiple repositories, a package can have multiple
+  candidates ‒ multiple versions or source repositories. We are
+  interested in the final values of these variables.
+* Request variables. In case the configuration specifies a certain
+  version or versions of a package to install, we add a variable for
+  such request (and add corresponding dependencies on the candidates).
+  In case of installation request by a name only we use the package
+  name variable directly. We do similar thing for
+  version-dependencies.
+* Auxiliary variables. As there may be complex dependencies, it is
+  easier to use something like Tseytin transformation ‒ have a
+  „result“ variable for each `Or`, `And` and `Not` operator.
+* Penalty variables. When we choose from multiple options, we want to
+  prefer some based on local criteria. These variables are added to
+  these choices and are forced to false whenever a non-optimal choice
+  needs to be done. By preferring these variables to be true, we
+  prefer the better choices.
+
+Further, we describe the relations. The SAT solver takes CNF, but we
+describe the relations as other relations besides disjunctions here.
+They are easy enough to convert and this way it is more readable.
+
+Each package candidate implies corresponding package name (eg.
+`!C∨N`). In the other direction, a package name requires at least one
+candidate, therefore we get `!N∨C₁∨C₂…`. Furthermore, at most one
+version of each package can be installed, so for each pair of
+candidates of the same package we generate `!C₁∨!C₂`. This is not the
+case for two packages „providing“ the same thing (they may block each
+other, but that doesn't happen implicitly).
+
+The request variables are handled in the same way as package names,
+with the exception of their dependency candidates blocking each other.
+
+Eventually we need to add the dependencies. As each package candidate
+has its own dependencies, they are handled on the candidate variables.
+Each dependency on a package without version is an implication to the
+package name variable. Each dependency with version is handled with a
+request variable.
+
+The complex dependencies are handled by adding the corresponding
+variables. The values are forced to correspond to the values of
+subexpressions.
+
+We add a penalty variable to each `Or` that is forced to false if
+another but first option is selected (this is different than not
+selecting the first one, as it may be possible to choose both).
+
+We also penalize any candidates that are not latest. We add a penalty
+variable for each not latest candidate. We also imply from the older
+penalty variables to the newer ones, so we can express that version 1
+is even less preferred than version 2 (which is worse than version 3).
+
+We can consider package blocking as a `And(Not(*), Not(*), …)`.
+
+[NOTE]
+This SAT formula must be satisfiable, at least by not having
+any package installed.
+
+[NOTE]
+As we don't know in advance what request variables we may need, we may
+need to construct them as we go through the creation process and
+possibly the further the phases. This is not a real problem, but it is
+still easier to consider them pre-created in the description of the
+following phases.
+
+The critical packages
+---------------------
+
+We go through the `Install` requests and note any packages that are
+marked as „critical“. We then fix these package name variables to
+positive values (we can fix a variable value by inserting a singleton
+clause). Then we check the satisfiability of the formula. If it is not
+satisfiable, the base/critical system can't be installed and we refuse
+to continue.
+
+[NOTE]
+This is a slight simplification, since the package criticality
+can be restricted to certain versions. But for now, we don't care, if
+any candidate of a package is considered critical and such package
+name is requested to be installed, we consider it critical.
+
+`Install` and `Uninstall` requests
+----------------------------------
+
+After partitioning the requests into groups with the same priority we
+start with the highest priority. For each group we take the
+corresponding package name and request variables and assume them to be
+positive or negative (depending on if it is `Install` or `Uninstall`
+request respectively). If the group contains an `Install` and
+`Uninstall` request of the same variable, we refuse this input as
+invalid.
+
+With the variable values assumed we check satisfiability. If it is
+satisfiable, everything is fine. If not, we ask for the largest
+satisfiable subset of the assumptions. We then fix the satisfiable
+assumptions.
+
+After fixing the satisfiable variables, we move on to the next highest
+priority group.
+
+At the end of this phase we have determined all the requests we can
+satisfy and fixed them. We also can produce warnings about which
+requests we were unable to meet.
+
+Package versions & alternatives
+-------------------------------
+
+We choose the `Or`-alternatives and candidates by using the penalty
+variables. We first choose the `Or`-alternatives. We try to assume all
+the `Or`-penalty variables are true, and fix them (or the maximal
+satisfiable subset, if it can't be done). We do the same with the
+candidates penalty variables.
+
+[NOTE]
+We currently computed which versions of packages will *not*
+be installed. It still says nothing about which packages we need.
+
+Package selection
+-----------------
+
+The last part is to choose which package candidates we actually want.
+We take all the ones that were not fixed yet and assume them to be
+false. This will result in unsatisfiable problem (at least in the case
+the user requests at least one package). But by examining which
+packages are not in the maximum satisfiable subset of assumptions we
+know which candidates need to be installed.
+
+Deterministic results
+---------------------
+
+In case not all results can be satisfied or when there are alternative
+dependencies, there may be multiple possible solutions. We don't want
+„flipping“, when the chosen result would be different each time and we
+would modify the list of installed packages every run.
+
+Therefore we make sure that the produced SAT problem is exactly the
+same every time, including the order of variables, packages,
+assumptions, etc. We do so by first sorting all inputs.
+
+[NOTE]
+There's a function to set seed in the SAT solver. If it turns out it
+computes different things every time, we may need to set the seed to
+constant value.
+
+[NOTE]
+We still might want to improve this further, so the solver prefers
+already existing or close solution. But that is something to think
+about later. We may do that by choosing all the maximal satisfiable
+sets and picking the lexicographically smallest, or something like
+that.

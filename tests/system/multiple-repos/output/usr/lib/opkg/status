@@ -1,0 +1,18 @@
+Package: test3
+Version: 1
+Status: install user installed
+Architecture: all
+Installed-Time: 0
+
+Package: test1
+Version: 1
+Status: install user installed
+Architecture: all
+Installed-Time: 0
+
+Package: test2
+Version: 1
+Status: install user installed
+Architecture: all
+Installed-Time: 0
+

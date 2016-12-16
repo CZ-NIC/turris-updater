@@ -1,0 +1,3 @@
+Repository "test" "file://%ROOT_DIR%/repo"
+Install "dnsmasq-dhcpv6"
+Install "dropbear"

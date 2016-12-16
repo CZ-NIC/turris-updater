@@ -1,0 +1,10 @@
+BINARIES += src/migrator/pkgmigrate
+
+# Borrow the file from there. But for now, we embed just this one.
+$(O)/.gen/src/migrator/uriinternal.embedlist: $(S)/src/pkgupdate/internal/entry.lua
+
+pkgmigrate_MODULES := \
+	main \
+	uriinternal.embed
+
+pkgmigrate_LOCAL_LIBS := updater

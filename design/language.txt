@@ -1,0 +1,766 @@
+The updater language
+====================
+
+This document is about the language describing specific update
+scenarios. It is the core configuration language of the updater
+itself, listing which packages should be installed, where they come
+from and any special quirks needed for specific situations. Other ways
+of configuring are possible (like command line requests to install
+some packages, or listing things in UCI file), but these are usually
+implemented in this language.
+
+The language is, strictly speaking, ordinary Lua (currently the
+supported version of Lua on OpenWRT is 5.1, but there should be very
+little difference in what we use). Just the set of functions available
+is limited to the functions listed here.
+
+Note that using conditions, loops and variables is fully supported
+and sometimes desirable.
+
+Security levels
+---------------
+
+There are different security levels of the scripts used.  The security
+level may further limit the set of commands and the abilities of given
+commands. This is to ensure the server may never send malicious
+commands covertly (it still can send version of package that contains
+the malicious code, but that's impossible to prevent with
+an auto-updater, but it would at least have to notify about the
+package being installed).
+
+Security levels are:
+
+Full::
+  The Lua code is not run in any sandbox at all. All functions here
+  work without any limits. Also, all Lua libraries are available
+  without any limitation and further Lua code can be required
+  (including compiled `.so` modules). This is what the internals of the
+  updater would be built in.
+Local::
+  It is possible to reference local files and directories as further
+  configuration scripts. It is possible to read UCI configuration and
+  execute arbitrary shell commands.
+Remote::
+  The functions may reference only other remote resources, not local
+  ones. Reading UCI config is not possible.
+Restricted::
+  It is possible to further restrict the entities referenced to a
+  string match (eg. ensure that it comes from a given server). Access
+  to flag storage is restricted only to flags belonging to the current
+  script and scripts it references.
+
+No function allows raising the security level when referencing another
+script.
+
+Each script runs with its own environment ‒ they don't see each
+other's variables.
+
+Order of execution
+------------------
+
+The scripts are executed in the order they are referenced, in DFS
+order. A referenced script is first fully executed (with its
+sub-scripts) before the current script continues. In that sense, it
+works similar to any other scripting language `include` command.
+
+However, the execution of the script does not include installation of
+packages. That happens after all the scripts terminated. The scripts
+simply describe in what situation the OS should be.
+
+It is possible to hook some functions in between (after, before)
+installation of packages, or even between installation and
+configuration.
+
+Script names
+------------
+
+Each script has a name. The names form a tree structure and are used
+to namespace various kinds of information, most importantly flag
+storage.
+
+Having two scripts of the same full name is an error. The name of the
+script may be the same if it is referenced from different scripts.
+
+The names are separated by a slash. The top-level built in script has
+an empty name, but it doesn't store any information, only references
+other scripts.
+
+A script may reference other scripts by the names. An empty string
+means itself. Names starting with slash are absolute ‒ they start from
+the top-level script. Other names are relative and refer to
+sub-scripts.
+
+This is similar to filesystem paths. However, the `.` and `..` names
+are not supported here.
+
+URIs
+----
+
+Sometimes, an entity needs to be referenced somehow. Such entity may
+live in the local filesystem or be on an external server.
+
+These are the types of URIs supported:
+
+* `file://`
+* `http://`
+* `https://`
+* `data:`
+* `internal:`
+
+The remote ones (`http` and `https`) may need verification of the
+integrity of its content. The other are considered secure and don't
+need any kind of verification.
+
+The `data:` is slightly limited compared to what the standard (RFC
+2397) allows. The media type and charset are irrelevant to the
+updater and are therefore not supported.
+
+The `internal:` URI is a non-standard scheme. The updater may contain
+compiled-in resources (embedded files). Each such resource has a
+unique name. The `internal:` scheme accesses these embedded files. The
+colon is directly followed by the name.
+
+Scripts with access level of `remote` or lower are not allowed to use
+the `file://` and `internal:` schemes.
+
+Verification
+------------
+
+It is desirable to verify that the scripts and repository indices
+weren't tampered with. It isn't needed to verify the packages (unless
+they are stand-alone without repository), because the repository index
+contains hashes of the packages.
+
+There are two things we may verify. The server certificate (with the
+`https` schema) and the file signature.
+
+Each command that takes an URI as a parameter can have following extra
+options:
+
+verification::
+  This specifies how the resource is verified. Possible values are
+  (case insensitive):
+  none;;
+    Doesn't do any verification. This is the default for `file://`,
+    `data://` and `internal://` URIs.
+  cert;;
+    Verify the server's SSL certificate.
+  sig;;
+    Verify file signature. This is the default for `http://` URIs.
+  both;;
+    Do both `cert` and `sig` verification. This is the default for
+    `https://` URIs.
+sig::
+  URI where the signature of the resource lives. This one is not
+  verified. If it isn't specified, it is constructed by adding `.sig`
+  to the end of the verified URI. The option has effect only with
+  `sig` and `both` verification.
+pubkey::
+  An URI or table of URIs with trusted public signature keys. These
+  are not verified (therefore it is recommended to come from a already
+  verified source ‒ like `data:` URI or `file://` URI). If it is not
+  specified, it is inherited from the verification of the script
+  running the command. While it has no direct effect if the option is
+  specified on another verification than `sig` or `both`, it
+  influences the inheritance.
+ca::
+  An URI or table of URIs with trusted SSL certificate authorities, in
+  PEM format. Similar notes as with `pubkey` apply.
+crl::
+  An URI or table of URIs with CRLs relevant to the server. If not
+  set, CRL is not checked. Note that the `crl` field is also
+  inherited, therefore you may want to reset it manually to nil.
+
+The file signature is verified using the `usign` utility.
+
+Note that while a `remote` or `restricted` script may not specify
+local (`file://` and `internal:`) URIs, it may inherit them.
+
+Dependency description
+----------------------
+
+Package dependencies are very important part of package maintenance.
+Therefore, it is possible to describe them in the updater.
+
+A dependency might be one of:
+
+string::
+  The string is parsed the same way as from the OpenWRT packages.
+  Dependencies are separated by commas, each ``word'' meaning a single
+  dependency.  The dependencies can also use versions with relational
+  operators.  The version with the operator is in parentheses after
+  the name of the package (eg `kernel (=version-number)`, `openssl
+  (>=1.0.0)`). As an extension, the operator `~` may be used to denote
+  a lua string pattern match on the version. All dependencies and
+  version restrictions must be met.
+package handle::
+  A concrete package, represented by the result of the `Package`
+  command may be used directly.
+table::
+  The table shall contain multiple sub-dependencies. Each one must be
+  met. The sub-dependency may be of any type (string, other table,
+  package handle, `Or()`, `Not()`).
+`Not(string)`::
+  This denotes that a single package described by the string must not
+  be present on the system. This may be used if two packages ``fight''
+  over the same file, or when they provide colliding services (both
+  are DNS servers, for example).
+`Or(dep, dep, ...)`::
+  Each `dep` argument is a dependency of any type. The whole `Or()` is
+  fulfilled when at least one of the argument is fulfilled. When
+  multiple options are possible, the leftmost of them is preferred.
+
+Available commands
+------------------
+
+Most of the commands can be called in parenthesis mode, eg:
+
+  Command("string", "string", {param = 1})
+
+Or in a parentheses-less mode:
+
+  Command "string" "string" {param = 1}
+
+This is done by a trick with metatables returns a delayed morpher
+object. It should be mostly invisible most of the time, though. The
+result may be used as a handle to the created object and manipulate it
+further.
+
+Also, most of the commands start with a capital letter, since they act
+as constructors.
+
+Script
+~~~~~~
+
+  script = Script "script-name" "uri" { extra }
+
+This command runs another script. The name is the local part of the
+script name.
+
+The uri provides the location of the script.
+
+The last parameter is a table with extra information. It allows
+fine-tuning the verification of URI and the way the script runs. The
+current extra parameters are following.
+
+security::
+  Security level on which the script runs. It shall contain one of the
+  above values. The name is case insensitive. It is not possible to
+  raise the level, such attempt is reported as an error. If not
+  specified, the level is deduced from the URI. If the URI is remote,
+  it doesn't go above `remote`, otherwise it doesn't go above `local`.
+restrict::
+  If the level is `restricted`, this is the match for URIs that may be
+  referenced. If the level is `restricted` and this is not specified,
+  a match for the protocol and hostname is constructed. It has no
+  effect with higher security levels.
+ignore::
+  Ignore certain errors. If they happen, don't process such script,
+  but continue with the rest. This is a lua table with strings, each
+  one specifying a category of erorrs to ignore.
+  missing;;
+    If the script can't be found.
+  integrity;;
+    Some signatures don't match.
+verification::
+sig::
+pubkey::
+ca::
+crl::
+  Options to verify the script integrity.
+
+Repository
+~~~~~~~~~~
+
+  repository = Repository "repository-name" "uri" { extra }
+
+This command introduces another repository of packages. The name may
+be used as a reference from other commands and is used in error
+messages. However, every place where the name may be used, the result
+of the command may be used instead. It is legal to have multiple
+repositories with the same name, but referencing it by name may
+produce any of them. Referencing by the result is reliable.
+
+The URI is expected to contain an OpenWRT repository in the format
+produced by the buildroot.
+
+Extra parameters are:
+
+subdirs::
+  If the URI contains multiple subdirectories, each one being a valid
+  repository, you may list the subdirectories here (as a lua table of
+  strings). The repository will unify all the subdirectory contents
+  together to form one huge repository. In case of collision of
+  packages between the subdirectories, the first one containing a
+  given package wins (in the order listed here). If this option is not
+  listed, the repository acts in normal way (the URI directly
+  containing the packages).
+index::
+  Overrides the URI at which the repository index lives and uses the
+  main URI as the place where packages are downloaded from. Both
+  gzipped and plain versions may be in the given URI. If the option is
+  not listed, it is expected to be in `Packages.gz`. Overriding the
+  URI is not compatible with the subdirs option.
+ignore::
+  Ignore certain errors. This is a lua table with strings, each
+  specifying a category of errors to ignore. If there's an error
+  ignored, the repository acts as being empty. Otherwise, such error
+  would cause the updater to stop.
+  missing;;
+    This error happens if the repository is not found. This can mean,
+    for example, that the `https` URI where the index
+    (`https://example.org/repository/Packages.gz`) returns 404.
+    However, a missing package from the repository is not this kind of
+    error (and cannot be ignored, because it is discovered late after
+    planning what to install).
+  integrity;;
+    This is when the integrity verification/signature check fails.
+    This may be caused by manipulation with the content, or by missing
+    a key on our side.
+  syntax;;
+    It happens when the repository index can not be parsed because of
+    syntax errors.
+priority::
+  In case of a package being available in multiple directories, the
+  package is taken from the repository with highest priority. In case
+  of equality, the one introduced first wins. The default when the
+  option is not specified is 50. The number must be an integer between
+  0 and 100.
+verification::
+sig::
+pubkey::
+ca::
+crl::
+  Options to verify the index integrity.
+
+Uninstall
+~~~~~~~~~
+
+  Uninstall "package" "package" { extra } "package" "package" { extra }
+
+This command takes multiple package names. It ensures none of the
+packages is installed.
+
+Note that this is not needed most of the time, since unneeded packages
+are removed automatically.
+
+Extra options modify the packages preceding them, but only up to the
+previous extra options block. Therefore, the first two packages in the
+example are modified by the first extra options block, the third and
+fourth by the second block.
+
+priority::
+  In case of colliding requirements (the same package is required by
+  an ``Install`` command or as a dependency of something), the
+  requirement with the higher priority wins. In case of a draw, an
+  error is reported. The priority defaults to 50 and must be between 0
+  and 100.
+
+Install
+~~~~~~~
+
+  Install "package" "package" { extra } "package" "package" { extra }
+
+This command is the opposite of `Uninstall`. It requires that a
+package be present in the system.
+
+The resolving of extra options acts the same as with `Uninstall`.
+
+Available extra options:
+
+priority::
+  Acts the same as with `Uninstall`.
+version::
+  Limits the considered versions. This may be a single string or a
+  table with multiple strings. If there are multiple, each is
+  considered a condition and all must pass for a version to be
+  accepted. Using of operators `<`, `<=`, `>`, `>=` is possible. Also,
+  if the version is prefixed with `~`, it acts as a lua string match
+  pattern against the version. So this would accept versions between 3
+  and 7 and ignore the `.0` ones: `{ ">=3.0", "<=7.0", "~^%d+%.[1-9]%d*" }`.
+  The default is no condition, therefore all versions available pass.
+  From the versions that match and satisfy all dependency
+  requirements, the one with highest version is chosen. In case when
+  no available version matches, the currently installed version is
+  also considered as a fallback.
+repository::
+  Usually, all repositories are searched according to their
+  priorities. If you specify this option as a lua table, only the
+  repositories listed here are searched, in the order in the table
+  (ignoring the global priority).
+reinstall::
+  When set to any value, the package is re-installed even if the
+  chosen version is already installed.
+critical::
+  If set to any value, the package and all its dependencies are
+  considered critical. The updater will try harder to have it in a
+  consistent state or be able to at least fix it without access to
+  network. Other packages may stop working if the update is
+  interrupted at the wrong time (for example by a power outage), but
+  would be fixed by another finished updater run.
+ignore::
+  Ignore certain errors regarding the installation request. Note that
+  errors related to the package itself are modified by the `Package`
+  command. This takes an array of strings, each string represents one
+  category of errors to ignore.
+  missing;;
+    Don't fail on the package not being available. The package
+    wouldn't be installed if not available, but the run of the updater
+    wouldn't be aborted.
+
+Note that a package may be required to be installed or uninstalled
+multiple times (for example by multiple scripts). All such
+requirements are tried to be met (eg. by unifying the version options,
+etc).
+
+Package
+~~~~~~~
+
+  package = Package "name" { extra }
+
+This command allows amending a package from a repository. It allows
+for adding dependencies (even negative or alternative dependencies).
+It allows for specifying hooks ‒ functions that are run at specific
+times. It also allows creation of virtual packages ‒ a package that
+doesn't really exist, but can participates in the dependency computation.
+
+A package may be amended multiple times. Each time the options are
+merged into the package options.
+
+The result may be used instead of a package name in the dependencies
+of other packages and in `Install` and `Uninstall` commands.
+
+Also, the name parameter is optional. If it is omitted (either
+specified as nil or just left out), an unique name is generated. This
+is useful only for virtual packages.
+
+The options are:
+
+virtual::
+  If set to any value, the package is virtual. If a real package of
+  the same name exists, an error is reported.
+deps::
+  Additional dependencies for the package. The dependencies are merged
+  together as if all the sources were put into a table (eg. all of
+  them must be fulfilled). There's no way to remove dependencies.
+order_after::
+order_before::
+  Usually, all dependencies of a package are installed before the
+  package. Sometimes, it may be desirable to break this order and
+  these options allow that. Both of them list packages after or before
+  which the current package shall be installed, in a table. This
+  allows breaking dependency cycles. These options are mere hint, the
+  updater may decide to not follow them if it is not possible to
+  satisfy. Note that this has effect only on running the pre_* and
+  post_* scripts and hooks, since all the files of all updated
+  packages are merged into the system together.
+pre_*::
+post_*::
+  A hook to be run after or before a step. The value may be a single
+  function or a table of functions. All the functions (from the table
+  or merged from multiple `Package` commands) are run, in unspecified
+  order. TODO: List the steps and what commands may be used inside the
+  functions.
+reboot::
+  A reboot is needed when installing the package. The reboot is
+  scheduled according to the value.
+  delayed;;
+    The package needs a reboot for the new version to take effect, but
+    the old version works, so it may be delayed for arbitrary amount
+    of time.
+  finished;;
+    The reboot needs to be done once the update is finished. It is
+    because the old version no longer works as expected. The whole
+    update may be delayed because the need of this update, so the
+    update happens at a time convenient to the user.
+  immediate;;
+    The reboot needs to be done just after the package is set up. This
+    may be needed when the old version would prevent the rest of the
+    update from happening.
+replan::
+  The package has an effect on the updater itself. Therefore,
+  interrupt the update after this package is set up and perform the
+  planning again.
+abi_change::
+  The package changed its ABI (or some other interface) and some other
+  packages need to be reinstalled. If this is set to `true` and the
+  package is installed or updated, all packages that depend on it are
+  reinstalled. If it is set to a table, it lists packages that need to
+  be reinstalled. When merging `true` to a table, `true` is considered
+  to be the list of packages depending on this one.
+abi_change_deep::
+  Same as abi_change, but also reinstall packages that depends indirectly on
+  package that changed its ABI. That means if some package is reinstalled because
+  of change of ABI, all packages that depends on it are also reinstalled and so
+  on.
+content::
+  This is an alternative for the package being available from a
+  repository. This lists an URI where the package lives. If the
+  package has all parameters same as one from a repository (eg.
+  priority, version), the one with content is preferred.
+verification::
+sig::
+pubkey::
+ca::
+crl::
+  Options to verify the package integrity, if the content option is
+  specified. These are ignored in virtual packages and packages from a
+  repository.
+priority::
+  A priority for packages not coming from a repository (eg. with the
+  `content` option) to be used when choosing the right candidate.
+  Defaults to 50, as with repositories. It is ignored with packages
+  from repositories and has no meaning for virtual packages.
+ignore::
+  Ignore listed categories of errors. This takes an array of strings,
+  each string meaning one category to ignore.
+  deps;;
+    Don't error on missing dependencies. Simply install the package
+    without satisfying the dependency.
+  validation;;
+    Install the package despite it failing validation (eg. when having
+    different checksum).
+  installation;;
+    Don't report errors of installation in this package as an error
+    and don't abort the rest of the installation process even if it is
+    in an early stage.
+
+StoreFlags
+~~~~~~~~~~
+
+  StoreFlags "flagname" "flagname"
+
+A script may request to store some of its flags right away, no matter
+how the updater terminates. It first stores its flags and then calls
+the `StoreFlags` command with the names of the flags to store. The
+rest of the flags are stored as usual.
+
+Run
+~~~
+
+  result = Run "command" "param" "param" "param" ... { extra }
+
+This command is available only in `local` and `full` security levels.
+
+This runs an external command. The `command` and `param` specify what to
+run. The extra parameters are optional and may specify:
+
+stdin::
+  A string passed into the commands stdin. If not set, `/dev/null` is
+  redirected there.
+timeout::
+  A timeout in seconds. If it is reached and the command haven't
+  terminated yet, a SIGTERM is sent to the command. Nothing is sent if
+  not specified.
+timeout_kill::
+  This is the same as with timeout, but SIGTERM is sent.
+
+The `result` is a table with information about the command run. It
+contains:
+
+ecode::
+  The numeric exit code of the command.
+crashed::
+  If present, the command terminated with a signal. The signal is the
+  value associated with the key.
+stdout::
+  String containing the standard output of the command.
+stderr::
+  String containing the error output of the command.
+
+Note that the command is not run interactively ‒ there's no way to
+communicate with the command. It is started, runs with preset input
+and then the output is presented.
+
+Logging
+~~~~~~~
+
+  DBG "debug text"
+  INFO "information text"
+  WARN "warning text"
+  ERROR "error text"
+
+These commands allows printing of messages for their corresponding
+verbosity levels.
+
+Variables
+---------
+
+There are several global variables. These are set anew for each script
+run, so one script can't damage them for another. Modifying them has
+no effect on the updater's behaviour, unless specifically mentioned.
+Note that some of the tables might be generated on demand by
+meta-table events, making it impossible to list keys.
+
+serial
+~~~~~~
+
+The variable contains the serial number of the device. It may be `nil`
+in case it is not supported on the given device.
+
+architectures
+~~~~~~~~~~~~~
+
+Allowed package architectures (in a table).
+
+model
+~~~~~
+
+Content of `/tmp/sysinfo/model`. Might be nil on non-OpenWRT systems.
+
+board_name
+~~~~~~~~~~
+
+Content of `/tmp/sysinfo/board_name`. Might be nil on non-OpenWRT
+systems.
+
+turris_version
+~~~~~~~~~~~~~~
+
+Content of `/etc/turris-version`. Might be nil on non-Turris systems.
+
+self_version
+~~~~~~~~~~~~
+
+String containing version of updater.
+
+language_version
+~~~~~~~~~~~~~~~~
+
+Number signaling version of updater configuration language used. This
+is always `1` for language described in this document.
+
+features
+~~~~~~~~
+
+Set of features current updater supports. You can check for feature
+this way: `features['feature']`. These are currently available features:
+
+priorities::
+  Updater handles priorities between multiple requests for same package.
+provides::
+  Updater supports `Provides` control field.
+abi_change::
+  Updater can handle and propagate ABI change.
+
+installed
+~~~~~~~~~
+
+This is a table of installed packages. The keys are package names and
+values are tables with following keys:
+
+version::
+  The installed version.
+files::
+  Files belonging to the package (a table).
+configs::
+  Configuration files belonging to the package (a table).
+repository::
+  Name of the repository it has been installed from. It may be missing
+  in case it is a package provided outside of a repository. Note that
+  the name corresponds to the time the package has been installed and
+  that repository may be unavailable now or the name represent a
+  different repository.
+install_time::
+  Unix timestamp specifying when the package has been installed, in
+  UTC.
+
+The top-level table is instantiated (not generated through
+meta-tables), therefore it is possible to get the list of installed
+packages.
+
+flags
+~~~~~
+
+A table with flags defined by the scripts. Flags are preserved between
+the updater runs, so a script may leave notes for its future self.
+
+The table is indexed by the name of the script, either relative or
+absolute. Referencing self as an empty string works. The table is
+generated on the fly, therefore the script may not find out what other
+scripts ever run.
+
+In case of the own flags, the table is fully instantiated, so they can
+be written and iterated (using `next` and `pairs`). If it is flags
+belonging to other script, the table is read only and doesn't allow
+iterating (eg. it is possible to query a flag value, but not possible
+to discover which flags exist).
+
+Flags may be only strings.
+
+Any modification to the own flags table is stored on successful
+updater termination or when the script explicitly request it.
+
+Hooks
+-----
+
+As the hooks are run after all the dependencies have been resolved and
+plan has been made, it is no longer possible to call the `Repositor`,
+`Package`, `Install` and `Uninstall` commands. These commands may be
+used in addition to the rest:
+
+Reboot
+~~~~~~
+
+  Reboot "when"
+
+Restarts the OS. It is recommended to use the `reboot` option in the
+`Package` command instead, since the updater would know about it in
+advance and may, for example, wait for the user to confirm before
+doing anything.
+
+The when parameter may be either:
+
+now::
+  Don't finish the rest of updater, reboot right now. This is
+  dangerous and should not be used unless necessary, since the rest of
+  hooks for the given package may be lost. Installation of other
+  packages will resume after reboot.
+eventually::
+  It will reboot at the end of the updater work.
+
+Rerun
+~~~~~
+
+  Rerun "when"
+
+Run the updater once more. The when has a similar meaning as with
+`Reboot`. However, it won't resume installation after executing `now`.
+
+The only parameter of the hook is a package object. It is a table that
+has all the meaningful options from the `Package` and `Install`
+commands and the ones from `installed` variable. However, with options
+listing multiple possibilities, only the one chosen is kept. Also,
+additional `name` option is included.
+
+Available libraries and standard functions
+------------------------------------------
+
+In addition to the functions listed above, following functions and
+libraries are made available. They are available in the security level
+listed and in all higher levels.
+
+Restricted::
+  * `table` library.
+  * `string` library.
+  * `math` library.
+  * `assert`.
+  * `error`.
+  * `ipairs`.
+  * `next`.
+  * `pairs`.
+  * `pcall`.
+  * `select`.
+  * `tonumber`.
+  * `tostring`.
+  * `type`.
+  * `unpack`.
+  * `xpcall`.
+  * `DBG`.
+  * `INFO`.
+  * `WARN`.
+  * `ERROR`.
+Local::
+  * `uci` library.
+Full::
+  * The whole lua library.

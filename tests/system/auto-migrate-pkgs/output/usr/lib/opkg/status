@@ -1,0 +1,14 @@
+Package: test-package
+Version: 1
+Status: install user installed
+Architecture: all
+Conffiles:
+ /etc/test 37d2046a395cbfcb2712ff5c96a727b1966876080047c56717009dbbc235f566
+Installed-Time: 1471445715
+
+Package: extra-pkg
+Version: 1
+Status: install user installed
+Architecture: all
+Installed-Time: 1471445715
+

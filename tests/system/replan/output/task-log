@@ -1,0 +1,5 @@
+0	TRANSACTION START
+0	install	1	package
+0	TRANSACTION START
+0	remove	-	package
+0	TRANSACTION END

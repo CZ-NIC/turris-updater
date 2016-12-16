@@ -1,0 +1,11 @@
+BINARIES += src/pkgupdate/pkgupdate
+
+$(O)/.gen/src/pkgupdate/uriinternal.embedlist: $(wildcard $(S)/src/pkgupdate/internal/*)
+
+pkgupdate_MODULES := \
+	main \
+	uriinternal.embed
+
+pkgupdate_LOCAL_LIBS := updater
+
+DOCS += src/pkgupdate/interaction

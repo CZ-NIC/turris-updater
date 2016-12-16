@@ -1,0 +1,9 @@
+Package: updater
+Version: 129
+Depends: libc, vixie-cron, openssl-util, libatsha204, curl, cert-backup, opkg, bzip2, cznic-cacert-bundle
+Status: install user installed
+Architecture: mpc85xx
+Conffiles:
+ /etc/config/updater b5cf279732a87011eadfe522a0c163b98682bef2919afc4f96330f9f103a3230
+Installed-Time: 0
+

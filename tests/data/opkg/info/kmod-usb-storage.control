@@ -1,0 +1,9 @@
+Package: kmod-usb-storage
+Version: 3.18.21+10-1-70ea6b9a4b789c558ac9d579b5c1022f-10
+Depends: kernel (=3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10), kmod-scsi-core, kmod-usb-core
+Source: package/kernel/linux
+License: GPLv2
+Section: kernel
+Architecture: mpc85xx
+Installed-Size: 22537
+Description:  Kernel support for USB Mass Storage devices

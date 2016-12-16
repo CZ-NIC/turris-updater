@@ -1,0 +1,9 @@
+Package: apptest
+Version: 1
+License: GPL-2.0
+Section: none
+Depends: libtest
+Architecture: all
+Installed-Size: 0
+Description:  Package requesting libtest
+

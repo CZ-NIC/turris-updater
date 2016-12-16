@@ -1,0 +1,36 @@
+#!/bin/bash
+# Usage: ./opkg-create-package DIR
+#   Where DIR is directory where package template is stored
+#  Output package is placed to current directory and is in format NAME.ipk where
+#  NAME is package name from control file
+
+ORG=`pwd`
+
+[ -n "$1" ] && cd $1
+
+NAME=`grep -E "^Package:" control | sed 's/^Package:[ ]*//;s/[ ]*$//'`
+
+# First lets generate files-md5sum file
+find data -type f | xargs md5sum > files-md5sum
+sed -i 's/ data/ /' files-md5sum
+
+# now lets create control.tar.gz
+if [ -f conffiles ]; then CTRFILES="$CTRFILES ./conffiles"; fi
+if [ -x preinst ]; then CTRFILES="$CTRFILES ./preinst"; fi
+if [ -x postinst ]; then CTRFILES="$CTRFILES ./postinst"; fi
+if [ -x prerm ]; then CTRFILES="$CTRFILES ./prerm"; fi
+if [ -x postrm ]; then CTRFILES="$CTRFILES ./postrm"; fi
+tar -czf control.tar.gz ./control $CTRFILES ./files-md5sum
+rm files-md5sum
+
+# package data
+cd data
+tar -czf ../data.tar.gz *
+cd ..
+
+# create package
+echo 2 > debian-binary
+tar -czf $ORG/$NAME.ipk ./debian-binary ./control.tar.gz ./data.tar.gz
+rm debian-binary
+rm control.tar.gz
+rm data.tar.gz

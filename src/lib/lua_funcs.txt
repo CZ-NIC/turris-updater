@@ -1,0 +1,266 @@
+Lua injections
+==============
+
+We inject several functions into the lua global environment. Since
+there's no good place to document them (like .h files for C code),
+they are listed here.
+
+Logging
+-------
+
+log(level, depth, msg, msg, msg, ...)::
+  This is a low-level function used for logging. It should not be used
+  directly by lua code. The messages are just strings that are
+  concatenated together before outputting. The level is one of:
+  - DIE
+  - ERROR
+  - WARN
+  - DBG
+  The depth argument specifies how many functions on the top of the stack
+  are to be disregarded when printing the source file, line number and
+  function name to the logs. 0 means the function directly calling log,
+  1 is its caller, etc.
+ERROR(msg, msg, ...)::
+WARN(msg, msg, ...)::
+DBG(msg, msg, ...)::
+  These output a message to the logs with a given level. The messages
+  are concatenated together.
+DIE(msg, msg, ...)::
+  In addition to outputting the message on the ``DIE`` level, it also
+  terminates the application with error exit code.
+state_dump(msg)::
+  Dump the given message into `/tmp/update-state/state`.
+
+Asynchronous events
+-------------------
+
+Some of the functions from ``events.h`` are exposed to lua code, with
+minor modifications.
+
+Currently, it is possible to run external commands with the
+`run_command` function. The code would look like this:
+
+  function terminated(exit_code, killed, stdout, stderr)
+    -- The command terminated
+  end
+
+  function postfork()
+    -- Run after fork in the child ‒ set up the environment
+  end
+
+  local id = run_command(terminated, postfork, input, term_timeout, kill_timeout, command, param, param)
+
+  events_wait(id)
+
+The functionality is very similar to the C functions, with these
+differences:
+
+* It doesn't take the `events` parameter, one global `events`
+  structure per interpreter is used.
+* The callbacks don't take the `data` or `wait_id` parameters, since
+  lua has closures and passing information into the callbacks is easy.
+* Lua naturally supports strings with embedded zero bytes, therefore
+  there are no lengths of the inputs or outputs.
+* The `exit_code` in the callback is not the raw integer from the
+  system call, but decoded to the exit code of the process or signal
+  number that terminated it.
+* `killed` is a string, one of:
+  - `TERMINATED`
+  - `TERMED`
+  - `KILLED`
+  - `SIGNAL_OTHER`
+* The events_wait take any number of ip parameters instead of an
+  array.
+
+The `postfork` and `input` parameters may be nil. The `term_timeout`
+and `kill_timeout` take -1 to mean no timeout.
+
+There may be any number of the `param` parameters, which are passed to
+the command.
+
+Currently, there's no way to cancel running command from lua, since
+that would make the wrapper code needlessly complex (while there seems
+to be no need to cancel them currently).
+
+The other event is `download`:
+
+  function callback(status, content)
+    if status == 200 then
+      print("Downloaded: " .. content)
+    else
+      print("Download failed (" .. content .. ")")
+    end
+  end
+
+  local id = download(callback, "https://example.org/file", "/path/to/cert", "/path/to/crl")
+
+  events_wait(id)
+
+The example is mostly self-explanatory and again, this acts very
+similar to the C version.
+
+Filesystem manipulation
+-----------------------
+
+mkdtemp([directory])::
+  It creates a temporary directory. If directory is provided, it is
+  created as a subdirectory of the given directory, otherwise it is
+  created inside `/tmp`. It returns path to the new directory, or
+  `nil` and an error message.
+
+chdir(directory)::
+  Change the current working directory to the one provided.
+
+getcwd()::
+  Get the current working directory.
+
+mkdir(directory)::
+  Create a directory. All the parent directories must already exist.
+  The directory itself shall not exist. It throws on error.
+
+move(old, new)::
+  Move a file from the old location to the new. It tries to cope with
+  paths on different devices.
+
+ls(directory)::
+  Return a table with file names under the given directory (acts like
+  shell's `ls -a`, omitting the `.` and `..` entries). Value of
+  each is the type of the file there, which may be:
+  b;; A block device
+  c;; A character device
+  d;; A directory
+  f;; A named pipe
+  l;; A symbolic link
+  r;; A regular file
+  s;; A unix-domain socket
+  ?;; Failed to determine the type
+
+stat(path)::
+  Statistics about the given file. If the file does not exist, it
+  returns nothing. Otherwise, the file type is returned (see the types
+  of `ls`). The second result is the permissions of the file, in the
+  imitation of shell's `ls -l`, like `rwxr-x---`.
+
+lstat(path)::
+  Same as `stat` except the `lstat` behaviour is preferred.
+  (eg. provides info about symbolic link if it is a link, instead of
+  the target).
+
+sync()::
+  Writes everything to a permanent storage (equivalent to the shell's
+  `sync` command).
+
+locks.acquire(path)::
+  Lock a file with the `lockf` call. Fail if the lock is already held
+  by other process. Create the file as needed. Return a lock object as
+  a result. It has release() method, to release the lock. The lock is
+  also released when the object is garbage collected, but there's no
+  guarantee how soon it may be.
+
+Journal manipulation
+--------------------
+
+All the journal manipulation is located in the `journal` module. This
+is about the lua interface. For the on-disk format, look at the
+`journal` document.
+
+The location of the journal can be set by the `path` variable inside
+the module (it exists mostly for testing purposes).
+
+There are several constants for the journal record types:
+
+ `START`:: Automatically inserted at the beginning of journal.
+ `FINISH`:: Automatically inserted when the journal is closed.
+ `UNPACKED`:: Packages are unpacked and ready to be installed.
+ `CHECKED`:: Pre-installation checks (like collision checks) are
+   successfully performed.
+ `MOVED`:: The files are moved into place.
+ `SCRIPTS`:: All the post/pre-* scripts were run.
+ `CLEANED`:: Cleanup of temporary files is successful.
+
+There are following functions:
+
+  fresh():: Open a new journal. It fails if there's a journal file
+    already.
+  recover():: Open a previous journal. It returns table with the
+    content of the journal. It fails in case there's no journal.
+  finish([keep]):: Close the journal. If the keep is set to true,
+    it keeps the journal in place, otherwise it is deleted. The idea
+    is that the application would close the journal when it succeeds,
+    but would leave it there in case of interrupted operation, so
+    usually nothing is set, the flag is for testing purposes.
+  write(type, ...):: Write a journal record of the given type (see
+    above). Any other parameters are stored as parameters. Data
+    structures must not contain meta tables and functions.
+  opened():: Returns if the journal is opened. This is for testing
+    purposes.
+
+The format of journal returned by recover is a table with records.
+Each record contains `type` ‒ one of the types above, and `params` ‒
+table with all the parameters stored with the record.
+
+Pisocat
+-------
+
+Picosat can be used trough module `picosat`. Here is briefly described
+its interface as it can be used from Lua. For more information about
+usage see Picosat documentation in its source file.
+
+You can create picosat instance by calling `picosat.new` function.
+It returns object with following methods:
+
+  var(count):: Creates given number of new variables and returns them.
+    If no argument is given, it returns one new variable.
+  clause(var, ...):: Adds clause. Arguments `var` are variables
+    previously created with `var` method. Appending minus before variable
+    adds boolean negation.
+  assume(var):: Adds assumption about value `val` for next satisfiable
+    check. Appending minus before `var` assumes false, not appending it
+    assumes true.
+  satisfiable():: Checks if clauses are satisfiable with given
+    assumptions. Returns true or false accordingly.
+  max_satisfiable():: Generates maximal satisfiable subset of assumptions.
+    Can be called only after `satisfiable`. Returns set of all assumptions
+    that can be assumed at the same time. Note that this reassumes previous
+    assumptions, so they are again valid for next `satisfiable` call.
+
+After calling `satisfiable` you can access assigned values by indexing
+object with variable you are interested in. It returns true or false.
+It can also return nil if variable was added after `satisfiable` method
+call.
+
+Others
+------
+
+There are some other functions.
+
+DataDumper(variable)::
+  A function that converts (almost any) variable to a string
+  containing a lua chunk. The chunk, when run, returns equivalent
+  value as passed. Simply stated, this serializes data into lua code.
+  It is a third-party code from
+  `http://lua-users.org/wiki/DataDumper`. Note that some data
+  (userdata, for example) can't be represented this way.
+
+setenv(name, value)::
+  Set the environment variable with the given name to the given value.
+  Errors in case of failure, otherwise returns nothing.
+
+reexec(args,...)::
+  Try to run the program from the beginning, preserving the command
+  line arguments and working directory. It depends on being set up
+  properly at the start of the program.
+  As arguments you can specify additional arguments that will be appended
+  at the end of original ones.
+
+uri_internal_get(name)::
+  Function to access embedded files using `internal:` uri. Argument `name`
+  is name of requested embedded file. Returns file content. If there is
+  no file under given name, error is raised.
+
+system_reboot(stick)::
+  Reboots system. Argument `stick` if set to true results in that this
+  newer returns.
+
+get_updater_version()::
+  Returns string containing updater's version.

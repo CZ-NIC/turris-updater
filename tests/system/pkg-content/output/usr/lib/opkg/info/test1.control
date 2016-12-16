@@ -1,0 +1,8 @@
+Package: test1
+Version: 1
+License: GPL-2.0
+Section: none
+Architecture: all
+Installed-Size: 0
+Description:  Test package 1 from repo 1
+

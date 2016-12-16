@@ -1,0 +1,15 @@
+image: gl-ci-turris-testing
+
+stages:
+  - test
+
+before_script:
+  - git submodule init
+  - git submodule update
+
+# Test stage - run application tests
+test:
+  stage: test
+
+  script:
+    - make check

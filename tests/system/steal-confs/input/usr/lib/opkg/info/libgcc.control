@@ -1,0 +1,10 @@
+Package: libgcc
+Version: 4.8-linaro-3
+Source: package/libs/toolchain
+License: GPL-3.0-with-GCC-exception
+Section: libs
+Essential: yes
+Maintainer: Felix Fietkau <nbd@openwrt.org>
+Architecture: mpc85xx
+Installed-Size: 51404
+Description:  GCC support library

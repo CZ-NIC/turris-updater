@@ -1,0 +1,3 @@
+sed -i -e 's/^Installed-Time: .*/Installed-Time: 0/' "$ROOT_DIR"/usr/lib/opkg/status
+rm "$ROOT_DIR"/config
+rm -r "$ROOT_DIR"/repo
