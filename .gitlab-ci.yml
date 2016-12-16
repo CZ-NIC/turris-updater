@@ -13,3 +13,10 @@ test:
 
   script:
     - make check
+
+# Test stage with busybox embedded
+test_busybox:
+  stage: test
+
+  script:
+    - BUSYBOX_EXEC=/bin/busybox make check
