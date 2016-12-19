@@ -57,7 +57,7 @@ static const char *opt_help[COT_LAST] = {
 	[COT_ROOT_DIR] =
 		"-R <path>			Use given path as a root directory.\n",
 	[COT_BATCH] =
-		"--batch			Run without user confirmation.\n",
+		"--batch				Run without user confirmation.\n",
 	[COT_STATE_LOG] =
 		"--state-log			Dump state to files in /etc/updater-state directory.\n",
 	[COT_SYSLOG_LEVEL] =
@@ -71,7 +71,7 @@ static const char *opt_help[COT_LAST] = {
 	[COT_APPROVE] =
 		"--approve=<id>			Approve actions with given ID (multiple allowed, from a corresponding report-file).\n",
 	[COT_OUTPUT] =
-		"--output=<file>		Put the output to given file.\n",
+		"--output=<file>			Put the output to given file.\n",
 	[COT_EXCLUDE] =
 		"--exclude=<name>		Exclude this from output.\n",
 	[COT_TASK_LOG] =
