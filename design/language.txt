@@ -524,6 +524,9 @@ ignore::
     Don't report errors of installation in this package as an error
     and don't abort the rest of the installation process even if it is
     in an early stage.
+  content::
+    Don't error on missing content. If it's available from repository
+    then it is handled as missing.
 
 StoreFlags
 ~~~~~~~~~~

@@ -48,7 +48,7 @@ const char *shared_context[] = { "function xyz() return 1 ; end", "if xyz() ~= 1
 const char *survival[] = { "invalid_func();", "local x = 1;", NULL };
 const char *library[] = { "next({});", "getfenv();", "string.find('x', 'y');", "math.abs(-1);", "os.clock();", "debug.getregistry()", NULL };
 const char *autoloaded[] = { "testing.values();", NULL };
-const char *logging[] = { "log('DEBUG', 0, 'test')", "log('INVALID', 0, 'test')", "ERROR('test')", NULL };
+const char *logging[] = { "log('DEBUG', 0, 'test')", "log('INVALID', 0, 'test')", "ERROR('test')", "log('DEBUG', 0, nil)", "log('DEBUG', 0, {'table'})", NULL };
 const char *pre_require[] = { "local m = require 'testing'; testing.values();", NULL };
 const char *uriinter_get[] = { "uri_internal_get('hello_txt')", NULL };
 
@@ -68,7 +68,7 @@ struct loading_case loading_cases[] = {
 	{ "Autoloaded", autoloaded, 1, true },
 	{ "Not autoloaded", autoloaded, 0, false },
 	// Check that logging doesn't crash us
-	{ "Logging", logging, 3, true },
+	{ "Logging", logging, 5, true },
 	{ "Missing logging", logging, 2, false },
 	// Check the loading presets the package.loaded correctly, so further require works.
 	{ "pre_require", pre_require, 1, true },
