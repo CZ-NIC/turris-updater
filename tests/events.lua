@@ -78,6 +78,32 @@ function test_run_command()
 	end
 end
 
+-- This just tests one call using run_util. It is just function wrapper around
+-- run_command so no extensive testing is required.
+function test_run_util()
+	local called = 0
+	local tempfile
+	local id = run_util(function (ecode, killed, stdout, stderr)
+		assert_equal(0, ecode)
+		assert_equal("TERMINATED", killed)
+		tempfile = stdout
+		assert_equal('', stderr)
+		called = called + 1
+	end, nil, nil, 1000, 5000, "mktemp")
+	events_wait(id)
+	assert_equal(1, called)
+	called = 0
+	local id = run_util(function (ecode, killed, stdout, stderr)
+		assert_equal(0, ecode)
+		assert_equal("TERMINATED", killed)
+		assert_equal('', stdout)
+		assert_equal('', stderr)
+		called = called + 1
+	end, nil, nil, 1000, 5000, "rm", "-f", tempfile)
+	events_wait(id)
+	assert_equal(1, called)
+end
+
 function test_download()
 	local cert = (os.getenv("S") or ".") .. "/tests/data/updater.pem"
 	local called1 = 0

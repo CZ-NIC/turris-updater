@@ -39,6 +39,7 @@ local string = string
 local events_wait = events_wait
 local download = download
 local run_command = run_command
+local run_util = run_util
 local utils = require "utils"
 local DBG = DBG
 local uri_internal_get = uri_internal_get
@@ -418,7 +419,7 @@ function new(context, uri, verification)
 								sigval(stdout)
 							end
 						end
-						events_wait(run_command(gzip_done, nil, result.content, -1, -1, '/bin/gzip', '-c', '-d'))
+						events_wait(run_util(gzip_done, nil, result.content, -1, -1, 'gzip', '-c', '-d'))
 					end
 					if not found then
 						local msg = "Signature validation failed"

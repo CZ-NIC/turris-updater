@@ -82,6 +82,13 @@ Currently, there's no way to cancel running command from lua, since
 that would make the wrapper code needlessly complex (while there seems
 to be no need to cancel them currently).
 
+For calling standard shell utility, or in fact every busybox function,
+`run_util` is provided. It is same as `run_command` except it accepts
+as `command` parameter one of supported busybox function names. So you
+pass for example `rm` instead of `/bin/rm`. This is preferred way of
+calling them, because when busybox is embedded then we don't rely on
+system utilities and so it should be more reliable.
+
 The other event is `download`:
 
   function callback(status, content)
