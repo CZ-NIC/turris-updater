@@ -22,6 +22,9 @@ require 'lunit'
 local requests = require "requests"
 local postprocess = require "postprocess"
 local utils = require "utils"
+local uri = require "uri"
+
+local dir = (os.getenv("S") .. "/") or ''
 
 module("postprocess-tests", package.seeall, lunit.testcase)
 
@@ -178,6 +181,67 @@ function test_get_repos_broken_nonfatal()
 			tp = "parsed-repository"
 		}
 	}, requests.known_repositories_all)
+end
+
+function test_get_content_pkgs()
+	local context = sandbox.new("Local")
+	requests.known_content_packages = {{name="updater"}}
+	utils.private(requests.known_content_packages[1]).content_uri = uri(context, "file://" .. dir .. "tests/data/updater.ipk")
+	local expect = {
+		{
+			name = "updater",
+			candidate = {
+				Status = {"install", "user", "installed"},
+				Package = "updater",
+				Version = "129",
+				Depends = "libc, vixie-cron, openssl-util, libatsha204, curl, cert-backup, opkg, bzip2, cznic-cacert-bundle",
+				Source = "feeds/turrispackages/cznic/updater",
+				Section = "opt",
+				Maintainer = "Michal Vaner <michal.vaner@nic.cz>",
+				Architecture = "mpc85xx",
+				Description = "updater",
+				["Installed-Size"] = "14773",
+				Conffiles = {["/etc/config/updater"] = "b5cf279732a87011eadfe522a0c163b98682bef2919afc4f96330f9f103a3230"},
+				files = {
+					["/usr/bin/updater-unstuck.sh"] = true,
+					["/etc/config/updater"] = true,
+					["/usr/share/updater/keys/standby.pem"] = true,
+					["/etc/ssl/updater.pem"] = true,
+					["/usr/bin/updater.sh"] = true,
+					["/usr/bin/updater-wipe.sh"] = true,
+					["/usr/bin/updater-utils.sh"] = true,
+					["/etc/init.d/updater"] = true,
+					["/usr/bin/updater-worker.sh"] = true,
+					["/usr/share/updater/keys/release.pem"] = true,
+					["/usr/bin/updater-resume.sh"] = true,
+				}
+			}
+		}
+	}
+	expect[1].candidate.pkg = expect[1]
+	postprocess.get_content_pkgs()
+	-- set data to nil. We can't check that easily enough. Same goes for Installed-time
+	requests.known_content_packages[1].candidate.data = nil
+	requests.known_content_packages[1].candidate["Installed-Time"] = nil
+	assert_table_equal(expect, requests.known_content_packages)
+
+end
+
+-- Lest break things and expect exception
+function test_get_content_pkgs_missing()
+	local context = sandbox.new("Local")
+	requests.known_content_packages = {{name="updater"}}
+	utils.private(requests.known_content_packages[1]).content_uri = uri(context, "file://" .. dir .. "tests/data/nonexistent.ipk")
+	assert_exception(function() postprocess.get_content_pkgs() end, "multiple")
+end
+
+-- Lest break things but ignore it
+function test_get_content_pkgs_missing_ignore()
+	local context = sandbox.new("Local")
+	requests.known_content_packages = {{name="updater", ignore={"content"}}}
+	utils.private(requests.known_content_packages[1]).content_uri = uri(context, "file://" .. dir .. "tests/data/nonexistent.ipk")
+	postprocess.get_content_pkgs()
+	assert_table_equal({{name="updater", ignore={"content"}}}, requests.known_content_packages)
 end
 
 function test_pkg_merge()

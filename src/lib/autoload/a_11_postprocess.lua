@@ -152,25 +152,48 @@ we don't know their version without seeing their values from field such as
 version.
 ]]
 function get_content_pkgs()
+	local uris = {}
+	local errors = {}
+
 	for _, pkg in pairs(requests.known_content_packages) do
-		local ok, data = utils.private(pkg).content_uri:get()
-		if ok then
-			local tmpdir = mkdtemp()
-			local pkg_dir = backend.pkg_unpack(data, tmpdir)
-			local _, _, _, control = backend.pkg_examine(pkg_dir)
-			if pkg.name ~= control.Package then
-				ERROR("Package content specified for package " .. pkg.name .. ", but it contains package " .. control.Package .. ". Ignoring this content.")
-				return
+		local content_uri = utils.private(pkg).content_uri
+		table.insert(uris, content_uri)
+		local function downloaded(ok, data)
+			if ok then
+				local tmpdir = mkdtemp()
+				local pkg_dir = backend.pkg_unpack(data, tmpdir)
+				local _, _, _, control = backend.pkg_examine(pkg_dir)
+				-- Remove unpacked package. Because we might run no far than planning.
+				-- If it is going to be installed, it will be unpacked again.
+				utils.cleanup_dirs({pkg_dir, tmpdir})
+				if pkg.name ~= control.Package then
+					if utils.arr2set(pkg.ignore or {})["content"] then
+						ERROR("Package content specified for package " .. pkg.name .. ", but it contains package " .. control.Package .. ". Ignoring as requested.")
+					else
+						table.insert(errors, utils.exception("corruption", "Package content specified for package " .. pkg.name .. ", but it contains package " .. control.Package))
+					end
+					return
+				end
+				pkg.candidate = control
+				pkg.candidate.data = data
+				pkg.candidate.pkg = pkg
+			else
+				if utils.arr2set(pkg.ignore or {})["content"] then
+					WARN("Can't get content for package " .. pkg.name .. ", " .. data.reason .. ". Ignoring as requested.")
+				else
+					table.insert(errors, utils.exception("unreachable", "Can't get content for package " .. pkg.name .. ": " .. data.reason))
+				end
 			end
-			pkg.candidate = control
-			pkg.candidate.data = data
-			pkg.candidate.pkg = pkg
-			-- Remove unpacked package. Because we might run no far than planning.
-			-- If it is going to be installed, it will be unpacked again.
-			utils.cleanup_dirs({pkg_dir, tmpdir})
-		else
-			WARN("Can't get content for package " .. pkg.name .. ": " .. data.reason)
 		end
+		content_uri:cback(downloaded)
+	end
+	-- Download and extract all content
+	uri.wait(unpack(uris))
+	-- Check if we encountered some errors
+	if next(errors) then
+		local multi = utils.exception('multiple', "Multiple exceptions (" .. #errors .. ")")
+		multi.errors = errors
+		error(multi)
 	end
 end
 

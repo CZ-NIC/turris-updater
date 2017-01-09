@@ -127,7 +127,11 @@ static int lua_log(lua_State *L) {
 	size_t sizes[nargs - 2];
 	const char *strs[nargs - 2];
 	for (int i = 3; i <= nargs; i ++) {
-		strs[i - 3] = lua_tostring(L, i);
+		if (lua_isnil(L, i))
+			strs[i - 3] = "<nil>";
+		else if((strs[i - 3] = lua_tostring(L, i)) == NULL)
+			// If it is not nil nor string or number, it is function or table so too complex just for simple log function
+			strs[i - 3] = "<complex-type>";
 		sizes[i - 3] = strlen(strs[i - 3]);
 		sum += sizes[i - 3];
 	}

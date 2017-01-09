@@ -20,6 +20,7 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 require "lunit"
 local uri = require "uri"
 local sandbox = require "sandbox"
+
 local dir = (os.getenv("S") .. "/") or ''
 
 module("uri-tests", package.seeall, lunit.testcase)
