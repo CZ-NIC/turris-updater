@@ -329,7 +329,12 @@ local function pkg_files(pkg_name)
 	if content then
 		local result = {}
 		for l in content:gmatch("[^\n]+") do
-			result[l] = true
+			if not l:match("/$") then
+				-- This is fix for old versions of opkg. Those had directories in
+				-- .list control file. We don't support that and it can cause
+				-- updater failure. So we ignore anything that ends with slash.
+				result[l] = true
+			end
 		end
 		return slashes_sanitize(result)
 	else
