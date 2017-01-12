@@ -16,7 +16,8 @@ UPD_SYS_TESTS := \
 	reboot \
 	provides \
 	abi-change \
-	replan
+	replan \
+	list-dir
 
 MIGRATE_SYS_TESTS := \
 	auto-migrate-pkgs
