@@ -141,6 +141,7 @@ function sat_pkg_group(state, name)
 		state.sat:clause(-pkg_var, unpack(sat_candidates)) -- package group implies that at least one candidate is chosen
 	else
 		if not utils.multi_index(pkg, "modifier", "virtual") then -- For virtual package, no candidates is correct state
+			DBG("SAT group " .. name .. " has no candidate")
 			state.missing[name] = pkg_var -- store that this package group has no candidates
 		end
 	end
@@ -178,7 +179,7 @@ function sat_dep(state, pkg, version, repository)
 			state.sat:clause(-var, unpack(vars)) -- imply that at least one of the possible candidates is chosen
 		else
 			DBG("SAT candidate selection empty")
-			state.missing[pkg] = var -- store that this variable points to no candidate
+			state.missing[pkg] = var -- store that this package (as object not group) points to no candidate
 		end
 		-- Also imply group it self. If we have some candidates, then its just
 		-- useless clause. But for no candidates, we ensure that at least some
@@ -257,7 +258,7 @@ local function sat_build(sat, pkgs, requests)
 		pkg2sat = {},
 		candidate2sat = {},
 		req2sat = {},
-		missing = {},
+		missing = {}, -- This is table where key is either package group (string) or specific package (object) and value is SAT variable (number)
 		penalty_candidates = {},
 		penalty_or = {},
 		pkgs = pkgs, -- pass pkgs to other sat_* functions this way
@@ -337,7 +338,8 @@ local function build_plan(pkgs, requests, sat, satmap)
 	local function pkg_plan(plan_pkg, ignore_missing, ignore_missing_pkg, parent_str)
 		local name = plan_pkg.name or plan_pkg -- it can be object of type "package" or "dep-package" or string containing name of package group
 		if not sat[satmap.pkg2sat[name]] then return end -- This package group is not selected, so we ignore it.
-		if satmap.missing[plan_pkg] and sat[satmap.missing[plan_pkg]] then -- If missing package or package dependency is selected
+		local missing_pkg = satmap.missing[plan_pkg] or satmap.missing[name]
+		if missing_pkg and sat[missing_pkg] then -- If missing package (name) or package dependency (plan_pkg) is selected
 			if ignore_missing or ignore_missing_pkg then
 				missing_dep[name] = true
 				utils.table_merge(missing_dep, utils.arr2set(wstack)) -- Whole working stack is now missing dependency

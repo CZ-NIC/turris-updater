@@ -1405,6 +1405,47 @@ function test_missing_request()
 	assert_exception(function () planner.required_pkgs({}, requests) end, 'inconsistent')
 end
 
+function test_request_no_candidate()
+	local pkgs = {
+		pkg = {
+			candidates = {},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg',
+			},
+			priority = 50,
+		}
+	}
+	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent')
+end
+
+function test_request_no_candidate_ignore()
+	local pkgs = {
+		pkg = {
+			candidates = {},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg',
+			},
+			ignore = {'missing'},
+			priority = 50,
+		}
+	}
+	assert_table_equal({}, planner.required_pkgs(pkgs, requests))
+end
+
 function test_missing_install()
 	local pkgs = {
 		pkg1 = {
