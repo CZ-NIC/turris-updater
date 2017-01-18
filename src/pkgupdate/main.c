@@ -206,11 +206,6 @@ int main(int argc, char *argv[]) {
 	// Decide what packages need to be downloaded and handled
 	const char *err = interpreter_call(interpreter, "updater.prepare", NULL, "s", top_level_config);
 	ASSERT_MSG(!err, "%s", err);
-	if (!batch) {
-		// For now we want to confirm by the user.
-		fprintf(stderr, "Press return to continue, CTRL+C to abort\n");
-		getchar();
-	}
 	size_t result_count;
 	err = interpreter_call(interpreter, "transaction.empty", &result_count, "");
 	ASSERT_MSG(!err, "%s", err);
@@ -219,6 +214,11 @@ int main(int argc, char *argv[]) {
 	ASSERT_MSG(interpreter_collect_results(interpreter, "b", &trans_empty) == -1, "The result of transaction.empty is not bool");
 	if (trans_empty)
 		goto CLEANUP;
+	if (!batch) {
+		// For now we want to confirm by the user.
+		fprintf(stderr, "Press return to continue, CTRL+C to abort\n");
+		getchar();
+	}
 	if (!approved(interpreter, approval_file, approvals, approval_count))
 		goto CLEANUP;
 	if (!replan) {
