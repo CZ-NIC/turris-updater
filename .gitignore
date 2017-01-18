@@ -28,6 +28,7 @@ tags
 tests/check-compiled
 tests/luacheck-compiled
 tests/arguments
+tests/api.turris.cz.crl.pem
 testdir
 # Gitlab pages
 pages
