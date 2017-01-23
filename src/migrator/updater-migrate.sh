@@ -51,6 +51,11 @@ else
 	fi
 	uci commit updater
 
+	# Clean up the auto.lua first, to get rid of any possible artifacts of
+	# old updater interacting with our opkg wrapper. All the relevant packages
+	# are in the system anyway, so they'll get re-added there.
+	echo -n >/etc/updater/auto.lua
+
 	# Now create a new configuration. Exclude the old updater (it is installed,
 	# but we don't want it) and this migration script. Also, exclude some packages
 	# that no longer exist and are left on the blue turris during an early stage
