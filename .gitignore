@@ -6,7 +6,6 @@
 /.objs/
 /.gen/
 /.lua_coverage/
-/tests/openssl
 # The desired results
 *.html
 *.so

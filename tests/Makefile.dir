@@ -54,7 +54,7 @@ $(O)/.coverage.info:
 coverage: $(O)/.coverage.info
 	genhtml $< --output-directory $(O)/coverage
 endif
-clean: clean-coverage clean-openssl
+clean: clean-coverage
 clean-coverage:
 	rm -rf $(O)/.lua_coverage
 	rm -f  $(O)/.coverage.info
@@ -96,47 +96,21 @@ luacheck: $(addprefix luacheck-,$(LUA_AUTOLOAD))
 
 TESTS_ENV = SUPPRESS_LOG=1 S=$(S) TMPDIR=$(abspath $(O)/testdir) COVERAGEDIR=$(abspath $(O)/.lua_coverage)
 
-
-# Common distributions are compiling openssl without -DPURITY flag. This causes
-# problems with valgrind so we compile our own version to be used for valgrind
-# tests.
-# See: https://www.openssl.org/docs/faq.html
-OPENSSL_TEST_VERSION := $(shell openssl version | awk '{print $$2}')
-OPENSSL_BUILD_PATH = $(O)/tests/openssl
-OPENSSL_LIBS = $(OPENSSL_BUILD_PATH)/openssl-$(OPENSSL_TEST_VERSION)/libcrypto.so $(OPENSSL_BUILD_PATH)/openssl-$(OPENSSL_TEST_VERSION)/libssl.so
-OPENSSL_ENV = LD_LIBRARY_PATH=$(OPENSSL_BUILD_PATH)/openssl-$(OPENSSL_TEST_VERSION):$$LD_LIBRARY_PATH
-
-$(OPENSSL_BUILD_PATH)/openssl-$(OPENSSL_TEST_VERSION).tar.gz:
-	mkdir -p $(OPENSSL_BUILD_PATH)
-	wget https://www.openssl.org/source/openssl-$(OPENSSL_TEST_VERSION).tar.gz -O $@
-
-# Usage of pattern with multiple targets causes gmake to understand that all of
-# those files are produced by this target at once. So this target is run only
-# once. See: https://www.gnu.org/software/make/manual/make.html#Pattern-Examples
-$(OPENSSL_BUILD_PATH)/%/libcrypto.so $(OPENSSL_BUILD_PATH)/%/libssl.so: $(OPENSSL_BUILD_PATH)/openssl-$(OPENSSL_TEST_VERSION).tar.gz
-	tar -xzf $< -C $(OPENSSL_BUILD_PATH)
-	cd $(OPENSSL_BUILD_PATH)/openssl-$(OPENSSL_TEST_VERSION) && ./config shared -DPURIFY
-	+$(MAKE) -C $(OPENSSL_BUILD_PATH)/openssl-$(OPENSSL_TEST_VERSION)
-
-clean-openssl:
-	rm -rf $(OPENSSL_BUILD_PATH)
-
-# Tests
 test-c-%: $(O)/bin/ctest-% FORCE
 	mkdir -p $(O)/testdir
 	$(TESTS_ENV) $<
 
-valgrind-c-%: $(O)/bin/ctest-% $(OPENSSL_LIBS) FORCE
+valgrind-c-%: $(O)/bin/ctest-% FORCE
 	mkdir -p $(O)/testdir
-	CK_FORK=no $(TESTS_ENV) $(OPENSSL_ENV) $(VALGRIND) $<
+	CK_FORK=no $(TESTS_ENV) $(VALGRIND) $<
 
 test-lua-%: $(S)/tests/%.lua $(O)/bin/lulaunch FORCE
 	mkdir -p $(O)/testdir
 	$(TESTS_ENV) $(O)/bin/lulaunch $<
 
-valgrind-lua-%: $(S)/tests/%.lua $(O)/bin/lulaunch $(OPENSSL_LIBS) FORCE
+valgrind-lua-%: $(S)/tests/%.lua $(O)/bin/lulaunch FORCE
 	mkdir -p $(O)/testdir
-	$(TESTS_ENV) $(OPENSSL_ENV) $(VALGRIND) $(O)/bin/lulaunch $<
+	$(TESTS_ENV) $(VALGRIND) $(O)/bin/lulaunch $<
 
 luac-autoload-%: $(S)/src/lib/autoload/a_%.lua FORCE
 	luac -p $<
