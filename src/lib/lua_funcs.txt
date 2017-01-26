@@ -190,7 +190,7 @@ There are following functions:
   fresh():: Open a new journal. It fails if there's a journal file
     already.
   recover():: Open a previous journal. It returns table with the
-    content of the journal. It fails in case there's no journal.
+    content of the journal. If there is no journal nil is returned.
   finish([keep]):: Close the journal. If the keep is set to true,
     it keeps the journal in place, otherwise it is deleted. The idea
     is that the application would close the journal when it succeeds,

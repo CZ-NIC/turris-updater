@@ -1,5 +1,5 @@
 --[[
-Copyright 2016, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+Copyright 2016-2017, CZ.NIC z.s.p.o. (http://www.nic.cz/)
 
 This file is part of the turris updater.
 
@@ -79,7 +79,7 @@ function test_recover_empty()
 	local dir = dir_init()
 	assert_table_equal({}, ls(dir))
 	-- Nothing to recover
-	assert_error(function () J.recover() end)
+	assert_nil(J.recover())
 	J.fresh()
 	-- Keep the journal file
 	J.finish(true)

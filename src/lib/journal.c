@@ -1,5 +1,5 @@
 /*
- * Copyright 2016, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+ * Copyright 2016-2017, CZ.NIC z.s.p.o. (http://www.nic.cz/)
  *
  * This file is part of the turris updater.
  *
@@ -119,7 +119,7 @@ static void journal_write(enum record_type type, size_t num_params, const size_t
 	ASSERT_MSG(!error, "Failed to write journal: %s", strerror(errno));
 }
 
-static void journal_open(lua_State *L, int flags) {
+static bool journal_open(lua_State *L, int flags) {
 	DBG("Opening journal");
 	if (fd != -1)
 		luaL_error(L, "Journal already open");
@@ -133,7 +133,7 @@ static void journal_open(lua_State *L, int flags) {
 				luaL_error(L, "Unfinished journal exists");
 			case ENOENT:
 				if (!(flags & O_CREAT))
-					luaL_error(L, "No journal to recover");
+					return false;
 				// Otherwise ‒ fall through to the default section
 			default:
 				luaL_error(L, "Error opening journal: %s", strerror(errno));
@@ -142,6 +142,7 @@ static void journal_open(lua_State *L, int flags) {
 	ASSERT_MSG(fcntl(fd, F_SETFD, (long)FD_CLOEXEC) != -1, "Failed to set close on exec on journal FD: %s", strerror(errno));
 	// Keep a copy of the journal path, someone might change it and we want to remove the correct journal on finish
 	journal_path = strdup(path);
+	return true;
 }
 
 static int lua_fresh(lua_State *L) {
@@ -255,7 +256,8 @@ FAIL:
 }
 
 static int lua_recover(lua_State *L) {
-	journal_open(L, 0);
+	if (!journal_open(L, 0))
+		return 0;
 	lua_newtable(L);
 	size_t i = 0;
 	off_t offset = 0;

@@ -1,5 +1,5 @@
 --[[
-Copyright 2016, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+Copyright 2016-2017, CZ.NIC z.s.p.o. (http://www.nic.cz/)
 
 This file is part of the turris updater.
 
@@ -39,6 +39,7 @@ local utils = require "utils"
 local journal = require "journal"
 local DBG = DBG
 local WARN = WARN
+local INFO = INFO
 local state_dump = state_dump
 local sync = sync
 local log_event = log_event
@@ -349,6 +350,10 @@ end
 function recover()
 	local run_state = backend.run_state()
 	local previous = journal.recover()
+	if not previous then
+		INFO("No journal to recover");
+		return {}
+	end
 	local status = {}
 	for _, value in ipairs(previous) do
 		assert(not status[value.type])
