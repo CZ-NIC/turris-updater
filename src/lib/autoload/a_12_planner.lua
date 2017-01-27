@@ -58,16 +58,18 @@ function candidates_choose(candidates, version, repository)
 
 	local compliant = {}
 	for _, candidate in pairs(candidates) do
-		assert(candidate.Version)
-		assert(candidate.repo)
+		assert(candidate.Version) -- Version have to be there but candidate.repo might not if it is content from configuration not from repository
 		local cmp = not version or (wildmatch == '~') or backend.version_cmp(vers, candidate.Version)
+		-- Add candidates matching version and repository limitation. Package
+		-- supplied using content field in configuration has no repository, so it
+		-- is never added when repository limitation is specified.
 		if (not version or (
 				(wildmatch == '~' and candidate.Version:match(vers)) or
 				(cmp_str:find('>', 1, true) and cmp == -1) or
 				(cmp_str:find('=', 1, true) and cmp == 0) or
 				(cmp_str:find('<', 1, true) and cmp == 1))
 			) and (
-				not repository or repos[candidate.repo]
+				not repository or (candidate.repo and repos[candidate.repo])
 			) then
 			table.insert(compliant, candidate)
 		end
