@@ -1,5 +1,5 @@
 --[[
-Copyright 2016, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+Copyright 2016-2017, CZ.NIC z.s.p.o. (http://www.nic.cz/)
 
 This file is part of the turris updater.
 
@@ -407,14 +407,16 @@ local function build_plan(pkgs, requests, sat, satmap)
 	end
 
 	for _, req in pairs(requests) do
-		if sat[satmap.req2sat[req]] and req.tp == "install" then -- Plan only if we can satisfy given request and it is install request
-			local pln = pkg_plan(req.package, false, utils.arr2set(req.ignore or {})["missing"], 'Requested package')
-			-- Note that if pln is nil than we ignored missing package. We have to compute with that here
-			if pln and req.reinstall then
-				pln.action = 'reinstall'
-			end
-			if req.critical and inconsistent[req.package.name] then -- Check if critical didn't end up in cyclic dependency
-				error(utils.exception('inconsistent', 'Package ' .. req.package.name .. ' is requested as critical. Cyclic dependency is not allowed for critical requests.', { critical = true }))
+		if sat[satmap.req2sat[req]] then -- Plan only if we can satisfy given request
+			if req.tp == "install" then -- And if it is install request, uninstall requests are resolved by not being planned.
+				local pln = pkg_plan(req.package, false, utils.arr2set(req.ignore or {})["missing"], 'Requested package')
+				-- Note that if pln is nil than we ignored missing package. We have to compute with that here
+				if pln and req.reinstall then
+					pln.action = 'reinstall'
+				end
+				if req.critical and inconsistent[req.package.name] then -- Check if critical didn't end up in cyclic dependency
+					error(utils.exception('inconsistent', 'Package ' .. req.package.name .. ' is requested as critical. Cyclic dependency is not allowed for critical requests.', { critical = true }))
+				end
 			end
 		else
 			-- We don't expect critical. If critical request wasn't satisfied we already failed.
