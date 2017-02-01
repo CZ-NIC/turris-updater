@@ -1,0 +1,5 @@
+#!/bin/sh
+# Lets sleep for very long time
+sleep 3600
+
+echo We don\'t want to see this >&2

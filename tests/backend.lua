@@ -829,6 +829,13 @@ PKG_ROOT=
 	result, stderr = B.script_run("xyz", "postrm", "remove")
 	assert(result)
 	assert_equal("test\n", stderr)
+	-- This one hangs and should timeout, we set shorter timeout just to make test faster
+	local old_cmd_timeout = B.cmd_timeout
+	B.cmd_timeout = 1000
+	result, stderr = B.script_run("hang", "postinst", "install")
+	assert_false(result)
+	assert_equal("", stderr)
+	B.cmd_timeout = old_cmd_timeout
 end
 
 function test_root_dir_set()
