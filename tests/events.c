@@ -169,18 +169,30 @@ END_TEST
 
 START_TEST(command_timeout) {
 	struct events *events = events_new();
-	struct command_info info = { .called = 0 };
-	struct wait_id id = run_command(events, command_terminated, NULL, &info, 0, NULL, 100, 1000, "/bin/sh", "-c", "while true ; do : ; done", NULL);
-	info.id_expected = id;
+	struct command_info infos[2];
+	memset(infos, 0, sizeof infos);
+	struct wait_id ids[2];
+	// Process we run hangs
+	ids[0] = run_command(events, command_terminated, NULL, &infos[0], 0, NULL, 100, 1000, "/bin/sh", "-c", "while true ; do : ; done", NULL);
+	// Child process of what we run hangs
+	ids[1] = run_command(events, command_terminated, NULL, &infos[1], 0, NULL, 100, 1000, "/bin/sh", "-c", "(while true ; do : ; done)", NULL);
+	for (size_t i = 0; i < 2; i ++) {
+		ck_assert_uint_eq(0, infos[i].called);
+		infos[i].id_expected = ids[i];
+	}
+	struct wait_id ids_copy[2];
+	memcpy(ids_copy, ids, sizeof ids);
 	alarm(30);
-	events_wait(events, 1, &id);
+	events_wait(events, 2, ids_copy);
 	alarm(0);
-	ck_assert_uint_eq(1, info.called);
-	ck_assert_uint_eq(CK_TERMED, info.killed);
-	ck_assert(WIFSIGNALED(info.status));
-	ck_assert_uint_eq(SIGTERM, WTERMSIG(info.status));
-	free(info.out);
-	free(info.err);
+	for (size_t i = 0; i < 2; i ++) {
+		ck_assert_uint_eq(1, infos[i].called);
+		ck_assert_uint_eq(CK_TERMED, infos[i].killed);
+		ck_assert(WIFSIGNALED(infos[i].status));
+		ck_assert_uint_eq(SIGTERM, WTERMSIG(infos[i].status));
+		free(infos[i].out);
+		free(infos[i].err);
+	}
 	events_destroy(events);
 }
 END_TEST

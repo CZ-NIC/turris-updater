@@ -353,6 +353,7 @@ static struct wait_id command_id(struct watched_command *command) {
 static void signal_send(struct watched_command *command, int signal) {
 	if (command->running) {
 		// After fork we set gid to be same as pid so we can now kill whole process group.
+		// We do it so we potentially really kill all child processes.
 		killpg(command->pid, signal);
 		command->signal_sent = signal;
 	}
