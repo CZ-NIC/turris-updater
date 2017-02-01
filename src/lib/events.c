@@ -310,6 +310,10 @@ static void run_child(post_fork_callback_t post_fork, void *data, const char *co
 	ASSERT(dup2(in_pipe[0], 0) != -1 && close(in_pipe[0]) != -1);
 	ASSERT(dup2(out_pipe[1], 1) != -1 && close(out_pipe[1]) != -1);
 	ASSERT(dup2(err_pipe[1], 2) != -1 && close(err_pipe[1]) != -1);
+	// Set gid to be same as pid (differentiate from updater process)
+	pid_t mypid = getpid();
+	setpgid(mypid, mypid);
+
 	if (post_fork)
 		post_fork(data);
 	/*
@@ -348,7 +352,8 @@ static struct wait_id command_id(struct watched_command *command) {
 
 static void signal_send(struct watched_command *command, int signal) {
 	if (command->running) {
-		kill(command->pid, signal);
+		// After fork we set gid to be same as pid so we can now kill whole process group.
+		killpg(command->pid, signal);
 		command->signal_sent = signal;
 	}
 }

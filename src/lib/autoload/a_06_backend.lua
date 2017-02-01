@@ -1033,8 +1033,8 @@ function script_run(pkg_name, script_name, ...)
 	if ftype == 'r' and perm:match("^r.[xs]") then
 		DBG("Running " .. script_name .. " of " .. pkg_name)
 		local s_ecode, s_stderr
-		events_wait(run_command(function (ecode, _, _, stderr)
-			DBG("Terminated")
+		events_wait(run_command(function (ecode, killed, _, stderr)
+			DBG("Terminated: " .. killed)
 			s_ecode = ecode
 			s_stderr = stderr
 		end, function ()
