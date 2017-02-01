@@ -294,6 +294,43 @@ function test_missing_dep()
 	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent')
 end
 
+--[[
+We shouldn't fail if we don't have repository set, because then it is package
+content set in configuration.
+]]
+function test_content_version()
+	local pkgs = {
+		pkg = {
+			candidates = {
+				{Package = 'pkg', Version = "2"},
+				{Package = 'pkg', Version = "1"}
+			},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg',
+			},
+			priority = 50,
+			version = '=1'
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		pkg = {
+			action = 'require',
+			package = {Package = 'pkg', Version = "1"},
+			modifier = {},
+			name = 'pkg'
+		}
+	}
+	assert_plan_dep_order(expected, result)
+end
+
 function test_virtual()
 	local pkgs = {
 		virt1 = {
