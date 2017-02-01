@@ -410,8 +410,8 @@ function pkg_aggregate()
 		if pkg_group.candidates then
 			table.sort(pkg_group.candidates, function(a, b)
 				-- The locally created packages (with content) have no repo, create a dummy one. Get its priority from the Package command, or the default 50
-				local a_repo = a.repo or {priority = utils.multi_index(a, "pkg", "priority") or 50, serial = -1}
-				local b_repo = b.repo or {priority = utils.multi_index(b, "pkg", "priority") or 50, serial = -1}
+				local a_repo = a.repo or {priority = utils.multi_index(a, "pkg", "priority") or 50, serial = -1, name = ""}
+				local b_repo = b.repo or {priority = utils.multi_index(b, "pkg", "priority") or 50, serial = -1, name = ""}
 				if a_repo.priority ~= b_repo.priority then -- Check repository priority
 					return a_repo.priority > b_repo.priority
 				end
@@ -429,7 +429,10 @@ function pkg_aggregate()
 				if a.Package ~= b.Package then -- As last resort when packages are not from same and not from provided package group
 					return a.Package < b.Package -- Sort alphabetically by package name
 				end
-				WARN("Multiple candidates from same repository with same version for package " .. a.Package)
+				-- For some reason sorting algorithm sometimes compares object to it self. So we can't just strait print warning, but we have to check if it isn't same table.
+				if a ~= b then
+					WARN("Multiple candidates from same repository (" .. a_repo.name .. ") with same version (" .. a.Version .. ") for package " .. a.Package)
+				end
 				return true -- lets prioritize a, for no reason, lets make b angry.
 			end)
 		end
