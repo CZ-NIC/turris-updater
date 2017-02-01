@@ -1,0 +1,5 @@
+Repository "test1" "file://%ROOT_DIR%/repo1" {priority=20}
+Repository "test2" "file://%ROOT_DIR%/repo2"
+
+Package "pkg" {replan = true}
+Install "pkg" {version="=1"}

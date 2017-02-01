@@ -17,7 +17,8 @@ UPD_SYS_TESTS := \
 	provides \
 	abi-change \
 	replan \
-	list-dir
+	list-dir \
+	force-downgrade
 
 MIGRATE_SYS_TESTS := \
 	auto-migrate-pkgs
