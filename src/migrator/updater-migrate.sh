@@ -35,20 +35,7 @@ if grep -q -e '-- Auto-migration performed' /etc/updater/auto.lua ; then
 	echo "Updater migration already performed" >&2
 else
 	# This script migrates from the old updater to updater-ng. First, migrate the config.
-	BRANCH=$(uci -q get updater.override.branch || true)
-	if [ -z "$BRANCH" ] ; then
-		BRANCH=$(grep '^src/gz.*/base$' /etc/opkg/distfeeds.conf  | sed -e 's#.*openwrt-repo/##;s#/.*##')
-	fi
-	BRANCH=$(echo "$BRANCH" | sed -e 's/^omnia-//;s/^turris-//')
-	if [ "$BRANCH" = "turris" -o "$BRANCH" = "omnia" ] ; then
-		BRANCH=""
-	fi
-	if [ "$BRANCH" ] ; then
-		uci set updater.override=override
-		uci set updater.override.branch="$BRANCH"
-	else
-		uci delete updater.override.override || true
-	fi
+	uci delete updater.override.override || true
 	uci commit updater
 
 	# Clean up the auto.lua first, to get rid of any possible artifacts of
