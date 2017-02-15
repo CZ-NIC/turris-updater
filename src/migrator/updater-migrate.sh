@@ -34,10 +34,6 @@ if grep -q -e '-- Auto-migration performed' /etc/updater/auto.lua ; then
 	echo "Updater migration already performed" | logger -t daemon.info
 	echo "Updater migration already performed" >&2
 else
-	# This script migrates from the old updater to updater-ng. First, migrate the config.
-	uci delete updater.override.override || true
-	uci commit updater
-
 	# Clean up the auto.lua first, to get rid of any possible artifacts of
 	# old updater interacting with our opkg wrapper. All the relevant packages
 	# are in the system anyway, so they'll get re-added there.
