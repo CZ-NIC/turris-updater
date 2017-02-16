@@ -1,5 +1,5 @@
 --[[
-Copyright 2016, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+Copyright 2016-2017, CZ.NIC z.s.p.o. (http://www.nic.cz/)
 
 This file is part of the turris updater.
 
@@ -452,8 +452,8 @@ function test_collisions()
 	local col, erem, rem = B.collision_check(status, {}, test_pkg)
 	assert_table_equal({
 		["/etc/modules.d/usb-storage"] = {
-			["kmod-usb-storage"] = "existing",
-			["package"] = "new"
+			["kmod-usb-storage"] = "existing-file",
+			["package"] = "new-file"
 		}
 	}, col)
 	assert_table_equal({}, erem)
@@ -463,8 +463,8 @@ function test_collisions()
 	local col, erem, rem = B.collision_check(status, {['kmod-usb-storage'] = true}, test_pkg)
 	assert_table_equal({
 		["/etc/modules.d/usb-storage"] = {
-			["package"] = "new",
-			["another"] = "new"
+			["package"] = "new-file",
+			["another"] = "new-file"
 		}
 	}, col)
 	assert_table_equal({}, erem)
@@ -473,6 +473,25 @@ function test_collisions()
 		["/etc/modules-boot.d/usb-storage"] = true
 		-- The usb-storage file is taken over, it doesn't disappear
 	}, rem)
+	-- Packaage is updated and one of its original files should be removed
+	local test_pkg = {
+		['terminfo'] = {
+			["/usr/share/terminfo/x/xterm"] = true,
+			["/usr/share/terminfo/r/rxvt-unicode"] = true,
+			["/usr/share/terminfo/d/dumb"] = true,
+			["/usr/share/terminfo/a/ansi"] = true,
+			["/usr/share/terminfo/x/xterm-color"] = true,
+			["/usr/share/terminfo/r/rxvt"] = true,
+			["/usr/share/terminfo/s/screen"] = true,
+			["/usr/share/terminfo/x/xterm-256color"] = true,
+			["/usr/share/terminfo/l/linux"] = true,
+			["/usr/share/terminfo/v/vt102"] = true
+		}
+	}
+	local col, erem, rem = B.collision_check(status, {}, test_pkg)
+	assert_table_equal({}, col)
+	assert_table_equal({}, erem)
+	assert_table_equal({["/usr/share/terminfo/v/vt100"] = true}, rem)
 	-- Collision of file with new directory
 	local test_pkg = {
 		["package"] = {
@@ -484,8 +503,8 @@ function test_collisions()
 	local col, erem, rem = B.collision_check(status, {}, test_pkg)
 	assert_table_equal({
 		["/etc/modules.d/usb-storage"] = {
-			["package"] = "new",
-			["kmod-usb-storage"] = "existing"
+			["package"] = "new-dir",
+			["kmod-usb-storage"] = "existing-file"
 		}
 	}, col)
 	assert_table_equal({}, erem)
@@ -511,8 +530,8 @@ function test_collisions()
 	local col, erem, rem = B.collision_check(status, {}, test_pkg)
 	assert_table_equal({
 		["/usr/share/terminfo"] = {
-			["package"] = "new",
-			["terminfo"] = "existing"
+			["package"] = "new-file",
+			["terminfo"] = "existing-dir"
 		}
 	}, col)
 	assert_table_equal({}, erem)
@@ -522,8 +541,8 @@ function test_collisions()
 	local col, erem, rem = B.collision_check(status, {['terminfo'] = true}, test_pkg)
 	assert_table_equal({
 		["/etc/modules.d/usb-storage"] = {
-			["package"] = "new",
-			["kmod-usb-storage"] = "existing"
+			["package"] = "new-file",
+			["kmod-usb-storage"] = "existing-file"
 		}
 	}, col)
 	assert_table_equal({
@@ -549,8 +568,8 @@ function test_collisions()
 	local col, erem, rem = B.collision_check(status, {['terminfo'] = true}, test_pkg)
 	assert_table_equal({
 		["/usr/share/terminfo"] = {
-			["another"] = "new",
-			["package"] = "new"
+			["another"] = "new-dir",
+			["package"] = "new-file"
 		}
 	}, col)
 	-- Note that we don't care about erem and rem. Their content depends on order packages are processed.
@@ -567,9 +586,9 @@ function test_collisions()
 	local col, erem, rem = B.collision_check(status, {}, test_pkg)
 	assert_table_equal({
 		["/etc/modules.d/usb-storage"] = {
-			["package"] = "new",
-			["another"] = "new",
-			["kmod-usb-storage"] = "existing"
+			["package"] = "new-dir",
+			["another"] = "new-file",
+			["kmod-usb-storage"] = "existing-file"
 		}
 	}, col)
 	-- For "erem" and "rem" see note few lines before this one.
