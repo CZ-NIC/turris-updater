@@ -27,28 +27,6 @@
 
 . /lib/functions.sh
 
-config_load updater
-config_get_bool DISABLED override disable 0
-
-if [ "$DISABLED" = "1" ] ; then
-	echo "Updater disabled" | logger -t daemon.warning
-	echo "Updater disabled" >&2
-	exit 0
-fi
-
-get-api-crl
-
-STATE_DIR=/tmp/update-state
-LOCK_DIR="$STATE_DIR/lock"
-LOG_FILE="$STATE_DIR/log2"
-PID_FILE="$STATE_DIR/pid"
-APPROVAL_ASK_FILE=/usr/share/updater/need_approval
-APPROVAL_GRANTED_FILE=/usr/share/updater/approvals
-EXIT_CODE=1
-BACKGROUND=false
-BACKGROUNDED=false
-TMP_DIR="/tmp/$$.tmp"
-
 timeout() {
 	# Let a command run for up to $1 seconds. If it doesn't finishes by then, kill it.
 	# The timeout starts it in background. Also, a watcher process is started that'd kill
@@ -80,6 +58,31 @@ timeout() {
 	WATCHER=
 	return "$RESULT"
 }
+
+config_load updater
+config_get_bool DISABLED override disable 0
+
+if [ "$DISABLED" = "1" ] ; then
+	echo "Updater disabled" | logger -t daemon.warning
+	echo "Updater disabled" >&2
+	exit 0
+fi
+
+get-api-crl || {
+	timeout 120 create_notification -s error "Updater selhal: Nepodařilo se stáhnout soubor CRL. To je pravděpodobně způsobeno tím, že router není připojen k internetu." "Updater failed: Couldn't download CRL file. This is probably because the router has no internet connectivity." || echo "Create notification failed" | logger -t updater -p daemon.error; 
+	exit 1
+}
+
+STATE_DIR=/tmp/update-state
+LOCK_DIR="$STATE_DIR/lock"
+LOG_FILE="$STATE_DIR/log2"
+PID_FILE="$STATE_DIR/pid"
+APPROVAL_ASK_FILE=/usr/share/updater/need_approval
+APPROVAL_GRANTED_FILE=/usr/share/updater/approvals
+EXIT_CODE=1
+BACKGROUND=false
+BACKGROUNDED=false
+TMP_DIR="/tmp/$$.tmp"
 
 while [ "$1" ] ; do
 	case "$1" in
