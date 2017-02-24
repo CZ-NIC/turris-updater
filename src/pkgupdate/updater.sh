@@ -69,7 +69,7 @@ if [ "$DISABLED" = "1" ] ; then
 fi
 
 get-api-crl || {
-	timeout 120 create_notification -s error "Updater selhal: Nepodařilo se stáhnout soubor CRL. To je pravděpodobně způsobeno tím, že router není připojen k internetu." "Updater failed: Couldn't download CRL file. This is probably because the router has no internet connectivity." || echo "Create notification failed" | logger -t updater -p daemon.error; 
+	timeout 120 create_notification -s error "Updater selhal: Chybí CRL, pravděpodobně je problém v připojení k internetu." "Updater failed: Missing CRL, possibly broken Internet connection." || echo "Create notification failed" | logger -t updater -p daemon.error; 
 	exit 1
 }
 
