@@ -602,10 +602,8 @@ function collision_check(current_status, remove_pkgs, add_pkgs)
 
 	-- Function adding files to tree. It accepts file path, package it belongs to and boolean new saying if given file is from old or new package.
 	local function add_file_to_tree(file_path, package, new)
-		local fname = file_path:match("[^/]+$")
 		local node = files_tree
-		for n in file_path:gmatch("[^/]+") do
-			local tp = (n == fname) and "file" or "dir"
+		local function add(n, tp)
 			if not node.nodes[n] then
 				node.nodes[n] = {path = node.path .. '/' .. n, nodes = {}, new_owner = {}, old_owner = {}}
 			end
@@ -614,6 +612,12 @@ function collision_check(current_status, remove_pkgs, add_pkgs)
 			if not node[n_o_own][tp] then node[n_o_own][tp] = {} end
 			node[n_o_own][tp][package] = true
 		end
+		local fname = file_path:match("[^/]+$") -- we have normalized path so there is no trailing slash
+		local dpath = file_path:sub(1, -fname:len() - 1) -- cut off fname
+		for n in dpath:gmatch("[^/]+") do
+			add(n, "dir")
+		end
+		add(fname, "file")
 	end
 	-- Populate tree with files from currently installed packages
 	for name, status in pairs(current_status) do

@@ -592,6 +592,21 @@ function test_collisions()
 		}
 	}, col)
 	-- For "erem" and "rem" see note few lines before this one.
+	-- We encountered problem with bird4 and bird6 so test for it. It happens when final file has same name as directory leading to it.
+	local test_pkg = {
+		["bird6"] = {
+			["/etc/bird6/init.d/bird6"] = true,
+			["/etc/bird6/config"] = true
+		},
+		["bird4"] = {
+			["/etc/bird4/init.d/bird4"] = true,
+			["/etc/bird4/config"] = true
+		}
+	}
+	local col, erem, rem = B.collision_check(status, {}, test_pkg)
+	assert_table_equal({}, col)
+	assert_table_equal({}, erem)
+	assert_table_equal({}, rem)
 end
 
 -- Test config_steal and not_installed_confs function
