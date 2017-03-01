@@ -116,7 +116,7 @@ function test_download()
 	local id2 = download(function (status, answer)
 		assert_equal(500, status)
 		called2 = called2 + 1
-	end, "https://api.turri.cz/does/not/exist", cert);
+	end, "https://api.turris.cz/does/not/exist", cert);
 	events_wait(id1, id2);
 	assert_equal(1, called1);
 	assert_equal(1, called2);
