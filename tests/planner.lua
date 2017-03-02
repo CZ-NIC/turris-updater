@@ -1161,6 +1161,98 @@ function test_replan_order()
 	assert_table_equal(expected, planner.required_pkgs(pkgs, requests))
 end
 
+-- Check if packages order can be broken using order_before option
+function test_order_before()
+	local pkgs = {
+		pkg = {
+			candidates = {{Package = 'pkg', deps = {}, repo = def_repo}},
+			modifier = {
+				deps = 'dep',
+				order_before = {["dep"] = true}
+			}
+		},
+		dep = {
+			candidates = {{Package = 'dep', deps = {}, repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg',
+			},
+			priority = 50
+		}
+	}
+	local expected = {
+		{
+			action = "require",
+			package = {Package = 'pkg', deps = {}, repo = def_repo},
+			modifier = {
+				deps = 'dep',
+				order_before = {["dep"] = true}
+			},
+			name = "pkg"
+		},
+		{
+			action = "require",
+			package = {Package = 'dep', deps = {}, repo = def_repo},
+			modifier = {},
+			name = "dep"
+		}
+	}
+	assert_table_equal(expected, planner.required_pkgs(pkgs, requests))
+end
+
+-- Check if packages order can be broken using order_after option
+function test_order_after()
+	local pkgs = {
+		pkg = {
+			candidates = {{Package = 'pkg', deps = {}, repo = def_repo}},
+			modifier = {
+				deps = 'dep'
+			}
+		},
+		dep = {
+			candidates = {{Package = 'dep', deps = {}, repo = def_repo}},
+			modifier = {
+				order_after = {["pkg"] = true}
+			}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg',
+			},
+			priority = 50
+		}
+	}
+	local expected = {
+		{
+			action = "require",
+			package = {Package = 'pkg', deps = {}, repo = def_repo},
+			modifier = {
+				deps = 'dep'
+			},
+			name = "pkg"
+		},
+		{
+			action = "require",
+			package = {Package = 'dep', deps = {}, repo = def_repo},
+			modifier = {
+				order_after = {["pkg"] = true}
+			},
+			name = "dep"
+		}
+	}
+	assert_table_equal(expected, planner.required_pkgs(pkgs, requests))
+end
+
 function test_filter_required()
 	local status = {
 		pkg1 = {

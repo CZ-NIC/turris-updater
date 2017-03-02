@@ -328,6 +328,22 @@ local function build_plan(pkgs, requests, sat, satmap)
 	local inwstack = {} -- table of all packages we work on where key is name and value is index
 	local inconsistent = {} -- Set of potentially inconsistent packages (might fail their post-install scrips)
 	local missing_dep = {} -- Set of all packages that depends on some missing dependency
+	local candidates = {} -- table where key is name of package group and value is table with chosen candidate (nil for no candidate)
+	-- Check for cycles in work stack. Reports cycles and remembers inconsistencies.
+	local function wstack_cycle(name)
+		if inwstack[name] then -- Already working on it. Found cycle.
+			local incycle = {} -- set of packages in this cycle
+			for i = inwstack[name], #wstack, 1 do
+				local inc_name = wstack[i]
+				if not inconsistent[inc_name] then -- Do not warn again
+					WARN("Package " .. inc_name .. " is in cyclic dependency. It might fail its post-install script.")
+				end
+				inconsistent[inc_name] = true
+				incycle[inc_name] = true
+			end
+			return incycle
+		end
+	end
 	--[[
 	Plans given package (request) and all of its dependencies. Argument plan_pkg is
 	"package" or "dep-package" or string (name of package group). ignore_missing
@@ -361,34 +377,20 @@ local function build_plan(pkgs, requests, sat, satmap)
 			return plan[planned[name]]
 		end
 		local pkg = pkgs[name]
+		local candidate = candidates[name]
 		-- Check for cycles --
-		if inwstack[name] then -- Already working on it. Found cycle.
-			for i = inwstack[name], #wstack, 1 do
-				local inc_name = wstack[i]
-				if not inconsistent[inc_name] then -- Do not warn again
-					WARN("Package " .. inc_name .. " is in cyclic dependency. It might fail its post-install script.")
-				end
-				inconsistent[inc_name] = true
-			end
+		if wstack_cycle(name) then
 			return
 		end
-		-- Found selected candidate for this package group
-		local candidate
-		for _, cand in pairs((pkg or {}).candidates or {}) do
-			if sat[satmap.candidate2sat[cand]] then
-				candidate = cand
-				break;
-			end
-		end
 		-- Recursively add all packages this package depends on --
-		inwstack[name] = #wstack + 1 -- Signal that we are working on this package group.
 		table.insert(wstack, name)
+		inwstack[name] = #wstack -- Signal that we are working on this package group.
 		local alldeps = utils.arr_prune({ utils.multi_index(pkg, 'modifier', 'deps'), (candidate or {}).deps })
 		for _, p in pkg_dep_iterate(alldeps) do
 			pkg_plan(p, ignore_missing or utils.arr2set(utils.multi_index(pkg, 'modifier', 'ignore') or {})["deps"], false, "Package " .. name .. " requires package")
 		end
-		table.remove(wstack, inwstack[name])
 		inwstack[name] = nil -- Our recursive work on this package group ended.
+		table.remove(wstack, inwstack[name])
 		if not candidate then -- If no candidate, then we have nothing to be planned
 			return
 		end
@@ -408,14 +410,108 @@ local function build_plan(pkgs, requests, sat, satmap)
 		return r
 	end
 
-	-- We plan packages with replan first to ensure that replan happens as soon as possible.
+	--[[
+	Stage 1
+	Hard order sorting. We have rules given from configuration by order_before
+	and order_after. Also we are trying to plan packages with immediate replan as
+	first ones. On this stage we are working only with packages touched by order
+	specifications and immediate replan and their dependencies.
+	]]
+	-- We create lists of planing exceptions order_before and order_after
+	local replan_immediate = {} -- We plan packages with replan first to ensure that replan happens as soon as possible. These are those packages.
+	local force_order_rules = {} -- table where key is package ordered before package given as value
 	for name, pkg in pairs(pkgs) do 
-		-- pkgs contains all packages so we have to check if package is in sat at all
-		if utils.multi_index(pkg, 'modifier', 'replan') and satmap.pkg2sat[name] and not (satmap.missing[pkg] or satmap.missing[name]) then -- we ignore missing packages, as they wouldn't be planned anyway and error or warning should be given by requests and other packages later on.
-			pkg_plan(name, false, false, 'Planned package with replan enabled'); -- we don't expect to see this parent_str because we are planning this first, but it theoretically can happen so this makes at least some what sense.
+		if satmap.pkg2sat[name] and sat[satmap.pkg2sat[name]] then -- pkgs contains all packages so we have to check if package is in sat at all (meaning we are working on it)
+			if utils.multi_index(pkg, 'modifier', 'replan') and not (satmap.missing[pkg] or satmap.missing[name]) then -- we ignore missing packages, as they wouldn't be planned anyway and error or warning should be given by requests and other packages later on.
+				replan_immediate[name] = true
+			end
+			for lim in pairs(pkg.modifier.order_before or {}) do
+				if not force_order_rules[name] then force_order_rules[name] = {} end
+				force_order_rules[name][lim] = true
+			end
+			for lim in pairs(pkg.modifier.order_after or {}) do
+				if not force_order_rules[lim] then force_order_rules[lim] = {} end
+				force_order_rules[lim][name] = true
+			end
+			-- For optimization as we go trough packages we also found their chosen candidates
+			for _, cand in pairs((pkg or {}).candidates or {}) do
+				if sat[satmap.candidate2sat[cand]] then
+					candidates[name] = cand
+					break;
+				end
+			end
 		end
 	end
+	-- Build set of package we are working on
+	local force_order = utils.shallow_copy(replan_immediate)
+	for pkg, pkgs in pairs(force_order_rules) do -- join sets
+		force_order[pkg] = true
+		utils.table_merge(force_order, pkgs)
+	end
+	-- Build full set of all dependencies per package we are working on. This is not very efficient, but we expect it to be done only for few packages
+	local force_order_deps = {} -- table where key is package name and value is set of both direct and indirect dependencies
+	local function add_force_order_deps(pkg)
+		if force_order_deps[pkg] then -- already done or cycle
+			-- Note: if this is cycle, then this returns set of packages in that cycle. Adding them to pkg distributes them all in the way up
+			local cycle = wstack_cycle(pkg)
+			for p in pairs(cycle or {}) do
+				if force_order[p] then
+					force_order_deps[pkg][p] = true
+				end
+			end
+			return force_order_deps[pkg]
+		end
+		force_order_deps[pkg] = {}
+		table.insert(wstack, pkg)
+		inwstack[pkg] = #wstack -- Signal that we are working on this package group.
+		local alldeps = utils.arr_prune({ utils.multi_index(pkgs, pkg, 'modifier', 'deps'), utils.multi_index(candidates, pkg, 'deps')})
+		for _, p in pkg_dep_iterate(alldeps) do
+			local name = p.name or p
+			if force_order[name] then -- if it isn't in force_order then we wouldn't use it so we don't care
+				force_order_deps[pkg][name] = true
+			end
+			utils.table_merge(force_order_deps[pkg], add_force_order_deps(name)) -- join indirect dependencies
+		end
+		inwstack[pkg] = nil -- Our recursive work on this package group ended.
+		table.remove(wstack, inwstack[pkg])
+		return force_order_deps[pkg]
+	end
+	for pkg in pairs(force_order) do
+		add_force_order_deps(pkg)
+	end
+	-- Sort limited ones according to given order_before and order_after rules
+	force_order = utils.set2arr(force_order) -- make array from set of packages to be ordered
+	table.sort(force_order, function(a, b)
+		if utils.multi_index(force_order_rules, b, a) or utils.multi_index(force_order_rules, a, b) then
+			if utils.multi_index(force_order_rules, b, a) and utils.multi_index(force_order_rules, a, b) then -- we request something that's not possible
+				error(utils.exception('inconsistent', 'Package ' .. a .. ' is requested to be planned both before and after package ' .. b .. '.'))
+			end
+			-- We have explicit rules for these two
+			return utils.multi_index(force_order_rules, a, b)
+		elseif force_order_deps[a][b] or force_order_deps[b][a] then -- Without explicit rules we try to order by dependencies
+			return force_order_deps[b][a] -- a depends on b so b should be before a. If b depends on a it returns false and b ends up after a.
+		elseif replan_immediate[a] or replan_immediate[b] then -- Without dependencies we prefer package causing immediate replan
+			return replan_immediate[a] -- returns true if b causes replan, otherwise false which means a causes immediate replan
+		else -- If there are no relations we call it fine as we don't care (this might end up creating unstable results. But because we are working with limited set with rules, it shouldn't be problem)
+			return true
+		end
+	end)
+	-- Now we have hard ordered plan so lets plan it one by one
+	planned = utils.arr2set(force_order) -- lets call packages from hard ordered plan planned to trick pkg_add algorithm
+	for _, pkg in ipairs(force_order) do
+		planned[pkg] = false -- To be able to plan it we should say that it isn't yet planned. It's set true again by pkg_plan
+		pkg_plan(pkg, false, false, 'Hard planned package') -- we don't expect to see this parent_str because we are planning this first, but it theoretically can happen so this makes at least some what sense.
+	end
 
+	--[[
+	Stage 2
+	When we have hard ordered packages done, we can just add all other packages.
+	We have to ensure now only that dependencies hold, any other limitations are
+	already solved. This works so that we choose random request and we are go
+	trough tree using DFS and add all satisfied packages from bottom to chosen
+	request.
+	]]
+	-- As last plan everything that is requested
 	for _, req in pairs(requests) do
 		if sat[satmap.req2sat[req]] then -- Plan only if we can satisfy given request
 			if req.tp == "install" then -- And if it is install request, uninstall requests are resolved by not being planned.
