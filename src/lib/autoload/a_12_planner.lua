@@ -415,25 +415,37 @@ local function build_plan(pkgs, requests, sat, satmap)
 	Hard order sorting. We have rules given from configuration by order_before
 	and order_after. Also we are trying to plan packages with immediate replan as
 	first ones. On this stage we are working only with packages touched by order
-	specifications and immediate replan and their dependencies.
+	specifications and immediate replan.
 	]]
-	-- We create lists of planing exceptions order_before and order_after
-	local replan_immediate = {} -- We plan packages with replan first to ensure that replan happens as soon as possible. These are those packages.
-	local force_order_rules = {} -- table where key is package ordered before package given as value
+	local replan_immediate = {} -- We plan packages with replan first to ensure that replan happens as soon as possible. This is set of those packages.
+	local force_order_rules = {} -- Table where key is package ordered after package given as value
+	-- This function checks if given root should be after given pkg. It's used to ensure that we don't add any cycles.
+	local function inorder_rules(root, pkg)
+		if utils.multi_index(force_order_rules, root, pkg) then return true end
+		for nroot in pairs(force_order_rules[root] or {}) do
+			if inorder_rules(nroot, pkg) then return true end
+		end
+		return false
+	end
 	for name, pkg in pairs(pkgs) do 
 		if satmap.pkg2sat[name] and sat[satmap.pkg2sat[name]] then -- pkgs contains all packages so we have to check if package is in sat at all (meaning we are working on it)
 			if utils.multi_index(pkg, 'modifier', 'replan') and not (satmap.missing[pkg] or satmap.missing[name]) then -- we ignore missing packages, as they wouldn't be planned anyway and error or warning should be given by requests and other packages later on.
 				replan_immediate[name] = true
 			end
+			local function add_rule(a, b) -- add rule that b is after a
+				if inorder_rules(a, b) then -- Cycles in order rules are incorrect configuration
+					error(utils.exception('inconsistent', 'Multiple order_* rules creates collision between packages: ' .. a .. ' ' .. b)) -- TODO We should check before we use it here. Because this way we might not discover collisions if packages are not going to be installed
+				end
+				if not force_order_rules[b] then force_order_rules[b] = {} end
+				force_order_rules[b][a] = true
+			end
 			for lim in pairs(pkg.modifier.order_before or {}) do
-				if not force_order_rules[name] then force_order_rules[name] = {} end
-				force_order_rules[name][lim] = true
+				add_rule(name, lim)
 			end
 			for lim in pairs(pkg.modifier.order_after or {}) do
-				if not force_order_rules[lim] then force_order_rules[lim] = {} end
-				force_order_rules[lim][name] = true
+				add_rule(lim, name)
 			end
-			-- For optimization as we go trough packages we also found their chosen candidates
+			-- As we go trough packages we also find their chosen candidates (so we don't have to do it again later on)
 			for _, cand in pairs((pkg or {}).candidates or {}) do
 				if sat[satmap.candidate2sat[cand]] then
 					candidates[name] = cand
@@ -443,59 +455,59 @@ local function build_plan(pkgs, requests, sat, satmap)
 		end
 	end
 	-- Build set of package we are working on
-	local force_order = utils.shallow_copy(replan_immediate)
+	local in_force_order = utils.shallow_copy(replan_immediate) -- set of packages to be sorted in force_order
 	for pkg, pkgs in pairs(force_order_rules) do -- join sets
-		force_order[pkg] = true
-		utils.table_merge(force_order, pkgs)
+		in_force_order[pkg] = true
+		utils.table_merge(in_force_order, pkgs)
 	end
-	-- Build full set of all dependencies per package we are working on. This is not very efficient, but we expect it to be done only for few packages
-	local force_order_deps = {} -- table where key is package name and value is set of both direct and indirect dependencies
+	-- Use dependencies to further limit order between packages (if dependency is against already existing order rules it is dropped)
 	local function add_force_order_deps(pkg)
-		if force_order_deps[pkg] then -- already done or cycle
-			-- Note: if this is cycle, then this returns set of packages in that cycle. Adding them to pkg distributes them all in the way up
-			local cycle = wstack_cycle(pkg)
-			for p in pairs(cycle or {}) do
-				if force_order[p] then
-					force_order_deps[pkg][p] = true
-				end
-			end
-			return force_order_deps[pkg]
+		if inwstack[pkg] then -- cycle
+			wstack_cycle(pkg) -- report cycle, because it might not be reported later on if cycle is broken by in_force_order package
+			return -- by this we break cycle and ignore it. This is same behavior as in stage2.
 		end
-		force_order_deps[pkg] = {}
 		table.insert(wstack, pkg)
 		inwstack[pkg] = #wstack -- Signal that we are working on this package group.
-		local alldeps = utils.arr_prune({ utils.multi_index(pkgs, pkg, 'modifier', 'deps'), utils.multi_index(candidates, pkg, 'deps')})
+		local alldeps = utils.arr_prune({utils.multi_index(pkgs, pkg, 'modifier', 'deps'), utils.multi_index(candidates, pkg, 'deps')})
 		for _, p in pkg_dep_iterate(alldeps) do
 			local name = p.name or p
-			if force_order[name] then -- if it isn't in force_order then we wouldn't use it so we don't care
-				force_order_deps[pkg][name] = true
+			if in_force_order[name] then -- if package isn't in in_force_order then we wouldn't use it so we don't care
+				for i = #wstack, 1, -1 do -- locate parent package that is in in_force_order
+					if in_force_order[wstack[i]] then
+						if not inorder_rules(name, wstack[i]) then -- we add this only if it isn't against of already added rules
+							if not force_order_rules[wstack[i]] then force_order_rules[wstack[i]] = {} end
+							force_order_rules[wstack[i]][name] = true -- this package should be after package it depeneds on
+							break
+						end
+					end
+				end
 			end
-			utils.table_merge(force_order_deps[pkg], add_force_order_deps(name)) -- join indirect dependencies
+			add_force_order_deps(name) -- DFS recursion
 		end
 		inwstack[pkg] = nil -- Our recursive work on this package group ended.
 		table.remove(wstack, inwstack[pkg])
-		return force_order_deps[pkg]
 	end
-	for pkg in pairs(force_order) do
+	for pkg in pairs(in_force_order) do
 		add_force_order_deps(pkg)
 	end
-	-- Sort limited ones according to given order_before and order_after rules
-	force_order = utils.set2arr(force_order) -- make array from set of packages to be ordered
-	table.sort(force_order, function(a, b)
-		if utils.multi_index(force_order_rules, b, a) or utils.multi_index(force_order_rules, a, b) then
-			if utils.multi_index(force_order_rules, b, a) and utils.multi_index(force_order_rules, a, b) then -- we request something that's not possible
-				error(utils.exception('inconsistent', 'Package ' .. a .. ' is requested to be planned both before and after package ' .. b .. '.'))
-			end
-			-- We have explicit rules for these two
-			return utils.multi_index(force_order_rules, a, b)
-		elseif force_order_deps[a][b] or force_order_deps[b][a] then -- Without explicit rules we try to order by dependencies
-			return force_order_deps[b][a] -- a depends on b so b should be before a. If b depends on a it returns false and b ends up after a.
-		elseif replan_immediate[a] or replan_immediate[b] then -- Without dependencies we prefer package causing immediate replan
-			return replan_immediate[a] -- returns true if b causes replan, otherwise false which means a causes immediate replan
-		else -- If there are no relations we call it fine as we don't care (this might end up creating unstable results. But because we are working with limited set with rules, it shouldn't be problem)
-			return true
+	local force_order = {} -- array with ordered packages
+	in_force_order = {} -- set of packages already added to force_order
+	-- This function adds given package to force_order, but before that adds everything that should  before that package
+	local function force_order_add(pkg)
+		if in_force_order[pkg] then return end -- skip if added
+		for before in pairs(force_order_rules[pkg] or {}) do
+			-- Note: there are no cycles, they are not added in first place in previous steps
+			force_order_add(before)
 		end
-	end)
+		table.insert(force_order, pkg)
+		in_force_order[pkg] = true
+	end
+	for rpln in pairs(replan_immediate) do -- As first we order packages with replan (order of replan packages have to be given by rules or is random)
+		force_order_add(rpln)
+	end
+	for pkg in pairs(force_order_rules) do -- And then plan rest of packages
+		force_order_add(pkg)
+	end
 	-- Now we have hard ordered plan so lets plan it one by one
 	planned = utils.arr2set(force_order) -- lets call packages from hard ordered plan planned to trick pkg_add algorithm
 	for _, pkg in ipairs(force_order) do

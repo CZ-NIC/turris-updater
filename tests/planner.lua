@@ -1206,6 +1206,128 @@ function test_order_before()
 	assert_table_equal(expected, planner.required_pkgs(pkgs, requests))
 end
 
+-- Check if packages order can be broken using order_before option and if
+-- immediate replan is planned before anything else
+function test_order_before_replan()
+	local pkgs = {
+		pkgreplan = {
+			candidates = {{Package = 'pkgreplan', deps = {}, repo = def_repo}},
+			modifier = {
+				replan = true
+			}
+		},
+		pkg = {
+			candidates = {{Package = 'pkg', deps = {}, repo = def_repo}},
+			modifier = {
+				deps = 'dep',
+				order_before = {["dep"] = true}
+			}
+		},
+		dep = {
+			candidates = {{Package = 'dep', deps = {}, repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg',
+			},
+			priority = 50
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkgreplan',
+			},
+			priority = 50
+		}
+	}
+	local expected = {
+		{
+			action = "require",
+			package = {Package = 'pkgreplan', deps = {}, repo = def_repo},
+			modifier = {
+				replan = true
+			},
+			name = "pkgreplan"
+		},
+		{
+			action = "require",
+			package = {Package = 'pkg', deps = {}, repo = def_repo},
+			modifier = {
+				deps = 'dep',
+				order_before = {["dep"] = true}
+			},
+			name = "pkg"
+		},
+		{
+			action = "require",
+			package = {Package = 'dep', deps = {}, repo = def_repo},
+			modifier = {},
+			name = "dep"
+		}
+	}
+	assert_table_equal(expected, planner.required_pkgs(pkgs, requests))
+	-- Also lets test if pkgreplan depends on package requesting order
+	pkgs.pkgreplan.modifier.deps = 'dep'
+	expected = {
+		expected[2], -- pkg
+		expected[3], -- dep
+		expected[1] -- pkgreplan
+	}
+	expected[3].modifier.deps = 'dep'
+	assert_table_equal(expected, planner.required_pkgs(pkgs, requests))
+	-- Now let's ensure that pkg is installed after pkgreplan
+	pkgs.pkg.modifier.order_after = {["pkgreplan"] = true}
+	expected = {
+		expected[3], -- pkgreplan
+		expected[1], -- pkg
+		expected[2] -- dep
+	} -- as weir as it might seem we have to break pkgreplan dependencies to satisfy order rules
+	expected[2].modifier.order_after = {["pkgreplan"] = true}
+	assert_table_equal(expected, planner.required_pkgs(pkgs, requests))
+end
+
+-- Check that we fail if we specify order_* rules that can't be satisfied together
+function test_order_collision()
+	local pkgs = {
+		pkg = {
+			candidates = {{Package = 'pkg', deps = {}, repo = def_repo}},
+			modifier = {
+				deps = 'dep',
+				order_before = {["dep"] = true}
+			}
+		},
+		dep = {
+			candidates = {{Package = 'dep', deps = 'subdep', repo = def_repo}},
+			modifier = {
+				order_before = {["subdep"] = true}
+			}
+		},
+		subdep = {
+			candidates = {{Package = 'subdep', deps = {}, repo = def_repo}},
+			modifier = {
+				order_before = {["pkg"] = true}
+			}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg',
+			},
+			priority = 50
+		}
+	}
+	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent')
+end
+
 -- Check if packages order can be broken using order_after option
 function test_order_after()
 	local pkgs = {
