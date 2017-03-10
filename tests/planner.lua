@@ -1098,6 +1098,69 @@ function test_penalty_and_missing()
 	assert_plan_dep_order(expected, result)
 end
 
+-- Check if package with replan is planned as soon as possible
+function test_replan_order()
+	local pkgs = {
+		pkg = {
+			candidates = {{Package = 'pkg', deps = {}, repo = def_repo}},
+			modifier = {}
+		},
+		pkgreplan = {
+			candidates = {{Package = 'pkgreplan', deps = {}, repo = def_repo}},
+			modifier = {
+				deps = 'dep',
+				replan = true
+			}
+		},
+		dep = {
+			candidates = {{Package = 'dep', deps = {}, repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg',
+			},
+			priority = 50
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkgreplan',
+			},
+			priority = 50
+		}
+	}
+	local expected = {
+		{
+			action = "require",
+			package = {Package = 'dep', deps = {}, repo = def_repo},
+			modifier = {},
+			name = "dep"
+		},
+		{
+			action = "require",
+			package = {Package = 'pkgreplan', deps = {}, repo = def_repo},
+			modifier = {
+				deps = 'dep',
+				replan = true
+			},
+			name = "pkgreplan"
+		},
+		{
+			action = "require",
+			package = {Package = 'pkg', deps = {}, repo = def_repo},
+			modifier = {},
+			name = "pkg"
+		}
+	}
+	assert_table_equal(expected, planner.required_pkgs(pkgs, requests))
+end
+
 function test_filter_required()
 	local status = {
 		pkg1 = {
