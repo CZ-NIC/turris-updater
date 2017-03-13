@@ -43,7 +43,7 @@ else
 	# but we don't want it) and this migration script. Also, exclude some packages
 	# that no longer exist and are left on the blue turris during an early stage
 	# of update.
-	pkgmigrate --exclude=updater --exclude=updater-migrate --exclude=updater-deps --exclude=updater-consolidator --exclude=libelf --exclude=mtd-utils-flash-info --exclude=kmod-ipt-nathelper --exclude=6relayd --exclude=kmod-ipv6 --exclude=init-thermometer --exclude=kmod-crypto-aes --exclude=kmod-crypto-core --exclude=luci-i18n-czech --exclude=luci-i18n-english --exclude=coova-chilli --exclude=libevent --exclude=libmysqlclient --exclude=libncursesw --exclude=r8196-firmware --exclude=r8188eu-firmware --exclude=userspace_time_sync --exclude=foris-oldconfig --exclude=getbranch-test --exclude=getbranch-master --exclude=getbranch-deploy $BATCH
+	pkgmigrate --exclude=updater --exclude=updater-migrate --exclude=updater-deps --exclude=updater-consolidator --exclude=libelf --exclude=mtd-utils-flash-info --exclude=kmod-ipt-nathelper --exclude=6relayd --exclude=kmod-ipv6 --exclude=init-thermometer --exclude=kmod-crypto-aes --exclude=kmod-crypto-core --exclude=luci-i18n-czech --exclude=luci-i18n-english --exclude=coova-chilli --exclude=libevent --exclude=libmysqlclient --exclude=libncursesw --exclude=r8196-firmware --exclude=r8188eu-firmware --exclude=userspace_time_sync --exclude=foris-oldconfig --exclude=getbranch-test --exclude=getbranch-master --exclude=getbranch-deploy --exclude=kmod-fs-9p $BATCH
 fi
 
 # Cool. Now try the updater, please (the backend of it, without all the notification stuff, etc).
