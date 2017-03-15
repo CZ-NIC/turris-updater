@@ -328,8 +328,8 @@ local function build_plan(pkgs, requests, sat, satmap)
 	local inwstack = {} -- table of all packages we work on where key is name and value is index
 	local inconsistent = {} -- Set of potentially inconsistent packages (might fail their post-install scrips)
 	local missing_dep = {} -- Set of all packages that depends on some missing dependency
-	local candidates = {} -- table where key is name of package group and value is table with chosen candidate (nil for no candidate)
-	-- Check for cycles in work stack. Reports cycles and remembers inconsistencies.
+	local candidates = {} -- table where key is name of package group and value is table with chosen candidate
+	-- Check for cycles in work stack. Warn and remember inconsistencies.
 	local function wstack_cycle(name)
 		if inwstack[name] then -- Already working on it. Found cycle.
 			local incycle = {} -- set of packages in this cycle
