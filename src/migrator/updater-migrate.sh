@@ -34,6 +34,16 @@ if grep -q -e '-- Auto-migration performed' /etc/updater/auto.lua ; then
 	echo "Updater migration already performed" | logger -t daemon.info
 	echo "Updater migration already performed" >&2
 else
+	# Wait for old updater to exit (we wait until lock is removed)
+	LOCK_TIME=`date +%s`
+	while test -d /tmp/update-state/lock; do
+		sleep 1
+		if [ $(expr `date +%s` - $LOCK_TIME) -ge 3600 ]; then
+			echo "Wait for updater state lock timed out." >&2
+			exit 1
+		fi
+	done
+
 	# Clean up the auto.lua first, to get rid of any possible artifacts of
 	# old updater interacting with our opkg wrapper. All the relevant packages
 	# are in the system anyway, so they'll get re-added there.

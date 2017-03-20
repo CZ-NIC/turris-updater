@@ -1,0 +1,14 @@
+#!/bin/sh /etc/rc.common
+
+# We want to run after updater (S85)
+START=86
+
+USE_PROCD=1
+
+start_service() {
+	procd_open_instance
+	procd_set_param command updater-migrate.sh --batch
+	procd_set_param stdout 1 # forward stdout of the command to logd
+	procd_set_param stderr 1 # same for stderr
+	procd_close_instance
+}
