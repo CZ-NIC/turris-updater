@@ -328,6 +328,7 @@ function pkg_aggregate()
 		end
 		table.insert(pkg_group.modifiers, pkg)
 	end
+	local order_rules = {} -- table of order rules from order_after and order_before fields
 	for name, pkg_group in pairs(available_packages) do
 		-- Merge the modifiers together to form single one.
 		local modifier = {
@@ -336,6 +337,7 @@ function pkg_aggregate()
 			deps = {},
 			order_after = {},
 			order_before = {},
+			order_rules = {}, -- processed order_after and order_before of this package group
 			pre_install = {},
 			pre_remove = {},
 			post_install = {},
@@ -395,6 +397,25 @@ function pkg_aggregate()
 			modifier.replan = modifier.replan or m.replan
 			modifier.virtual = modifier.virtual or m.virtual
 		end
+		-- Process order_after and order_before to internally used order_rules
+		local function add_order_rule(a, b) -- Add rule that a is before b
+			local open = {a}
+			while next(open) do -- Check if this wouldn't add cycle (is there a way to get from a to b)
+				local w = table.remove(open) -- remove and get last element
+				if w == b then
+					error(utils.exception('inconsistent', 'Multiple order_* rules creates collision between packages: ' .. a .. ' ' .. b))
+				end
+				utils.arr_append(open, utils.set2arr(order_rules[w] or {}))
+			end
+			if not order_rules[b] then order_rules[b] = {} end
+			order_rules[b][a] = true
+		end
+		for pkg in pairs(modifier.order_after or {}) do
+			add_order_rule(pkg.name or pkg, name)
+		end
+		for pkg in pairs(modifier.order_before or {}) do
+			add_order_rule(name, pkg.name or pkg)
+		end
 		-- Canonize dependencies
 		modifier.deps = deps_canon(modifier.deps)
 		for _, candidate in ipairs(pkg_group.candidates or {}) do
@@ -436,6 +457,10 @@ function pkg_aggregate()
 				return true -- lets prioritize a, for no reason, lets make b angry.
 			end)
 		end
+	end
+	-- We have complete set of order rules when all package groups are processed
+	for pkg, order_set in pairs(order_rules) do
+		available_packages[pkg].modifier.order_rules = order_set
 	end
 end
 

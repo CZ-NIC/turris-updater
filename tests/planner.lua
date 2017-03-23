@@ -1173,7 +1173,9 @@ function test_order_before()
 		},
 		dep = {
 			candidates = {{Package = 'dep', deps = {}, repo = def_repo}},
-			modifier = {}
+			modifier = {
+				order_rules = {pkg = true}
+			}
 		}
 	}
 	local requests = {
@@ -1199,7 +1201,7 @@ function test_order_before()
 		{
 			action = "require",
 			package = {Package = 'dep', deps = {}, repo = def_repo},
-			modifier = {},
+			modifier = {order_rules = {pkg = true}},
 			name = "dep"
 		}
 	}
@@ -1225,7 +1227,9 @@ function test_order_before_replan()
 		},
 		dep = {
 			candidates = {{Package = 'dep', deps = {}, repo = def_repo}},
-			modifier = {}
+			modifier = {
+				order_rules = {pkg = true}
+			}
 		}
 	}
 	local requests = {
@@ -1267,7 +1271,7 @@ function test_order_before_replan()
 		{
 			action = "require",
 			package = {Package = 'dep', deps = {}, repo = def_repo},
-			modifier = {},
+			modifier = {order_rules = {pkg = true}},
 			name = "dep"
 		}
 	}
@@ -1283,49 +1287,15 @@ function test_order_before_replan()
 	assert_table_equal(expected, planner.required_pkgs(pkgs, requests))
 	-- Now let's ensure that pkg is installed after pkgreplan
 	pkgs.pkg.modifier.order_after = {["pkgreplan"] = true}
+	pkgs.pkg.modifier.order_rules = {pkgreplan = true}
 	expected = {
 		expected[3], -- pkgreplan
 		expected[1], -- pkg
 		expected[2] -- dep
 	} -- as weir as it might seem we have to break pkgreplan dependencies to satisfy order rules
 	expected[2].modifier.order_after = {["pkgreplan"] = true}
+	expected[2].modifier.order_rules = {["pkgreplan"] = true}
 	assert_table_equal(expected, planner.required_pkgs(pkgs, requests))
-end
-
--- Check that we fail if we specify order_* rules that can't be satisfied together
-function test_order_collision()
-	local pkgs = {
-		pkg = {
-			candidates = {{Package = 'pkg', deps = {}, repo = def_repo}},
-			modifier = {
-				deps = 'dep',
-				order_before = {["dep"] = true}
-			}
-		},
-		dep = {
-			candidates = {{Package = 'dep', deps = 'subdep', repo = def_repo}},
-			modifier = {
-				order_before = {["subdep"] = true}
-			}
-		},
-		subdep = {
-			candidates = {{Package = 'subdep', deps = {}, repo = def_repo}},
-			modifier = {
-				order_before = {["pkg"] = true}
-			}
-		}
-	}
-	local requests = {
-		{
-			tp = 'install',
-			package = {
-				tp = 'package',
-				name = 'pkg',
-			},
-			priority = 50
-		}
-	}
-	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent')
 end
 
 -- Check if packages order can be broken using order_after option
@@ -1340,7 +1310,8 @@ function test_order_after()
 		dep = {
 			candidates = {{Package = 'dep', deps = {}, repo = def_repo}},
 			modifier = {
-				order_after = {["pkg"] = true}
+				order_after = {["pkg"] = true},
+				order_rules = {pkg = true}
 			}
 		}
 	}
@@ -1367,7 +1338,8 @@ function test_order_after()
 			action = "require",
 			package = {Package = 'dep', deps = {}, repo = def_repo},
 			modifier = {
-				order_after = {["pkg"] = true}
+				order_after = {["pkg"] = true},
+				order_rules = {pkg = true}
 			},
 			name = "dep"
 		}

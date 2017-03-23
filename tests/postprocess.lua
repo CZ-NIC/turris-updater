@@ -291,6 +291,7 @@ function test_pkg_merge()
 		{
 			tp = 'package',
 			order_after = "abc",
+			order_before = "cde",
 			name = 'xyz',
 			reboot = 'finished',
 			abi_change = {'another'},
@@ -325,7 +326,10 @@ function test_pkg_merge()
 				{Package = "cde", Version = "1", repo = requests.known_repositories_all[1]},
 				{Package = "fgh", Version = "1", Provides = "cde", repo = requests.known_repositories_all[1]}
 			},
-			modifier = {name = "cde"}
+			modifier = {
+				name = "cde",
+				order_rules = {xyz = true}
+			}
 		},
 		fgh = {
 			candidates = {{Package = "fgh", Version = "1", Provides = "cde", repo = requests.known_repositories_all[1]}},
@@ -348,6 +352,8 @@ function test_pkg_merge()
 			modifier = {
 				name = "xyz",
 				order_after = {abc = true},
+				order_before = {cde = true},
+				order_rules = {abc = true},
 				deps = {
 					tp = 'dep-and',
 					sub = {"abc", "another", "xyz"}
@@ -365,6 +371,7 @@ function test_pkg_merge()
 		abi_change_deep = {},
 		order_after = {},
 		order_before = {},
+		order_rules = {},
 		post_install = {},
 		post_remove = {},
 		pre_install = {},
@@ -379,6 +386,26 @@ function test_pkg_merge()
 		end
 	end
 	assert_table_equal(exp, postprocess.available_packages)
+	-- Lets add cyclic rule creating cycles
+end
+
+-- We should fail if explicit order rules creates cycle. That is invalid configuration.
+function test_order_cycle()
+	requests.known_repositories_all = {}
+	requests.known_packages = {
+		{
+			tp = 'package',
+			order_after = "abc",
+			order_before = "cde",
+			name = 'xyz',
+		},
+		{
+			tp = 'package',
+			order_before = "abc",
+			name = 'cde'
+		}
+	}
+	assert_exception(function() postprocess.pkg_aggregate() end, "inconsistent")
 end
 
 --[[
@@ -425,6 +452,7 @@ function test_local_and_repo()
 				abi_change_deep = {},
 				order_after = {},
 				order_before = {},
+				order_rules = {},
 				post_install = {},
 				post_remove = {},
 				pre_install = {},
