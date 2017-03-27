@@ -47,7 +47,11 @@ local sha256 = sha256
 
 module "uri"
 
--- luacheck: globals wait signature_check parse new
+-- luacheck: globals wait signature_check parse new  system_cas ignore_crl
+
+-- Constants used for inheritance breakage
+system_cas = "uri_system_cas"
+ignore_crl = "uri_ignore_crl"
 
 local function percent_decode(text)
 	return text:gsub('%%(..)', function (encoded)
@@ -144,14 +148,14 @@ local function handler_internal(uri, err_cback, done_cback)
 end
 
 -- Actually, both for http and https
-local function handler_http(uri, err_cback, done_cback, ca, crl)
+local function handler_http(uri, err_cback, done_cback, ca, crl, use_ssl)
 	return download(function (status, answer)
 		if status == 200 then
 			done_cback(answer)
 		else
 			err_cback(utils.exception("unreachable", uri .. ": " .. tostring(answer)))
 		end
-	end, uri, ca, crl)
+	end, uri, ca, crl, use_ssl)
 end
 
 local function match_check(uri, context)
@@ -328,9 +332,8 @@ function new(context, uri, verification)
 		error(utils.exception('bad value', "Unknown verification mode " .. vermode))
 	end
 	local do_cert = handler.can_check_cert and (vermode == 'both' or vermode == 'cert')
-	local use_ca, use_crl
+	local explicit_ca, use_crl
 	if do_cert then
-		local ca, ca_context = ver_lookup('ca', nil, true)
 		local function pem_get(uris, context)
 			if type(uris) == 'string' then
 				uris = {uris}
@@ -351,12 +354,15 @@ function new(context, uri, verification)
 				error(utils.exception('bad value', "The ca and crl must be either string or table, not " .. type(uris)))
 			end
 		end
-		use_ca = pem_get(ca, ca_context)
-		if not use_ca then
-			return result
+		local ca, ca_context = ver_lookup('ca', system_cas, true)
+		if ca ~= system_cas then
+			explicit_ca = pem_get(ca, ca_context)
+			if not explicit_ca then
+				return result
+			end
 		end
-		local crl, crl_context = ver_lookup('crl', nil, true)
-		if crl then
+		local crl, crl_context = ver_lookup('crl', ignore_crl, true)
+		if crl ~= ignore_crl then
 			use_crl = pem_get(crl, crl_context)
 			if not use_crl then
 				return result
@@ -375,7 +381,7 @@ function new(context, uri, verification)
 		if do_cert then sig_veri.verification = 'cert' end -- If the main resource checks cert, the .sig should too
 		sig_data = new(context, sig_uri, sig_veri)
 		table.insert(sub_uris, sig_data)
-		local pubkeys, pk_context = ver_lookup('pubkey', nil, true)
+		local pubkeys, pk_context = ver_lookup('pubkey', {}, true)
 		if type(pubkeys) == 'string' then
 			pubkeys = {pubkeys}
 		end
@@ -457,7 +463,7 @@ function new(context, uri, verification)
 		result.content = content
 		dispatch()
 	end
-	result.events = {handler.handler(uri, err_cback, done_cback, use_ca, use_crl)}
+	result.events = {handler.handler(uri, err_cback, done_cback, explicit_ca, use_crl, do_cert)}
 	-- Wait for the sub uris and include them in our events
 	local function sub_cback()
 		wait_sub_uris = wait_sub_uris - 1

@@ -183,12 +183,20 @@ function test_https_cert()
 	local u2 = uri(context, "https://api.turris.cz/", {verification = "cert", ca = "file:///dev/null"})
 	-- We may specify the ca as a table of possibilities
 	local u3 = uri(context, "https://api.turris.cz/", {verification = "cert", ca = {"file:///dev/null", ca_file}})
+	-- nil ca should result in failure as api has certificate not added to standard paths
+	local u4 = uri(context, "https://api.turris.cz/", {verification = "cert"})
+	-- nil ca should result in success on repo as it's signed by common authority
+	local u5 = uri(context, "https://repo.turris.cz/", {verification = "cert"})
 	local ok1 = u1:get()
 	assert(ok1)
 	local ok2 = u2:get()
 	assert_false(ok2)
 	local ok3 = u3:get()
 	assert(ok3)
+	local ok4 = u4:get()
+	assert_false(ok4)
+	local ok5 = u5:get()
+	assert(ok5)
 	-- Check we can put the verification stuff into the context
 	context.ca = ca_file
 	context.verification = "cert"
