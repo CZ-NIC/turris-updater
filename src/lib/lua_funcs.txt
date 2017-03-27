@@ -16,6 +16,7 @@ log(level, depth, msg, msg, msg, ...)::
   - ERROR
   - WARN
   - DBG
+  - TRACE
   The depth argument specifies how many functions on the top of the stack
   are to be disregarded when printing the source file, line number and
   function name to the logs. 0 means the function directly calling log,
@@ -23,6 +24,7 @@ log(level, depth, msg, msg, msg, ...)::
 ERROR(msg, msg, ...)::
 WARN(msg, msg, ...)::
 DBG(msg, msg, ...)::
+TRACE(msg, msg, ...)::
   These output a message to the logs with a given level. The messages
   are concatenated together.
 DIE(msg, msg, ...)::

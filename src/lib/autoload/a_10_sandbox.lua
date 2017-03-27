@@ -34,7 +34,7 @@ local error = error
 local unpack = unpack
 local assert = assert
 local next = next
-local DBG = DBG
+local TRACE = TRACE
 local WARN = WARN
 local run_command = run_command
 local events_wait = events_wait
@@ -123,12 +123,12 @@ function morpher(func, ...)
 			params[i + index_pos] = v
 		end
 		index_pos = index_pos + #new_params
-		DBG("Added ", #new_params, " parameters to ", name)
+		TRACE("Added ", #new_params, " parameters to ", name)
 		-- Pass the morpher further, to allow more calls
 		return table
 	end
 	local function morph(result)
-		DBG("Morphing ", name)
+		TRACE("Morphing ", name)
 		-- The morpher is no longer active
 		active_morpher = nil
 		-- Get rid of the old meta table
@@ -167,7 +167,7 @@ function morpher(func, ...)
 			return tostring(table)
 		end
 	}
-	DBG("Creating morpher ", name, " with ", #params, " parameters")
+	TRACE("Creating morpher ", name, " with ", #params, " parameters")
 	active_morpher = result
 	return setmetatable(result, meta)
 end
@@ -194,7 +194,8 @@ local rest_available_funcs = {
 	"ERROR",
 	"WARN",
 	"INFO",
-	"DBG"
+	"DBG",
+	"TRACE"
 }
 
 state_vars = nil

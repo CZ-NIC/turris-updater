@@ -45,6 +45,7 @@ static const struct level_info levels[] = {
 	[LL_WARN] = { "\x1b[35mWARN\x1b[0m", "WARN", LOG_WARNING },
 	[LL_INFO] = { "\x1b[34mINFO\x1b[0m", "INFO", LOG_INFO },
 	[LL_DBG] = { "DEBUG", "DBG", LOG_DEBUG },
+	[LL_TRACE] = { "TRACE", "TRACE", LOG_DEBUG },
 	[LL_UNKNOWN] = { "????", "UNKNOWN", LOG_WARNING }
 };
 
@@ -111,6 +112,16 @@ void log_internal(enum log_level level, const char *file, size_t line, const cha
 
 bool would_log(enum log_level level) {
 	return (level <= syslog_level) || (level <= stderr_level);
+}
+
+void log_buffer_init(struct log_buffer *buff, enum log_level level) {
+	if (would_log(level)) {
+		buff->f = open_memstream(&buff->char_buffer, &buff->buffer_len);
+		if (buff->f)
+			return;
+		WARN("Message creation failed!");
+	}
+	buff->f = NULL;
 }
 
 void log_syslog_level(enum log_level level) {
