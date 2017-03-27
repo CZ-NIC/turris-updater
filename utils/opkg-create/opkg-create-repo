@@ -1,6 +1,8 @@
 #!/bin/bash
 # Usage: Just start this script in directory where you have all your packages
 
+[ -n "$1" ] && cd "$1"
+
 # At beginning remove previous Packages.gz
 if [ -f Packages.gz ]; then rm Packages.gz; fi
 

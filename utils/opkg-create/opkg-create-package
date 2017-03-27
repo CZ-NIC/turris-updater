@@ -3,34 +3,41 @@
 #   Where DIR is directory where package template is stored
 #  Output package is placed to current directory and is in format NAME.ipk where
 #  NAME is package name from control file
+set -e
 
-ORG=`pwd`
+# First argument can be path to package
+[ -n "$1" ] && S="$1" || S=.
+# Second argument can be path where package will be build
+[ -n "$2" ] && O="$2" || O=.
 
-[ -n "$1" ] && cd $1
+NAME=`grep -E "^Package:" $S/control | sed 's/^Package:[ ]*//;s/[ ]*$//'`
 
-NAME=`grep -E "^Package:" control | sed 's/^Package:[ ]*//;s/[ ]*$//'`
+# First generate files-md5sum file
+mkdir -p $O/.control
+(cd $S/data && find -type f | xargs md5sum) > $O/.control/files-md5sum
 
-# First lets generate files-md5sum file
-find data -type f | xargs md5sum > files-md5sum
-sed -i 's/ data/ /' files-md5sum
+# now create control.tar.gz
+add_control() {
+	if [ -f $1 ]; then
+		CTRFILES="$CTRFILES ./$1"
+		cp $S/$1 $O/.control/$1
+	fi
+}
+add_control conffiles
+add_control preinst
+add_control postinst
+add_control prerm
+add_control postrm
+cp $S/control $O/.control/
+tar -czf $O/control.tar.gz -C "$O/.control" ./control $CTRFILES ./files-md5sum
+rm -rf $O/.control
 
-# now lets create control.tar.gz
-if [ -f conffiles ]; then CTRFILES="$CTRFILES ./conffiles"; fi
-if [ -x preinst ]; then CTRFILES="$CTRFILES ./preinst"; fi
-if [ -x postinst ]; then CTRFILES="$CTRFILES ./postinst"; fi
-if [ -x prerm ]; then CTRFILES="$CTRFILES ./prerm"; fi
-if [ -x postrm ]; then CTRFILES="$CTRFILES ./postrm"; fi
-tar -czf control.tar.gz ./control $CTRFILES ./files-md5sum
-rm files-md5sum
-
-# package data
-cd data
-tar -czf ../data.tar.gz *
-cd ..
+# Package data
+tar -czf $O/data.tar.gz -C $S/data $(cd $S/data && find -type f)
 
 # create package
-echo 2 > debian-binary
-tar -czf $ORG/$NAME.ipk ./debian-binary ./control.tar.gz ./data.tar.gz
-rm debian-binary
-rm control.tar.gz
-rm data.tar.gz
+echo 2 > $O/debian-binary
+tar -czf $O/$NAME.ipk -C "$O" ./debian-binary ./control.tar.gz ./data.tar.gz
+rm $O/debian-binary
+rm $O/control.tar.gz
+rm $O/data.tar.gz

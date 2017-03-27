@@ -31,17 +31,36 @@ check: test-sys valgrind-sys
 test-sys-opkg-trans-reboot-recover: $(O)/bin/pkgupdate
 valgrind-sys-opkg-trans-reboot-recover: $(O)/bin/pkgupdate
 
+define BUILD_PACKAGE
+
+$(O)/repos/$(1)/$(2)/$(3).ipk: $(shell find $(S)/tests/system/$(1)/$(2))
+	@mkdir -p "$$(@D)"
+	$(S)/utils/opkg-create/opkg-create-package $(S)/tests/system/$(1)/$(2)/$(3) $$(@D)
+
+endef
+
+define BUILD_REPO
+
+$(eval $(foreach PACKAGE,$(patsubst $(S)/tests/system/$(1)/$(2)/%,%,$(wildcard $(S)/tests/system/$(1)/$(2)/*)),$(call BUILD_PACKAGE,$(1),$(2),$(PACKAGE))))
+
+$(O)/repos/$(1)/$(2)/Packages.gz: $(patsubst $(S)/tests/system/%,$(O)/repos/%.ipk,$(wildcard $(S)/tests/system/$(1)/$(2)/*))
+	@mkdir -p "$$(@D)"
+	$(S)/utils/opkg-create/opkg-create-repo $$(@D)
+
+endef
+
 define DO_SYS_TEST
 
 test-sys: test-sys-$(1)-$(2)
 valgrind-sys: valgrind-sys-$(1)-$(2)
 .PHONY: test-sys-$(1)-$(2) valgrind-sys-$(1)-$(2)
 
-test-sys-$(1)-$(2): $(O)/bin/$(1)
+$(eval $(foreach REPO,$(patsubst $(S)/tests/system/$(2)/%,%,$(wildcard $(S)/tests/system/$(2)/repo*)),$(call BUILD_REPO,$(2),$(REPO))))
+
+test-sys-$(1)-$(2): $(O)/bin/$(1) $(patsubst $(S)/tests/system/%,$(O)/repos/%/Packages.gz,$(wildcard $(S)/tests/system/$(2)/repo*))
 	LAUNCHER= S=$(S) O=$(abspath $(O)) $(S)/tests/system/run $(1) $(S)/tests/system/$(2)
 
-valgrind-sys-$(1)-$(2): $(O)/bin/$(1)
-	LAUNCHER="$(VALGRIND)" S=$(S) O=$(abspath $(O)) $(S)/tests/system/run $(1) $(S)/tests/system/$(2)
+valgrind-sys-$(1)-$(2): $(O)/bin/$(1) $(patsubst $(S)/tests/system/%,$(O)/repos/%/Packages.gz,$(wildcard $(S)/tests/system/$(2)/repo*))	LAUNCHER="$(VALGRIND)" S=$(S) O=$(abspath $(O)) $(S)/tests/system/run $(1) $(S)/tests/system/$(2)
 
 endef
 
