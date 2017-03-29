@@ -178,13 +178,13 @@ function test_https_cert()
 	local context = sandbox.new("Local")
 	local ca_file = "file://" .. dir .. "tests/data/updater.pem"
 	-- It should succeed with the correct CA
-	local u1 = uri(context, "https://api.turris.cz/", {verification = "cert", ca = ca_file})
+	local u1 = uri(context, "https://api.turris.cz/", {verification = "cert", ca = ca_file, ocsp = false})
 	-- But should fail with a wrong one
-	local u2 = uri(context, "https://api.turris.cz/", {verification = "cert", ca = "file:///dev/null"})
+	local u2 = uri(context, "https://api.turris.cz/", {verification = "cert", ca = "file:///dev/null", ocsp = false})
 	-- We may specify the ca as a table of possibilities
-	local u3 = uri(context, "https://api.turris.cz/", {verification = "cert", ca = {"file:///dev/null", ca_file}})
+	local u3 = uri(context, "https://api.turris.cz/", {verification = "cert", ca = {"file:///dev/null", ca_file}, ocsp = false})
 	-- nil ca should result in failure as api has certificate not added to standard paths
-	local u4 = uri(context, "https://api.turris.cz/", {verification = "cert"})
+	local u4 = uri(context, "https://api.turris.cz/", {verification = "cert", ocsp = false})
 	-- nil ca should result in success on repo as it's signed by common authority
 	local u5 = uri(context, "https://repo.turris.cz/", {verification = "cert"})
 	local ok1 = u1:get()
@@ -200,6 +200,7 @@ function test_https_cert()
 	-- Check we can put the verification stuff into the context
 	context.ca = ca_file
 	context.verification = "cert"
+	context.ocsp = false
 	u1 = uri(context, "https://api.turris.cz/")
 	u2 = uri(context, "https://api.turris.cz/", {ca = "file:///dev/null"})
 	ok1 = u1:get()

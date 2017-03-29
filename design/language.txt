@@ -170,9 +170,13 @@ ca::
   into system authorities to be used. `system_cas` is also default value.
 crl::
   An URI or table of URIs with CRLs relevant to the server. If set into
-  `ignore_crl`, CRL is not checked. Note that the `crl` field is also
-  inherited, therefore you may want to set it manually to `ignore_crl`.
-  Default value is `ignore_crl`.
+  `no_crl`, CRL is not checked. Note that the `crl` field is also
+  inherited, therefore you may want to set it manually to `no_crl`.
+  Default value is `no_crl`.
+ocsp::
+  `true` of `false` if you want or don't want to use OCSP (Online Certificate
+  Status Protocol). Default value is `true`. Inheritance is same as with
+  `pubkey`.
 
 The file signature is verified using the `usign` utility.
 

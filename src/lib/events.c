@@ -813,7 +813,7 @@ static size_t download_write_callback(char *ptr, size_t size, size_t nmemb, void
 	return rsize;
 }
 
-struct wait_id download(struct events *events, download_callback_t callback, void *data, const char *url, const char *cacert, const char *crl, bool ssl) {
+struct wait_id download(struct events *events, download_callback_t callback, void *data, const char *url, const char *cacert, const char *crl, bool ocsp, bool ssl) {
 	DBG("Downloading %s", url);
 	struct download_data *res = malloc(sizeof *res);
 	*res = (struct download_data) {
@@ -839,6 +839,7 @@ struct wait_id download(struct events *events, download_callback_t callback, voi
 			CURL_SETOPT(CURLOPT_CAINFO, cacert);
 		if (crl)
 			CURL_SETOPT(CURLOPT_CRLFILE, crl);
+		CURL_SETOPT(CURLOPT_SSL_VERIFYSTATUS, ocsp);
 	} else
 		CURL_SETOPT(CURLOPT_SSL_VERIFYPEER, 0L);
 	CURL_SETOPT(CURLOPT_WRITEFUNCTION, download_write_callback);

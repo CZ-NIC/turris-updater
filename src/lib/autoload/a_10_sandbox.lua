@@ -196,7 +196,7 @@ local rest_available_funcs = {
 	"INFO",
 	"DBG",
 	"system_cas",
-	"ignore_crl"
+	"no_crl"
 }
 
 state_vars = nil

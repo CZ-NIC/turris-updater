@@ -281,7 +281,7 @@ static void download_failed_callback(struct wait_id id __attribute__((unused)), 
 // Just like the done callback, but download one more thing from within this callback (and wait for it).
 static void download_recursive_callback(struct wait_id id, void *data, int status, size_t out_size, const char *out) {
 	download_done_callback_api(id, data, status, out_size, out);
-	struct wait_id new_id = download(data, download_done_callback_api, NULL, "https://api.turris.cz/index.html", NULL, NULL, false);
+	struct wait_id new_id = download(data, download_done_callback_api, NULL, "https://api.turris.cz/index.html", NULL, NULL, false, false);
 	events_wait(data, 1, &new_id);
 }
 
@@ -297,15 +297,15 @@ START_TEST(command_download) {
 	download_slot_count_set(events, 2);
 
 	for (size_t i = 0; i < cnt; i++) {
-		ids[i] = download(events, download_done_callback_api, NULL, "https://api.turris.cz/index.html", cert_file, NULL, true);
-		ids[i + cnt] = download(events, download_failed_callback, NULL, "https://api.turris.cz/does_not_exist.dat", cert_file, NULL, true);
-		ids[i + 2 * cnt] = download(events, download_recursive_callback, events, "https://api.turris.cz/index.html", cert_file, NULL, true);
+		ids[i] = download(events, download_done_callback_api, NULL, "https://api.turris.cz/index.html", cert_file, NULL, false, true);
+		ids[i + cnt] = download(events, download_failed_callback, NULL, "https://api.turris.cz/does_not_exist.dat", cert_file, NULL, false, true);
+		ids[i + 2 * cnt] = download(events, download_recursive_callback, events, "https://api.turris.cz/index.html", cert_file, NULL, false, true);
 		// api has special ca so this should fail
-		ids[i + 3 * cnt] = download(events, download_failed_callback, NULL, "https://api.turris.cz/index.html", NULL, NULL, true);
+		ids[i + 3 * cnt] = download(events, download_failed_callback, NULL, "https://api.turris.cz/index.html", NULL, NULL, false, true);
 		// but with disabled ssl it should work
-		ids[i + 4 * cnt] = download(events, download_done_callback_api, NULL, "https://api.turris.cz/index.html", NULL, NULL, false);
+		ids[i + 4 * cnt] = download(events, download_done_callback_api, NULL, "https://api.turris.cz/index.html", NULL, NULL, false, false);
 		// repo uses public ca so this should work with system one
-		ids[i + 5 * cnt] = download(events, download_done_callback_repo, NULL, "https://repo.turris.cz", NULL, NULL, true);
+		ids[i + 5 * cnt] = download(events, download_done_callback_repo, NULL, "https://repo.turris.cz", NULL, NULL, false, true);
 	}
 
 	events_wait(events, cnt * 6, ids);

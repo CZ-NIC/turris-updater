@@ -47,11 +47,11 @@ local sha256 = sha256
 
 module "uri"
 
--- luacheck: globals wait signature_check parse new  system_cas ignore_crl
+-- luacheck: globals wait signature_check parse new  system_cas no_crl
 
 -- Constants used for inheritance breakage
 system_cas = "uri_system_cas"
-ignore_crl = "uri_ignore_crl"
+no_crl = "uri_no_crl"
 
 local function percent_decode(text)
 	return text:gsub('%%(..)', function (encoded)
@@ -148,14 +148,14 @@ local function handler_internal(uri, err_cback, done_cback)
 end
 
 -- Actually, both for http and https
-local function handler_http(uri, err_cback, done_cback, ca, crl, use_ssl)
+local function handler_http(uri, err_cback, done_cback, ca, crl, ocsp, use_ssl)
 	return download(function (status, answer)
 		if status == 200 then
 			done_cback(answer)
 		else
 			err_cback(utils.exception("unreachable", uri .. ": " .. tostring(answer)))
 		end
-	end, uri, ca, crl, use_ssl)
+	end, uri, ca, crl, ocsp, use_ssl)
 end
 
 local function match_check(uri, context)
@@ -332,7 +332,7 @@ function new(context, uri, verification)
 		error(utils.exception('bad value', "Unknown verification mode " .. vermode))
 	end
 	local do_cert = handler.can_check_cert and (vermode == 'both' or vermode == 'cert')
-	local explicit_ca, use_crl
+	local explicit_ca, use_crl, use_ocsp
 	if do_cert then
 		local function pem_get(uris, context)
 			if type(uris) == 'string' then
@@ -361,13 +361,14 @@ function new(context, uri, verification)
 				return result
 			end
 		end
-		local crl, crl_context = ver_lookup('crl', ignore_crl, true)
-		if crl ~= ignore_crl then
+		local crl, crl_context = ver_lookup('crl', no_crl, true)
+		if crl ~= no_crl then
 			use_crl = pem_get(crl, crl_context)
 			if not use_crl then
 				return result
 			end
 		end
+		use_ocsp = ver_lookup('ocsp', true, false)
 	end
 	local do_sig = vermode == 'both' or vermode == 'sig'
 	local sig_data
@@ -463,7 +464,7 @@ function new(context, uri, verification)
 		result.content = content
 		dispatch()
 	end
-	result.events = {handler.handler(uri, err_cback, done_cback, explicit_ca, use_crl, do_cert)}
+	result.events = {handler.handler(uri, err_cback, done_cback, explicit_ca, use_crl, use_ocsp, do_cert)}
 	-- Wait for the sub uris and include them in our events
 	local function sub_cback()
 		wait_sub_uris = wait_sub_uris - 1

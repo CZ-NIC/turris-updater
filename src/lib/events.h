@@ -171,9 +171,10 @@ typedef void (*download_callback_t)(struct wait_id id, void *data, int status, s
  * Optionally, check certificate and revocation list specified by parameters
  * cacert or crl respectively (paths to .pem files). If no certificate is specified,
  * system certificate is used. Specifying ssl as false insecure https connections
- * are allowed. Specifying ssl as true for http has no effect.
+ * are allowed. Specifying ssl as true for http has no effect. And ocsp allows you
+ * to set if you want to use OSCP.
  */
-struct wait_id download(struct events *events, download_callback_t callback, void *data, const char *url, const char *cacert, const char *crl, bool ssl) __attribute__((nonnull(1, 2, 4)));
+struct wait_id download(struct events *events, download_callback_t callback, void *data, const char *url, const char *cacert, const char *crl, bool ocsp, bool ssl) __attribute__((nonnull(1, 2, 4)));
 /*
  * Set the number of maximum parallel downloads
  *
