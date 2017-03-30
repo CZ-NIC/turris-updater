@@ -40,6 +40,11 @@ enum log_level {
 
 void log_internal(enum log_level level, const char *file, size_t line, const char *func, const char *format, ...) __attribute__((format(printf, 5, 6)));
 
+// Picosat is compiled with TRACE defined. We really want to use that name for our
+// log output so let's redefine it here. Picosat expect it being defined so result
+// is the same.
+#undef TRACE
+
 #define LOG(level, ...) log_internal(level, __FILE__, __LINE__, __func__, __VA_ARGS__)
 #define ERROR(...) LOG(LL_ERROR, __VA_ARGS__)
 #define WARN(...) LOG(LL_WARN, __VA_ARGS__)
