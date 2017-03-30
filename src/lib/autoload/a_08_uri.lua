@@ -41,7 +41,7 @@ local download = download
 local run_command = run_command
 local run_util = run_util
 local utils = require "utils"
-local DBG = DBG
+local TRACE = TRACE
 local uri_internal_get = uri_internal_get
 local sha256 = sha256
 
@@ -274,7 +274,7 @@ local function hashed_file(content)
 end
 
 function new(context, uri, verification)
-	DBG("Creating new URI: ", uri)
+	TRACE("Creating new URI: ", uri)
 	local handler = parse(context, uri)
 	-- Prepare verification
 	verification = verification or {}

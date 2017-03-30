@@ -23,20 +23,20 @@
 void inject_func_n(lua_State *L, const char *module, const struct inject_func *inject, size_t count) {
 	// Inject the functions
 	for (size_t i = 0; i < count; i ++) {
-		DBG("Injecting function %s.%s", module, inject[i].name);
+		TRACE("Injecting function %s.%s", module, inject[i].name);
 		lua_pushcfunction(L, inject[i].func);
 		lua_setfield(L, -2, inject[i].name);
 	}
 }
 
 void inject_str_const(lua_State *L, const char *module, const char *name, const char *value) {
-	DBG("Injecting constant %s.%s", module, name);
+	TRACE("Injecting constant %s.%s", module, name);
 	lua_pushstring(L, value);
 	lua_setfield(L, -2, name);
 }
 
 void inject_module(lua_State *L, const char *module) {
-	DBG("Injecting module %s", module);
+	TRACE("Injecting module %s", module);
 	// package.loaded[module] = _M
 	lua_getglobal(L, "package");
 	lua_getfield(L, -1, "loaded");

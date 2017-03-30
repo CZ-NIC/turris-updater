@@ -326,7 +326,7 @@ static const struct inject_func inject[] = {
 };
 
 void journal_mod_init(lua_State *L) {
-	DBG("Journal module init");
+	TRACE("Journal module init");
 	// Create _M
 	lua_newtable(L);
 	// Some variables

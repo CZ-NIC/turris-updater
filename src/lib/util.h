@@ -23,6 +23,7 @@
 #include "events.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdbool.h>
 #include <alloca.h>
 
@@ -33,6 +34,7 @@ enum log_level {
 	LL_WARN,
 	LL_INFO,
 	LL_DBG,
+	LL_TRACE,
 	LL_UNKNOWN
 };
 
@@ -43,6 +45,7 @@ void log_internal(enum log_level level, const char *file, size_t line, const cha
 #define WARN(...) LOG(LL_WARN, __VA_ARGS__)
 #define INFO(...) LOG(LL_INFO, __VA_ARGS__)
 #define DBG(...) LOG(LL_DBG, __VA_ARGS__)
+#define TRACE(...) LOG(LL_TRACE, __VA_ARGS__)
 #define DIE(...) do { LOG(LL_DIE, __VA_ARGS__); abort(); } while (0)
 #define ASSERT_MSG(COND, ...) do { if (!(COND)) DIE(__VA_ARGS__); } while (0)
 #define ASSERT(COND) do { if (!(COND)) DIE("Failed assert: " #COND); } while (0)
@@ -51,6 +54,15 @@ void log_internal(enum log_level level, const char *file, size_t line, const cha
 bool would_log(enum log_level level);
 
 enum log_level log_level_get(const char *str) __attribute__((nonnull));
+
+// FILE log buffer. Initialize it and then you can build message using FILE. To print it use char_buffer.
+struct log_buffer {
+	FILE *f; // Use this as output and before printing it close this with fclose(f).
+	char *char_buffer; // This contains resulting text. Don't forget to free this buffer.
+	size_t buffer_len;
+};
+// Initialize log buffer (if would_log(level)
+void log_buffer_init(struct log_buffer *buf, enum log_level level) __attribute__((nonnull));
 
 // Sets if state and error should be dumped into files in /tmp/updater-state directory
 void set_state_log(bool state_log);

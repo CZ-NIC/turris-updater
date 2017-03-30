@@ -78,13 +78,14 @@ static int lua_lock_release(lua_State *L) {
 	lock->locked = false;
 	ASSERT(close(lock->fd) == 0);
 	lock->fd = -1;
+	DBG("Released lock at %s", lock->path);
 	return 0;
 }
 
 static int lua_lock_gc(lua_State *L) {
 	struct lock *lock = luaL_checkudata(L, 1, LOCK_META);
 	if (lock->locked) {
-		WARN("Lock on %s released by garbage collector", lock->path);
+		TRACE("Lock on %s released by garbage collector", lock->path);
 		lua_lock_release(L);
 	}
 	if (lock->fd != -1) {
@@ -103,7 +104,7 @@ static const struct inject_func lock_meta[] = {
 };
 
 void locks_mod_init(lua_State *L) {
-	DBG("Locks module init");
+	TRACE("Locks module init");
 	lua_newtable(L);
 	inject_func_n(L, "locks", funcs, sizeof funcs / sizeof *funcs);
 	inject_module(L, "locks");

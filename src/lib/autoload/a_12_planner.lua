@@ -28,6 +28,7 @@ local unpack = unpack
 local table = table
 local DIE = DIE
 local DBG = DBG
+local TRACE = TRACE
 local WARN = WARN
 local picosat = picosat
 local utils = require "utils"
@@ -83,7 +84,7 @@ function sat_penalize(state, var, penalty_group, lastpen)
 		return 0 -- skip first one, it isn't penalized.
 	end
 	local penalty = state.sat:var()
-	DBG("SAT add penalty variable " .. tostring(penalty) .. " for variable " .. tostring(var))
+	TRACE("SAT add penalty variable " .. tostring(penalty) .. " for variable " .. tostring(var))
 	-- penalty => not pen
 	state.sat:clause(-penalty, -var)
 	if lastpen ~= 0 then
@@ -101,7 +102,7 @@ function sat_pkg_group(state, name)
 	end
 	-- Create new variable for this package
 	local pkg_var = state.sat:var()
-	DBG("SAT add package " .. name .. " with var: " .. tostring(pkg_var))
+	TRACE("SAT add package " .. name .. " with var: " .. tostring(pkg_var))
 	state.pkg2sat[name] = pkg_var
 	local pkg = state.pkgs[name]
 	-- Add candidates for this package group
@@ -115,7 +116,7 @@ function sat_pkg_group(state, name)
 		-- Candidate might exists if it provides some other package
 		if not state.candidate2sat[candidate] then
 			cand = state.sat:var()
-			DBG("SAT add candidate " .. candidate.Package .. " for group: " .. name .. " version:" .. (candidate.Version or "") .. " var:" .. tostring(cand))
+			TRACE("SAT add candidate " .. candidate.Package .. " for group: " .. name .. " version:" .. (candidate.Version or "") .. " var:" .. tostring(cand))
 			state.candidate2sat[candidate] = cand
 		else
 			cand = state.candidate2sat[candidate]
@@ -143,7 +144,7 @@ function sat_pkg_group(state, name)
 		state.sat:clause(-pkg_var, unpack(sat_candidates)) -- package group implies that at least one candidate is chosen
 	else
 		if not utils.multi_index(pkg, "modifier", "virtual") then -- For virtual package, no candidates is correct state
-			DBG("SAT group " .. name .. " has no candidate")
+			TRACE("SAT group " .. name .. " has no candidate")
 			state.missing[name] = pkg_var -- store that this package group has no candidates
 		end
 	end
@@ -165,7 +166,7 @@ function sat_dep(state, pkg, version, repository)
 	if version or repository then
 		assert(type(pkg) == 'table') -- If version specified than we should have package not just package group name
 		local var = state.sat:var()
-		DBG("SAT add candidate selection " .. name .. " var:" .. tostring(var))
+		TRACE("SAT add candidate selection " .. name .. " var:" .. tostring(var))
 		if state.pkgs[name].modifier.virtual then
 			WARN('Package ' .. name .. ' requested with version or repository, but it is virtual. Resolved as missing.')
 			state.missing[pkg] = var
@@ -180,7 +181,7 @@ function sat_dep(state, pkg, version, repository)
 			end)
 			state.sat:clause(-var, unpack(vars)) -- imply that at least one of the possible candidates is chosen
 		else
-			DBG("SAT candidate selection empty")
+			TRACE("SAT candidate selection empty")
 			state.missing[pkg] = var -- store that this package (as object not group) points to no candidate
 		end
 		-- Also imply group it self. If we have some candidates, then its just
@@ -212,7 +213,7 @@ function sat_dep_traverse(state, deps, reqpenalty)
 		pvar = state.sat:var()
 	end
 	if deps.tp == 'dep-and' then
-		DBG("SAT dep and var: " .. tostring(wvar) .. " penvar: " .. tostring(pvar))
+		TRACE("SAT dep and var: " .. tostring(wvar) .. " penvar: " .. tostring(pvar))
 		-- wid => var for every variable. Result is that they are all in and statement.
 		local pens = {}
 		for _, sub in ipairs(deps.sub or deps) do
@@ -222,7 +223,7 @@ function sat_dep_traverse(state, deps, reqpenalty)
 		end
 		if pvar then state.sat:clause(pvar, unpack(pens)) end -- (pen and pen and ...) => pvar
 	elseif deps.tp == 'dep-or' then
-		DBG("SAT dep or var: " .. tostring(wvar) .. " penvar: " .. tostring(pvar))
+		TRACE("SAT dep or var: " .. tostring(wvar) .. " penvar: " .. tostring(pvar))
 		-- If wvar is true, at least one of sat variables must also be true, so vwar => vars...
 		local vars = {}
 		local lastpen = nil
@@ -272,7 +273,7 @@ local function sat_build(sat, pkgs, requests)
 			error(utils.exception('inconsistent', "Requested package " .. req.package.name .. " doesn't exists."))
 		end
 		local req_var = sat:var()
-		DBG("SAT add request for " .. req.package.name .. " var:" .. tostring(req_var))
+		TRACE("SAT add request for " .. req.package.name .. " var:" .. tostring(req_var))
 		local target_var = sat_dep(state, req.package, req.version, req.repository)
 		if req.tp == 'install' then
 			sat:clause(-req_var, target_var) -- implies true

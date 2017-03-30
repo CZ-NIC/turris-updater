@@ -102,7 +102,7 @@ static const char *interpreter_error_result(lua_State *L) {
 		lua_getfield(L, -1, "trace");
 		const char *trace = lua_tostring(L, -1);
 		if (trace) {
-			DBG("%s", trace);
+			TRACE("%s", trace);
 			if (!dump2file(crash_file, trace))
 				WARN("Crash report of stack trace dump failed.");
 		} // Else just print message, we are probably missing trace
@@ -300,16 +300,25 @@ static int lua_run_generic(lua_State *L, bool utils) {
 	int term_timeout = luaL_checkinteger(L, 4);
 	int kill_timeout = luaL_checkinteger(L, 5);
 	const char *command = luaL_checkstring(L, 6);
-	if (utils) {
-		DBG("Util command %s", command);
-	} else
-		DBG("Command %s", command);
+	struct log_buffer log;
+	log_buffer_init(&log, LL_DBG);
 	// The rest of the args are args for the command ‒ get them into an array
-	const size_t arg_count = lua_gettop(L) - 6;
+	const size_t arg_count = (size_t)lua_gettop(L) - 6;
 	const char *args[arg_count + 1];
-	for (int i = 6; i < lua_gettop(L); i ++)
-		DBG("Arg %s", args[i - 6] = luaL_checkstring(L, i + 1));
+	for (int i = 6; i < lua_gettop(L); i ++) {
+		args[i - 6] = luaL_checkstring(L, i + 1);
+		if (log.f)
+			fprintf(log.f, "Arg %s", args[i - 6]);
+	}
 	args[arg_count] = NULL;
+	if (log.f) {
+		fclose(log.f);
+		if (utils) {
+			DBG("Util command: %s %s", command, log.char_buffer);
+		} else
+			DBG("Command: %s %s", command, log.char_buffer);
+		free(log.char_buffer);
+	}
 	// Data for the callbacks. It will get freed there.
 	struct lua_command_data *data = malloc(sizeof *data);
 	data->L = L;
@@ -645,7 +654,7 @@ static int lua_lstat(lua_State *L) {
 }
 
 static int lua_sync(lua_State *L __attribute__((unused))) {
-	DBG("Sync");
+	TRACE("Sync");
 	sync();
 	return 0;
 }
@@ -824,7 +833,7 @@ struct interpreter *interpreter_create(struct events *events, const struct file_
 	lua_setfield(L, LUA_REGISTRYINDEX, REGISTRY_NAME);
 	// Insert bunch of functions
 	for (size_t i = 0; i < sizeof injected_funcs / sizeof *injected_funcs; i ++) {
-		DBG("Injecting function no %zu %s/%p", i, injected_funcs[i].name, injected_funcs[i].name);
+		TRACE("Injecting function no %zu %s/%p", i, injected_funcs[i].name, injected_funcs[i].name);
 		lua_pushcfunction(L, injected_funcs[i].func);
 		lua_setglobal(L, injected_funcs[i].name);
 	}
@@ -930,7 +939,7 @@ const char *interpreter_autoload(struct interpreter *interpreter) {
 		const char *underscore = rindex(el->name, '_');
 		// Use the part after the last underscore as the name
 		const char *name = underscore ? underscore + 1 : el->name;
-		DBG("Including module %s", name);
+		TRACE("Including module %s", name);
 		const char *err = interpreter_include(interpreter, (const char *) el->data, el->size, name);
 		if (err)
 			return err;
