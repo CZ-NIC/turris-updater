@@ -388,6 +388,8 @@ static int lua_download(lua_State *L) {
 	const char *crl = NULL;
 	if (pcount >= 4 && !lua_isnil(L, 4))
 		crl = luaL_checkstring(L, 4);
+	bool ocsp = lua_toboolean(L, 5);
+	bool ssl = lua_toboolean(L, 6);
 	// Handle the callback
 	struct lua_download_data *data = malloc(sizeof *data);
 	data->L = L;
@@ -395,7 +397,7 @@ static int lua_download(lua_State *L) {
 	// Run the download
 	struct events *events = extract_registry(L, "events");
 	ASSERT(events);
-	struct wait_id id = download(events, download_callback, data, url, cacert, crl);
+	struct wait_id id = download(events, download_callback, data, url, cacert, crl, ocsp, ssl);
 	// Return the ID
 	push_wid(L, &id);
 	return 1;

@@ -101,7 +101,7 @@ The other event is `download`:
     end
   end
 
-  local id = download(callback, "https://example.org/file", "/path/to/cert", "/path/to/crl")
+  local id = download(callback, "https://example.org/file", "/path/to/cert", "/path/to/crl", true)
 
   events_wait(id)
 

@@ -37,6 +37,7 @@ local script_options = {
 	security = "Remote",
 	ca = "file:///etc/ssl/updater.pem",
 	crl = "file:///tmp/crl.pem",
+	ocsp = false,
 	pubkey = {
 		"file:///etc/updater/keys/release.pub",
 		"file:///etc/updater/keys/standby.pub",

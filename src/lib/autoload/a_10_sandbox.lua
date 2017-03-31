@@ -174,7 +174,7 @@ end
 
 -- END_MAGIC
 
--- Functions available in the restricted level
+-- Functions and "constants" available in the restricted level
 local rest_available_funcs = {
 	"table",
 	"string",
@@ -195,7 +195,9 @@ local rest_available_funcs = {
 	"WARN",
 	"INFO",
 	"DBG",
-	"TRACE"
+	"TRACE",
+	"system_cas",
+	"no_crl"
 }
 
 state_vars = nil

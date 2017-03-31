@@ -813,7 +813,7 @@ static size_t download_write_callback(char *ptr, size_t size, size_t nmemb, void
 	return rsize;
 }
 
-struct wait_id download(struct events *events, download_callback_t callback, void *data, const char *url, const char *cacert, const char *crl) {
+struct wait_id download(struct events *events, download_callback_t callback, void *data, const char *url, const char *cacert, const char *crl, bool ocsp, bool ssl) {
 	DBG("Downloading %s", url);
 	struct download_data *res = malloc(sizeof *res);
 	*res = (struct download_data) {
@@ -834,12 +834,14 @@ struct wait_id download(struct events *events, download_callback_t callback, voi
 	CURL_SETOPT(CURLOPT_TIMEOUT, 120); // Timeout after 2 minutes per try so in total with possible 2 repeats it's 6 minutes (3*2)
 	CURL_SETOPT(CURLOPT_CONNECTTIMEOUT, 30); // Timeout connection after half of a minute.
 	CURL_SETOPT(CURLOPT_FAILONERROR, 1); // If we use http and request fails (response >= 400) request also fails. TODO according to documentation this doesn't cover authentications errors. If authentication is added, this won't be enough.
-	if (cacert)
-		CURL_SETOPT(CURLOPT_CAINFO, cacert);
-	else
+	if (ssl) {
+		if (cacert)
+			CURL_SETOPT(CURLOPT_CAINFO, cacert);
+		if (crl)
+			CURL_SETOPT(CURLOPT_CRLFILE, crl);
+		CURL_SETOPT(CURLOPT_SSL_VERIFYSTATUS, ocsp);
+	} else
 		CURL_SETOPT(CURLOPT_SSL_VERIFYPEER, 0L);
-	if (crl)
-		CURL_SETOPT(CURLOPT_CRLFILE, crl);
 	CURL_SETOPT(CURLOPT_WRITEFUNCTION, download_write_callback);
 	CURL_SETOPT(CURLOPT_WRITEDATA, res);
 	CURL_SETOPT(CURLOPT_ERRORBUFFER, res->curl_err);

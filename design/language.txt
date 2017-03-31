@@ -159,17 +159,24 @@ pubkey::
   An URI or table of URIs with trusted public signature keys. These
   are not verified (therefore it is recommended to come from a already
   verified source ‒ like `data:` URI or `file://` URI). If it is not
-  specified, it is inherited from the verification of the script
+  specified (`nil`), it is inherited from the verification of the script
   running the command. While it has no direct effect if the option is
   specified on another verification than `sig` or `both`, it
-  influences the inheritance.
+  influences the inheritance. Default value is `{}`.
 ca::
   An URI or table of URIs with trusted SSL certificate authorities, in
-  PEM format. Similar notes as with `pubkey` apply.
+  PEM format. Similar notes as with `pubkey` apply. But instead of table
+  or URI you can also specify special value `system_cas`, which results
+  into system authorities to be used. `system_cas` is also default value.
 crl::
-  An URI or table of URIs with CRLs relevant to the server. If not
-  set, CRL is not checked. Note that the `crl` field is also
-  inherited, therefore you may want to reset it manually to nil.
+  An URI or table of URIs with CRLs relevant to the server. If set into
+  `no_crl`, CRL is not checked. Note that the `crl` field is also
+  inherited, therefore you may want to set it manually to `no_crl`.
+  Default value is `no_crl`.
+ocsp::
+  `true` of `false` if you want or don't want to use OCSP (Online Certificate
+  Status Protocol). Default value is `true`. Inheritance is same as with
+  `pubkey`.
 
 The file signature is verified using the `usign` utility.
 
