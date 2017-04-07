@@ -12,3 +12,9 @@ start_service() {
 	procd_set_param stderr 1 # same for stderr
 	procd_close_instance
 }
+
+stop_service() {
+	# As part of migration, package containing this init script is removed and so
+	# disabled. This would result into service kill and migration breakage.
+	true
+}
