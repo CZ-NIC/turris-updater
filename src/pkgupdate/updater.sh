@@ -68,6 +68,12 @@ if [ "$DISABLED" = "1" ] ; then
 	exit 0
 fi
 
+NET_WAIT=10
+while [ $NET_WAIT -gt 0 ] && ! ping -c 1 -w 1 api.turris.cz >/dev/null 2>&1; do
+	NET_WAIT=$(($NET_WAIT - 1))
+	# Note: no sleep here because we wait in ping
+done
+
 get-api-crl || {
 	timeout 120 create_notification -s error "Updater selhal: Chybí CRL, pravděpodobně je problém v připojení k internetu." "Updater failed: Missing CRL, possibly broken Internet connection." || echo "Create notification failed" | logger -t updater -p daemon.error; 
 	exit 1
