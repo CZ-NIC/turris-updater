@@ -60,6 +60,7 @@ local allowed_package_extras = utils.arr2set({
 	"pubkey",
 	"ca",
 	"crl",
+	"ocsp",
 	"ignore"
 })
 
@@ -153,7 +154,8 @@ local allowed_repository_extras = utils.arr2set({
 	"sig",
 	"pubkey",
 	"ca",
-	"crl"
+	"crl",
+	"ocsp"
 })
 
 --[[
@@ -293,6 +295,7 @@ local allowed_script_extras = utils.arr2set({
 	"pubkey",
 	"ca",
 	"crl",
+	"ocsp",
 	"ignore"
 })
 
@@ -317,7 +320,8 @@ local script_insert_options = {
 	restrict = true,
 	pubkey = uri_validate,
 	ca = uri_validate,
-	crl = uri_validate
+	crl = uri_validate,
+	ocsp = true
 }
 
 function script(result, context, name, script_uri, extra)
