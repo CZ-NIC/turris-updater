@@ -332,7 +332,7 @@ void journal_mod_init(lua_State *L) {
 	// Some variables
 	inject_str_const(L, "journal", "path", DEFAULT_JOURNAL_PATH);
 	// journal.XXX = int(XXX) - init the constants
-#define X(VAL) DBG("Injecting constant journal." #VAL); lua_pushinteger(L, RT_##VAL); lua_setfield(L, -2, #VAL);
+#define X(VAL) TRACE("Injecting constant journal." #VAL); lua_pushinteger(L, RT_##VAL); lua_setfield(L, -2, #VAL);
 	RECORD_TYPES
 #undef X
 	inject_func_n(L, "journal", inject, sizeof inject / sizeof *inject);
