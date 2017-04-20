@@ -308,7 +308,7 @@ static int lua_run_generic(lua_State *L, bool utils) {
 	for (int i = 6; i < lua_gettop(L); i ++) {
 		args[i - 6] = luaL_checkstring(L, i + 1);
 		if (log.f)
-			fprintf(log.f, "Arg %s", args[i - 6]);
+			fprintf(log.f, "%s ", args[i - 6]);
 	}
 	args[arg_count] = NULL;
 	if (log.f) {
