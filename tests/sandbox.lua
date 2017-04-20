@@ -95,11 +95,13 @@ function test_context_inherit()
 	assert_table_equal(c1, c2)
 	c2 = sandbox.new(nil, c1)
 	c2.test_field = "value"
+	c2.env.test = true
 	local c3 = sandbox.new('Remote', c2)
 	assert_equal(c2, c3.parent)
 	assert_equal(sandbox.level('Remote'), c3.sec_level)
 	assert_nil(c3.env.io)
 	assert_equal("value", c3.test_field)
+	assert(c3.env.test)
 	-- The lower-level permissions don't add anything to the higher ones.
 	for k in pairs(c3.env) do
 		assert(c2.env[k] ~= nil)
