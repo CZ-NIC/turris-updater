@@ -28,6 +28,7 @@ local type = type
 local error = error
 local require = require
 local tostring = tostring
+local assert = assert
 local table = table
 local utils = require "utils"
 local uri = require "uri"
@@ -39,30 +40,76 @@ module "requests"
 
 -- luacheck: globals known_packages package_wrap known_repositories known_repositories_all repo_serial repository repository_get content_requests install uninstall script store_flags known_content_packages
 
--- Create a set of allowed names of extra options.
-local allowed_package_extras = utils.arr2set({
-	"virtual",
-	"deps",
-	"order_after",
-	"order_before",
-	"pre_inst",
-	"post_inst",
-	"pre_rm",
-	"post_rm",
-	"reboot",
-	"replan",
-	"abi_change",
-	"abi_change_deep",
-	"content",
-	"priority",
-	"verification",
-	"sig",
-	"pubkey",
-	"ca",
-	"crl",
-	"ocsp",
-	"ignore"
-})
+-- Verifications fields are same for script, repository and package. Lets define them here once and then just append.
+local allowed_extras_verification = {
+	["verification"] = utils.arr2set({"string"}),
+	["sig"] = utils.arr2set({"string"}),
+	["pubkey"] = utils.arr2set({"string"}),
+	["ca"] = utils.arr2set({"string"}),
+	["crl"] = utils.arr2set({"string"}),
+	["ocsp"] = utils.arr2set({"boolean"})
+}
+
+local allowed_package_extras_hooks = utils.arr2set({"table", "function"})
+local allowed_package_extras = {
+	["virtual"] = utils.arr2set({"boolean"}),
+	["deps"] = utils.arr2set({"string", "table"}),
+	["order_after"] = utils.arr2set({"string", "table"}),
+	["order_before"] = utils.arr2set({"string", "table"}),
+	["pre_inst"] = allowed_package_extras_hooks,
+	["post_inst"] = allowed_package_extras_hooks,
+	["pre_rm"] = allowed_package_extras_hooks,
+	["post_rm"] = allowed_package_extras_hooks,
+	["reboot"] = utils.arr2set({"string"}),
+	["replan"] = utils.arr2set({"boolean"}),
+	["abi_change"] = utils.arr2set({"table", "boolean"}),
+	["content"] = utils.arr2set({"string"}),
+	["ignore"] = utils.arr2set({"table"})
+}
+utils.table_merge(allowed_package_extras, allowed_extras_verification)
+
+-- Just die with common message about invalid type in extra field
+local function extra_field_invalid_type(value, field, what)
+	local t
+	if type(value) == "table" and value.tp then
+		assert(type(value.tp) == "string")
+		t = value.tp
+	else
+		t = type(value)
+	end
+	error(utils.exception("bad value", "Invalid type " .. t .. " of extra option " .. field .. " for a " .. what))
+end
+
+--[[
+Checks if extra fields are allowed and if they have correct types. More checking
+have to be done in command it self.
+
+First argument (allowed_extras) is table where key is allowed extra and value is
+set of allowed types. Argument "what" is string used in messages. Last argument
+(extra) contains all passed extras.
+It returns argument extra with field nilled for invalid types.
+]]
+local function allowed_extras_check_type(allowed_extras, what, extra)
+	for name, value in pairs(extra) do
+		if allowed_extras[name] then
+			if not allowed_extras[name][type(value)] then
+				extra_field_invalid_type(value, name, what)
+			end
+		else
+			WARN("There's no extra option " .. name .. " for a " .. what)
+			extra[name] = nil -- this is not required, but it might be possible to break updater with some clever field name that we might use later on in code.
+		end
+	end
+	return extra
+end
+
+-- Common check for package type. We die if given field isn't package type or
+-- string.
+local function extra_check_package_type(pkg, field, what)
+	if (type(pkg) ~= "string" and type(pkg) ~= "table") or (type(pkg) == "table" and v.tp ~= "package") then
+		extra_field_invalid_type(pkg, field, what)
+	end
+end
 
 --[[
 We simply store all package promises, so they can be taken
@@ -92,30 +139,38 @@ has been run).
 The package has no methods, it's just a stupid structure.
 ]]
 function package(result, content, pkg, extra)
-	extra = extra or {}
 	-- Minimal typo verification. Further verification is done when actually using the package.
+	extra = allowed_extras_check_type(allowed_package_extras, "package", extra or {})
 	for name, value in pairs(extra) do
-		if not allowed_package_extras[name] then
-			WARN("There's no extra option " .. name .. " for a package")
-		end
-		-- TODO make top level type check for all extra fields
-		if name == "abi_change" then
-			if not value then
-				ERROR("Invalid value of extra option abi_change " .. tostring(value) .. ", package " .. pkg)
-				extra[name] = nil
-			elseif type(value) == "table" then
+		-- Additional tests not covered by allowed_extras_check_type
+		-- deps and reboot extras are checked when used
+		if (name == "order_after" or name == "order_before") then
+			if type(value) == "table" then
 				for _, v in pairs(value) do
-					if type(v) ~= "table" and type(v) ~= "string" and type(v) ~= "boolean" then
-						ERROR("Invalid type in extra option abi_change " .. type(v) .. ", package " .. pkg)
-					elseif type(v) == "boolean" and not v then
-						ERROR("Invalid value in extra option abi_change " .. tostring(v) .. ", package " .. pkg)
-					elseif type(v) == "table" and v.tp ~= "package" then
-						ERROR("Invalid type in extra option abi_change " .. tostring(v.tp) .. ", package " .. pkg)
-					end
+					extra_check_package_type(v, name, "package")
+				end
+			else
+				extra_check_package_type(value, name, "package")
+			end
+		elseif (name == "pre_inst" or name == "post_inst" or name == "pre_rm" or name == "post_rm") and type(value) == "table" then
+			for _, v in pairs(value) do
+				if type(v) ~= "function" then
+					extra_field_invalid_type(v, name, "package")
+				end
+			end
+		elseif name == "abi_change" and type(value) == "table" then
+			for _, v in pairs(value) do
+				if type(v) ~= "boolean" then
+					extra_check_package_type(v, name, "package")
+				end
+			end
+		elseif name == "ignore" then
+			for _, v in pairs(value) do
+				if type(v) ~= "string" then
+					extra_check_package_type(v, name, "package")
 				end
 			end
 		end
-		-- TODO: Validate the types etc of extra options
 	end
 	utils.table_merge(result, extra)
 	result.name = pkg
@@ -145,18 +200,13 @@ function package_wrap(context, pkg)
 end
 
 -- List of allowed extra options for a Repository command
-local allowed_repository_extras = utils.arr2set({
-	"subdirs",
-	"index",
-	"ignore",
-	"priority",
-	"verification",
-	"sig",
-	"pubkey",
-	"ca",
-	"crl",
-	"ocsp"
-})
+local allowed_repository_extras = {
+	["subdirs"] = utils.arr2set({"table"}),
+	["index"] = utils.arr2set({"string"}),
+	["ignore"] = utils.arr2set({"table"}),
+	["priority"] = utils.arr2set({"number"}),
+}
+utils.table_merge(allowed_repository_extras, allowed_extras_verification)
 
 --[[
 The repositories we already created. If there are multiple repos of the
@@ -177,13 +227,16 @@ packages. Then it shall mutate into a parsed repository object, but
 until then, it is just a stupid data structure without any methods.
 ]]
 function repository(result, context, name, repo_uri, extra)
-	extra = extra or {}
 	-- Catch possible typos
-	for name in pairs(extra) do
-		if not allowed_repository_extras[name] then
-			WARN("There's no extra option " .. name .. " for a repository")
+	extra = allowed_extras_check_type(allowed_repository_extras, 'repository', extra or {})
+	for name, value in pairs(extra) do
+		if name == "subdirs" or name == "ignore" then
+			for _, v in pairs(value) do
+				if type(v) ~= "string" then
+					extra_field_invalid_type(v, name, "repository")
+				end
+			end
 		end
-		-- TODO: Validate the types etc of extra options
 	end
 	utils.table_merge(result, extra)
 	result.repo_uri = repo_uri
@@ -232,14 +285,14 @@ function repository_get(repo)
 	end
 end
 
-local allowed_install_extras = utils.arr2set({
-	"priority",
-	"version",
-	"repository",
-	"reinstall",
-	"critical",
-	"ignore"
-})
+local allowed_install_extras = {
+	["priority"] = utils.arr2set({"number"}),
+	["version"] = utils.arr2set({"string"}),
+	["repository"] = utils.arr2set({"string", "table"}),
+	["reinstall"] = utils.arr2set({"boolean"}),
+	["critical"] = utils.arr2set({"boolean"}),
+	["ignore"] = utils.arr2set({"table"})
+}
 
 content_requests = {}
 
@@ -253,13 +306,17 @@ local function content_request(context, cmd, allowed, ...)
 				package = pkg,
 				tp = cmd
 			}
-			for name, opt in pairs(extras) do
-				if not allowed[name] then
-					WARN("There's no extra option " .. name .. " for " .. cmd .. " request")
-				else
-					request[name] = opt
+			extras = allowed_extras_check_type(allowed, cmd, extras)
+			for name, value in pairs(extras) do
+				if name == "repository" and type(value) == "table" then
+					for _, v in pairs(value) do
+						if type(v) ~= "string" then
+							extra_field_invalid_type(v, name, cmd)
+						end
+					end
 				end
 			end
+			utils.table_merge(request, extras)
 			request.priority = request.priority or 50
 			table.insert(content_requests, request)
 		end
@@ -279,25 +336,20 @@ function install(_, context, ...)
 	return content_request(context, "install", allowed_install_extras, ...)
 end
 
-local allowed_uninstall_extras = utils.arr2set({
-	"priority"
-})
+local allowed_uninstall_extras = {
+	["priority"] = utils.arr2set({"number"})
+}
 
 function uninstall(_, context, ...)
 	return content_request(context, "uninstall", allowed_uninstall_extras, ...)
 end
 
-local allowed_script_extras = utils.arr2set({
-	"security",
-	"restrict",
-	"verification",
-	"sig",
-	"pubkey",
-	"ca",
-	"crl",
-	"ocsp",
-	"ignore"
-})
+local allowed_script_extras = {
+	["security"] = utils.arr2set({"string"}),
+	["restrict"] = utils.arr2set({"string"}),
+	["ignore"] = utils.arr2set({"table"})
+}
+utils.table_merge(allowed_script_extras, allowed_extras_verification)
 
 local function uri_validate(name, value, context)
 	if type(value) == 'string' then
@@ -326,10 +378,14 @@ local script_insert_options = {
 
 function script(result, context, name, script_uri, extra)
 	DBG("Running script " .. name)
-	extra = extra or {}
-	for name in pairs(extra) do
-		if allowed_script_extras[name] == nil then
-			WARN("There's no extra option " .. name .. " for the Script command")
+	extra = allowed_extras_check_type(allowed_script_extras, 'script', extra or {})
+	for name, value in pairs(extra) do
+		if name == "ignore" then
+			for _, v in pairs(value) do
+				if type(v) ~= "string" then
+					extra_field_invalid_type(v, name, 'script')
+				end
+			end
 		end
 	end
 	local u = uri(context, script_uri, extra)
