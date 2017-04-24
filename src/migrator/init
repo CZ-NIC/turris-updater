@@ -3,17 +3,15 @@
 # We want to run after updater (S85)
 START=86
 
-USE_PROCD=1
+# Note: we can't use PROCD as with it we can't deny service stop.
 
-start_service() {
-	procd_open_instance
-	procd_set_param command updater-migrate.sh --batch
-	procd_set_param stdout 1 # forward stdout of the command to logd
-	procd_set_param stderr 1 # same for stderr
-	procd_close_instance
+start() {
+	(
+	updater-migrate.sh --batch 2>&1 | logger -t "updater-migrate"
+	) &
 }
 
-stop_service() {
+stop() {
 	# As part of migration, package containing this init script is removed and so
 	# disabled. This would result into service kill and migration breakage.
 	true
