@@ -30,6 +30,16 @@ set -ex
 # If run with --batch, pass it to certain other commands. We don't expect anything else here and don't check, with such a single-purpose script (it would crash anyway later on).
 BATCH="$1"
 
+updater_fail() {
+	if [ -s "$STATE_DIR/last_error" ] ; then
+		ERROR=$(cat "$STATE_DIR/last_error")
+	else
+		ERROR="Unknown error"
+	fi
+	create_notification -s error "Migrace na updater-ng selhala: $1: $ERROR" "Migration to updater-ng failed: $2: $ERROR"
+	exit 1
+}
+
 if grep -q -e '-- Auto-migration performed' /etc/updater/auto.lua ; then
 	echo "Updater migration already performed" | logger -t daemon.info
 	echo "Updater migration already performed" >&2
@@ -40,6 +50,7 @@ else
 		sleep 1
 		if [ $(expr `date +%s` - $LOCK_TIME) -ge 3600 ]; then
 			echo "Wait for updater state lock timed out." >&2
+			create_notification -s error "Migrace na updater-ng selhala: vypršel čas čekání na ukončení updateru a uvolnění stavového zámku." "Migration to updater-ng failed: Wait for updater exit and state lock freeup timed out."
 			exit 1
 		fi
 	done
@@ -53,8 +64,8 @@ else
 	# but we don't want it) and this migration script. Also, exclude some packages
 	# that no longer exist and are left on the blue turris during an early stage
 	# of update.
-	pkgmigrate --exclude=updater --exclude=updater-migrate --exclude=updater-deps --exclude=updater-consolidator --exclude=libelf --exclude=mtd-utils-flash-info --exclude=kmod-ipt-nathelper --exclude=6relayd --exclude=kmod-ipv6 --exclude=init-thermometer --exclude=kmod-crypto-aes --exclude=kmod-crypto-core --exclude=luci-i18n-czech --exclude=luci-i18n-english --exclude=coova-chilli --exclude=libevent --exclude=libmysqlclient --exclude=libncursesw --exclude=r8196-firmware --exclude=r8188eu-firmware --exclude=userspace_time_sync --exclude=foris-oldconfig --exclude=getbranch-test --exclude=getbranch-master --exclude=getbranch-deploy --exclude=kmod-fs-9p $BATCH
+	pkgmigrate --exclude=updater --exclude=updater-migrate --exclude=updater-deps --exclude=updater-consolidator --exclude=libelf --exclude=mtd-utils-flash-info --exclude=kmod-ipt-nathelper --exclude=6relayd --exclude=kmod-ipv6 --exclude=init-thermometer --exclude=kmod-crypto-aes --exclude=kmod-crypto-core --exclude=luci-i18n-czech --exclude=luci-i18n-english --exclude=coova-chilli --exclude=libevent --exclude=libmysqlclient --exclude=libncursesw --exclude=r8196-firmware --exclude=r8188eu-firmware --exclude=userspace_time_sync --exclude=foris-oldconfig --exclude=getbranch-test --exclude=getbranch-master --exclude=getbranch-deploy --exclude=kmod-fs-9p $BATCH || updater_fail "Nezdařilo se vygenerování seznamu doinstalovaných balíčků" "Unsuccessful creation of list of additional installed packages"
 fi
 
 # Cool. Now try the updater, please (the backend of it, without all the notification stuff, etc).
-exec pkgupdate $BATCH
+pkgupdate $BATCH || updater_fail "Prvotní běh updater-ng skončil s chybou" "First run on updater-ng exited with error"
