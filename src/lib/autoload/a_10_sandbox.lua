@@ -457,10 +457,7 @@ function new(sec_level, parent, name)
 		result.flags = backend.flags_get(result.full_name)
 	end
 	-- Construct a new environment
-	result.env = utils.clone(parent.env or {})
-	for n in pairs(utils.multi_index(parent, "sec_level", "f") or {}) do
-		result.env[n] = nil -- drop everything added by parent sec. level end
-	end
+	result.env = {}
 	local inject = utils.clone
 	if sec_level >= level("Full") then
 		inject = function (...) return ... end
