@@ -535,6 +535,14 @@ ignore::
     Don't error on missing content. If it's available from repository
     then it is handled as missing.
 
+Export and Unexport
+~~~~~~~~~~~~~~~~~~~
+
+  Export "variable"
+  Unexport "variable"
+
+These commands are described in section `Export variables to Script`.
+
 StoreFlags
 ~~~~~~~~~~
 
@@ -593,8 +601,8 @@ Logging
 These commands allows printing of messages for their corresponding
 verbosity levels.
 
-Variables
----------
+Predefined variables
+--------------------
 
 There are several global variables. These are set anew for each script
 run, so one script can't damage them for another. Modifying them has
@@ -700,6 +708,22 @@ Flags may be only strings.
 
 Any modification to the own flags table is stored on successful
 updater termination or when the script explicitly request it.
+
+Export variables to Script
+--------------------------
+
+For security reasons individual scripts doesn't share variables. But it's
+sometimes beneficial to have variable that can be read by sub-script. Such
+variable is so called exported.
+
+  Export 'variable'
+  Unexport 'variable'
+
+To export variable you have to call `Export` function with name of variable as
+argument. To revert that you have to call `Unexport` function with same argument.
+
+Be aware that changes done in sub-script to exported variables are not propagated
+back to original script. But it's propagated to script executed from sub-script.
 
 Hooks
 -----
