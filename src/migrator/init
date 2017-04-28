@@ -7,6 +7,9 @@ START=86
 
 start() {
 	(
+	exec 0>&-
+	exec 1>&-
+	exec 2>&-
 	updater-migrate.sh --batch 2>&1 | logger -t "updater-migrate"
 	) &
 }
