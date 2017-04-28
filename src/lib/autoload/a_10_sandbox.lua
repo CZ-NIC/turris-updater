@@ -292,10 +292,32 @@ local funcs = {
 		StoreFlags = {
 			mode = "morpher",
 			value = requests.store_flags
+		},
+		Unexport = {
+			mode = "morpher",
+			value = function(_, context, variable)
+				if type(variable) ~= "string" then
+					error(utils.exception("bad value", "Argument to Unexport must be string not '" .. type(variable) .. "'"))
+				end
+				context.exported[variable] = nil
+			end
 		}
 	}
 }
 
+-- Export function is checking the funcs table so we define it after we defined that table
+funcs.Restricted.Export = {
+	mode = "morpher",
+	value = function(_, context, variable)
+		if type(variable) ~= "string" then
+			error(utils.exception("bad value", "Argument to Export must be string not '" .. type(variable) .. "'"))
+		end
+		if funcs.Full[variable] then
+			error(utils.exception("bad value", "Trying to export predefined variable '" .. tostring(variable) .. "'"))
+		end
+		context.exported[variable] = true
+	end
+}
 -- The operators for dependencies. They just wrap their arguments, nothing more.
 for _, name in pairs({'And', 'Or', 'Not'}) do
 	local objname = "dep-" .. name:lower()
@@ -456,8 +478,13 @@ function new(sec_level, parent, name)
 		result.root_parent.hierarchy[result.full_name or ""] = result
 		result.flags = backend.flags_get(result.full_name)
 	end
+	-- Propagate exported
+	result.exported = utils.shallow_copy(parent.exported or {})
 	-- Construct a new environment
 	result.env = {}
+	for var in pairs(parent.exported or {}) do
+		result.env[var] = utils.clone(parent.env[var])
+	end
 	local inject = utils.clone
 	if sec_level >= level("Full") then
 		inject = function (...) return ... end

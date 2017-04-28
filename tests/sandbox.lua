@@ -44,6 +44,7 @@ function test_context_new()
 		end
 		assert_equal("table", type(context))
 		assert_equal("table", type(context.env))
+		assert_equal("table", type(context.exported))
 		assert_equal("function", type(context.level_check))
 		-- There're some common functions in all of them
 		assert_equal(pairs, context.env.pairs)
@@ -65,6 +66,7 @@ function test_context_new()
 		context.env.architectures[1] = 'changed'
 		assert_equal(sandbox.state_vars.architectures[1], 'all')
 		context.env = nil
+		context.exported = nil
 		context.level_check = nil
 		local expected = {sec_level = sandbox.level(level), tp = "context", flags = {}, name = '', full_name = ''}
 		expected.root_parent = expected
@@ -160,6 +162,27 @@ function test_sandbox_run()
 		reason = "runtime",
 		msg = "[string \"Chunk name\"]:1: Error!"
 	})
+end
+
+function test_exported()
+	local chunk_export = [[test = 'testing text'
+nontest = 'missing text'
+Export 'test']]
+	local c1 = sandbox.run_sandboxed(chunk_export, "Chunk name", "Full", nil, nil, nil)
+	assert_not_equal('error', c1.tp)
+	assert_equal('testing text', c1.env.test)
+	assert_equal('missing text', c1.env.nontest)
+	local c2 = sandbox.new("Full", c1)
+	local c3 = sandbox.new("Restricted", c2)
+	assert_equal(c1.env.test, c2.env.test)
+	assert_equal(c1.env.test, c3.env.test)
+	assert_nil(c2.env.nontest)
+	assert_nil(c3.env.nontest)
+	assert_table_equal({
+		tp = "error",
+		reason = "bad value",
+		msg = "Trying to export predefined variable 'pairs'"
+	}, sandbox.run_sandboxed("Export 'pairs'", "Chunk error", "Full", nil, nil, nil))
 end
 
 function test_level()
