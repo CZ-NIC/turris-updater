@@ -30,6 +30,8 @@ set -ex
 # If run with --batch, pass it to certain other commands. We don't expect anything else here and don't check, with such a single-purpose script (it would crash anyway later on).
 BATCH="$1"
 
+STATE_DIR=/tmp/update-state
+
 updater_fail() {
 	if [ -s "$STATE_DIR/last_error" ] ; then
 		ERROR=$(cat "$STATE_DIR/last_error")
@@ -37,24 +39,44 @@ updater_fail() {
 		ERROR="Unknown error"
 	fi
 	create_notification -s error "Migrace na updater-ng selhala: $1: $ERROR" "Migration to updater-ng failed: $2: $ERROR"
+	if [ "$(cat "$STATE_DIR"/state)" != "error" ]; then
+		echo lost >"$STATE_DIR"/state
+	fi
 	exit 1
 }
 
-if grep -q -e '-- Auto-migration performed' /etc/updater/auto.lua ; then
+# Check if migration was performed
+migration_performed() {
+	grep -q -e '-- Auto-migration performed' /etc/updater/auto.lua
+}
+
+# Wait for old updater to exit (we wait until lock is removed)
+LOCK_TIME=`date +%s`
+while test -d $STATE_DIR/lock; do
+	sleep 1
+	if [ $(expr `date +%s` - $LOCK_TIME) -ge 3600 ]; then
+		echo "Wait for updater state lock timed out." >&2
+		if ! migration_performed; then
+			# Report error only if we didn't performed migration yet
+			create_notification -s error "Migrace na updater-ng selhala: vypršel čas čekání na ukončení updateru a uvolnění stavového zámku." "Migration to updater-ng failed: Wait for updater exit and state lock freeup timed out."
+		fi
+		exit 1
+	fi
+done
+cat /dev/null >"$LOG_FILE"
+echo startup >"$STATE_DIR/state"
+echo $$>"$PID_FILE"
+
+trap_handler() {
+	rm -rf "$LOCK_DIR" "$PID_FILE"
+	exit 1
+}
+trap trap_handler EXIT INT QUIT TERM ABRT
+
+if migration_performed; then
 	echo "Updater migration already performed" | logger -t daemon.info
 	echo "Updater migration already performed" >&2
 else
-	# Wait for old updater to exit (we wait until lock is removed)
-	LOCK_TIME=`date +%s`
-	while test -d /tmp/update-state/lock; do
-		sleep 1
-		if [ $(expr `date +%s` - $LOCK_TIME) -ge 3600 ]; then
-			echo "Wait for updater state lock timed out." >&2
-			create_notification -s error "Migrace na updater-ng selhala: vypršel čas čekání na ukončení updateru a uvolnění stavového zámku." "Migration to updater-ng failed: Wait for updater exit and state lock freeup timed out."
-			exit 1
-		fi
-	done
-
 	# Clean up the auto.lua first, to get rid of any possible artifacts of
 	# old updater interacting with our opkg wrapper. All the relevant packages
 	# are in the system anyway, so they'll get re-added there.

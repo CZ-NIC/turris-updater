@@ -185,10 +185,7 @@ else
 fi
 # Evaluate what has run
 STATE=$(cat "$STATE_DIR"/state)
-if [ "$EXIT_CODE" != "0" ] && [ "$STATE" != "error" ] ; then
-	echo lost >"$STATE_DIR"/state
-fi
-if [ "$STATE" != "done" ] && [ "$STATE" != "error" ] ; then
+if [ "$STATE" != "error" ] && ([ "$EXIT_CODE" != "0" ] || [ "$STATE" != "done" ]); then
 	echo lost >"$STATE_DIR"/state
 fi
 

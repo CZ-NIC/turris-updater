@@ -106,6 +106,7 @@ int main(int argc, char *argv[]) {
 	enum cmd_op_type exit_type = op->type;
 	free(ops);
 
+	state_dump("startup");
 	// The interpreter and other environment
 	struct events *events = events_new();
 	struct interpreter *interpreter = interpreter_create(events, uriinternal);
@@ -160,6 +161,7 @@ int main(int argc, char *argv[]) {
 CLEANUP:
 	interpreter_destroy(interpreter);
 	events_destroy(events);
+	state_dump("done");
 	if (exit_type == COT_EXIT)
 		return 0;
 	else
