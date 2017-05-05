@@ -47,7 +47,7 @@ local sha256 = sha256
 
 module "uri"
 
--- luacheck: globals wait signature_check parse new  system_cas no_crl
+-- luacheck: globals wait signature_check parse new  system_cas no_crl usign_exec_set
 
 -- Constants used for inheritance breakage
 system_cas = "uri_system_cas"
@@ -226,6 +226,13 @@ local function tmpstore(content)
 	return fname
 end
 
+-- Path to usign tool (can be overriden usign usign_exec_set)
+local usign_exec = "/usr/bin/usign"
+
+function usign_exec_set(path)
+	usign_exec = path
+end
+
 function signature_check(content, key, signature)
 	local ok
 	local fcontent = tmpstore(content)
@@ -233,7 +240,7 @@ function signature_check(content, key, signature)
 	local fsig = tmpstore(signature)
 	events_wait(run_command(function (ecode)
 		ok = (ecode == 0)
-	end, nil, nil, -1, -1, '/usr/bin/usign', '-V', '-p', fkey, '-x', fsig, '-m', fcontent))
+	end, nil, nil, -1, -1, usign_exec, '-V', '-p', fkey, '-x', fsig, '-m', fcontent))
 	os.remove(fcontent)
 	os.remove(fkey)
 	os.remove(fsig)

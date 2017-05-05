@@ -66,6 +66,8 @@ enum cmd_op_type {
 	COT_TASK_LOG,
 	// Exclude this from output
 	COT_EXCLUDE,
+	// Path to usign tool
+	COT_USIGN,
 	// Argument isn't option.
 	COT_NO_OP,
 	// Automatic last dummy value to know size of enum

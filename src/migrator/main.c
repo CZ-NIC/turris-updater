@@ -29,7 +29,7 @@
 extern struct file_index_element uriinternal[];
 
 static const enum cmd_op_type cmd_op_allowed[] = {
-	COT_BATCH, COT_NO_OP, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_OUTPUT, COT_EXCLUDE, COT_LAST
+	COT_BATCH, COT_NO_OP, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_OUTPUT, COT_EXCLUDE, COT_USIGN, COT_LAST
 };
 
 void print_help() {
@@ -53,6 +53,7 @@ int main(int argc, char *argv[]) {
 	const char *root_dir = NULL;
 	const char *output = "/etc/updater/auto.lua";
 	const char **excludes = NULL;
+	const char *usign_exec = NULL;
 	size_t exclude_count = 0;
 	bool batch = false, early_exit = false;
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
@@ -100,6 +101,9 @@ int main(int argc, char *argv[]) {
 				excludes = realloc(excludes, (++ exclude_count) * sizeof *excludes);
 				excludes[exclude_count - 1] = op->parameter;
 				break;
+			case COT_USIGN:
+				usign_exec = op->parameter;
+				break;
 			default:
 				DIE("Unknown COT");
 		}
@@ -116,6 +120,10 @@ int main(int argc, char *argv[]) {
 	if (root_dir) {
 		error = interpreter_call(interpreter, "backend.root_dir_set", NULL, "s", root_dir);
 		ASSERT_MSG(!error, "%s", error);
+	}
+	if (usign_exec) {
+		const char *err = interpreter_call(interpreter, "uri.usign_exec_set", NULL, "s", usign_exec);
+		ASSERT_MSG(!err, "%s", err);
 	}
 	if (early_exit)
 		goto CLEANUP;

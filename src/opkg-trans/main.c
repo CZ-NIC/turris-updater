@@ -39,7 +39,7 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 }
 
 static const enum cmd_op_type cmd_op_allows[] = {
-	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_REEXEC, COT_LAST };
+	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_REEXEC, COT_USIGN, COT_LAST };
 
 static void print_help() {
 	fputs("Usage: opkg-trans [OPTION]...\n", stderr);
@@ -71,6 +71,7 @@ int main(int argc, char *argv[]) {
 	bool transaction_run = false;
 	bool trans_ok = true;
 	bool early_exit = false;
+	const char *usign_exec = NULL;
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
 			case COT_HELP:
@@ -108,6 +109,11 @@ int main(int argc, char *argv[]) {
 				NIP(JOURNAL_ABORT);
 			case COT_ROOT_DIR: {
 				const char *err = interpreter_call(interpreter, "backend.root_dir_set", NULL, "s", op->parameter);
+				ASSERT_MSG(!err, "%s", err);
+				break;
+			}
+			case COT_USIGN: {
+				const char *err = interpreter_call(interpreter, "uri.usign_exec_set", NULL, "s", usign_exec);
 				ASSERT_MSG(!err, "%s", err);
 				break;
 			}

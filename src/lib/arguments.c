@@ -74,6 +74,8 @@ static const char *opt_help[COT_LAST] = {
 		"--output=<file>			Put the output to given file.\n",
 	[COT_EXCLUDE] =
 		"--exclude=<name>		Exclude this from output.\n",
+	[COT_USIGN] =
+		"--usign=<path>			Path to usign tool used to verify packages signature. In default /usr/bin/usign.\n",
 	[COT_TASK_LOG] =
 		"--task-log=<file>		Append list of executed tasks into a log file.\n"
 };
