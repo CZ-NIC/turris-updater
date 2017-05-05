@@ -89,17 +89,27 @@ EXIT_CODE=1
 BACKGROUND=false
 BACKGROUNDED=false
 TMP_DIR="/tmp/$$.tmp"
+PKGUPDATE_ARGS=""
 
 while [ "$1" ] ; do
 	case "$1" in
+		-h|--help)
+			echo "Usage: updater.sh [OPTION]..."
+			echo "--debug	Output debugging information"
+			echo "--trace	Output debugging and trace information"
+			exit 0
+			;;
 		-b)
 			BACKGROUND=true
 			;;
 		-r)
 			BACKGROUNDED=true
 			;;
+		-w|-n)
+			echo "Argument $1 ignored as a compatibility measure for old updater."
+			;;
 		*)
-			echo "Unknown parameter $1. Continuing anyway, as a compatibility measure for the old updater."
+			PKGUPDATE_ARGS="$PKGUPDATE_ARGS $1"
 			;;
 	esac
 	shift
@@ -160,7 +170,7 @@ if [ "$NEED_APPROVAL" = "1" ] ; then
 	APPROVALS=--ask-approval="$APPROVAL_ASK_FILE $( (sed -ne 's/\(.*\) asked \(.*\)/\2 \1/p;s/\(.*\) granted .*/0 \1/p' "$APPROVAL_GRANTED_FILE" 2>/dev/null ; echo "$AUTO_GRANT_TRESHOLD" cutoff) | sort -n | sed -ne '/cutoff/q;s/.* /--approve=/p' )"
 fi
 # Run the actual updater
-timeout 3000 pkgupdate --batch --state-log --task-log=/usr/share/updater/updater-log $APPROVALS
+timeout 3000 pkgupdate $PKGUPDATE_ARGS --batch --state-log --task-log=/usr/share/updater/updater-log $APPROVALS
 EXIT_CODE="$?"
 
 if [ -f "$APPROVAL_ASK_FILE" ] ; then
