@@ -90,6 +90,7 @@ enum option_val {
 	OPT_OUTPUT,
 	OPT_TASK_LOG_VAL,
 	OPT_EXCLUDE,
+	OPT_USIGN,
 	OPT_LAST
 };
 
@@ -109,6 +110,7 @@ static const struct option opt_long[] = {
 	{ .name = "output", .has_arg = required_argument, .val = OPT_OUTPUT },
 	{ .name = "task-log", .has_arg = required_argument, .val = OPT_TASK_LOG_VAL },
 	{ .name = "exclude", .has_arg = required_argument, .val = OPT_EXCLUDE },
+	{ .name = "usign", .has_arg = required_argument, .val = OPT_USIGN },
 	{ .name = NULL }
 };
 
@@ -129,7 +131,8 @@ static const struct simple_opt {
 	[OPT_APPROVE_VAL] = { COT_APPROVE, true, true },
 	[OPT_OUTPUT] = { COT_OUTPUT, true, true },
 	[OPT_TASK_LOG_VAL] = { COT_TASK_LOG, true, true },
-	[OPT_EXCLUDE] = { COT_EXCLUDE, true, true }
+	[OPT_EXCLUDE] = { COT_EXCLUDE, true, true },
+	[OPT_USIGN] = { COT_USIGN, true, true }
 };
 
 // Builds new result with any number of error messages. But specify their count as
