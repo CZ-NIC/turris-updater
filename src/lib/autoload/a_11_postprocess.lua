@@ -41,7 +41,7 @@ local uri = require "uri"
 
 module "postprocess"
 
--- luacheck: globals get_repos deps_canon available_packages pkg_aggregate run get_content_pkgs
+-- luacheck: globals get_repos deps_canon conflicts_canon available_packages pkg_aggregate run get_content_pkgs
 
 function get_repos()
 	DBG("Getting repos")
@@ -285,6 +285,53 @@ function deps_canon(old_deps)
 	end
 end
 
+--[[
+Create negative dependencies from Conflicts field.
+Argument conflicts is expected to contain string with names of packages.
+If generated dependencies don't have explicit version limitation than we use
+'~.*'. This sould match every version. Specifying it that way we ignore
+candidates from other packages (added using Provides). This is required as
+'Conflicts' shouldn't affect packages with different name.
+]]
+function conflicts_canon(conflicts)
+	if type(conflicts) ~= "string" and type(conflicts) ~= "nil" then
+		error(utils.exception('bad value', 'Bad conflicts type ' .. type(conflicts)))
+	end
+	-- Firts canonize as dependency
+	local dep = deps_canon(conflicts)
+	if type(dep) == "string" then
+		dep = { tp = "dep-not", sub = {{ tp = "dep-package", name = dep, version = "~.*" }} }
+	elseif type(dep) == "table" and dep.tp then
+		-- Note: The only acceptable input to this functions should be string and so the result should be a single package or conjunction of those packages.
+		if dep.tp == "dep-package" then
+			if not dep.version then
+				dep.version = "~.*"
+			end
+			dep = { tp = "dep-not", sub = {dep} }
+		elseif dep.tp == "dep-and" then
+			for i, pkg in ipairs(dep.sub) do
+				if type(pkg) ~= "string" and pkg.tp ~= "dep-package" then
+					error(utils.exception('bad value', 'Bad conflict package deps type ' .. (pkg.tp or type(pkg))))
+				end
+				if type(pkg) == "string" then
+					pkg = { tp = "dep-package", name = pkg }
+					dep.sub[i] = pkg
+				end
+				if not pkg.version then
+					pkg.version = "~.*"
+				end
+			end
+			dep.tp = "dep-or"
+			dep = { tp = "dep-not", sub = {dep} }
+		else
+			error(utils.exception('bad value', 'Object of type ' .. dep.tp .. ' used as conflict deps'))
+		end
+	elseif type(dep) ~= "nil" then -- we pass if dep is nill but anything else is error at this point
+		error(utils.exception('bad value', 'Bad conflict deps type ' .. type(dep)))
+	end
+	return dep
+end
+
 available_packages = {}
 
 --[[
@@ -400,7 +447,8 @@ function pkg_aggregate()
 		for _, candidate in ipairs(pkg_group.candidates or {}) do
 			candidate.deps = deps_canon(utils.arr_prune({
 				candidate.deps, -- deps from updater configuration file
-				candidate.Depends -- Depends from repository
+				candidate.Depends, -- Depends from repository
+				conflicts_canon(candidate.Conflicts) -- Negative dependencies from repository
 			}))
 		end
 		pkg_group.modifier = modifier

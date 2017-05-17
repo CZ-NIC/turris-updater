@@ -252,7 +252,7 @@ function test_pkg_merge()
 					tp = 'pkg-list',
 					list = {
 						xyz = {Package = "xyz", Version = "1"},
-						abc = {Package = "abc", Version = "2", Depends = "cde"},
+						abc = {Package = "abc", Version = "2", Depends = "cde", Conflicts = "xyz"},
 						cde = {Package = "cde", Version = "1"},
 						fgh = {Package = "fgh", Version = "1", Provides = "cde"}
 					}
@@ -315,7 +315,10 @@ function test_pkg_merge()
 	local exp = {
 		abc = {
 			candidates = {
-				{Package = "abc", Depends = "cde", deps = "cde", Version = "2", repo = requests.known_repositories_all[1]},
+				{Package = "abc", Depends = "cde", Conflicts = "xyz", Version = "2", deps = {
+						tp = "dep-and", sub = { "cde", { tp = "dep-not", sub = {
+							{ tp = "dep-package", name = "xyz", version = "~.*" }
+					}}}}, repo = requests.known_repositories_all[1]},
 				{Package = "abc", Version = "1", repo = requests.known_repositories_all[2]}
 			},
 			modifier = {name = "abc"}
@@ -467,6 +470,26 @@ function test_deps_canon()
 	assert_table_equal({tp = "dep-or", sub = {"x", {tp = "dep-and", sub = {"y", "z"}}}}, postprocess.deps_canon({tp = "dep-or", sub = {"x", {"y", "z"}}}))
 	assert_table_equal({tp = "package", a = "b"}, postprocess.deps_canon({tp = "package", a = "b"}))
 	assert_table_equal({tp = "dep-package", a = "b"}, postprocess.deps_canon({tp = "dep-package", a = "b"}))
+end
+
+function test_conflicts_canon()
+	assert_equal(nil, postprocess.conflicts_canon(nil))
+	assert_equal(nil, postprocess.conflicts_canon(""))
+	assert_equal(nil, postprocess.conflicts_canon(" "))
+	assert_table_equal({ tp = "dep-not", sub = {
+			{ tp = "dep-package", name = "x", version = "~.*" }
+		}}, postprocess.conflicts_canon("x"))
+	assert_table_equal({ tp = "dep-not", sub = {
+			{ tp = "dep-package", name = "x", version = "~.*" }
+		}}, postprocess.conflicts_canon(" x "))
+	assert_table_equal({ tp = "dep-not", sub = {{ tp = "dep-or", sub = {
+			{ tp = "dep-package", name = "x", version = "~.*" },
+			{ tp = "dep-package", name = "y", version = "~.*" }
+		}}}}, postprocess.conflicts_canon("x, y"))
+	assert_table_equal({ tp = "dep-not", sub = {{ tp = "dep-or", sub = {
+			{ tp = "dep-package", name = "x", version = ">1" },
+			{ tp = "dep-package", name = "y", version = "~.*" }
+		}}}}, postprocess.conflicts_canon("x (>1), y"))
 end
 
 function teardown()
