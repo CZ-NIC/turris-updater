@@ -1,5 +1,5 @@
 --[[
-Copyright 2016, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+Copyright 2016-2017, CZ.NIC z.s.p.o. (http://www.nic.cz/)
 
 This file is part of the turris updater.
 
@@ -439,7 +439,14 @@ local script_insert_options = {
 	ocsp = true
 }
 
+-- Remember here all executed scripts (by name)
+local script_executed = {}
+
 function script(result, context, name, script_uri, extra)
+	if script_executed[context.full_name .. '/' .. name] then
+		error(utils.exception("inconsistent", "Script with name " .. name .. " was already executed."))
+	end
+	script_executed[context.full_name .. '/' .. name] = true
 	DBG("Running script " .. name)
 	extra = allowed_extras_check_type(allowed_script_extras, 'script', extra or {})
 	extra_check_verification("script", extra)
