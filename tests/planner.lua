@@ -66,12 +66,14 @@ function test_no_deps()
 			action = "require",
 			package = {Package = 'pkg1', repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = "pkg1"
 		},
 		pkg2 = {
 			action = "require",
 			package = {Package = 'pkg2', repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = "pkg2"
 		}
 	}
@@ -102,6 +104,7 @@ function test_reinstall()
 			action = "reinstall",
 			package = {Package = 'pkg1', repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = 'pkg1'
 		}
 	}
@@ -156,12 +159,14 @@ function test_reinstall_upgrade()
 			action = "reinstall",
 			package = {Package = 'pkg1', repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = 'pkg1'
 		},
 		pkg2 = {
 			action = "require",
 			package = {Package = 'pkg2', repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = 'pkg2'
 		}
 	}
@@ -237,12 +242,14 @@ function test_deps()
 			action = 'require',
 			package = {Package = 'dep1', Version = "2", repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = 'dep1'
 		},
 		dep2 = {
 			action = 'require',
 			package = {Package = 'dep2', repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = 'dep2'
 		},
 		dep3 = {
@@ -251,6 +258,7 @@ function test_deps()
 			modifier = {
 				deps = "dep1"
 			},
+			critical = false,
 			name = 'dep3'
 		},
 		pkg1 = {
@@ -259,12 +267,14 @@ function test_deps()
 			modifier = {
 				deps = "dep1"
 			},
+			critical = false,
 			name = 'pkg1'
 		},
 		pkg2 = {
 			action = 'require',
 			package = {Package = 'pkg2', deps = {tp = 'dep-and', sub = {'dep2', 'dep3'}}, repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = 'pkg2'
 		}
 	}
@@ -325,6 +335,7 @@ function test_content_version()
 			action = 'require',
 			package = {Package = 'pkg', Version = "1"},
 			modifier = {},
+			critical = false,
 			name = 'pkg'
 		}
 	}
@@ -365,6 +376,7 @@ function test_virtual()
 			action = 'require',
 			package = {Package = 'pkg', Version = "1", deps = "virt2", repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = 'pkg'
 		}
 	}
@@ -424,6 +436,7 @@ function test_circular_deps()
 			action = 'require',
 			package = {Package = 'pkg1', deps = 'pkg2', repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = 'pkg1'
 		},
 		pkg2 = {
@@ -432,6 +445,7 @@ function test_circular_deps()
 			modifier = {
 				deps = "pkg1"
 			},
+			critical = false,
 			name = 'pkg2'
 		}
 	}
@@ -529,6 +543,7 @@ function test_priority()
 			action = "reinstall",
 			package = {Package = 'pkg1', deps = {}, repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = "pkg1"
 		}
 	}
@@ -569,6 +584,7 @@ function test_provides_only()
 			action = "require",
 			package = {Package = 'pkg1', deps = {}, repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = "pkg1"
 		}
 	}
@@ -609,6 +625,7 @@ function test_provides()
 			action = "require",
 			package = {Package = 'req', deps = {}, repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = "req"
 		}
 	}
@@ -656,11 +673,62 @@ function test_provides_other_required()
 			action = "require",
 			package = {Package = 'pkg2', repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = "pkg2"
 		}
 	}
 	assert_plan_dep_order(expected, result)
 end
+
+function test_provides_critical()
+	local pkgs = {
+		req = {
+			candidates = {{Package = 'req', deps = {}, repo = def_repo}}, -- other candidates are added later, because we require them to be same table as in given package group
+			modifier = {}
+		},
+		pkg1 = {
+			candidates = {{Package = 'pkg1', deps = {}, repo = def_repo}},
+			modifier = {}
+		},
+		pkg2 = {
+			candidates = {{Package = 'pkg2', repo = def_repo}},
+			modifier = {}
+		}
+	}
+	table.insert(pkgs.req.candidates, pkgs.pkg1.candidates[1])
+	table.insert(pkgs.req.candidates, pkgs.pkg2.candidates[1])
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'req',
+			},
+			critical = true,
+			priority = 50
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg2',
+			},
+			priority = 50
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		pkg2 = {
+			action = "require",
+			package = {Package = 'pkg2', repo = def_repo},
+			modifier = {},
+			critical = true,
+			name = "pkg2"
+		}
+	}
+	assert_plan_dep_order(expected, result)
+end
+
 
 function test_request_unsat()
 	local pkgs = {
@@ -711,6 +779,7 @@ function test_request_unsat()
 			action = "require",
 			package = {Package = 'dep', deps = {}, repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = "dep"
 		}
 	}
@@ -719,6 +788,7 @@ function test_request_unsat()
 			action = "require",
 			package = {Package = 'pkg1', deps = {tp = 'dep-not', sub = {"pkg2"}}, repo = def_repo},
 			modifier = {deps = 'dep'},
+			critical = false,
 			name = "pkg1"
 		}
 	end
@@ -727,6 +797,7 @@ function test_request_unsat()
 			action = "require",
 			package = {Package = 'pkg2', deps = {}, repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = "pkg2"
 		}
 	end
@@ -797,6 +868,7 @@ function test_critical_request()
 			action = "require",
 			package = {Package = 'pkg2', deps = {}, repo = def_repo},
 			modifier = {},
+			critical = true,
 			name = "pkg2"
 		}
 	}
@@ -885,12 +957,14 @@ function test_penalty()
 					sub = {"dep1", "dep2", "dep3", "dep4"}
 				}
 			},
+			critical = false,
 			name = "pkg"
 		},
 		dep1 = {
 			action = "require",
 			package = {Package = 'dep1', deps = {}, repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = "dep1"
 		}
 	}
@@ -910,6 +984,7 @@ function test_penalty()
 		action = "require",
 		package = {Package = 'dep3', deps = {}, repo = def_repo},
 		modifier = {},
+		critical = false,
 		name = 'dep3'
 	}
 	result = planner.required_pkgs(pkgs, requests)
@@ -991,6 +1066,7 @@ function test_penalty_most_common()
 					sub = {"dep1", "dep2"}
 				}
 			},
+			critical = false,
 			name = "pkg1"
 		},
 		pkg2 = {
@@ -1002,6 +1078,7 @@ function test_penalty_most_common()
 					sub = {"dep2", "dep1"}
 				}
 			},
+			critical = false,
 			name = "pkg2"
 		},
 		pkg3 = {
@@ -1013,12 +1090,14 @@ function test_penalty_most_common()
 					sub = {"dep1", "dep2"}
 				}
 			},
+			critical = false,
 			name = "pkg3"
 		},
 		dep1 = {
 			action = "require",
 			package = {Package = 'dep1', deps = {}, repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = "dep1"
 		}
 	}
@@ -1074,12 +1153,14 @@ function test_penalty_and_missing()
 					sub = {"dep1", "dep2", "dep3", "dep4"}
 				}
 			},
+			critical = false,
 			name = "pkg"
 		},
 		dep2 = {
 			action = "require",
 			package = {Package = 'dep2', deps = {}, repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = "dep2"
 		}
 	}
@@ -1092,6 +1173,7 @@ function test_penalty_and_missing()
 		action = 'require',
 		package = {Package = 'dep3', deps = {}, repo = def_repo},
 		modifier = {},
+		critical = false,
 		name = "dep3"
 	}
 	result = planner.required_pkgs(pkgs, requests)
@@ -1140,6 +1222,7 @@ function test_replan_order()
 			action = "require",
 			package = {Package = 'dep', deps = {}, repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = "dep"
 		},
 		{
@@ -1149,12 +1232,14 @@ function test_replan_order()
 				deps = 'dep',
 				replan = true
 			},
+			critical = false,
 			name = "pkgreplan"
 		},
 		{
 			action = "require",
 			package = {Package = 'pkg', deps = {}, repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = "pkg"
 		}
 	}
@@ -1189,6 +1274,7 @@ function test_filter_required()
 				Version = "2",
 				repo = def_repo
 			},
+			critical = false,
 			modifier = {}
 		},
 		{
@@ -1199,6 +1285,7 @@ function test_filter_required()
 				Version = "2",
 				repo = def_repo
 			},
+			critical = false,
 			modifier = {}
 		},
 		{
@@ -1209,6 +1296,7 @@ function test_filter_required()
 				Version = "3",
 				repo = def_repo
 			},
+			critical = false,
 			modifier = {}
 		},
 		-- The pkg4 and pkg5 are not mentioned, they shall be uninstalled at the end
@@ -1220,6 +1308,7 @@ function test_filter_required()
 				Version = "6",
 				repo = def_repo
 			},
+			critical = false,
 			modifier = {}
 		}
 	}
@@ -1233,6 +1322,7 @@ function test_filter_required()
 				Version = "3",
 				repo = def_repo
 			},
+			critical = false,
 			modifier = {}
 		},
 		requests[4],
@@ -1267,6 +1357,7 @@ function test_replan()
 				Version = "1",
 				repo = def_repo
 			},
+			critical = false,
 			modifier = {
 				replan = true
 			}
@@ -1278,6 +1369,7 @@ function test_replan()
 				Version = "13",
 				repo = def_repo
 			},
+			critical = false,
 			modifier = {}
 		}
 	}
@@ -1319,6 +1411,7 @@ function test_abi_change()
 				Version = "2",
 				repo = def_repo
 			},
+			critical = false,
 			modifier = {
 				abi_change = {[true] = true, ['pkg2'] = true, ['pkg3'] = true}
 			}
@@ -1331,6 +1424,7 @@ function test_abi_change()
 				Version = "1",
 				repo = def_repo
 			},
+			critical = false,
 			modifier = {}
 		},
 		-- Depending on pkg1 and also explicitly listed
@@ -1342,6 +1436,7 @@ function test_abi_change()
 				Version = "1",
 				repo = def_repo
 			},
+			critical = false,
 			modifier = {}
 		},
 		-- Depending on pkg1
@@ -1353,6 +1448,7 @@ function test_abi_change()
 				Version = "1",
 				repo = def_repo
 			},
+			critical = false,
 			modifier = {}
 		},
 		-- Depending on pkg4 so indirectly on pkg1
@@ -1364,6 +1460,7 @@ function test_abi_change()
 				Version = "1",
 				repo = def_repo
 			},
+			critical = false,
 			modifier = {}
 		},
 		-- Not depending on pkg1, already installed and abi_change set
@@ -1374,6 +1471,7 @@ function test_abi_change()
 				Version = "1",
 				repo = def_repo
 			},
+			critical = false,
 			modifier = {abi_change = {[true] = true}}
 		},
 		-- Depends on pkg6 but it shouldn't be updated so no abi_change
@@ -1385,6 +1483,7 @@ function test_abi_change()
 				Version = "1",
 				repo = def_repo
 			},
+			critical = false,
 			modifier = {}
 		}
 	}
@@ -1578,6 +1677,7 @@ function test_missing_install()
 			action = "require",
 			package = {Package = 'pkg1', deps = {}, repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = "pkg1"
 		}
 	}
@@ -1612,6 +1712,7 @@ function test_missing_dep_ignore()
 			modifier = {
 				ignore = {"deps"}
 			},
+			critical = false,
 			name = "pkg1"
 		}
 	}
@@ -1655,6 +1756,7 @@ function test_deps_twoalts()
 			action = 'require',
 			package = pkgs[pkgname].candidates[1],
 			modifier = {},
+			critical = false,
 			name = pkgname
 		}
 	end
@@ -1713,18 +1815,21 @@ function test_deps_alt2alt()
 			action = 'require',
 			package = pkgs['pkg1'].candidates[1],
 			modifier = {},
+			critical = false,
 			name = 'pkg1'
 		},
 		pkg2 = {
 			action = 'require',
 			package = pkgs['pkg2'].candidates[1],
 			modifier = {},
+			critical = false,
 			name = 'pkg2'
 		},
 		dep = {
 			action = 'require',
 			package = pkgs['dep'].candidates[1],
 			modifier = {},
+			critical = false,
 			name = 'dep'
 		}
 	}
@@ -1795,6 +1900,7 @@ function test_complex_deps()
 			action = "require",
 			package = p.candidates[1],
 			modifier = p.modifier,
+			critical = false,
 			name = name
 		}
 	end)
@@ -1844,12 +1950,14 @@ function test_version_request()
 			action = 'require',
 			package = {Package = 'pkg1', deps = {}, Version = "2", repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = 'pkg1'
 		},
 		pkg2 = {
 			action = 'require',
 			package = {Package = 'pkg2', deps = {}, Version = "1", repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = 'pkg2'
 		}
 	}
@@ -1933,24 +2041,28 @@ function test_version_deps()
 			action = 'require',
 			package = {Package = 'pkg', deps = pkg_dep, Version = "2", repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = 'pkg'
 		},
 		dep1 = {
 			action = 'require',
 			package = {Package = 'dep1', deps = {}, Version = "2", repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = 'dep1'
 		},
 		dep2 = {
 			action = 'require',
 			package = {Package = 'dep2', deps = {}, Version = "1", repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = 'dep2'
 		},
 		dep3 = {
 			action = 'require',
 			package = {Package = 'dep3', deps = {}, Version = "2", repo = def_repo},
 			modifier = {},
+			critical = false,
 			name = 'dep3'
 		}
 	}

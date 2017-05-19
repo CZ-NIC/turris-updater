@@ -403,6 +403,7 @@ local function build_plan(pkgs, requests, sat, satmap)
 			action = 'require',
 			package = candidate,
 			modifier = (pkg or {}).modifier or {},
+			critical = false,
 			name = name
 		}
 		plan[#plan + 1] = r
@@ -422,11 +423,16 @@ local function build_plan(pkgs, requests, sat, satmap)
 			if req.tp == "install" then -- And if it is install request, uninstall requests are resolved by not being planned.
 				local pln = pkg_plan(req.package, false, utils.arr2set(req.ignore or {})["missing"], 'Requested package')
 				-- Note that if pln is nil than we ignored missing package. We have to compute with that here
-				if pln and req.reinstall then
-					pln.action = 'reinstall'
-				end
-				if req.critical and inconsistent[req.package.name] then -- Check if critical didn't end up in cyclic dependency
-					error(utils.exception('inconsistent', 'Package ' .. req.package.name .. ' is requested as critical. Cyclic dependency is not allowed for critical requests.', { critical = true }))
+				if pln then
+					if req.reinstall then
+						pln.action = 'reinstall'
+					end
+					if req.critical then
+						pln.critical = true
+						if inconsistent[pln.name] then -- Check if critical didn't end up in cyclic dependency (Note name from returned package was used not request because it might have been provided by some other package)
+							error(utils.exception('inconsistent', 'Package ' .. req.package.name .. ' is requested as critical. Cyclic dependency is not allowed for critical requests.', { critical = true }))
+						end
+					end
 				end
 			end
 		else
