@@ -36,7 +36,12 @@ local transaction = require "transaction"
 
 module "updater"
 
--- luacheck: globals prepare pre_cleanup cleanup required_pkgs
+-- luacheck: globals prepare pre_cleanup cleanup required_pkgs disable_replan
+
+local allow_replan = true
+function disable_replan()
+	allow_replan = false
+end
 
 function required_pkgs(entrypoint)
 	-- Get the top-level script
@@ -61,7 +66,7 @@ function prepare(entrypoint)
 	local required = required_pkgs(entrypoint)
 	local run_state = backend.run_state()
 	backend.flags_load()
-	local tasks = planner.filter_required(run_state.status, required)
+	local tasks = planner.filter_required(run_state.status, required, allow_replan)
 	--[[
 	Start download of all the packages. They all start (or queue, if there are
 	too many). We then start taking them one by one, but that doesn't stop it
@@ -134,7 +139,7 @@ end
 
 -- Note: This function don't have to return
 function cleanup(success, reboot_finished)
-	if transaction.cleanup_actions.reexec then
+	if transaction.cleanup_actions.reexec and allow_replan then
 		if reboot_finished then
 			reexec('--reboot-finished')
 		else

@@ -46,7 +46,7 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 }
 
 static const enum cmd_op_type cmd_op_allows[] = {
-	COT_BATCH, COT_NO_OP, COT_REEXEC, COT_REBOOT, COT_STATE_LOG, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_TASK_LOG, COT_USIGN, COT_LAST
+	COT_BATCH, COT_NO_OP, COT_REEXEC, COT_REBOOT, COT_STATE_LOG, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_TASK_LOG, COT_USIGN, COT_NO_REPLAN, COT_LAST
 };
 
 static void print_help() {
@@ -122,6 +122,7 @@ int main(int argc, char *argv[]) {
 	size_t approval_count = 0;
 	const char *task_log = NULL;
 	const char *usign_exec = NULL;
+	bool no_replan = false;
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
 			case COT_HELP:
@@ -184,6 +185,9 @@ int main(int argc, char *argv[]) {
 			case COT_USIGN:
 				usign_exec = op->parameter;
 				break;
+			case COT_NO_REPLAN:
+				no_replan = true;
+				break;
 			default:
 				DIE("Unknown COT");
 		}
@@ -204,6 +208,10 @@ int main(int argc, char *argv[]) {
 		root_dir = "";
 	if (usign_exec) {
 		const char *err = interpreter_call(interpreter, "uri.usign_exec_set", NULL, "s", usign_exec);
+		ASSERT_MSG(!err, "%s", err);
+	}
+	if (no_replan) {
+		const char *err = interpreter_call(interpreter, "updater.disable_replan", NULL, "");
 		ASSERT_MSG(!err, "%s", err);
 	}
 	bool trans_ok = true;

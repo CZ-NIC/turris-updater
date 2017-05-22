@@ -704,7 +704,7 @@ leave the extra (eg. requiring already installed package) out. And creates
 additional requests with action "remove", such package is present on system, but
 is not required any more and should be removed.
 ]]
-function filter_required(status, requests)
+function filter_required(status, requests, allow_replan)
 	local install, unused = check_install_version(status, requests)
 	install = check_abi_change(requests, install)
 	local result = {}
@@ -718,7 +718,7 @@ function filter_required(status, requests)
 				req.action = "require"
 			end
 			table.insert(result, req)
-			if request.modifier.replan then
+			if request.modifier.replan and allow_replan then
 				replan = true
 				break
 			end

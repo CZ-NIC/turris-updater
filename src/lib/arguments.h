@@ -68,6 +68,8 @@ enum cmd_op_type {
 	COT_EXCLUDE,
 	// Path to usign tool
 	COT_USIGN,
+	// Don't replan (do whole install at once)
+	COT_NO_REPLAN,
 	// Argument isn't option.
 	COT_NO_OP,
 	// Automatic last dummy value to know size of enum

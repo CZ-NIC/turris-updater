@@ -76,6 +76,8 @@ static const char *opt_help[COT_LAST] = {
 		"--exclude=<name>		Exclude this from output.\n",
 	[COT_USIGN] =
 		"--usign=<path>			Path to usign tool used to verify packages signature. In default /usr/bin/usign.\n",
+	[COT_NO_REPLAN] =
+		"--no-replan			Don't replan. Install everyting at once. Use this if updater you are running isn't from packages it installs.\n",
 	[COT_TASK_LOG] =
 		"--task-log=<file>		Append list of executed tasks into a log file.\n"
 };
@@ -91,6 +93,7 @@ enum option_val {
 	OPT_TASK_LOG_VAL,
 	OPT_EXCLUDE,
 	OPT_USIGN,
+	OPT_NO_REPLAN,
 	OPT_LAST
 };
 
@@ -111,6 +114,7 @@ static const struct option opt_long[] = {
 	{ .name = "task-log", .has_arg = required_argument, .val = OPT_TASK_LOG_VAL },
 	{ .name = "exclude", .has_arg = required_argument, .val = OPT_EXCLUDE },
 	{ .name = "usign", .has_arg = required_argument, .val = OPT_USIGN },
+	{ .name = "no-replan", .has_arg = no_argument, .val = OPT_NO_REPLAN },
 	{ .name = NULL }
 };
 
@@ -132,7 +136,8 @@ static const struct simple_opt {
 	[OPT_OUTPUT] = { COT_OUTPUT, true, true },
 	[OPT_TASK_LOG_VAL] = { COT_TASK_LOG, true, true },
 	[OPT_EXCLUDE] = { COT_EXCLUDE, true, true },
-	[OPT_USIGN] = { COT_USIGN, true, true }
+	[OPT_USIGN] = { COT_USIGN, true, true },
+	[OPT_NO_REPLAN] = { COT_NO_REPLAN, false, true }
 };
 
 // Builds new result with any number of error messages. But specify their count as
@@ -241,6 +246,9 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 			case COT_ASK_APPROVAL:
 			case COT_OUTPUT:
 			case COT_APPROVE:
+			case COT_EXCLUDE:
+			case COT_USIGN:
+			case COT_NO_REPLAN:
 			case COT_TASK_LOG: {
 				struct cmd_op tmp = result[i];
 				for (size_t j = i; j > set_pos; j --)

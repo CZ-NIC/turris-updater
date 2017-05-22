@@ -1312,7 +1312,7 @@ function test_filter_required()
 			modifier = {}
 		}
 	}
-	local result = planner.filter_required(status, requests)
+	local result = planner.filter_required(status, requests, true)
 	local expected = {
 		requests[1],
 		{
@@ -1373,7 +1373,7 @@ function test_replan()
 			modifier = {}
 		}
 	}
-	local result = planner.filter_required({}, requests)
+	local result = planner.filter_required({}, requests, true)
 	assert_table_equal({
 		requests[1]
 	}, result)
@@ -1487,7 +1487,7 @@ function test_abi_change()
 			modifier = {}
 		}
 	}
-	local result = planner.filter_required(status, requests)
+	local result = planner.filter_required(status, requests, true)
 	local expected = {
 		requests[1],
 		requests[2],
@@ -1498,7 +1498,7 @@ function test_abi_change()
 	-- Update abi_change to abi_change_deep and repeat
 	requests[1].modifier.abi_change_deep = requests[1].modifier.abi_change
 	table.insert(expected, requests[5])
-	result = planner.filter_required(status, requests)
+	result = planner.filter_required(status, requests, true)
 	assert_table_equal(expected, result)
 end
 
