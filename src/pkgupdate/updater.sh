@@ -95,8 +95,7 @@ while [ "$1" ] ; do
 	case "$1" in
 		-h|--help)
 			echo "Usage: updater.sh [OPTION]..."
-			echo "--debug	Output debugging information"
-			echo "--trace	Output debugging and trace information"
+			echo "-e (ERROR|WARNING|INFO|DBG|TRACE)	Message level printed on stderr. In default set to INFO."
 			exit 0
 			;;
 		-b)
@@ -160,14 +159,9 @@ if [ "$NEED_APPROVAL" = "1" ] ; then
 	# needed.
 	config_get AUTO_GRANT_TIME approvals auto_grant_seconds
 	AUTO_GRANT_TRESHOLD=$(expr $(date -u +%s) - $AUTO_GRANT_TIME 2>/dev/null || echo 1)
-	# Compute the approval parameters. To get the granted approvals, filter only the ones
-	# that are „granted“ and „asked“. The „granted“ get moved to time 0, so they are before
-	# even the treshold when we don't auto-approve. The asked ones retain their own time.
-	# We also insert a mark at the trashold time.
-	#
-	# We sort all these events according to their time they happened and cut off anything that
-	# at the treshold time or newer.
-	APPROVALS=--ask-approval="$APPROVAL_ASK_FILE $( (sed -ne 's/\(.*\) asked \(.*\)/\2 \1/p;s/\(.*\) granted .*/0 \1/p' "$APPROVAL_GRANTED_FILE" 2>/dev/null ; echo "$AUTO_GRANT_TRESHOLD" cutoff) | sort -n | sed -ne '/cutoff/q;s/.* /--approve=/p' )"
+	APPROVALS="--ask-approval=$APPROVAL_ASK_FILE"
+	APPROVED_HASH="$(tail -1 "$APPROVAL_GRANTED_FILE" | awk "\$2 == 'granted' || ( \$2 == 'asked' && \$3 <= '$AUTO_GRANT_TRESHOLD' ) {print \$1}")"
+	[ -n "$APPROVED_HASH" ] && APPROVALS="$APPROVALS --approve=$APPROVED_HASH"
 fi
 # Run the actual updater
 timeout 3000 pkgupdate $PKGUPDATE_ARGS --batch --state-log --task-log=/usr/share/updater/updater-log $APPROVALS
@@ -176,7 +170,7 @@ EXIT_CODE="$?"
 if [ -f "$APPROVAL_ASK_FILE" ] ; then
 	read HASH <"$APPROVAL_ASK_FILE"
 	if ! grep -q "^$HASH" "$APPROVAL_GRANTED_FILE" ; then
-		echo "$HASH asked $(date -u +%s)" >>"$APPROVAL_GRANTED_FILE"
+		echo "$HASH asked $(date -u +%s)" >"$APPROVAL_GRANTED_FILE"
 		config_get_bool NOTIFY_APPROVAL approvals notify 1
 		echo "Asking for authorisation $HASH" | logger -t updater -p daemon.info
 		if [ "$NOTIFY_APPROVAL" = "1" ] ; then
