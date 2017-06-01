@@ -19,6 +19,7 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 
 local error = error
 local ipairs = ipairs
+local WARN = WARN
 local INFO = INFO
 local md5 = md5
 local sha256 = sha256
