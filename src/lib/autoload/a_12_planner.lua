@@ -123,8 +123,11 @@ function sat_pkg_group(state, name)
 			cand = state.candidate2sat[candidate]
 		end
 		state.sat:clause(-cand, pkg_var) -- candidate implies its package group
-		for _, o_cand in pairs(sat_candidates) do
-			state.sat:clause(-cand, -o_cand) -- ensure candidates exclusivity
+		if candidate.Package == name then -- Only candidates of this package group are exclusive. There is no reason why candidates from other packages should be exclusive (they are in their own package group).
+			for _, o_cand in pairs(sat_candidates_exclusive) do
+				state.sat:clause(-cand, -o_cand) -- ensure candidates exclusivity
+			end
+			table.insert(sat_candidates_exclusive, cand)
 		end
 		lastpen = sat_penalize(state, cand, state.penalty_candidates, lastpen) -- penalize candidates
 		table.insert(sat_candidates, cand)
@@ -173,7 +176,7 @@ function sat_dep(state, pkg, version, repository)
 			state.missing[pkg] = var
 			return var
 		end
-		local chosen_candidates = candidates_choose(state.pkgs[name].candidates, version, repository)
+		local chosen_candidates = candidates_choose(state.pkgs[name].candidates, name, version, repository)
 		if next(chosen_candidates) then
 			-- We add here basically or, but without penalizations. Penalization is ensured from dep_pkg_group.
 			local vars = utils.map(chosen_candidates, function(i, candidate)
