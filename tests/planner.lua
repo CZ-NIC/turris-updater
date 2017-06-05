@@ -1542,23 +1542,33 @@ function test_candidate_choose()
 	}
 	local candidates = {
 		{
+			Package = "pkg",
 			Version = "1",
 			repo = requests.known_repositories.repo1
 		},
 		{
+			Package = "pkg",
 			Version = "1",
 			repo = requests.known_repositories.repo2
 		},
 		{
+			Package = "pkg",
 			Version = "3",
 			repo = requests.known_repositories.repo1
 		},
 		{
+			Package = "pkg",
 			Version = "2",
 			repo = requests.known_repositories.repo1
 		},
 		{
+			Package = "pkg",
 			Version = "4",
+			repo = requests.known_repositories.repo2
+		},
+		{
+			Package = "provided",
+			Version = "1",
 			repo = requests.known_repositories.repo2
 		}
 	}
@@ -1566,60 +1576,61 @@ function test_candidate_choose()
 		candidates[1],
 		candidates[2],
 		candidates[4]
-	}, planner.candidates_choose(candidates, "<3"))
+	}, planner.candidates_choose(candidates, "pkg", "<3"))
 	assert_table_equal({
 		candidates[1],
 		candidates[2],
 		candidates[4]
-	}, planner.candidates_choose(candidates, " < 3 "))
+	}, planner.candidates_choose(candidates, "pkg", " < 3 "))
 	assert_table_equal({
 		candidates[1],
 		candidates[4]
-	}, planner.candidates_choose(candidates, "<3", {'repo1'}))
+	}, planner.candidates_choose(candidates, "pkg", "<3", {'repo1'}))
 	assert_table_equal({
 		candidates[1],
 		candidates[2],
 		candidates[4]
-	}, planner.candidates_choose(candidates, "<3", {'repo1', requests.known_repositories.repo2}))
+	}, planner.candidates_choose(candidates, "pkg", "<3", {'repo1', requests.known_repositories.repo2}))
 	assert_table_equal({
 		candidates[5]
-	}, planner.candidates_choose(candidates, ">3"))
-	assert_table_equal({
-		candidates[3],
-		candidates[5]
-	}, planner.candidates_choose(candidates, ">=3"))
-	assert_table_equal({
-		candidates[5]
-	}, planner.candidates_choose(candidates, ">=3", {'repo2'}))
+	}, planner.candidates_choose(candidates, "pkg", ">3"))
 	assert_table_equal({
 		candidates[3],
 		candidates[5]
-	}, planner.candidates_choose(candidates, ">=3", {'repo2', 'repo1'}))
+	}, planner.candidates_choose(candidates, "pkg", ">=3"))
+	assert_table_equal({
+		candidates[5]
+	}, planner.candidates_choose(candidates, "pkg", ">=3", {'repo2'}))
+	assert_table_equal({
+		candidates[3],
+		candidates[5]
+	}, planner.candidates_choose(candidates, "pkg", ">=3", {'repo2', 'repo1'}))
 	assert_table_equal({
 		candidates[3],
 		candidates[4],
 		candidates[5]
-	}, planner.candidates_choose(candidates, "=>2"))
+	}, planner.candidates_choose(candidates, "pkg", "=>2"))
 	assert_table_equal({
 		candidates[3],
 		candidates[4]
-	}, planner.candidates_choose(candidates, "~[23]"))
+	}, planner.candidates_choose(candidates, "pkg", "~[23]"))
 	assert_table_equal({
 		candidates[3],
 		candidates[4]
-	}, planner.candidates_choose(candidates, "~[2 3]"))
+	}, planner.candidates_choose(candidates, "pkg", "~[2 3]"))
 	assert_table_equal({
 		candidates[2],
-		candidates[5]
-	}, planner.candidates_choose(candidates, nil, {'repo2'}))
+		candidates[5],
+		candidates[6]
+	}, planner.candidates_choose(candidates, "pkg", nil, {'repo2'}))
 	assert_table_equal({
 		candidates[1],
 		candidates[3],
 		candidates[4]
-	}, planner.candidates_choose(candidates, nil, {requests.known_repositories.repo1}))
+	}, planner.candidates_choose(candidates, "pkg", nil, {requests.known_repositories.repo1}))
 	-- Both of these should match nothing, because second character should be handled as part of version not compare specification.
-	assert_table_equal({}, planner.candidates_choose(candidates, "~=1"))
-	assert_table_equal({}, planner.candidates_choose(candidates, "=~1"))
+	assert_table_equal({}, planner.candidates_choose(candidates, "pkg", "~=1"))
+	assert_table_equal({}, planner.candidates_choose(candidates, "pkg", "=~1"))
 end
 
 function test_missing_request()

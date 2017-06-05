@@ -41,7 +41,7 @@ module "planner"
 -- luacheck: globals required_pkgs candidates_choose filter_required pkg_dep_iterate plan_sorter sat_penalize sat_pkg_group sat_dep sat_dep_traverse
 
 -- Choose candidates that complies to version requirement.
-function candidates_choose(candidates, version, repository)
+function candidates_choose(candidates, pkg_name, version, repository)
 	assert(version or repository)
 	-- We don't expect that version it self have space in it self, any space is removed.
 	local wildmatch, cmp_str, vers = (version or ""):gsub('%s*$', ''):match('^%s*(~?)([<>=]*)%s*(.*)$')
@@ -64,11 +64,11 @@ function candidates_choose(candidates, version, repository)
 		-- Add candidates matching version and repository limitation. Package
 		-- supplied using content field in configuration has no repository, so it
 		-- is never added when repository limitation is specified.
-		if (not version or (
+		if (not version or (candidate.Package == pkg_name and (
 				(wildmatch == '~' and candidate.Version:match(vers)) or
 				(cmp_str:find('>', 1, true) and cmp == -1) or
 				(cmp_str:find('=', 1, true) and cmp == 0) or
-				(cmp_str:find('<', 1, true) and cmp == 1))
+				(cmp_str:find('<', 1, true) and cmp == 1)))
 			) and (
 				not repository or (candidate.repo and repos[candidate.repo])
 			) then
@@ -107,6 +107,7 @@ function sat_pkg_group(state, name)
 	local pkg = state.pkgs[name]
 	-- Add candidates for this package group
 	local sat_candidates = {}
+	local sat_candidates_exclusive = {} -- only candidates with same name as package group are exclusive
 	local lastpen = nil
 	local candidates = (pkg and pkg.candidates) or {}
 	-- We expect here that candidates are sorted by their priority.
