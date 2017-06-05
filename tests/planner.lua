@@ -406,6 +406,35 @@ function test_virtual_version()
 	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent')
 end
 
+-- Let's check that if we are ignore missing package that we won't plan it's dependencies
+function test_missing_ignore_deps()
+	local pkgs = {
+		pkg = {
+			candidates = {},
+			modifier = {
+				deps = 'dep'
+			}
+		},
+		dep = {
+			candidate = {{Package = 'dep', repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg',
+			},
+			ignore = {'missing'},
+			priority = 50,
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	assert_plan_dep_order({}, result)
+end
+
 -- It is able to solve a circular dependency and doesn't stack overflow
 function test_circular_deps()
 	local pkgs = {
@@ -729,6 +758,88 @@ function test_provides_critical()
 	assert_plan_dep_order(expected, result)
 end
 
+-- This checks that when we have two packages both providing same package and both
+-- are going to be installed, than both should have critical when request is
+-- critical.
+-- Note: This is because we can't say which one of those packages is the one that
+-- provides that package, so we do it that they are both threated the same way.
+function test_provides_critical_both()
+	local pkgs = {
+		req = {
+			candidates = {{Package = 'req', Version = "1", repo = def_repo}}, -- other candidates are added later, because we require them to be same table as in given package group
+			modifier = {}
+		},
+		pkg1 = {
+			candidates = {{Package = 'pkg1', Version = "1", repo = def_repo}},
+			modifier = {}
+		},
+		pkg2 = {
+			candidates = {{Package = 'pkg2', Version = "1", repo = def_repo}},
+			modifier = {}
+		}
+	}
+	table.insert(pkgs.req.candidates, pkgs.pkg1.candidates[1])
+	table.insert(pkgs.req.candidates, pkgs.pkg2.candidates[1])
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'req'
+			},
+			critical = true,
+			priority = 50
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1',
+			},
+			priority = 50
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg2',
+			},
+			priority = 50
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		pkg1 = {
+			action = "require",
+			package = {Package = 'pkg1', Version = "1", repo = def_repo},
+			modifier = {},
+			critical = true,
+			name = "pkg1"
+		},
+		pkg2 = {
+			action = "require",
+			package = {Package = 'pkg2', Version = "1", repo = def_repo},
+			modifier = {},
+			critical = true,
+			name = "pkg2"
+		}
+	}
+	assert_plan_dep_order(expected, result)
+	-- Let's also test that if we choose to install explicitly that specific package that then we really install it.
+	-- We do it by using exact version match (note: version are compared only with candidates with the same name as package group)
+	requests[1].version = "=1"
+	local result = planner.required_pkgs(pkgs, requests)
+	expected.pkg1.critical = false
+	expected.pkg2.critical = false
+	expected['req'] = {
+		action = "require",
+		package = {Package = 'req', Version = "1", repo = def_repo},
+		modifier = {},
+		critical = true,
+		name = "req"
+	}
+	assert_plan_dep_order(expected, result)
+end
 
 function test_request_unsat()
 	local pkgs = {
