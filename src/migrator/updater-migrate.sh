@@ -63,12 +63,12 @@ while test -d $STATE_DIR/lock; do
 		exit 1
 	fi
 done
-cat /dev/null >"$LOG_FILE"
+cat /dev/null >"$STATE_DIR/log2"
 echo startup >"$STATE_DIR/state"
-echo $$>"$PID_FILE"
+echo $$>"$STATE_DIR/pid"
 
 trap_handler() {
-	rm -rf "$LOCK_DIR" "$PID_FILE"
+	rm -rf "$LOCK_DIR" "$STATE_DIR/pid"
 	exit 1
 }
 trap trap_handler EXIT INT QUIT TERM ABRT
