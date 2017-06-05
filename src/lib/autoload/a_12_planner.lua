@@ -363,7 +363,7 @@ local function build_plan(pkgs, requests, sat, satmap)
 					error(utils.exception('inconsistent', parent_str .. " " .. name .. " that's missing or misses some dependency. See previous warnings for more info."))
 				end
 			end
-			return plan[planned[name]]
+			return {plan[planned[name]]}
 		end
 		local pkg = pkgs[name]
 		-- Check for cycles --
@@ -377,41 +377,59 @@ local function build_plan(pkgs, requests, sat, satmap)
 			end
 			return
 		end
-		-- Found selected candidate for this package group
-		local candidate
+		-- Found selected candidates for this package group
+		local candidates = {}
 		for _, cand in pairs((pkg or {}).candidates or {}) do
 			if sat[satmap.candidate2sat[cand]] then
-				candidate = cand
-				break;
+				if cand.Package == name then
+					-- If we have candidate that is from this package that use is exclusively.
+					candidates = {cand}
+					break -- SAT ensures that there is always only the one such candidate so we ignore the rest
+				else
+					-- Otherwise collect all candidates that provide this package
+					-- Note: We can't decide which one is the one providing this package so we plan them all.
+					table.insert(candidates, cand)
+				end
 			end
 		end
+		if not next(candidates) and not utils.multi_index(pkg, 'modifier', 'virtual') then return end -- If no candidates, then we have nothing to be planned. Exception is if this is virtual package.
 		-- Recursively add all packages this package depends on --
 		inwstack[name] = #wstack + 1 -- Signal that we are working on this package group.
 		table.insert(wstack, name)
-		local alldeps = utils.arr_prune({ utils.multi_index(pkg, 'modifier', 'deps'), (candidate or {}).deps })
-		for _, p in pkg_dep_iterate(alldeps) do
+		for _, p in pkg_dep_iterate(utils.multi_index(pkg, 'modifier', 'deps') or {}) do -- plan package group dependencies
 			pkg_plan(p, ignore_missing or utils.arr2set(utils.multi_index(pkg, 'modifier', 'ignore') or {})["deps"], false, "Package " .. name .. " requires package")
+		end
+		if not next(candidates) then return end -- We have no candidate, but we passed previous check because it's virtual
+		local r = {}
+		local no_pkg_candidate = true
+		for _, candidate in pairs(candidates) do -- Now plan candidate's dependencies and packages that provides this package
+			if candidate.Package ~= name then
+				-- If Candidate is from other group, then plan that group instead now.
+				utils.arr_append(r, pkg_plan(candidate.Package, ignore_missing, ignore_missing_pkg, parent_str))
+				-- Candidate dependencies are planed as part of pkg_plan call here
+			else
+				no_pkg_candidate = false
+				for _, p in pkg_dep_iterate(utils.multi_index(candidate, 'deps') or {}) do
+					pkg_plan(p, ignore_missing or utils.arr2set(utils.multi_index(pkg, 'modifier', 'ignore') or {})["deps"], false, "Package " .. name .. " requires package")
+				end
+			end
 		end
 		table.remove(wstack, inwstack[name])
 		inwstack[name] = nil -- Our recursive work on this package group ended.
-		if not candidate then -- If no candidate, then we have nothing to be planned
-			return
-		end
-		if candidate.Package ~= name then
-			-- If Candidate is from other group, then plan that group instead now.
-			return pkg_plan(candidate.Package, ignore_missing, ignore_missing_pkg, parent_str)
+		if no_pkg_candidate then
+			return r -- in r we have candidates providing this package
 		end
 		-- And finally plan it --
 		planned[name] = #plan + 1
-		local r = {
+		r = {
 			action = 'require',
-			package = candidate,
+			package = candidates[1],
 			modifier = (pkg or {}).modifier or {},
 			critical = false,
 			name = name
 		}
 		plan[#plan + 1] = r
-		return r
+		return {r}
 	end
 
 	-- We plan packages with immediate replan first to ensure that such replan happens as soon as possible.
@@ -429,12 +447,16 @@ local function build_plan(pkgs, requests, sat, satmap)
 				-- Note that if pln is nil than we ignored missing package. We have to compute with that here
 				if pln then
 					if req.reinstall then
-						pln.action = 'reinstall'
+						for _, p in pairs(pln) do
+							p.action = 'reinstall'
+						end
 					end
 					if req.critical then
-						pln.critical = true
-						if inconsistent[pln.name] then -- Check if critical didn't end up in cyclic dependency (Note name from returned package was used not request because it might have been provided by some other package)
-							error(utils.exception('inconsistent', 'Package ' .. req.package.name .. ' is requested as critical. Cyclic dependency is not allowed for critical requests.', { critical = true }))
+						for _, p in pairs(pln) do
+							p.critical = true
+							if inconsistent[p.name] then -- Check if critical didn't end up in cyclic dependency (Note name from returned package was used not request because it might have been provided by some other package)
+								error(utils.exception('inconsistent', 'Package ' .. req.package.name .. ' is requested as critical. Cyclic dependency is not allowed for critical requests.', { critical = true }))
+							end
 						end
 					end
 				end
