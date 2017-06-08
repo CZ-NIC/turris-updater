@@ -31,6 +31,7 @@ set -ex
 BATCH="$1"
 
 STATE_DIR=/tmp/update-state
+LOCK_DIR="$STATE_DIR/lock"
 
 updater_fail() {
 	if [ -s "$STATE_DIR/last_error" ] ; then
@@ -52,7 +53,7 @@ migration_performed() {
 
 # Wait for old updater to exit (we wait until lock is removed)
 LOCK_TIME=`date +%s`
-while test -d $STATE_DIR/lock; do
+while test -d "$LOCK_DIR"; do
 	sleep 1
 	if [ $(expr `date +%s` - $LOCK_TIME) -ge 3600 ]; then
 		echo "Wait for updater state lock timed out." >&2
@@ -63,6 +64,12 @@ while test -d $STATE_DIR/lock; do
 		exit 1
 	fi
 done
+
+mkdir -p /tmp/update-state
+if ! mkdir "$LOCK_DIR" ; then
+	echo "Already running" >&2
+	exit
+fi
 cat /dev/null >"$STATE_DIR/log2"
 echo startup >"$STATE_DIR/state"
 echo $$>"$STATE_DIR/pid"
