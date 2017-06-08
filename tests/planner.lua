@@ -406,6 +406,48 @@ function test_virtual_version()
 	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent')
 end
 
+function test_virtual_missing()
+	local pkgs = {
+		virt1 = {
+			modifier = {
+				virtual = true,
+				deps = "pkg"
+			}
+		},
+		virt2 = {
+			modifier = {
+				virtual = true
+			}
+		},
+		pkg = {
+			candidates = {{Package = 'pkg', Version = "1", deps = 'virt2', repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'virt1',
+			},
+			priority = 50,
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		pkg = {
+			action = 'require',
+			package = {Package = 'pkg', Version = "1", deps = "virt2", repo = def_repo},
+			modifier = {},
+			critical = false,
+			name = 'pkg'
+		}
+	}
+	assert_plan_dep_order(expected, result)
+end
+
+
 -- Let's check that if we are ignore missing package that we won't plan it's dependencies
 function test_missing_ignore_deps()
 	local pkgs = {
