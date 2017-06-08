@@ -18,7 +18,8 @@ UPD_SYS_TESTS := \
 	abi-change \
 	replan \
 	list-dir \
-	force-downgrade
+	force-downgrade \
+	conflicts
 
 MIGRATE_SYS_TESTS := \
 	auto-migrate-pkgs
