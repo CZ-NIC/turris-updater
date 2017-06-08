@@ -85,10 +85,16 @@ if uci and base_url then
 	if type(lists) == "string" then
 		lists = {lists}
 	end
+	local exec_list = {}
 	if type(lists) == "table" then
 		for _, l in ipairs(lists) do
-			-- TODO: Make restricted security work
-			Script("userlist-" .. l, base_url .. "userlists/" .. l .. ".lua", script_options)
+			if exec_list[l] then
+				WARN("User list " .. l .. " specified multiple times")
+			else
+				-- TODO: Make restricted security work
+				Script("userlist-" .. l, base_url .. "userlists/" .. l .. ".lua", script_options)
+				exec_list[l] = true
+			end
 		end
 	end
 end
