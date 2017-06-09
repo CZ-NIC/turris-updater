@@ -1,0 +1,7 @@
+Package: pkg_b
+Version: 1
+Conflicts: pkg_a
+Status: install user installed
+Architecture: all
+Installed-Time: 0
+
