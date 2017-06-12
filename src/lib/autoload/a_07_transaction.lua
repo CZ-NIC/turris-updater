@@ -196,7 +196,7 @@ local function pkg_scripts(status, plan, removes, to_install, errors_collected, 
 	for _, op in ipairs(plan) do
 		if op.op == "install" then
 			script(errors_collected, op.control.Package, "postinst", "configure")
-		elseif op.op == "remove" and not to_install[op.name] then
+		elseif op.op == "remove" and not to_install[op.name] and utils.arr2set(utils.multi_index(status, op.name, 'Status') or {})['installed'] then
 			utils.table_merge(all_configs, status[op.name].Conffiles or {})
 			local cfiles = status[op.name].Conffiles or {}
 			for f in pairs(cfiles) do

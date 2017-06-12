@@ -1,1 +1,1 @@
--e INFO -R "$ROOT_DIR" -r pkg
+-e INFO -R "$ROOT_DIR" -r pkg -r pkg
