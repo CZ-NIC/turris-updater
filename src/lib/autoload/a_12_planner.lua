@@ -410,10 +410,10 @@ local function build_plan(pkgs, requests, sat, satmap)
 		return r
 	end
 
-	-- We plan packages with replan first to ensure that replan happens as soon as possible.
+	-- We plan packages with immediate replan first to ensure that such replan happens as soon as possible.
 	for name, pkg in pairs(pkgs) do 
 		-- pkgs contains all packages so we have to check if package is in sat at all
-		if utils.multi_index(pkg, 'modifier', 'replan') and satmap.pkg2sat[name] and not (satmap.missing[pkg] or satmap.missing[name]) then -- we ignore missing packages, as they wouldn't be planned anyway and error or warning should be given by requests and other packages later on.
+		if utils.multi_index(pkg, 'modifier', 'replan') == "immediate" and satmap.pkg2sat[name] and not (satmap.missing[pkg] or satmap.missing[name]) then -- we ignore missing packages, as they wouldn't be planned anyway and error or warning should be given by requests and other packages later on.
 			pkg_plan(name, false, false, 'Planned package with replan enabled'); -- we don't expect to see this parent_str because we are planning this first, but it theoretically can happen so this makes at least some what sense.
 		end
 	end
@@ -718,14 +718,14 @@ function filter_required(status, requests, allow_replan)
 				req.action = "require"
 			end
 			table.insert(result, req)
-			if request.modifier.replan and allow_replan then
+			if request.modifier.replan == "immediate" and allow_replan then
 				replan = true
 				break
 			end
 		end
 	end
 	if not replan then
-		-- We don't remove unused packages just yet if we replan, we do it after the replanning.
+		-- We don't remove unused packages just yet if we do immediate replan, we do it after the replanning.
 		utils.arr_append(result, check_removal(status, unused))
 	end
 	return result

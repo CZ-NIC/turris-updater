@@ -1180,7 +1180,7 @@ function test_penalty_and_missing()
 	assert_plan_dep_order(expected, result)
 end
 
--- Check if package with replan is planned as soon as possible
+-- Check if package with immediate replan is planned as soon as possible
 function test_replan_order()
 	local pkgs = {
 		pkg = {
@@ -1191,7 +1191,7 @@ function test_replan_order()
 			candidates = {{Package = 'pkgreplan', deps = {}, repo = def_repo}},
 			modifier = {
 				deps = 'dep',
-				replan = true
+				replan = "immediate"
 			}
 		},
 		dep = {
@@ -1230,7 +1230,7 @@ function test_replan_order()
 			package = {Package = 'pkgreplan', deps = {}, repo = def_repo},
 			modifier = {
 				deps = 'dep',
-				replan = true
+				replan = "immediate"
 			},
 			critical = false,
 			name = "pkgreplan"
@@ -1359,7 +1359,7 @@ function test_replan()
 			},
 			critical = false,
 			modifier = {
-				replan = true
+				replan = "immediate"
 			}
 		},
 		{
@@ -1376,6 +1376,38 @@ function test_replan()
 	local result = planner.filter_required({}, requests, true)
 	assert_table_equal({
 		requests[1]
+	}, result)
+end
+
+function test_replan_finished()
+	local requests = {
+		{
+			action = "require",
+			name = "pkg1",
+			package = {
+				Version = "1",
+				repo = def_repo
+			},
+			critical = false,
+			modifier = {
+				replan = "finished"
+			}
+		},
+		{
+			action = "require",
+			name = "pkg2",
+			package = {
+				Version = "13",
+				repo = def_repo
+			},
+			critical = false,
+			modifier = {}
+		}
+	}
+	local result = planner.filter_required({}, requests, true)
+	assert_table_equal({
+		requests[1],
+		requests[2]
 	}, result)
 end
 

@@ -388,6 +388,7 @@ function pkg_aggregate()
 			post_install = {},
 			post_remove = {},
 			reboot = false,
+			replan = false,
 			abi_change = {},
 			abi_change_deep = {}
 		}
@@ -427,19 +428,30 @@ function pkg_aggregate()
 			set_merge("post_remove")
 			set_merge("abi_change")
 			set_merge("abi_change_deep")
-			local reboot_vals = {
+			local function flag_merge(name, vals)
+				if m[name] and not vals[m[name]] then
+					ERROR("Invalid " .. name .. " value " .. m[name] .. " on package " .. m.name)
+				elseif (vals[m[name]] or 0) > vals[modifier[name]] then
+					-- Pick the highest value (handle the case when there's no flag)
+					modifier[name] = m[name]
+				end
+			end
+			flag_merge("reboot", {
 				[false] = 0,
 				delayed = 1,
 				finished = 2,
 				immediate = 3
-			}
-			if m.reboot and not reboot_vals[m.reboot] then
-				ERROR("Invalid reboot value " .. m.reboot .. " on package " .. m.name)
-			elseif (reboot_vals[m.reboot] or 0) > reboot_vals[modifier.reboot] then
-				-- Pick the highest value for the reboot (handle the case when there's no reboot flag)
-				modifier.reboot = m.reboot
+			})
+			flag_merge("replan", {
+				[false] = 0,
+				finished = 1,
+				[true] = 2,
+				immediate = 2
+			})
+			if modifier.replan == true then
+				-- true is the same as immediate so replace it
+				modifier.replan = "immediate"
 			end
-			modifier.replan = modifier.replan or m.replan
 			modifier.virtual = modifier.virtual or m.virtual
 		end
 		-- Canonize dependencies

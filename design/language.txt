@@ -485,9 +485,18 @@ reboot::
     may be needed when the old version would prevent the rest of the
     update from happening.
 replan::
-  The package has an effect on the updater itself. Therefore,
-  interrupt the update after this package is set up and perform the
-  planning again.
+  The package has an effect on the updater itself. Therefore, updater
+  have to run planning again. When this happens is according to value.
+  finished;;
+    Replan is done after whole initial update was performed. Use this option
+    if your package changes some setting that updater reads. It can be some
+	uci config or even some additional updater configuration (usable for
+    example if you want to add repository by installing package).
+  immediate;;
+    When this is set it interrupts the update after this package is set
+    up. This causes updater to run planning again as soon as the change is made.
+    This should be used only for packages containing updater itself or
+    closely related packages.
 abi_change::
   The package changed its ABI (or some other interface) and some other
   packages need to be reinstalled. If this is set to `true` and the

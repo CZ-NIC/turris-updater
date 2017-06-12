@@ -357,7 +357,7 @@ function test_pkg_merge()
 				},
 				reboot = "finished",
 				abi_change = {[true] = true, ['another'] = true},
-				replan = true
+				replan = "immediate"
 			}
 		}
 	}
@@ -372,7 +372,8 @@ function test_pkg_merge()
 		post_remove = {},
 		pre_install = {},
 		pre_remove = {},
-		reboot = false
+		reboot = false,
+		replan = false
 	}
 	for _, pkg in pairs(exp) do
 		for name, def in pairs(modifier_def) do
@@ -433,6 +434,7 @@ function test_local_and_repo()
 				pre_install = {},
 				pre_remove = {},
 				reboot = false,
+				replan = false,
 				tp = "package"
 			}
 		}

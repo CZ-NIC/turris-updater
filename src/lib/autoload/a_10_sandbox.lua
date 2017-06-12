@@ -56,7 +56,8 @@ module "sandbox"
 local updater_features = utils.arr2set({
 	'priorities',
 	'provides',
-	'abi_change'
+	'abi_change',
+	'replan_string'
 })
 
 -- WARNING: BEGIN_MAGIC (read the design morphers documentation)
