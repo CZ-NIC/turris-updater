@@ -72,6 +72,9 @@ set of allowed types. Argument "what" is string used in messages. Last argument
 It returns argument extra with field nilled for invalid types.
 ]]
 local function allowed_extras_check_type(allowed_extras, what, extra)
+	if type(extra) ~= "table" then
+		error(utils.exception("bad value", "Invalid type " .. type(extra) .. " (table expected) of extras for a " .. what))
+	end
 	for name, value in pairs(extra) do
 		if allowed_extras[name] then
 			if not allowed_extras[name][type(value)] then
