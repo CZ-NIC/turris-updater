@@ -25,11 +25,11 @@ module("picosat-tests", package.seeall, lunit.testcase)
 function test_var()
 	local ps = picosat.new()
 	local var1, var2 = ps:var(2)
-	-- We known that we get 1 and 2 because we know picosat
-	assert_equal(1, var1)
-	assert_equal(2, var2)
+	-- We known that we get 2 and 3 because we know picosat and 1 is used as true constant
+	assert_equal(2, var1)
+	assert_equal(3, var2)
 	local var3 = ps:var()
-	assert_equal(3, var3)
+	assert_equal(4, var3)
 end
 
 function test_sat()
@@ -115,4 +115,20 @@ function test_max_satisfiable()
 	assert_true(maxassum[var3])
 	-- Drop reassumed assumptions
 	assert_true(ps:satisfiable())
+end
+
+function test_true_false()
+	local ps = picosat.new()
+	assert_true(ps:satisfiable())
+
+	ps:assume(ps.v_true)
+	ps:assume(-ps.v_false)
+	assert_true(ps:satisfiable())
+
+	ps:assume(ps.v_false)
+	assert_false(ps:satisfiable())
+
+	ps:assume(-ps.v_true)
+	assert_false(ps:satisfiable())
+
 end

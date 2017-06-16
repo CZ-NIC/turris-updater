@@ -35,6 +35,9 @@ static int lua_picosat_new(lua_State *L) {
 	struct picosat *ps = lua_newuserdata(L, sizeof *ps);
 	ps->sat = picosat_init(); // Always successful. Calls abort if fails.
 	picosat_enable_trace_generation(ps->sat);
+	ASSERT(picosat_inc_max_var(ps->sat) == PICOSAT_V_TRUE); // Firts variable should be always 1 but let's check it anyway
+	picosat_add(ps->sat, PICOSAT_V_TRUE); // variable 1 is always true
+	picosat_add(ps->sat, 0);
 	// Set corresponding meta table
 	luaL_getmetatable(L, PICOSAT_META);
 	lua_setmetatable(L, -2);
@@ -203,4 +206,6 @@ void picosat_mod_init(lua_State *L) {
 	inject_module(L, "picosat");
 	ASSERT(luaL_newmetatable(L, PICOSAT_META) == 1);
 	inject_func_n(L, PICOSAT_META, picosat_meta, sizeof picosat_meta / sizeof *picosat_meta);
+	inject_int_const(L, PICOSAT_META, "v_true", PICOSAT_V_TRUE);
+	inject_int_const(L, PICOSAT_META, "v_false", PICOSAT_V_FALSE);
 }

@@ -22,6 +22,9 @@
 
 #include <lua.h>
 
+#define PICOSAT_V_TRUE (1)
+#define PICOSAT_V_FALSE (-1)
+
 // Create the picosat module and inject it into the lua state
 void picosat_mod_init(lua_State *L) __attribute__((nonnull));
 

@@ -35,6 +35,12 @@ void inject_str_const(lua_State *L, const char *module, const char *name, const 
 	lua_setfield(L, -2, name);
 }
 
+void inject_int_const(lua_State *L, const char *module, const char *name, const int value) {
+	TRACE("Injecting constant %s.%s", module, name);
+	lua_pushinteger(L, value);
+	lua_setfield(L, -2, name);
+}
+
 void inject_module(lua_State *L, const char *module) {
 	TRACE("Injecting module %s", module);
 	// package.loaded[module] = _M

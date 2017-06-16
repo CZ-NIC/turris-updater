@@ -33,6 +33,8 @@ struct inject_func {
 void inject_func_n(lua_State *L, const char *module, const struct inject_func *injects, size_t count) __attribute__((nonnull));
 // Inject a string into the table on top of the stack.
 void inject_str_const(lua_State *L, const char *module, const char *name, const char *value) __attribute__((nonnull));
+// Inject a integer into the table on top of the stack.
+void inject_int_const(lua_State *L, const char *module, const char *name, const int value) __attribute__((nonnull));
 // Make the table on top of the stack a module. Drop the table from the stack.
 void inject_module(lua_State *L, const char *module) __attribute__((nonnull));
 
