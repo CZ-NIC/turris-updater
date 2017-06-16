@@ -2348,7 +2348,9 @@ end
 local function sat_dummy()
 	local sat = {
 		clauses = {},
-		varcount = 0
+		v_true = 1,
+		v_false = -1,
+		varcount = 1
 	}
 	function sat:var(count)
 		assert_nil(count) -- we don't support this now here
@@ -2377,29 +2379,29 @@ function test_sat_penalize()
 	}
 	local lastpen = nil
 	local penalty_group = {}
-	lastpen = planner.sat_penalize(state, state.sat:var(), penalty_group, lastpen)
+	lastpen = planner.sat_penalize(state, state.sat.v_true, state.sat:var(), penalty_group, lastpen)
 	assert_equal(0, lastpen)
-	lastpen = planner.sat_penalize(state, state.sat:var(), penalty_group, lastpen)
-	assert_equal(3, lastpen)
-	lastpen = planner.sat_penalize(state, state.sat:var(), penalty_group, lastpen)
-	assert_equal(5, lastpen)
-	assert_equal(5, state.sat.varcount)
-	assert_table_equal({{-3, -2}, {-5, -4}, {-3, 5}}, state.sat.clauses)
+	lastpen = planner.sat_penalize(state, state.sat.v_true, state.sat:var(), penalty_group, lastpen)
+	assert_equal(4, lastpen)
+	lastpen = planner.sat_penalize(state, state.sat:var(), state.sat:var(), penalty_group, lastpen)
+	assert_equal(7, lastpen)
+	assert_equal(7, state.sat.varcount)
+	assert_table_equal({{-1, -4, -3}, {-5, -7, -6}, {-5, -4, 7}}, state.sat.clauses)
 end
 
 function test_sat_dep_traverse()
 	local state = {
 		pkg2sat = {
-			["pkg1"] = 1,
-			["pkg2"] = 2,
-			["pkg3"] = 3,
-			["pkg4"] = 4
+			["pkg1"] = 2,
+			["pkg2"] = 3,
+			["pkg3"] = 4,
+			["pkg4"] = 5
 		},
 		penalty_or = {},
 		sat = sat_dummy()
 		-- candidate2sat, req2sat, missing, penalty_candidates and pkgs shouldn't be required
 	}
-	state.sat.varcount = 4
+	state.sat.varcount = 5
 	local dep = {
 		tp = "dep-and",
 		sub = {
@@ -2431,26 +2433,28 @@ function test_sat_dep_traverse()
 			}
 		}
 	}
-	local wvar, pvar = planner.sat_dep_traverse(state, dep)
-	assert_nil(pvar) -- we didn't requested penalty dependencies
-	assert_equal(5, wvar) -- created as fist after call
+	local wvar = planner.sat_dep_traverse(state, state.sat.v_true, dep)
+	assert_equal(6, wvar) -- created as fist after call
 	assert_table_equal({9}, state.penalty_or)
 	assert_table_equal({
-		-- and implies not pkg1
-		{-5,  -1},
+		-- and variable implies not pkg1
+		{ -1, -6, -2 },
 		-- pkg2 or (pkg3 and not pkg4)
-		{-7, 3}, -- and variable implies pkg3
-		{-7, -4}, -- and variable implies not pkg4
-		{8, -3, 4}, -- penalty and variable
-		{-9, -8}, -- penalty variable implies on penalty dependency
-		{-6, 2, 7}, -- or variable implies pkg2 or second and variable
-		{-5, 6} -- and variable implies or variable
+		{ -1, -3, 7 }, -- pkg2 implies or variable
+		{ -1, -8, 4 }, -- second and variable implies pkg3
+		{ -1, -8, -5 }, -- second and variable implies not pkg4
+		{ -1, 8, -4, 5 }, -- (pkg3 and not pkg4) implies second and variable
+		{ -1, -8, 7 }, -- second and variable implies or variable
+		{ -1, -9, -8 }, -- penalty
+		{ -1, -7, 3, 8 }, -- or variable implies that pkg2 or second and variable
+		{ -1, -6, 7 }, -- and variable implies or variable
+		{ -1, 6, 2, -7 } -- not pkg1 and or variable implies and variable
 	}, state.sat.clauses)
 end
 
 function test_sat_pkg_group()
 	local state = {
-		pkg2sat = {["otherpkg"] = 1, ["deppkg"] = 2},
+		pkg2sat = {["otherpkg"] = 2, ["deppkg"] = 3},
 		candidate2sat = {},
 		penalty_candidates = {},
 		pkgs = {
@@ -2465,28 +2469,28 @@ function test_sat_pkg_group()
 		sat = sat_dummy()
 		-- req2sat, missing and penalty_or shouldn't be required
 	}
-	state.sat.varcount = 2
+	state.sat.varcount = 3
 	local satvar = planner.sat_pkg_group(state, "pkg")
-	assert_equal(3, satvar)
+	assert_equal(4, satvar)
 	assert_table_equal({
-		["otherpkg"] = 1,
-		["deppkg"] = 2,
-		["pkg"] = 3
+		["otherpkg"] = 2,
+		["deppkg"] = 3,
+		["pkg"] = 4
 	}, state.pkg2sat)
 	assert_table_equal({
-		[state.pkgs.pkg.candidates[1]] = 4,
-		[state.pkgs.pkg.candidates[2]] = 5
+		[state.pkgs.pkg.candidates[1]] = 5,
+		[state.pkgs.pkg.candidates[2]] = 6
 	}, state.candidate2sat)
-	assert_table_equal({6}, state.penalty_candidates)
-	assert_equal(6, state.sat.varcount)
+	assert_table_equal({7}, state.penalty_candidates)
+	assert_equal(7, state.sat.varcount)
 	assert_table_equal({
-		{-4, 3}, -- candidate version 2 implies its package group
-		{-5, 3}, -- candidate version 1 implies its package group
-		{-5, -4}, -- candidates are exclusive
-		{-6, -5}, -- penalize second candidate
-		{-4, 1}, -- candidate version 2 depends on otherpkg
-		{-3, 4, 5}, -- package group implies that one of candidates is chosen
-		{-3, 2} -- package group implies its dependencies
+		{-5, 4}, -- candidate version 2 implies its package group
+		{-6, 4}, -- candidate version 1 implies its package group
+		{-6, -5}, -- candidates are exclusive
+		{-1, -7, -6}, -- penalize second candidate (active only if pkg group is enabled)
+		{-5, 2}, -- candidate version 2 depends on otherpkg
+		{-4, 5, 6}, -- package group implies that one of candidates is chosen
+		{-4, 3} -- package group implies its dependencies
 	}, state.sat.clauses)
 end
 
@@ -2502,22 +2506,24 @@ function test_sat_dep()
 	}
 	local state = {
 		pkg2sat = {
-			["pkg"] = 1
+			["pkg"] = 2
 		},
 		candidate2sat = {
-			[pkgs.pkg.candidates[1]] = 2,
-			[pkgs.pkg.candidates[2]] = 3
+			[pkgs.pkg.candidates[1]] = 3,
+			[pkgs.pkg.candidates[2]] = 4
 		},
 		pkgs = pkgs,
 		sat = sat_dummy()
 		-- req2sat, missing, penalty_candidates and penalty_or shouldn't be required
 	}
-	state.sat.varcount = 3
+	state.sat.varcount = 4
 	local var = planner.sat_dep(state, {tp = "package", name = "pkg"}, ">=1")
-	assert_equal(4, var)
+	assert_equal(5, var)
 	assert_table_equal({
-		{-4, 2, 3}, -- candidate selection variable implies at least one of candidates are chosen
-		{-4, 1} -- candidate selection implies target package group
+		{-3, 5},
+		{-4, 5}, -- both candidates implies its selection variables
+		{-5, 3, 4}, -- candidate selection variable implies at least one of candidates is chosen
+		{-5, 2} -- candidate selection implies target package group
 	}, state.sat.clauses)
 end
 

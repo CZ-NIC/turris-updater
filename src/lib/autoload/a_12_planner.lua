@@ -79,17 +79,20 @@ function candidates_choose(candidates, pkg_name, version, repository)
 end
 
 -- Adds penalty variable for given var.
-function sat_penalize(state, var, penalty_group, lastpen)
+function sat_penalize(state, activator, var, penalty_group, lastpen)
 	if not lastpen then
 		return 0 -- skip first one, it isn't penalized.
+	end
+	if not activator then
+		activator = state.sat.v_true -- if no activator given than it should be always active
 	end
 	local penalty = state.sat:var()
 	TRACE("SAT add penalty variable " .. tostring(penalty) .. " for variable " .. tostring(var))
 	-- penalty => not pen
-	state.sat:clause(-penalty, -var)
+	state.sat:clause(-activator, -penalty, -var)
 	if lastpen ~= 0 then
 		-- previous penalty variable implies this one
-		state.sat:clause(-lastpen, penalty)
+		state.sat:clause(-activator, -lastpen, penalty)
 	end
 	table.insert(penalty_group, penalty)
 	return penalty
@@ -129,7 +132,7 @@ function sat_pkg_group(state, name)
 			end
 			table.insert(sat_candidates_exclusive, cand)
 		end
-		lastpen = sat_penalize(state, cand, state.penalty_candidates, lastpen) -- penalize candidates
+		lastpen = sat_penalize(state, nil, cand, state.penalty_candidates, lastpen) -- penalize candidates
 		table.insert(sat_candidates, cand)
 	end
 	-- We solve dependency afterward to ensure that even when they are cyclic, we won't encounter package group in sat that don't have its candidates in sat yet.
@@ -140,7 +143,7 @@ function sat_pkg_group(state, name)
 			sat_pkg_group(state, candidates[i].Package) -- Ensure that candidate's package is also added
 			-- Note: not processing dependencies here ensures that dependencies are added only once
 		elseif candidates[i].deps and (type(candidates[i].deps) ~= 'table' or next(candidates[i].deps)) then
-			local dep = sat_dep_traverse(state, candidates[i].deps)
+			local dep = sat_dep_traverse(state, sat_candidates[i], candidates[i].deps)
 			state.sat:clause(-sat_candidates[i], dep) -- candidate implies its dependencies
 		end
 	end
@@ -155,7 +158,7 @@ function sat_pkg_group(state, name)
 	-- Add dependencies of package group
 	local deps = utils.multi_index(pkg, 'modifier', 'deps')
 	if deps and (type(deps) ~= 'table' or deps.tp) then
-		local dep = sat_dep_traverse(state, deps)
+		local dep = sat_dep_traverse(state, pkg_var, deps)
 		state.sat:clause(-pkg_var, dep)
 	end
 	-- And return variable for this package
@@ -181,9 +184,10 @@ function sat_dep(state, pkg, version, repository)
 			-- We add here basically or, but without penalizations. Penalization is ensured from dep_pkg_group.
 			local vars = utils.map(chosen_candidates, function(i, candidate)
 				assert(state.candidate2sat[candidate]) -- candidate we require should be already in sat
+				state.sat:clause(-state.candidate2sat[candidate], var) -- candidate => var
 				return i, state.candidate2sat[candidate]
 			end)
-			state.sat:clause(-var, unpack(vars)) -- imply that at least one of the possible candidates is chosen
+			state.sat:clause(-var, unpack(vars)) -- var => (candidate or candidate or ...)
 		else
 			TRACE("SAT candidate selection empty")
 			state.missing[pkg] = var -- store that this package (as object not group) points to no candidate
@@ -199,50 +203,43 @@ function sat_dep(state, pkg, version, repository)
 	end
 end
 
--- Recursively adds dependency to sat. It returns sat variable for whole dependency and another variable for penalty variable if reqpenalty argument is true
-function sat_dep_traverse(state, deps, reqpenalty)
+-- Recursively adds dependency to sat. It returns sat variable for whole dependency.
+function sat_dep_traverse(state, activator, deps)
 	if type(deps) == 'string' or deps.tp == 'package' or deps.tp == 'dep-package' then
-		local var = sat_dep(state, deps, deps.version)
-		return var, var
+		return sat_dep(state, deps, deps.version)
 	end
 	if deps.tp == 'dep-not' then
 		assert(#deps.sub == 1)
 		-- just do negation of var, so 'not' is propagated to upper clause
-		local var, pen = sat_dep_traverse(state, deps.sub[1], reqpenalty)
-		return -var, -pen
+		return -sat_dep_traverse(state, activator, deps.sub[1])
 	end
 	local wvar = state.sat:var()
-	local pvar = nil
-	if reqpenalty then
-		pvar = state.sat:var()
-	end
 	if deps.tp == 'dep-and' then
-		TRACE("SAT dep and var: " .. tostring(wvar) .. " penvar: " .. tostring(pvar))
+		TRACE("SAT dep and var: " .. tostring(wvar))
 		-- wid => var for every variable. Result is that they are all in and statement.
-		local pens = {}
+		local vars = {}
 		for _, sub in ipairs(deps.sub or deps) do
-			local var, pen = sat_dep_traverse(state, sub, reqpenalty)
-			state.sat:clause(-wvar, var)
-			if reqpenalty then table.insert(pens, -pen) end
+			local var = sat_dep_traverse(state, activator, sub)
+			state.sat:clause(-activator, -wvar, var) -- wvar => var
+			table.insert(vars, -var)
 		end
-		if pvar then state.sat:clause(pvar, unpack(pens)) end -- (pen and pen and ...) => pvar
+		state.sat:clause(-activator, wvar, unpack(vars)) -- (var and var and ...) => wvar
 	elseif deps.tp == 'dep-or' then
-		TRACE("SAT dep or var: " .. tostring(wvar) .. " penvar: " .. tostring(pvar))
+		TRACE("SAT dep or var: " .. tostring(wvar))
 		-- If wvar is true, at least one of sat variables must also be true, so vwar => vars...
 		local vars = {}
 		local lastpen = nil
 		for _, sub in ipairs(deps.sub) do
-			local var, pen = sat_dep_traverse(state, sub, true)
-			if pvar then state.sat:clause(-pen, pvar) end -- pen => pvar
-			lastpen = sat_penalize(state, pen, state.penalty_or, lastpen)
-			-- wvar => vars...
+			local var = sat_dep_traverse(state, activator, sub)
+			state.sat:clause(-activator, -var, wvar) -- var => wvar
+			lastpen = sat_penalize(state, activator, var, state.penalty_or, lastpen)
 			table.insert(vars, var)
 		end
-		state.sat:clause(-wvar, unpack(vars))
+		state.sat:clause(-activator, -wvar, unpack(vars)) -- wvar => (var and var and ...)
 	else
 		error(utils.exception('bad value', "Invalid dependency description " .. (deps.tp or "<nil>")))
 	end
-	return wvar, pvar
+	return wvar
 end
 
 --[[
