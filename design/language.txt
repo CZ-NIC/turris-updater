@@ -667,8 +667,13 @@ priorities::
   Updater handles priorities between multiple requests for same package.
 provides::
   Updater supports `Provides` control field.
+conflicts::
+  Updater supports `Conflicts` control field.
 abi_change::
   Updater can handle and propagate ABI change.
+replan_string::
+  Updater except replan to be string (if this feature isn't set than if
+  expect to be only boolean).
 
 installed
 ~~~~~~~~~

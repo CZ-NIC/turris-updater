@@ -56,6 +56,7 @@ module "sandbox"
 local updater_features = utils.arr2set({
 	'priorities',
 	'provides',
+	'conflicts',
 	'abi_change',
 	'replan_string'
 })
