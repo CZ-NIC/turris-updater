@@ -672,8 +672,8 @@ conflicts::
 abi_change::
   Updater can handle and propagate ABI change.
 replan_string::
-  Updater except replan to be string (if this feature isn't set than if
-  expect to be only boolean).
+  Updater expects replan to be a string (if this feature isn't set than it's
+  expected to be only boolean).
 
 installed
 ~~~~~~~~~
