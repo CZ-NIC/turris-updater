@@ -160,7 +160,7 @@ if [ "$NEED_APPROVAL" = "1" ] ; then
 	config_get AUTO_GRANT_TIME approvals auto_grant_seconds
 	AUTO_GRANT_TRESHOLD=$(expr $(date -u +%s) - $AUTO_GRANT_TIME 2>/dev/null || echo 1)
 	APPROVALS="--ask-approval=$APPROVAL_ASK_FILE"
-	APPROVED_HASH="$(tail -1 "$APPROVAL_GRANTED_FILE" | awk "\$2 == 'granted' || ( \$2 == 'asked' && \$3 <= '$AUTO_GRANT_TRESHOLD' ) {print \$1}")"
+	APPROVED_HASH="$(tail -1 "$APPROVAL_GRANTED_FILE" | awk '$2 == "granted" || ( $2 == "asked" && $3 <= "'"$AUTO_GRANT_TRESHOLD"'" ) {print $1}')"
 	[ -n "$APPROVED_HASH" ] && APPROVALS="$APPROVALS --approve=$APPROVED_HASH"
 fi
 # Run the actual updater
