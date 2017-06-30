@@ -167,7 +167,7 @@ function sat_dep(state, pkg, version, repository)
 		assert(type(pkg) == 'table') -- If version specified than we should have package not just package group name
 		local var = state.sat:var()
 		TRACE("SAT add candidate selection " .. name .. " var:" .. tostring(var))
-		if state.pkgs[name].modifier.virtual then
+		if utils.multi_index(state.pkgs[name], 'modifier', 'virtual') then
 			WARN('Package ' .. name .. ' requested with version or repository, but it is virtual. Resolved as missing.')
 			state.missing[pkg] = var
 			return var
