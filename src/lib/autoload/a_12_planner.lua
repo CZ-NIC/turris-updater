@@ -174,6 +174,11 @@ function sat_dep(state, pkg, version, repository)
 		assert(type(pkg) == 'table') -- If version specified than we should have package not just package group name
 		local var = state.sat:var()
 		TRACE("SAT add candidate selection " .. name .. " var:" .. tostring(var))
+		-- Imply group it self. If we have some candidates, then its just
+		-- useless clause. But for no candidates, we ensure that at least some
+		-- version of package will be installed if not required one.
+		-- Note that that can happen only when we ignore missing dependencies.
+		state.sat:clause(-var, group_var)
 		if utils.multi_index(state.pkgs[name], 'modifier', 'virtual') then
 			WARN('Package ' .. name .. ' requested with version or repository, but it is virtual. Resolved as missing.')
 			state.missing[pkg] = var
@@ -192,11 +197,6 @@ function sat_dep(state, pkg, version, repository)
 			TRACE("SAT candidate selection empty")
 			state.missing[pkg] = var -- store that this package (as object not group) points to no candidate
 		end
-		-- Also imply group it self. If we have some candidates, then its just
-		-- useless clause. But for no candidates, we ensure that at least some
-		-- version of package will be installed if not required one.
-		-- Note that that can happen only when we ignore missing dependencies.
-		state.sat:clause(-var, group_var)
 		return var
 	else
 		return group_var

@@ -2520,10 +2520,10 @@ function test_sat_dep()
 	local var = planner.sat_dep(state, {tp = "package", name = "pkg"}, ">=1")
 	assert_equal(5, var)
 	assert_table_equal({
+		{-5, 2}, -- candidate selection implies target package group
 		{-3, 5},
 		{-4, 5}, -- both candidates implies its selection variables
-		{-5, 3, 4}, -- candidate selection variable implies at least one of candidates is chosen
-		{-5, 2} -- candidate selection implies target package group
+		{-5, 3, 4} -- candidate selection variable implies at least one of candidates is chosen
 	}, state.sat.clauses)
 end
 
