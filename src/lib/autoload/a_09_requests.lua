@@ -25,6 +25,7 @@ the configuration scripts to be run in.
 local pairs = pairs
 local ipairs = ipairs
 local type = type
+local string = string
 local error = error
 local require = require
 local tostring = tostring
