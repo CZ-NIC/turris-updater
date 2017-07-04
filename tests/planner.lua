@@ -2292,6 +2292,29 @@ function test_version_missing_dep()
 	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent')
 end
 
+-- Package depends on package that we don't have with version specified
+function test_version_no_such_dep()
+	local pkgs = {
+		pkg = {
+			candidates = {{Package = 'pkg', deps = {
+				tp = 'dep-package', name = 'dep', version = '>=2'
+			}, Version = "1", repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg',
+			},
+			priority = 50,
+		}
+	}
+	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent')
+end
+
 function test_version_missing_request()
 	local pkgs = {
 		pkg = {

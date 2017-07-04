@@ -99,6 +99,7 @@ function sat_penalize(state, activator, var, penalty_group, lastpen)
 end
 
 -- Returns sat variable for package group of given name. If it is not yet added, then we create new variable for it and also for all its dependencies and candidates.
+-- Note that this have to work if the group is unknown (dependency on package we don't know)
 function sat_pkg_group(state, name)
 	if state.pkg2sat[name] then 
 		return state.pkg2sat[name] -- Already added package group, return its variable.
@@ -184,7 +185,7 @@ function sat_dep(state, pkg, version, repository)
 			state.missing[pkg] = var
 			return var
 		end
-		local chosen_candidates = candidates_choose(state.pkgs[name].candidates, name, version, repository)
+		local chosen_candidates = candidates_choose(utils.multi_index(state.pkgs[name], 'candidates') or {}, name, version, repository) -- Note: package don't have to exist (dependency on unknown package)
 		if next(chosen_candidates) then
 			-- We add here basically or, but without penalizations. Penalization is ensured from dep_pkg_group.
 			local vars = utils.map(chosen_candidates, function(i, candidate)
