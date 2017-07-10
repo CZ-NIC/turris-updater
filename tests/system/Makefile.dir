@@ -21,9 +21,6 @@ UPD_SYS_TESTS := \
 	force-downgrade \
 	conflicts
 
-MIGRATE_SYS_TESTS := \
-	auto-migrate-pkgs
-
 .PHONY: test-sys valgrind-sys check
 
 check: test-sys valgrind-sys
@@ -48,4 +45,3 @@ endef
 
 $(eval $(foreach TEST,$(TRANS_SYS_TESTS),$(call DO_SYS_TEST,opkg-trans,$(TEST))))
 $(eval $(foreach TEST,$(UPD_SYS_TESTS),$(call DO_SYS_TEST,pkgupdate,$(TEST))))
-$(eval $(foreach TEST,$(MIGRATE_SYS_TESTS),$(call DO_SYS_TEST,pkgmigrate,$(TEST))))

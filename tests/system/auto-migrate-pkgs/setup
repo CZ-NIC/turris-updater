@@ -1,1 +1,0 @@
-sed -i -e "s#%ROOT_DIR%#$ROOT_DIR#" $ROOT_DIR/config

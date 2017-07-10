@@ -1,2 +1,0 @@
-Repository "test" "file://%ROOT_DIR%/repo"
-Install "test-package"

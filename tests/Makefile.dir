@@ -30,7 +30,6 @@ LUA_TESTS := \
 	events \
 	interpreter \
 	journal \
-	migrator \
 	planner \
 	postprocess \
 	requests \
