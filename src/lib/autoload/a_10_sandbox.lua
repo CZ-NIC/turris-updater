@@ -89,13 +89,13 @@ the parameters accumulated later on.
 
 Tip for use: The result is single use only. So, plug something like
 function (...)
-	return morpher(func, context, ...)
+	return morpher(fname, func, context, ...)
 end
 
 into the environment, instead of
 morpher(func, context)
 ]]
-function morpher(func, ...)
+function morpher(fname, func, ...)
 	if active_morpher then
 		active_morpher:morph()
 	end
@@ -113,6 +113,7 @@ function morpher(func, ...)
 	local name = tostring(result)
 	-- Accumulate some more parameters into the parameter list
 	local function call(table, ...)
+		WARN("Morpher is obsoleted! You have used morpher syntax with function: " .. fname)
 		local new_params = {...}
 		--[[
 		Just append the new parameters, by shifting
@@ -507,7 +508,7 @@ function new(sec_level, parent, name)
 			end
 		elseif v.mode == "morpher" then
 			result.env[n] = function(...)
-				return morpher(v.value, result, ...)
+				return morpher(n, v.value, result, ...)
 			end
 		else
 			DIE("Unknown environment func mode " .. v.mode)

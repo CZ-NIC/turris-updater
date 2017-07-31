@@ -220,26 +220,16 @@ table::
 Available commands
 ------------------
 
-Most of the commands can be called in parenthesis mode, eg:
+Most of the commands has following format:
 
   Command("string", "string", {param = 1})
 
-Or in a parentheses-less mode:
-
-  Command "string" "string" {param = 1}
-
-This is done by a trick with metatables returns a delayed morpher
-object. It should be mostly invisible most of the time, though. The
-result may be used as a handle to the created object and manipulate it
-further.
-
-Also, most of the commands start with a capital letter, since they act
-as constructors.
+They start with a capital letter, since they act as constructors.
 
 Script
 ~~~~~~
 
-  script = Script "script-name" "uri" { extra }
+  script = Script("script-name", "uri", { extra })
 
 This command runs another script. The name is the local part of the
 script name.
@@ -279,7 +269,7 @@ crl::
 Repository
 ~~~~~~~~~~
 
-  repository = Repository "repository-name" "uri" { extra }
+  repository = Repository("repository-name", "uri", { extra })
 
 This command introduces another repository of packages. The name may
 be used as a reference from other commands and is used in error
@@ -343,7 +333,7 @@ crl::
 Uninstall
 ~~~~~~~~~
 
-  Uninstall "package" "package" { extra } "package" "package" { extra }
+  Uninstall("package", "package", { extra }, "package", "package", { extra })
 
 This command takes multiple package names. It ensures none of the
 packages is installed.
@@ -366,7 +356,7 @@ priority::
 Install
 ~~~~~~~
 
-  Install "package" "package" { extra } "package" "package" { extra }
+  Install("package", "package", { extra }, "package", "package", { extra })
 
 This command is the opposite of `Uninstall`. It requires that a
 package be present in the system.
@@ -423,7 +413,7 @@ etc).
 Package
 ~~~~~~~
 
-  package = Package "name" { extra }
+  package = Package("name", { extra })
 
 This command allows amending a package from a repository. It allows
 for adding dependencies (even negative or alternative dependencies).
@@ -547,15 +537,15 @@ ignore::
 Export and Unexport
 ~~~~~~~~~~~~~~~~~~~
 
-  Export "variable"
-  Unexport "variable"
+  Export("variable")
+  Unexport("variable")
 
 These commands are described in section `Export variables to Script`.
 
 StoreFlags
 ~~~~~~~~~~
 
-  StoreFlags "flagname" "flagname"
+  StoreFlags("flagname", "flagname")
 
 A script may request to store some of its flags right away, no matter
 how the updater terminates. It first stores its flags and then calls
@@ -565,7 +555,7 @@ rest of the flags are stored as usual.
 Run
 ~~~
 
-  result = Run "command" "param" "param" "param" ... { extra }
+  result = Run("command", "param", "param", "param", ..., { extra })
 
 This command is available only in `local` and `full` security levels.
 
@@ -602,10 +592,10 @@ and then the output is presented.
 Logging
 ~~~~~~~
 
-  DBG "debug text"
-  INFO "information text"
-  WARN "warning text"
-  ERROR "error text"
+  DBG("debug text")
+  INFO("information text")
+  WARN("warning text")
+  ERROR("error text")
 
 These commands allows printing of messages for their corresponding
 verbosity levels.
@@ -730,8 +720,8 @@ For security reasons individual scripts doesn't share variables. But it's
 sometimes beneficial to have variable that can be read by sub-script. Such
 variable is so called exported.
 
-  Export 'variable'
-  Unexport 'variable'
+  Export('variable')
+  Unexport('variable')
 
 To export variable you have to call `Export` function with name of variable as
 argument. To revert that you have to call `Unexport` function with same argument.
