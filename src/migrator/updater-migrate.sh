@@ -97,4 +97,4 @@ else
 fi
 
 # Cool. Now try the updater, please (the backend of it, without all the notification stuff, etc).
-pkgupdate $BATCH || updater_fail "Prvotní běh updater-ng skončil s chybou" "First run on updater-ng exited with error"
+pkgupdate $BATCH --state-log || updater_fail "Prvotní běh updater-ng skončil s chybou" "First run on updater-ng exited with error"
