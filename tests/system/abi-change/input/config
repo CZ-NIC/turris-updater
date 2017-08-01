@@ -1,6 +1,6 @@
-Repository "test" "file://%ROOT_DIR%/repo"
-Install "apptest"
+Repository("test", "file://%ROOT_DIR%/repo")
+Install("apptest")
 
 if installed["libtest"].version == "1" then
-	Package "libtest" { abi_change = true }
+	Package("libtest", { abi_change = true })
 end

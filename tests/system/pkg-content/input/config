@@ -1,3 +1,3 @@
-testpkg = Package "test1" { content = "file://%ROOT_DIR%/test.ipk" }
+testpkg = Package("test1", { content = "file://%ROOT_DIR%/test.ipk" })
 
-Install "test1"
+Install("test1")

@@ -1,2 +1,2 @@
-Repository "test" "file://%ROOT_DIR%/repo"
-Install "libgcc"
+Repository("test", "file://%ROOT_DIR%/repo")
+Install("libgcc")
