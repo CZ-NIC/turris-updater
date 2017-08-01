@@ -72,36 +72,36 @@ done
 
 # As first takes name of package to be added to config file.
 config_add_pkg() {
-	echo "Install \"$1\"" >>"$UPDATER_CONFIG"
+	echo "Install(\"$1\")" >>"$UPDATER_CONFIG"
 }
 
-# As first takes name of package. As second argument it takes path to package
-# content.
+# As first argument takes name of package. As second argument it takes path to
+# package content.
 config_add_pkg_content() {
 	mkdir -p "$LOCAL_STORE"
 	cp "$2" "$LOCAL_STORE" # Move content to local store
 	CONT=$LOCAL_STORE/$(basename "$2")
-	echo "Package \"$1\" { content = \"file://$CONT\" }" >>"$UPDATER_CONFIG"
+	echo "Package(\"$1\", { content = \"file://$CONT\" })" >>"$UPDATER_CONFIG"
 }
 
 # Takes single argument, name of package to be removed from config.
 config_clean_pkg() {
-	sed -e "/^Install \"$1\"/d" -i "$UPDATER_CONFIG"
+	sed -e "/^Install\((\| \)\"$1\"/d" -i "$UPDATER_CONFIG"
 }
 
 # Also takes single argument, name of package of content to be removed from
 # config.
 config_clean_pkg_content() {
-	CONT=`grep -e "^Package \"$1\"" "$UPDATER_CONFIG" | sed -n 's/content="file:\/\/\([^"]*\)"/\1/p'`
+	CONT=`grep -e "^Package\((\| \)\"$1\"" "$UPDATER_CONFIG" | sed -n 's/content="file:\/\/\([^"]*\)"/\1/p'`
 	if [ -n "$CONT" ] && [ -f "$CONT" ]; then
 		rm -f "$CONT" # Remove package content from local store
 	fi
-	sed -e "/^Package \"$1\"/d" -i "$UPDATER_CONFIG"
+	sed -e "/^Package\((\| \)\"$1\"/d" -i "$UPDATER_CONFIG"
 }
 
 # Checks if package is specified in auto.lua config
 config_pkg_in() {
-	grep -qe "^Install \"$1\"" "$UPDATER_CONFIG" || return 1
+	grep -qe "^Install\((\| \)\"$1\"" "$UPDATER_CONFIG" || return 1
 }
 
 # Checks if given package is installed
