@@ -234,8 +234,13 @@ int main(int argc, char *argv[]) {
 		// For now we want to confirm by the user.
 		fprintf(stderr, "Press return to continue, CTRL+C to abort\n");
 		getchar();
-	}
-	if (!approved(interpreter, approval_file, approvals, approval_count))
+		if (approval_file)
+			// If there is any approval_file we just approved it so remove any
+			// file. Also ignore errors as there might be none.
+			unlink(approval_file);
+	} else if (!approved(interpreter, approval_file, approvals, approval_count))
+		// Approvals are only for non-interactive mode (implied by batch mode).
+		// Otherwise user approves on terminal in previous code block.
 		goto CLEANUP;
 	if (!replan) {
 		INFO("Executing preupdate hooks...");

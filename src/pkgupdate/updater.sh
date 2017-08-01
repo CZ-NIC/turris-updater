@@ -124,9 +124,12 @@ if ! $BACKGROUNDED ; then
 	echo startup >"$STATE_DIR/state"
 	rm -f "$STATE_DIR/last_error" "$STATE_DIR/log2"
 	echo $$>"$PID_FILE"
+else
+	# When we are backgrounded we can't ask user so force --batch
+	PKGUPDATE_ARGS="$PKGUPDATE_ARGS --batch"
 fi
 if $BACKGROUND ; then
-	"$0" -r >/dev/null 2>&1 &
+	"$0" -r --batch >/dev/null 2>&1 &
 	# Make sure the PID is of the process actually doing the work
 	echo $!>"$PID_FILE"
 	exit
@@ -151,17 +154,21 @@ trap trap_handler EXIT INT QUIT TERM ABRT
 APPROVALS=
 config_get_bool NEED_APPROVAL approvals need 0
 if [ "$NEED_APPROVAL" = "1" ] ; then
+	APPROVALS="--ask-approval=$APPROVAL_ASK_FILE"
 	# Get a treshold time when we grant approval automatically. In case we don't, we set the time to
 	# 1, which is long long time ago in the glorious times when automatic updaters were not
 	# needed.
 	config_get AUTO_GRANT_TIME approvals auto_grant_seconds
 	AUTO_GRANT_TRESHOLD=$(expr $(date -u +%s) - $AUTO_GRANT_TIME 2>/dev/null || echo 1)
-	APPROVALS="--ask-approval=$APPROVAL_ASK_FILE"
 	APPROVED_HASH="$(tail -1 "$APPROVAL_GRANTED_FILE" | awk '$2 == "granted" || ( $2 == "asked" && $3 <= "'"$AUTO_GRANT_TRESHOLD"'" ) {print $1}')"
 	[ -n "$APPROVED_HASH" ] && APPROVALS="$APPROVALS --approve=$APPROVED_HASH"
+else
+	# If approvals aren't enabled then run always in batch mode (don't ask user)
+	PKGUPDATE_ARGS="$PKGUPDATE_ARGS --batch"
 fi
+
 # Run the actual updater
-timeout 3000 pkgupdate $PKGUPDATE_ARGS --batch --state-log --task-log=/usr/share/updater/updater-log $APPROVALS
+timeout 3000 pkgupdate $PKGUPDATE_ARGS --state-log --task-log=/usr/share/updater/updater-log $APPROVALS
 EXIT_CODE="$?"
 
 if [ -f "$APPROVAL_ASK_FILE" ] ; then
