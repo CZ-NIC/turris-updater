@@ -27,36 +27,33 @@
 
 . /lib/functions.sh
 
+# Posix and Busybox compatible timeout function
 timeout() {
-	# Let a command run for up to $1 seconds. If it doesn't finishes by then, kill it.
-	# The timeout starts it in background. Also, a watcher process is started that'd kill
-	# it after the timeout and waits for it to finish. If the program finishes, it kills
-	# the watcher.
-	TIME="$1"
-	PROG="$2"
-	shift 2
-	"$PROG" "$@" >"$TMP_DIR"/t-output &
-	export CPID="$!"
-	(
-		# Note that Busybox doesn't have sleep as build-in, but as external
-		# program. So backgrounded wait can stay running even after script exits
-		# if not killed.
-		sleep "$TIME"
-		echo "Killing $PROG/$CPID after $TIME seconds (stuck?)" | logger -t updater -p daemon.error
-		kill "$CPID"
-		sleep 5
-		kill -9 "$CPID"
-		# Wait to be killed by the parrent
-		sleep 60
-	) &
-	WATCHER="$!"
-	wait "$CPID"
-	RESULT="$?"
-	CPID=
-	kill "$WATCHER"
-	wait "$WATCHER"
-	WATCHER=
-	return "$RESULT"
+	# Basic idea is to run watcher subshell and wait for given time and kill it
+	# unless it exits till then.
+	# Because there is a lot of killing and a lot of potentially nonexistent
+	# processes we ignore stderr, but we don't want to dump stderr of process it
+	# self so we redirect it to different output and than back to stderror.
+	/bin/sh -c '
+		(
+			sleep $1
+			NP="$( pgrep -P $$ -n )"
+			kill $NP
+			sleep 5
+			kill -9 $NP
+		) &
+		shift
+		"$@" 2>&3
+		EC=$?
+		for P in $( pgrep -P $$); do
+			kill $( pgrep -P $P )
+			kill $P
+		done
+		exit $EC
+	' -- "$@" 3>&2 2>/dev/null
+	# Note that Busybox doesn't have sleep as build-in, but as external program.
+	# So backgrounded wait can stay running even after script exits if not killed.
+	# So we are killing children of children in for loop.
 }
 
 config_load updater
