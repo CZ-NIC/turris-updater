@@ -244,6 +244,43 @@ function test_get_content_pkgs_missing_ignore()
 	assert_table_equal({{name="updater", ignore={"content"}}}, requests.known_content_packages)
 end
 
+-- Default values for package modifiers to be added if they are not mentioned
+local modifier_def = {
+	tp = "package",
+	abi_change = {},
+	abi_change_deep = {},
+	order_after = {},
+	order_before = {},
+	post_install = {},
+	post_remove = {},
+	pre_install = {},
+	pre_remove = {},
+	reboot = false,
+	replan = false
+}
+
+-- Common tasks used in pkg_merge tests for building data structures
+local function common_pkg_merge(exp)
+	-- Add repo field
+	for _, repo in pairs(requests.known_repositories_all) do
+		for _, cont in pairs(repo.content) do
+			if cont.tp == 'pkg-list' then
+				for _, pkg in pairs(cont.list) do
+					pkg.repo = repo
+				end
+			end
+		end
+	end
+	-- Fill in default values for the ones that are not mentioned above
+	for _, pkg in pairs(exp) do
+		for name, def in pairs(modifier_def) do
+			if pkg.modifier[name] == nil then
+				pkg.modifier[name] = def
+			end
+		end
+	end
+end
+
 function test_pkg_merge()
 	requests.known_repositories_all = {
 		{
@@ -277,16 +314,6 @@ function test_pkg_merge()
 			}
 		}
 	}
-	-- Add repo field
-	for _, repo in pairs(requests.known_repositories_all) do
-		for _, cont in pairs(repo.content) do
-			if cont.tp == 'pkg-list' then
-				for _, pkg in pairs(cont.list) do
-					pkg.repo = repo
-				end
-			end
-		end
-	end
 	requests.known_packages = {
 		{
 			tp = 'package',
@@ -310,7 +337,6 @@ function test_pkg_merge()
 			deps = {"xyz", "abc"}
 		}
 	}
-	postprocess.pkg_aggregate()
 	-- Build the expected data structure
 	local exp = {
 		abc = {
@@ -361,28 +387,73 @@ function test_pkg_merge()
 			}
 		}
 	}
-	-- Fill in default values for the ones that are not mentioned above
-	local modifier_def = {
-		tp = "package",
-		abi_change = {},
-		abi_change_deep = {},
-		order_after = {},
-		order_before = {},
-		post_install = {},
-		post_remove = {},
-		pre_install = {},
-		pre_remove = {},
-		reboot = false,
-		replan = false
-	}
-	for _, pkg in pairs(exp) do
-		for name, def in pairs(modifier_def) do
-			if pkg.modifier[name] == nil then
-				pkg.modifier[name] = def
-			end
-		end
-	end
+	common_pkg_merge(exp)
+	postprocess.pkg_aggregate()
 	assert_table_equal(exp, postprocess.available_packages)
+end
+
+function test_pkg_merge_virtual()
+	requests.known_repositories_all = {
+		{
+			content = {
+				[""] = {
+					tp = 'pkg-list',
+					list = {
+						pkg = {Package = "pkg", Version = "1", Provides="virt"}
+					}
+				}
+			}
+		}
+	}
+	requests.known_packages = {
+		{
+			tp = 'package',
+			name = 'virt',
+			virtual = true
+		}
+	}
+	-- Build the expected data structure
+	local exp = {
+		pkg = {
+			candidates = {{Package = "pkg", Version = "1", Provides="virt", repo = requests.known_repositories_all[1]}},
+			modifier = {name = "pkg"}
+		},
+		virt = {
+			candidates = {{Package = "pkg", Version = "1", Provides="virt", repo = requests.known_repositories_all[1]}},
+			modifier = {
+				name = "virt",
+				virtual = true
+			},
+		}
+	}
+	common_pkg_merge(exp)
+	postprocess.pkg_aggregate()
+	assert_table_equal(exp, postprocess.available_packages)
+end
+
+function test_pkg_merge_virtual_with_candidate()
+	requests.known_repositories_all = {
+		{
+			content = {
+				[""] = {
+					tp = 'pkg-list',
+					list = {
+						pkg = {Package = "pkg", Version = "1", Provides="virt"},
+						virt = {Package = "virt", Version = "2"}
+					}
+				}
+			}
+		}
+	}
+	requests.known_packages = {
+		{
+			tp = 'package',
+			name = 'virt',
+			virtual = true
+		}
+	}
+	common_pkg_merge({})
+	assert_exception(function() postprocess.pkg_aggregate() end, "inconsistent")
 end
 
 --[[

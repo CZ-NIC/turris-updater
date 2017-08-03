@@ -404,8 +404,13 @@ function pkg_aggregate()
 			]]
 			table.insert(modifier.deps, m.deps or {})
 			-- Check if theres no candidate for virtual package
-			if m.virtual and #pkg_group.candidates > 0 then
-				error(utils.exception("inconsistent", "Candidate exists for virtual package " .. name))
+			if m.virtual then
+				for _, candidate in ipairs(pkg_group.candidates or {}) do
+					-- We have to ignore candidates provided by some other package
+					if name == candidate.Package then
+						error(utils.exception("inconsistent", "Candidate exists for virtual package " .. name))
+					end
+				end
 			end
 			-- Take a single value or a list from the source and merge it into a set in the destination
 			local function set_merge(name)
