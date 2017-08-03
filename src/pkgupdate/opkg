@@ -111,14 +111,7 @@ pkg_installed() {
 
 install() {
 	local PKG="$1"
-	pkg_installed "$PKG"
-	local WASINSTALLED=$?
-	if ! $OPKG $ARGS install "$PKG"; then
-		# opkg failed, probably some problem with package. Lets not change anything
-		EXC=255
-		return
-	fi
-	# Do additional steps for local files
+	local OPKG_PKG="$PKG"
 	if `echo "$PKG" | grep -q -E '.*(\.ipk|\.deb)$'`; then
 		# Source package name from package it self
 		local PKGCONTENT=$PKG
@@ -128,6 +121,15 @@ install() {
 		tar -xzf "$TMPDIR1/control.tar.gz" -C "$TMPDIR2"
 		PKG=`sed -ne 's/^Package:[ ]*\([^ ]*\).*/\1/p' "$TMPDIR2/control"`
 		rm -rf "$TMPDIR1" "$TMPDIR2"
+	fi
+	pkg_installed "$PKG"
+	local WASINSTALLED=$?
+	if ! $OPKG $ARGS install "$OPKG_PKG"; then
+		# opkg failed, probably some problem with package. Lets not change anything
+		EXC=255
+		return
+	fi
+	if [ -n "$PKGCONTENT" ]; then # We have local file (*.ipk or *.deb)
 		# Add package content to config file
 		config_clean_pkg_content "$PKG"
 		config_add_pkg_content "$PKG" "$PKGCONTENT"
