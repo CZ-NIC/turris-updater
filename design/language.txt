@@ -499,24 +499,6 @@ abi_change_deep::
   package that changed its ABI. That means if some package is reinstalled because
   of change of ABI, all packages that depends on it are also reinstalled and so
   on.
-content::
-  This is an alternative for the package being available from a
-  repository. This lists an URI where the package lives. If the
-  package has all parameters same as one from a repository (eg.
-  priority, version), the one with content is preferred.
-verification::
-sig::
-pubkey::
-ca::
-crl::
-  Options to verify the package integrity, if the content option is
-  specified. These are ignored in virtual packages and packages from a
-  repository.
-priority::
-  A priority for packages not coming from a repository (eg. with the
-  `content` option) to be used when choosing the right candidate.
-  Defaults to 50, as with repositories. It is ignored with packages
-  from repositories and has no meaning for virtual packages.
 ignore::
   Ignore listed categories of errors. This takes an array of strings,
   each string meaning one category to ignore.
@@ -530,9 +512,6 @@ ignore::
     Don't report errors of installation in this package as an error
     and don't abort the rest of the installation process even if it is
     in an early stage.
-  content::
-    Don't error on missing content. If it's available from repository
-    then it is handled as missing.
 
 Export and Unexport
 ~~~~~~~~~~~~~~~~~~~

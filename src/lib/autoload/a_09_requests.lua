@@ -236,6 +236,7 @@ function package(result, content, pkg, extra)
 	result.tp = "package"
 	table.insert(known_packages, result)
 	if extra.content then -- if content is specified, it requires special treatment before aggregation
+		WARN("Content field of Package command is obsoleted! You can use local repository instead.")
 		table.insert(known_content_packages, result)
 		-- We start downloading right away
 		utils.private(result).content_uri = uri(content, extra.content, extra)
