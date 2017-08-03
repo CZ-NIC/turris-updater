@@ -112,7 +112,7 @@ pkg_installed() {
 install() {
 	local PKG="$1"
 	local OPKG_PKG="$PKG"
-	if `echo "$PKG" | grep -q -E '.*(\.ipk|\.deb)$'`; then
+	if echo "$PKG" | grep -q -E '.*(\.ipk|\.deb)$'; then
 		# Source package name from package it self
 		local PKGCONTENT=$PKG
 		local TMPDIR1=`mktemp -d /tmp/updater-XXXXXX`
