@@ -743,37 +743,8 @@ Hooks
 -----
 
 As the hooks are run after all the dependencies have been resolved and
-plan has been made, it is no longer possible to call the `Repositor`,
-`Package`, `Install` and `Uninstall` commands. These commands may be
-used in addition to the rest:
-
-Reboot
-~~~~~~
-
-  Reboot "when"
-
-Restarts the OS. It is recommended to use the `reboot` option in the
-`Package` command instead, since the updater would know about it in
-advance and may, for example, wait for the user to confirm before
-doing anything.
-
-The when parameter may be either:
-
-now::
-  Don't finish the rest of updater, reboot right now. This is
-  dangerous and should not be used unless necessary, since the rest of
-  hooks for the given package may be lost. Installation of other
-  packages will resume after reboot.
-eventually::
-  It will reboot at the end of the updater work.
-
-Rerun
-~~~~~
-
-  Rerun "when"
-
-Run the updater once more. The when has a similar meaning as with
-`Reboot`. However, it won't resume installation after executing `now`.
+plan has been made, it is no longer possible to call the `Repository`,
+`Package`, `Install` and `Uninstall` commands.
 
 The only parameter of the hook is a package object. It is a table that
 has all the meaningful options from the `Package` and `Install`
