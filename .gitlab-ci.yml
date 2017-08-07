@@ -2,6 +2,7 @@ image: gl-ci-turris-testing
 
 stages:
   - test
+  - pages
 
 before_script:
   - git submodule init
@@ -20,3 +21,22 @@ test_busybox:
 
   script:
     - BUSYBOX_EXEC=/bin/busybox make check
+
+pages:
+  stage: pages
+  script:
+  - rm -rf public
+  - mkdir public
+  - make COV=y
+  - make COV=y test test-sys
+  - make COV=y coverage
+  - markdown .doc_index.md > public/index.html
+  - utils/gendocindex.sh | markdown > public/docindex.html
+  - cp -r docs public/docs
+  - cp -r coverage public/coverage
+  artifacts:
+    when: on_success
+    paths:
+    - public
+  only:
+  - master

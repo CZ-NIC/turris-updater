@@ -29,3 +29,5 @@ tests/check-compiled
 tests/luacheck-compiled
 tests/arguments
 testdir
+# Gitlab pages
+pages
