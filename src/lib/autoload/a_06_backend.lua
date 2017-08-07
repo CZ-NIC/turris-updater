@@ -17,6 +17,7 @@ You should have received a copy of the GNU General Public License
 along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
+local ERROR=ERROR
 local error = error
 local type = type
 local pairs = pairs
@@ -59,7 +60,7 @@ local locks = require "locks"
 module "backend"
 
 -- Functions and variables used in other files
--- luacheck: globals pkg_temp_dir repo_parse status_dump pkg_unpack pkg_examine collision_check not_installed_confs steal_configs dir_ensure pkg_merge_files pkg_merge_control pkg_config_info pkg_cleanup_files control_cleanup version_cmp flags_load flags_get script_run flags_get_ro flags_write flags_mark run_state
+-- luacheck: globals pkg_temp_dir repo_parse status_dump pkg_unpack pkg_examine collision_check not_installed_confs steal_configs dir_ensure pkg_merge_files pkg_merge_control pkg_config_info pkg_cleanup_files control_cleanup version_cmp version_match flags_load flags_get script_run flags_get_ro flags_write flags_mark run_state
 -- Variables that we want to access from outside (ex. for testing purposes)
 -- luacheck: globals status_file info_dir root_dir pkg_temp_dir flags_storage cmd_timeout cmd_kill_timeout stored_flags dir_opkg_collided
 -- Functions that we want to access from outside (ex. for testing purposes)
@@ -1130,6 +1131,32 @@ function version_cmp(v1, v2)
 		end
 		-- They are the same. Try next segment of the version.
 		idx = idx + 1
+	end
+end
+
+--[[
+Checks if given version string matches given rule. Rule is the string in format
+same as in case of dependency description (text in parenthesis).
+]]
+function version_match(v, r)
+	-- We don't expect that version it self have space in it self, any space is removed.
+	local wildmatch, cmp_str, vers = r:gsub('%s*$', ''):match('^%s*(~?)([<>=]*)%s*(.*)$')
+	if wildmatch == '~' then
+		vers = cmp_str .. vers -- We might matched something so prepend it back
+		return v:match(vers) ~= nil
+	elseif cmp_str == "" then -- If no compare was located than do plain compare
+		return v == r
+	else
+		local cmp = version_cmp(vers, v)
+		local ch
+		if cmp == -1 then
+			ch = '>'
+		elseif cmp == 1 then
+			ch = '<'
+		else
+			ch = '='
+		end
+		return cmp_str:find(ch, 1, true) ~= nil
 	end
 end
 

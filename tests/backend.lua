@@ -933,6 +933,19 @@ function test_version_cmp()
 	assert_equal(1, B.version_cmp("1.10", "1.2"))
 end
 
+function test_version_match()
+	assert_true(B.version_match("1.2.3", ">1.2.0"))
+	assert_false(B.version_match("1.2.3", ">1.2.3"))
+	assert_true(B.version_match("1.2.3", ">=1.2.3"))
+	assert_true(B.version_match("1.2.3", "=>1.2.3"))
+	assert_true(B.version_match("1.2.3", "<1.2.4"))
+	assert_false(B.version_match("1.2.3", "<1.2.3"))
+	assert_true(B.version_match("1.2.3", "~^1%..*$"))
+	assert_false(B.version_match("1.2.3", "~^2%..*$"))
+	assert_true(B.version_match("1.2.3", "1.2.3")) -- without comparator do exact match (just as corner case)
+	assert_false(B.version_match("1.2.3", "1.3.3"))
+end
+
 local function check_stored_flags(full, expected)
 	local test_root = mkdtemp()
 	table.insert(tmp_dirs, test_root)

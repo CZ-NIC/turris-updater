@@ -542,6 +542,24 @@ Export and Unexport
 
 These commands are described in section `Export variables to Script`.
 
+version_cmp and version_match
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  version_cmp("version1", "version2")
+  version_match("version", "version_relation")
+
+Both of these functions implement way to compare versions of package.
+
+`version_cmp` compares two version strings and returns `-1`, `0`, or `1`
+if version in first argument is less, equal, or greater than version in second
+argument respectively.
+
+`version_match` allows you to use same syntax as in case of string dependency.
+So you will pass version string as first argument and then string with version
+relation as second argument (for example:
+`version_match(installed['pkg'].version, '>=1.0.0')`)
+It returns true if version matches given version relation, otherwise false.
+
 StoreFlags
 ~~~~~~~~~~
 
@@ -750,26 +768,28 @@ libraries are made available. They are available in the security level
 listed and in all higher levels.
 
 Restricted::
-  * `table` library.
-  * `string` library.
-  * `math` library.
-  * `assert`.
-  * `error`.
-  * `ipairs`.
-  * `next`.
-  * `pairs`.
-  * `pcall`.
-  * `select`.
-  * `tonumber`.
-  * `tostring`.
-  * `type`.
-  * `unpack`.
-  * `xpcall`.
-  * `DBG`.
-  * `INFO`.
-  * `WARN`.
-  * `ERROR`.
+  * `table` library
+  * `string` library
+  * `math` library
+  * `assert`
+  * `error`
+  * `ipairs`
+  * `next`
+  * `pairs`
+  * `pcall`
+  * `select`
+  * `tonumber`
+  * `tostring`
+  * `type`
+  * `unpack`
+  * `xpcall`
+  * `DBG`
+  * `INFO`
+  * `WARN`
+  * `ERROR`
+  * `version_cmp`
+  * `version_match`
 Local::
-  * `uci` library.
+  * `uci` library
 Full::
-  * The whole lua library.
+  * The whole lua library

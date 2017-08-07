@@ -43,9 +43,6 @@ module "planner"
 -- Choose candidates that complies to version requirement.
 function candidates_choose(candidates, pkg_name, version, repository)
 	assert(version or repository)
-	-- We don't expect that version it self have space in it self, any space is removed.
-	local wildmatch, cmp_str, vers = (version or ""):gsub('%s*$', ''):match('^%s*(~?)([<>=]*)%s*(.*)$')
-	if wildmatch == '~' then vers = cmp_str .. vers end -- prepend cmd_str to vers if we have wildmatch
 	-- repository is table of strings and objects, canonize to objects and add it to set.
 	local repos = {}
 	for _, repo in pairs(repository or {}) do
@@ -60,18 +57,11 @@ function candidates_choose(candidates, pkg_name, version, repository)
 	local compliant = {}
 	for _, candidate in pairs(candidates) do
 		assert(candidate.Version) -- Version have to be there but candidate.repo might not if it is content from configuration not from repository
-		local cmp = not version or (wildmatch == '~') or backend.version_cmp(vers, candidate.Version)
 		-- Add candidates matching version and repository limitation. Package
 		-- supplied using content field in configuration has no repository, so it
 		-- is never added when repository limitation is specified.
-		if (not version or (candidate.Package == pkg_name and (
-				(wildmatch == '~' and candidate.Version:match(vers)) or
-				(cmp_str:find('>', 1, true) and cmp == -1) or
-				(cmp_str:find('=', 1, true) and cmp == 0) or
-				(cmp_str:find('<', 1, true) and cmp == 1)))
-			) and (
-				not repository or (candidate.repo and repos[candidate.repo])
-			) then
+		if (not version or (candidate.Package == pkg_name and backend.version_match(candidate.Version, version))) and
+				(not repository or (candidate.repo and repos[candidate.repo])) then
 			table.insert(compliant, candidate)
 		end
 	end

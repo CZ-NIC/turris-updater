@@ -199,6 +199,8 @@ local rest_available_funcs = {
 	"INFO",
 	"DBG",
 	"TRACE",
+	"version_match",
+	"version_cmp",
 	"system_cas",
 	"no_crl"
 }
