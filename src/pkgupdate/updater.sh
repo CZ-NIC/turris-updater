@@ -28,7 +28,19 @@
 . /lib/functions.sh
 
 # Posix and Busybox compatible timeout function
-timeout() {
+# First argument is time and every other is program with it's arguments.
+ptimeout() {
+	# Check if we have timeout binary and use it if so
+	if which timeout >/dev/null; then
+		if [ "$(basename "$(readlink -f "$(which timeout)")")" = "busybox" ]; then
+			# We are immediately killing as busybox doesn't support delayed kill
+			timeout -t "$1" -s 9 "$@"
+		else
+			timeout -k "$(("$1" + 5))" "$1" "$@"
+		fi
+		return $?
+	fi
+	# Shell workaround
 	# Basic idea is to run watcher subshell and wait for given time and kill it
 	# unless it exits till then.
 	# Because there is a lot of killing and a lot of potentially nonexistent
@@ -72,7 +84,7 @@ while [ $NET_WAIT -gt 0 ] && ! ping -c 1 -w 1 api.turris.cz >/dev/null 2>&1; do
 done
 
 get-api-crl || {
-	timeout 120 create_notification -s error "Updater selhal: Chybí CRL, pravděpodobně je problém v připojení k internetu." "Updater failed: Missing CRL, possibly broken Internet connection." || echo "Create notification failed" | logger -t updater -p daemon.error; 
+	ptimeout 120 create_notification -s error "Updater selhal: Chybí CRL, pravděpodobně je problém v připojení k internetu." "Updater failed: Missing CRL, possibly broken Internet connection." || echo "Create notification failed" | logger -t updater -p daemon.error; 
 	exit 1
 }
 
@@ -168,7 +180,7 @@ else
 fi
 
 # Run the actual updater
-timeout 3000 pkgupdate $PKGUPDATE_ARGS --state-log --task-log=/usr/share/updater/updater-log $APPROVALS
+ptimeout 3000 pkgupdate $PKGUPDATE_ARGS --state-log --task-log=/usr/share/updater/updater-log $APPROVALS
 EXIT_CODE="$?"
 
 if [ -f "$APPROVAL_ASK_FILE" ] ; then
@@ -178,7 +190,7 @@ if [ -f "$APPROVAL_ASK_FILE" ] ; then
 		config_get_bool NOTIFY_APPROVAL approvals notify 1
 		echo "Asking for authorisation $HASH" | logger -t updater -p daemon.info
 		if [ "$NOTIFY_APPROVAL" = "1" ] ; then
-			timeout 120 create_notification -s update "Updater žádá o autorizaci akcí. Autorizaci můžete přidělit v administračním rozhraní Foris." "The updater requests an autorisation of its planned actions. You can grant it in the Foris administrative interface." || echo "Create notification failed" | logger -t updater -p daemon.error
+			ptimeout 120 create_notification -s update "Updater žádá o autorizaci akcí. Autorizaci můžete přidělit v administračním rozhraní Foris." "The updater requests an autorisation of its planned actions. You can grant it in the Foris administrative interface." || echo "Create notification failed" | logger -t updater -p daemon.error
 		fi
 	fi
 else
@@ -198,7 +210,7 @@ if [ "$STATE" != "error" ] && ([ "$EXIT_CODE" != "0" ] || [ "$STATE" != "done" ]
 fi
 
 if [ -s "$STATE_DIR"/log2 ] && grep -q '^[IR]' "$STATE_DIR/log2" ; then
-	timeout 120 create_notification -s update "$(sed -ne 's/^I \(.*\) \(.*\)/ • Nainstalovaná verze \2 balíku \1/p;s/^R \(.*\)/ • Odstraněn balík \1/p' "$LOG_FILE")" "$(sed -ne 's/^I \(.*\) \(.*\)/ • Installed version \2 of package \1/p;s/^R \(.*\)/ • Removed package \1/p' "$LOG_FILE")" || echo "Create notification failed" | logger -t updater -p daemon.error
+	ptimeout 120 create_notification -s update "$(sed -ne 's/^I \(.*\) \(.*\)/ • Nainstalovaná verze \2 balíku \1/p;s/^R \(.*\)/ • Odstraněn balík \1/p' "$LOG_FILE")" "$(sed -ne 's/^I \(.*\) \(.*\)/ • Installed version \2 of package \1/p;s/^R \(.*\)/ • Removed package \1/p' "$LOG_FILE")" || echo "Create notification failed" | logger -t updater -p daemon.error
 fi
 if [ "$EXIT_CODE" != 0 ] || [ "$STATE" != "done" ] ; then
 	if [ -s "$STATE_DIR/last_error" ] ; then
@@ -206,8 +218,8 @@ if [ "$EXIT_CODE" != 0 ] || [ "$STATE" != "done" ] ; then
 	else
 		ERROR="Unknown error"
 	fi
-	timeout 120 create_notification -s error "Updater selhal: $ERROR" "Updater failed: $ERROR" || echo "Create notification failed" | logger -t updater -p daemon.error
+	ptimeout 120 create_notification -s error "Updater selhal: $ERROR" "Updater failed: $ERROR" || echo "Create notification failed" | logger -t updater -p daemon.error
 fi
-timeout 120 notifier || echo "Notifier failed" | logger -t updater -p daemon.error
+ptimeout 120 notifier || echo "Notifier failed" | logger -t updater -p daemon.error
 
 # Let the trap clean up here
