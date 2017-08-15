@@ -190,7 +190,14 @@ if [ -f "$APPROVAL_ASK_FILE" ] ; then
 		config_get_bool NOTIFY_APPROVAL approvals notify 1
 		echo "Asking for authorisation $HASH" | logger -t updater -p daemon.info
 		if [ "$NOTIFY_APPROVAL" = "1" ] ; then
-			ptimeout 120 create_notification -s update "Updater žádá o autorizaci akcí. Autorizaci můžete přidělit v administračním rozhraní Foris." "The updater requests an autorisation of its planned actions. You can grant it in the Foris administrative interface." || echo "Create notification failed" | logger -t updater -p daemon.error
+			# Formating input from "OPERATION VERSION PACKAGE REBOOT" to "OPERATION PACKAGE VERSION"
+			# Also OPERATION is lowercase to make it pretty uppercase the first character.
+			# TODO do we want to show reboot?
+			LIST="$(awk 'NR>1{printf "\n • %s %s %s", toupper(substr($1,1,1))substr($1,2), $3, $2}' "$APPROVAL_ASK_FILE")"
+			ptimeout 120 create_notification -s update \
+				"Updater žádá o autorizaci akcí. Autorizaci můžete přidělit v administračním rozhraní Foris.$LIST" \
+				"The updater requests an autorisation of its planned actions. You can grant it in the Foris administrative interface.$LIST" \
+				|| echo "Create notification failed" | logger -t updater -p daemon.error
 		fi
 	fi
 else
