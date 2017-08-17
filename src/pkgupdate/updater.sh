@@ -32,11 +32,13 @@
 ptimeout() {
 	# Check if we have timeout binary and use it if so
 	if which timeout >/dev/null; then
+		local T="$1"
+		shift
 		if [ "$(basename "$(readlink -f "$(which timeout)")")" = "busybox" ]; then
 			# We are immediately killing as busybox doesn't support delayed kill
-			timeout -t "$1" -s 9 "$@"
+			timeout -t "$T" -s 9 "$@"
 		else
-			timeout -k "$(("$1" + 5))" "$1" "$@"
+			timeout -k "$(("$T" + 5))" "$T" "$@"
 		fi
 		return $?
 	fi
