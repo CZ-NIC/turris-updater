@@ -1,0 +1,7 @@
+Package: pkg-new
+Version: 1
+Conflicts: pkg
+Status: install user installed
+Architecture: all
+Installed-Time: 0
+

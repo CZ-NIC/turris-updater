@@ -16,6 +16,7 @@ UPD_SYS_TESTS := \
 	pkg-content \
 	reboot \
 	provides \
+	provides-replace \
 	abi-change \
 	replan \
 	list-dir \
