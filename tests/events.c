@@ -329,7 +329,7 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(children, child_wait_cancel);
 	suite_add_tcase(result, children);
 	TCase *commands = tcase_create("commands");
-	tcase_set_timeout(commands, 10);
+	tcase_set_timeout(commands, 30);
 	tcase_add_loop_test(commands, command_start_noio, 0, 10);
 	tcase_add_test(commands, command_timeout);
 	tcase_add_loop_test(commands, command_io, 0, 10);
