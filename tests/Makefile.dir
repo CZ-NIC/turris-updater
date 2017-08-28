@@ -112,10 +112,14 @@ $(OPENSSL_BUILD_PATH)/openssl-$(OPENSSL_TEST_VERSION).tar.gz:
 # Usage of pattern with multiple targets causes gmake to understand that all of
 # those files are produced by this target at once. So this target is run only
 # once. See: https://www.gnu.org/software/make/manual/make.html#Pattern-Examples
-$(OPENSSL_BUILD_PATH)/%/libcrypto.so $(OPENSSL_BUILD_PATH)/%/libssl.so: $(OPENSSL_BUILD_PATH)/openssl-$(OPENSSL_TEST_VERSION).tar.gz
+OPENSSL_LIBS_TARGET = $(OPENSSL_BUILD_PATH)/%/libcrypto.so $(OPENSSL_BUILD_PATH)/%/libssl.so
+$(OPENSSL_LIBS_TARGET): $(OPENSSL_BUILD_PATH)/openssl-$(OPENSSL_TEST_VERSION).tar.gz
 	tar -xzf $< -C $(OPENSSL_BUILD_PATH)
 	cd $(OPENSSL_BUILD_PATH)/openssl-$(OPENSSL_TEST_VERSION) && ./config shared -DPURIFY
 	+$(MAKE) -C $(OPENSSL_BUILD_PATH)/openssl-$(OPENSSL_TEST_VERSION)
+# Make marks these libraries as intermediate, but we need we don't want them
+# compile every time so lets set them as precious.
+.PRECIOUS: $(OPENSSL_LIBS_TARGET)
 
 clean-openssl:
 	rm -rf $(OPENSSL_BUILD_PATH)
