@@ -609,47 +609,63 @@ function test_collisions()
 	assert_table_equal({}, rem)
 end
 
--- Test config_steal and not_installed_confs function
+-- Test config_steal and installed_confs function
 function test_config_steal()
 	local status = B.status_parse()
 	-- Lets set dnsmasq-dhcpv6 as not installed
 	status["dnsmasq-dhcpv6"].Status[3] = "not-installed"
-	-- Prepare not_installed_confs table and check it
-	local not_installed_confs = B.not_installed_confs(status)
+	-- Prepare installed_confs table and check it
+	local installed_confs = B.installed_confs(status)
 	assert_table_equal({
 		["/etc/config/dhcp"] = { pkg = "dnsmasq-dhcpv6", hash = "f81fe9bd228dede2165be71e5c9dcf76cc" },
 		["/etc/dnsmasq.conf"] = { pkg = "dnsmasq-dhcpv6", hash = "1e6ab19c1ae5e70d609ac7b6246541d520" }
-	}, not_installed_confs)
+	}, installed_confs)
 	-- Now lets steal one of the configs
 	local stealed_confs = {
 		["/etc/config/dhcp"] = status["dnsmasq-dhcpv6"].Conffiles["/etc/config/dhcp"]
 	}
-	local steal = B.steal_configs(status, not_installed_confs, { ["/etc/config/dhcp"] = "hash" }) -- note that hash is not used
+	local steal = B.steal_configs(status, installed_confs, { ["/etc/config/dhcp"] = "hash" }) -- note that hash is not used
 	assert_table_equal(stealed_confs, steal)
+	assert_not_nil(status["dnsmasq-dhcpv6"]) -- package is one more configuration file so it should be still there
 	assert_nil(status["dnsmasq-dhcpv6"].Conffiles["/etc/config/dhcp"])
 	-- Now lets steal second one
 	stealed_confs = {
 		["/etc/dnsmasq.conf"] = status["dnsmasq-dhcpv6"].Conffiles["/etc/dnsmasq.conf"]
 	}
-	steal = B.steal_configs(status, not_installed_confs, { ["/etc/dnsmasq.conf"] = "pkg_test2" })
+	steal = B.steal_configs(status, installed_confs, { ["/etc/dnsmasq.conf"] = "pkg_test2" })
 	assert_table_equal(stealed_confs, steal)
 	assert_nil(status["dnsmasq-dhcpv6"]) -- Now whole package should disappear
 
 	status = B.status_parse()
 	status["dnsmasq-dhcpv6"].Status[3] = "not-installed"
-	local not_installed_confs = B.not_installed_confs(status)
+	local installed_confs = B.installed_confs(status)
 	-- Lets try again but now with package that steals both config files
 	stealed_confs = {
 			["/etc/config/dhcp"] = status["dnsmasq-dhcpv6"].Conffiles["/etc/config/dhcp"],
 			["/etc/dnsmasq.conf"] = status["dnsmasq-dhcpv6"].Conffiles["/etc/dnsmasq.conf"]
 	}
-	steal = B.steal_configs(status, not_installed_confs, {
+	steal = B.steal_configs(status, installed_confs, {
 		["/etc/config/dhcp"] = "hash",
 		["/etc/dnsmasq.conf"] = "hash",
 		["/etc/newone.conf"] = "hash"
 	})
 	assert_table_equal(stealed_confs, steal)
 	assert_nil(status["dnsmasq-dhcpv6"]) -- Whole package should disappear
+
+	status = B.status_parse()
+	local installed_confs = B.installed_confs(status)
+	-- Now let's steal from installed package
+	stealed_confs = {
+			["/etc/config/dhcp"] = status["dnsmasq-dhcpv6"].Conffiles["/etc/config/dhcp"],
+			["/etc/dnsmasq.conf"] = status["dnsmasq-dhcpv6"].Conffiles["/etc/dnsmasq.conf"]
+	}
+	steal = B.steal_configs(status, installed_confs, {
+		["/etc/config/dhcp"] = "hash",
+		["/etc/dnsmasq.conf"] = "hash"
+	})
+	assert_table_equal(stealed_confs, steal)
+	assert_not_nil(status["dnsmasq-dhcpv6"]) -- Package should be there
+	assert_nil(next(status["dnsmasq-dhcpv6"].Conffiles)) -- But there should be no configuration files in that package
 end
 
 function test_block_dump_ordered()

@@ -152,13 +152,13 @@ end
 
 local function pkg_move(status, plan, early_remove, errors_collected)
 	-- Prepare table of not installed confs for config stealing
-	local not_installed_confs = backend.not_installed_confs(status)
+	local installed_confs = backend.installed_confs(status)
 
 	local all_configs = {}
 	-- Build list of all configs and steal from not-installed
 	for _, op in ipairs(plan) do
 		if op.op == "install" then
-			local steal = backend.steal_configs(status, not_installed_confs, op.configs)
+			local steal = backend.steal_configs(status, installed_confs, op.configs)
 			utils.table_merge(op.old_configs, steal)
 			utils.table_merge(all_configs, op.old_configs)
 		end

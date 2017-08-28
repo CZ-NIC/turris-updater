@@ -59,7 +59,7 @@ local locks = require "locks"
 module "backend"
 
 -- Functions and variables used in other files
--- luacheck: globals pkg_temp_dir repo_parse status_dump pkg_unpack pkg_examine collision_check not_installed_confs steal_configs dir_ensure pkg_merge_files pkg_merge_control pkg_config_info pkg_cleanup_files control_cleanup version_cmp flags_load flags_get script_run flags_get_ro flags_write flags_mark run_state
+-- luacheck: globals pkg_temp_dir repo_parse status_dump pkg_unpack pkg_examine collision_check installed_confs steal_configs dir_ensure pkg_merge_files pkg_merge_control pkg_config_info pkg_cleanup_files control_cleanup version_cmp flags_load flags_get script_run flags_get_ro flags_write flags_mark run_state
 -- Variables that we want to access from outside (ex. for testing purposes)
 -- luacheck: globals status_file info_dir root_dir pkg_temp_dir flags_storage cmd_timeout cmd_kill_timeout stored_flags dir_opkg_collided
 -- Functions that we want to access from outside (ex. for testing purposes)
@@ -706,45 +706,48 @@ end
 
 --[[
 Prepares table which is used for steal_config. Keys are all configuration files
-of all not-installed packages. As values are tables with name of package (key pkg)
-and hash (key hash).
+in system. As values are tables with name of package (key pkg) and hash (key
+hash).
 --]]
-function not_installed_confs(current_status)
-	local not_installed_confs = {}
+function installed_confs(current_status)
+	local dt = {}
 	for pkg, status in pairs(current_status) do
-		if status.Status[3] == "not-installed" then
-			for conf, hash in pairs(status.Conffiles or {}) do
-				not_installed_confs[conf] = { pkg = pkg, hash = hash }
-			end
+		for conf, hash in pairs(status.Conffiles or {}) do
+			dt[conf] = { pkg = pkg, hash = hash }
 		end
 	end
-	return not_installed_confs
+	return dt
 end
 
 --[[
-Checks if configs aren't part of some not installed package. If such configuration
-is located, it is removed from not installed package and if it is last config,
-not-installed package entry is removed.
+Checks if configs aren't part of some other package. If such configuration is
+located, it is removed from original package and package entry is removed if it is
+last config in not-installed package.
 
-The current_status is what is returned from status_parse(). The not_installed_confs
-is what not_installed_confs function returns. The configs is table of new
+Note that if we have come so far we are sure that every configuration file belongs
+to exactly one package as otherwise we would fail with collision. So if there is
+some installed package owning configuration file that should be in other package
+we can freely remove it from that package as it no longer needs it anymore.
+
+The current_status is what is returned from status_parse(). The installed_confs
+is what installed_confs function returns. The configs is table of new
 configuration files.
 
 Returns table where key is configuration file name and value is hash.
 --]]
-function steal_configs(current_status, not_installed_confs, configs)
+function steal_configs(current_status, installed_confs, configs)
 	local steal = {}
-	-- Go trough all configs and check if they are not in not_installed_confs
+	-- Go trough all configs and check if they are not in installed_confs
 	for conf, _ in pairs(configs) do
-		if not_installed_confs[conf] then
-			local pkg = not_installed_confs[conf].pkg
+		if installed_confs[conf] then
+			local pkg = installed_confs[conf].pkg
 			DBG("Stealing \"" .. conf .. "\" from package " .. pkg)
-			steal[conf] = not_installed_confs[conf].hash
-			not_installed_confs[conf] = nil
+			steal[conf] = installed_confs[conf].hash
+			installed_confs[conf] = nil
 			-- Remove config from not-installed package
 			current_status[pkg].Conffiles[conf] = nil
-			-- Remove package if it has no other coffiles.
-			if not next(current_status[pkg].Conffiles) then
+			-- Remove package if it's not installed and has no other coffiles.
+			if current_status[pkg].Status[3] == "not-installed" and not next(current_status[pkg].Conffiles) then
 				DBG("not-installed package " .. pkg .. " has no more conffiles, removing.")
 				current_status[pkg] = nil
 			end
