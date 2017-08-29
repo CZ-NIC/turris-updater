@@ -256,7 +256,8 @@ local modifier_def = {
 	pre_install = {},
 	pre_remove = {},
 	reboot = false,
-	replan = false
+	replan = false,
+	prefer = {}
 }
 
 -- Common tasks used in pkg_merge tests for building data structures
@@ -456,6 +457,77 @@ function test_pkg_merge_virtual_with_candidate()
 	assert_exception(function() postprocess.pkg_aggregate() end, "inconsistent")
 end
 
+function test_pkg_merge_with_prefer()
+	requests.known_repositories_all = {
+		{
+			content = {
+				[""] = {
+					tp = 'pkg-list',
+					list = {
+						pkg1 = {Package = "pkg1", Version = "1", Provides="virt"},
+						pkg2 = {Package = "pkg2", Version = "1", Provides="virt"},
+						pkg3 = {Package = "pkg3", Version = "1", Provides="virt"},
+						pkg4 = {Package = "pkg4", Version = "1", Provides="virt"},
+						pkg5 = {Package = "pkg5", Version = "1", Provides="virt"}
+					}
+				}
+			}
+		}
+	}
+	requests.known_packages = {
+		{
+			tp = 'package',
+			name = 'virt',
+			virtual = true,
+			prefer = {"pkg4", "pkg3"}
+		},
+		{
+			tp = 'package',
+			name = 'virt',
+			prefer = {"pkg2", "pkg5"}
+		}
+	}
+	local exp = {
+		pkg1 = {
+			candidates = {{Package = "pkg1", Version = "1", Provides="virt", repo = requests.known_repositories_all[1]}},
+			modifier = {name = "pkg1"}
+		},
+		pkg2 = {
+			candidates = {{Package = "pkg2", Version = "1", Provides="virt", repo = requests.known_repositories_all[1]}},
+			modifier = {name = "pkg2"}
+		},
+		pkg3 = {
+			candidates = {{Package = "pkg3", Version = "1", Provides="virt", repo = requests.known_repositories_all[1]}},
+			modifier = {name = "pkg3"}
+		},
+		pkg4 = {
+			candidates = {{Package = "pkg4", Version = "1", Provides="virt", repo = requests.known_repositories_all[1]}},
+			modifier = {name = "pkg4"}
+		},
+		pkg5 = {
+			candidates = {{Package = "pkg5", Version = "1", Provides="virt", repo = requests.known_repositories_all[1]}},
+			modifier = {name = "pkg5"}
+		},
+		virt = {
+			candidates = {
+				{Package = "pkg2", Version = "1", Provides="virt", repo = requests.known_repositories_all[1]},
+				{Package = "pkg5", Version = "1", Provides="virt", repo = requests.known_repositories_all[1]},
+				{Package = "pkg4", Version = "1", Provides="virt", repo = requests.known_repositories_all[1]},
+				{Package = "pkg3", Version = "1", Provides="virt", repo = requests.known_repositories_all[1]},
+				{Package = "pkg1", Version = "1", Provides="virt", repo = requests.known_repositories_all[1]}
+			},
+			modifier = {
+				name = "virt",
+				virtual = true,
+				prefer = { pkg2=4, pkg3=1, pkg4=2, pkg5=3 }
+			},
+		}
+	}
+	common_pkg_merge(exp)
+	postprocess.pkg_aggregate()
+	assert_table_equal(exp, postprocess.available_packages)
+end
+
 --[[
 Test we handle when a package has a candidate from a repository and from local content.
 The local one should be preferred.
@@ -504,6 +576,7 @@ function test_local_and_repo()
 				post_remove = {},
 				pre_install = {},
 				pre_remove = {},
+				prefer = {},
 				reboot = false,
 				replan = false,
 				tp = "package"

@@ -436,6 +436,13 @@ The options are:
 virtual::
   If set to any value, the package is virtual. If a real package of
   the same name exists, an error is reported.
+prefer::
+  This have to be and array of packages. If more than one other package provides
+  this package and we have to choose between them, we do it basically randomly.
+  But using option you can specify which package should be preferred.  Order in
+  table specifies preferences. If multiple `Package` commands for single package
+  with this option are specified then new values are prepended to array.  This is
+  very handy with `virtual` option.
 deps::
   Additional dependencies for the package. The dependencies are merged
   together as if all the sources were put into a table (eg. all of

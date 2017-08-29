@@ -390,7 +390,8 @@ function pkg_aggregate()
 			reboot = false,
 			replan = false,
 			abi_change = {},
-			abi_change_deep = {}
+			abi_change_deep = {},
+			prefer = {}
 		}
 		for _, m in pairs(pkg_group.modifiers) do
 			m.final = modifier
@@ -454,10 +455,16 @@ function pkg_aggregate()
 				immediate = 2
 			})
 			if modifier.replan == true then
-				-- true is the same as immediate so replace it
+				-- true is the same as immediate so replace it (this is for backward compatibility)
 				modifier.replan = "immediate"
 			end
 			modifier.virtual = modifier.virtual or m.virtual
+			if m.prefer then
+				-- We save index to value in table and then we prever those with higher index
+				local off = 0
+				for _, _ in pairs(modifier.prefer) do off = off + 1 end -- Just count number of packages already in
+				utils.table_merge(modifier.prefer, utils.map(utils.arr_inv(m.prefer), function(k, v) return v, (k + off) end))
+			end
 		end
 		-- Canonize dependencies
 		modifier.deps = deps_canon(modifier.deps)
@@ -487,6 +494,8 @@ function pkg_aggregate()
 					end
 				elseif (a.Package ~= name and b.Package == name) or (a.Package == name and b.Package ~= name) then -- When only one of packages is provided by some other packages candidate
 					return a.Package == name -- Prioritize candidates of package it self, not provided ones.
+				elseif modifier.prefer[a.Package] or modifier.prefer[b.Package] then -- if both packages are provided by some other packages candidate and we have some preferences for them
+					return (modifier.prefer[a.Package] or 0) > (modifier.prefer[b.Package] or 0)
 				end
 				if a_repo.serial ~= b_repo.serial then -- Check repo order of introduction
 					return a_repo.serial < b_repo.serial

@@ -129,6 +129,7 @@ end
 local allowed_package_extras_hooks = utils.arr2set({"table", "function"})
 local allowed_package_extras = {
 	["virtual"] = utils.arr2set({"boolean"}),
+	["prefer"] = utils.arr2set({"table"}),
 	["deps"] = utils.arr2set({"string", "table"}),
 	["order_after"] = utils.arr2set({"string", "table"}),
 	["order_before"] = utils.arr2set({"string", "table"}),
@@ -207,7 +208,7 @@ function package(result, content, pkg, extra)
 			if not utils.arr2set({"delayed", "finished", "immediate"})[value] then
 				error(utils.exception("bad value", "Invalid value " .. value .. " in extra option " .. name .. " for a package"))
 			end
-		elseif (name == "order_after" or name == "order_before") then
+		elseif (name == "order_after" or name == "order_before" or name == "prefer") then
 			if type(value) == "table" then
 				for _, v in pairs(value) do
 					extra_check_package_type(v, name)
