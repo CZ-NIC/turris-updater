@@ -1,0 +1,3 @@
+Repository("test", "file://%ROOT_DIR%/repo")
+Install("pkg")
+Package("pkg", { prefer = { "pkg2" } })

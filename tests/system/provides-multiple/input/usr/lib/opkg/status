@@ -1,0 +1,13 @@
+Package: pkg
+Version: 1
+Depends: dep
+Status: install user installed
+Architecture: all
+Installed-Time: 0
+
+Package: dep
+Version: 1
+Status: install user installed
+Architecture: all
+Installed-Time: 0
+

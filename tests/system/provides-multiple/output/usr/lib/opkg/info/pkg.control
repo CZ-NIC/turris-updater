@@ -1,0 +1,9 @@
+Package: pkg
+Version: 1
+License: GPL-2.0
+Depends: dep
+Section: none
+Architecture: all
+Installed-Size: 0
+Description:  Example package
+
