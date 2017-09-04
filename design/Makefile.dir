@@ -3,6 +3,7 @@ DESIGN_DOCS := \
 	ideas \
 	opkg \
 	language \
+	entryscript \
 	morpher \
 	internals \
 	testing \
