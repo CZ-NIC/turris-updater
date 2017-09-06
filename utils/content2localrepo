@@ -1,0 +1,19 @@
+#!/bin/sh
+# Simple script for migration from Content to localrepo
+set -ex
+
+UPDATER_CONFIG="/etc/updater/auto.lua"
+
+# Add all content packages to localrepo
+sed -n 's/^Package.*content *= *"file:\/\/\([^"]*\)".*/\1/p' "$UPDATER_CONFIG" | \
+	while read PKG; do
+		localrepo add --repo auto "$PKG"
+	done
+# Clean localrepo from unused packages
+localrepo clean --repo auto
+
+# Drop all lines added because of package content
+sed -i '/^Package.*content/d' "$UPDATER_CONFIG"
+
+# And remove local store
+rm -rf /usr/share/updater/local-pkgs
