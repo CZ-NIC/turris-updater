@@ -81,6 +81,8 @@ end
 Script("auto-src", "file:///etc/updater/auto.lua", { security = "Local" })
 -- Some provided by the user
 Script("user-src", "file:///etc/updater/user.lua", { security = "Local" })
+-- Add local repositories (might be missing if not installed or used)
+Script("localrepo", "file:///usr/share/updater/localrepo/localrepo.lua", { ignore = { "missing" } })
 
 -- Repositories configured in opkg configuration.
 -- We read only customfeeds.conf as that should be only file where user should add additional repositories
