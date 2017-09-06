@@ -27,7 +27,6 @@
 
 UPDATER_CONFIG=/etc/updater/auto.lua # Automatic updater configuration file
 OPKG=/bin/opkg-cl # Path to opkg
-LOCAL_STORE=/usr/share/updater/local-pkgs
 
 ARGS=""
 EXC=0
@@ -75,28 +74,9 @@ config_add_pkg() {
 	echo "Install(\"$1\")" >>"$UPDATER_CONFIG"
 }
 
-# As first argument takes name of package. As second argument it takes path to
-# package content.
-config_add_pkg_content() {
-	mkdir -p "$LOCAL_STORE"
-	cp "$2" "$LOCAL_STORE" # Move content to local store
-	CONT=$LOCAL_STORE/$(basename "$2")
-	echo "Package(\"$1\", { content = \"file://$CONT\" })" >>"$UPDATER_CONFIG"
-}
-
 # Takes single argument, name of package to be removed from config.
 config_clean_pkg() {
 	sed -e "/^Install\((\| \)\"$1\"/d" -i "$UPDATER_CONFIG"
-}
-
-# Also takes single argument, name of package of content to be removed from
-# config.
-config_clean_pkg_content() {
-	CONT=`grep -e "^Package\((\| \)\"$1\"" "$UPDATER_CONFIG" | sed -n 's/content="file:\/\/\([^"]*\)"/\1/p'`
-	if [ -n "$CONT" ] && [ -f "$CONT" ]; then
-		rm -f "$CONT" # Remove package content from local store
-	fi
-	sed -e "/^Package\((\| \)\"$1\"/d" -i "$UPDATER_CONFIG"
 }
 
 # Checks if package is specified in auto.lua config
@@ -130,9 +110,8 @@ install() {
 		return
 	fi
 	if [ -n "$PKGCONTENT" ]; then # We have local file (*.ipk or *.deb)
-		# Add package content to config file
-		config_clean_pkg_content "$PKG"
-		config_add_pkg_content "$PKG" "$PKGCONTENT"
+		# Add package file to local repository
+		localrepo add --repo auto "$PKGCONTENT"
 	fi
 	# Add package to config file but only if we really installed it
 	if pkg_installed "$PKG" && [ $WASINSTALLED -ne 0 ]; then
@@ -154,7 +133,7 @@ remove() {
 			echo "WARNING: You probably just removed a package that was installed as part of a user list or the basic system. This package will return durring the next updater run. We suggest you disable the user list instead." >&2
 		fi
 		config_clean_pkg "$1"
-		config_clean_pkg_content "$1"
+		localrepo clean --repo auto
 	fi
 }
 
