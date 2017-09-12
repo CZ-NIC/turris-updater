@@ -55,7 +55,7 @@ static const char *opt_help[COT_LAST] = {
 		"--remove, -r <package>		Remove package. Additional argument is expected to\n"
 		"				be name of the package.\n",
 	[COT_ROOT_DIR] =
-		"-R <path>			Use given path as a root directory.\n",
+		"-R <path>			Use given path as a root directory. Consider also using --out-of-root option.\n",
 	[COT_BATCH] =
 		"--batch				Run without user confirmation.\n",
 	[COT_STATE_LOG] =
@@ -78,6 +78,10 @@ static const char *opt_help[COT_LAST] = {
 		"--usign=<path>			Path to usign tool used to verify packages signature. In default /usr/bin/usign.\n",
 	[COT_NO_REPLAN] =
 		"--no-replan			Don't replan. Install everyting at once. Use this if updater you are running isn't from packages it installs.\n",
+	[COT_NO_IMMEDIATE_REBOOT] =
+		"--no-immediate-reboot		Don't reboot immediatelly. Just ignore immediate reboots. This is usable if you are not running on target machine.\n",
+	[COT_OUT_OF_ROOT] =
+		"--out-or-root			We are running updater out of root filesystem. This implies --no-replan and --no-immediate-reboot and is suggested to be used with -R option.\n",
 	[COT_TASK_LOG] =
 		"--task-log=<file>		Append list of executed tasks into a log file.\n"
 };
@@ -94,6 +98,8 @@ enum option_val {
 	OPT_EXCLUDE,
 	OPT_USIGN,
 	OPT_NO_REPLAN,
+	OPT_NO_IMMEDIATE_REBOOT,
+	OPT_OUT_OF_ROOT,
 	OPT_LAST
 };
 
@@ -115,6 +121,8 @@ static const struct option opt_long[] = {
 	{ .name = "exclude", .has_arg = required_argument, .val = OPT_EXCLUDE },
 	{ .name = "usign", .has_arg = required_argument, .val = OPT_USIGN },
 	{ .name = "no-replan", .has_arg = no_argument, .val = OPT_NO_REPLAN },
+	{ .name = "no-immediate-reboot", .has_arg = no_argument, .val = OPT_NO_IMMEDIATE_REBOOT },
+	{ .name = "out-of-root", .has_arg = no_argument, .val = OPT_OUT_OF_ROOT },
 	{ .name = NULL }
 };
 
@@ -137,7 +145,9 @@ static const struct simple_opt {
 	[OPT_TASK_LOG_VAL] = { COT_TASK_LOG, true, true },
 	[OPT_EXCLUDE] = { COT_EXCLUDE, true, true },
 	[OPT_USIGN] = { COT_USIGN, true, true },
-	[OPT_NO_REPLAN] = { COT_NO_REPLAN, false, true }
+	[OPT_NO_REPLAN] = { COT_NO_REPLAN, false, true },
+	[OPT_NO_IMMEDIATE_REBOOT] = { COT_NO_IMMEDIATE_REBOOT, false, true },
+	[OPT_OUT_OF_ROOT] = { COT_OUT_OF_ROOT, false, false },
 };
 
 // Builds new result with any number of error messages. But specify their count as
@@ -168,6 +178,9 @@ static void cmd_op_accepts_map(bool *map, const enum cmd_op_type accepts[]) {
 	}
 	// Always allow exits, help and version
 	map[COT_EXIT] = map[COT_CRASH] = map[COT_HELP] = map[COT_VERSION] = true;
+	// Check if we have enabled COT_NO_REPLAN and COT_NO_IMMEDIATE_REBOOT and enable COT_OUT_OF_ROOT
+	if (map[COT_NO_REPLAN] && map[COT_NO_IMMEDIATE_REBOOT])
+		map[COT_OUT_OF_ROOT] = true;
 }
 
 struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type accepts[]) {
@@ -216,6 +229,10 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 				ASSERT(optarg);
 				install_remove = true;
 				result_extend(&res_count, &result, COT_REMOVE, optarg);
+				break;
+			case OPT_OUT_OF_ROOT:
+				result_extend(&res_count, &result, COT_NO_REPLAN, NULL);
+				result_extend(&res_count, &result, COT_NO_IMMEDIATE_REBOOT, NULL);
 				break;
 			default:
 				assert(0);
