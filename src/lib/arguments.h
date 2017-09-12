@@ -70,6 +70,11 @@ enum cmd_op_type {
 	COT_USIGN,
 	// Don't replan (do whole install at once)
 	COT_NO_REPLAN,
+	// Don't immediatelly reboot system
+	COT_NO_IMMEDIATE_REBOOT,
+	// Run out of root (implies COT_NO_REPLAN and COT_NO_IMMEDIATE_REBOOT)
+	// This one is enabled automatically if NO_REPLAN and NO_IMMEDIATE_REBOOT is enabled
+	COT_OUT_OF_ROOT,
 	// Argument isn't option.
 	COT_NO_OP,
 	// Automatic last dummy value to know size of enum

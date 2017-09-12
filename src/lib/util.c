@@ -194,7 +194,17 @@ void exec_dir(struct events *events, const char *dir) {
 	free(namelist);
 }
 
+static bool system_reboot_disabled = false;
+
+void system_reboot_disable() {
+	system_reboot_disabled = true;
+}
+
 void system_reboot(bool stick) {
+	if (system_reboot_disabled) {
+		WARN("System reboot skipped as requested.");
+		return;
+	}
 	WARN("Performing system reboot.");
 	if (!fork()) {
 		ASSERT_MSG(execvp("reboot",(char*[]){NULL}), "Execution of reboot command failed");

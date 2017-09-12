@@ -46,7 +46,7 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 }
 
 static const enum cmd_op_type cmd_op_allows[] = {
-	COT_BATCH, COT_NO_OP, COT_REEXEC, COT_REBOOT, COT_STATE_LOG, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_TASK_LOG, COT_USIGN, COT_NO_REPLAN, COT_LAST
+	COT_BATCH, COT_NO_OP, COT_REEXEC, COT_REBOOT, COT_STATE_LOG, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_TASK_LOG, COT_USIGN, COT_NO_REPLAN, COT_NO_IMMEDIATE_REBOOT, COT_LAST
 };
 
 static void print_help() {
@@ -187,6 +187,9 @@ int main(int argc, char *argv[]) {
 				break;
 			case COT_NO_REPLAN:
 				no_replan = true;
+				break;
+			case COT_NO_IMMEDIATE_REBOOT:
+				system_reboot_disable();
 				break;
 			default:
 				DIE("Unknown COT");
