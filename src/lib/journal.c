@@ -21,6 +21,7 @@
 #include "util.h"
 #include "inject.h"
 
+#include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
 #include <sys/types.h>
@@ -123,11 +124,17 @@ static bool journal_open(lua_State *L, int flags) {
 	DBG("Opening journal");
 	if (fd != -1)
 		luaL_error(L, "Journal already open");
-	lua_getglobal(L, "journal");
-	lua_getfield(L, -1, "path");
-	const char *path = lua_tostring(L, -1);
-	fd = open(path, O_RDWR | O_DSYNC | O_APPEND | flags, S_IRUSR | S_IWUSR);
+	// Get current root directory
+	// TODO this should probably be argument instead
+	lua_getglobal(L, "backend");
+	lua_getfield(L, -1, "root_dir");
+	const char *root_dir = lua_tostring(L, -1);
+	journal_path = malloc(strlen(root_dir) + strlen(DEFAULT_JOURNAL_PATH) + 1);
+	strcpy(journal_path, root_dir);
+	strcat(journal_path, DEFAULT_JOURNAL_PATH);
+	fd = open(journal_path, O_RDWR | O_DSYNC | O_APPEND | flags, S_IRUSR | S_IWUSR);
 	if (fd == -1) {
+		free(journal_path);
 		switch (errno) {
 			case EEXIST:
 				luaL_error(L, "Unfinished journal exists");
@@ -140,8 +147,6 @@ static bool journal_open(lua_State *L, int flags) {
 		}
 	}
 	ASSERT_MSG(fcntl(fd, F_SETFD, (long)FD_CLOEXEC) != -1, "Failed to set close on exec on journal FD: %s", strerror(errno));
-	// Keep a copy of the journal path, someone might change it and we want to remove the correct journal on finish
-	journal_path = strdup(path);
 	return true;
 }
 
@@ -329,12 +334,19 @@ void journal_mod_init(lua_State *L) {
 	TRACE("Journal module init");
 	// Create _M
 	lua_newtable(L);
-	// Some variables
-	inject_str_const(L, "journal", "path", DEFAULT_JOURNAL_PATH);
 	// journal.XXX = int(XXX) - init the constants
 #define X(VAL) TRACE("Injecting constant journal." #VAL); lua_pushinteger(L, RT_##VAL); lua_setfield(L, -2, #VAL);
 	RECORD_TYPES
 #undef X
 	inject_func_n(L, "journal", inject, sizeof inject / sizeof *inject);
 	inject_module(L, "journal");
+}
+
+bool journal_exists(const char *root_dir) {
+	if (fd != -1)
+		return true; // journal already open so it exists
+	char *path = alloca(strlen(root_dir) + strlen(DEFAULT_JOURNAL_PATH) + 1);
+	strcpy(path, root_dir);
+	strcat(path, DEFAULT_JOURNAL_PATH);
+	return access(path, F_OK) == 0;
 }

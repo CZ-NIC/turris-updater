@@ -893,7 +893,6 @@ function test_root_dir_set()
 	assert_equal("/dir/usr/lib/opkg/status", B.status_file)
 	assert_equal("/dir/usr/lib/opkg/info/", B.info_dir)
 	assert_equal("/dir/usr/share/updater/unpacked", B.pkg_temp_dir)
-	assert_equal("/dir/usr/share/updater/journal", journal.path)
 end
 
 function test_config_modified()

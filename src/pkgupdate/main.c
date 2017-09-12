@@ -21,6 +21,7 @@
 #include "../lib/interpreter.h"
 #include "../lib/util.h"
 #include "../lib/arguments.h"
+#include "../lib/journal.h"
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -222,10 +223,18 @@ int main(int argc, char *argv[]) {
 		goto CLEANUP;
 	if (early_exit)
 		goto CLEANUP;
+	size_t result_count;
+	// Check if we should recover previous execution first if so do
+	if (journal_exists(root_dir)) {
+		INFO("Detected existing journal. Trying to recover it.");
+		const char *err = interpreter_call(interpreter, "transaction.recover_pretty", &result_count, "");
+		ASSERT_MSG(!err, "%s", err);
+		if (!results_interpret(interpreter, result_count))
+			goto CLEANUP;
+	}
 	// Decide what packages need to be downloaded and handled
 	const char *err = interpreter_call(interpreter, "updater.prepare", NULL, "s", top_level_config);
 	ASSERT_MSG(!err, "%s", err);
-	size_t result_count;
 	err = interpreter_call(interpreter, "transaction.empty", &result_count, "");
 	ASSERT_MSG(!err, "%s", err);
 	ASSERT_MSG(result_count == 1, "Wrong number of results of transaction.empty");

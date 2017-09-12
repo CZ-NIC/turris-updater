@@ -7,5 +7,6 @@ pkgupdate_MODULES := \
 	uriinternal.embed
 
 pkgupdate_LOCAL_LIBS := updater
+pkgupdate_PKG_CONFIGS := $(LUA_NAME)
 
 DOCS += src/pkgupdate/interaction

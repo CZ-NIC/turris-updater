@@ -21,8 +21,12 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 require 'lunit'
 require 'utils'
 local J = require 'journal'
+local backend = require 'backend'
 
 module("journal-tests", package.seeall, lunit.testcase)
+
+-- This is directory where journal directory should be created
+journal_path =  "/usr/share/updater"
 
 local tmp_dirs = {}
 
@@ -33,7 +37,6 @@ end
 
 -- Test values of some variables and "constants" ‒ make sure they are there
 function test_values()
-	assert_string(J.path)
 	local types = {"START", "FINISH", "UNPACKED", "CHECKED", "MOVED", "SCRIPTS", "CLEANED"}
 	for i, t in ipairs(types) do
 		assert_number(J[t])
@@ -49,8 +52,13 @@ end
 function dir_init()
 	local dir = mkdtemp()
 	table.insert(tmp_dirs, dir)
-	J.path = dir .. "/journal"
-	return dir
+	backend.root_dir = dir
+	mkpath = dir
+	for dr in journal_path:gmatch('[^/]+') do
+		mkpath = mkpath .. '/' .. dr
+		mkdir(mkpath)
+	end
+	return dir .. journal_path
 end
 
 -- Check creating a fresh journal
@@ -67,7 +75,7 @@ function test_fresh()
 	assert_false(J.opened())
 	assert_table_equal({}, ls(dir))
 	-- Create a fake journal file
-	io.open(J.path, "w"):close()
+	io.open(dir .. '/journal', "w"):close()
 	assert_table_equal({journal = "r"}, ls(dir));
 	-- Can't open fresh journal, if there's one already
 	assert_error(function () J.fresh() end)
@@ -112,13 +120,13 @@ end
 
 -- The journal is incomplete, test it can read the complete part
 function test_recover_broken()
-	dir_init()
+	dir = dir_init()
 	J.fresh()
 	J.write(J.UNPACKED, { data = "xyz" }, { "x", "y", "z" })
 	J.finish(true)
 	-- Now damage the file a little bit
-	local content = utils.slurp(J.path)
-	local f, err = io.open(J.path, "w")
+	local content = utils.slurp(dir .. '/journal')
+	local f, err = io.open(dir .. '/journal', "w")
 	assert(f, err)
 	-- Store everything except for the last 3 bytes. That should kill the last FINISH record
 	f:write(content:sub(1, -3))

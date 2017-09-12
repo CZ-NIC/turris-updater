@@ -21,8 +21,12 @@
 #define UPDATER_JOURNAL_H
 
 #include <lua.h>
+#include <stdbool.h>
 
 // Create the journal module and inject it into the lua state
 void journal_mod_init(lua_State *lua) __attribute__((nonnull));
+
+// Check if there is some journal (this function won't open it)
+bool journal_exists(const char *root_dir);
 
 #endif

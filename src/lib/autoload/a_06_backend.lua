@@ -54,7 +54,6 @@ local DBG = DBG
 local WARN = WARN
 local DataDumper = DataDumper
 local utils = require "utils"
-local journal = require "journal"
 local locks = require "locks"
 
 module "backend"
@@ -104,7 +103,6 @@ function root_dir_set(dir)
 	pkg_temp_dir = dir .. pkg_temp_dir_suffix
 	flags_storage = dir .. flags_storage_suffix
 	dir_opkg_collided = dir .. dir_opkg_collided_suffix
-	journal.path = dir .. "/usr/share/updater/journal"
 end
 
 --[[
