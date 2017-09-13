@@ -3,6 +3,7 @@ import os
 from copy import copy
 import glob
 import argparse
+import gzip
 import tarfile
 import hashlib
 import shutil
@@ -24,7 +25,7 @@ def gen_updater_config():
         file.write("-- Auto-generated updater-ng configuration\n")
         for repo in repo_list():
             file.write("Repository('localrepo-" + repo + "', 'file://" +
-                       REPO_PATH + "/" + repo + "/Packages')")
+                       REPO_PATH + "/" + repo + "')")
 
 
 def parse_control(block):
@@ -81,7 +82,7 @@ def repo_list():
     "Return list of repositories"
     repos = []
     for root, _, files in os.walk(REPO_PATH):
-        if 'Packages' in files:
+        if 'Packages.gz' in files:
             repos.append(root[len(REPO_PATH)+1:])
     return repos
 
@@ -97,10 +98,10 @@ def repo_index_parse(repo):
     that dictionary is another dictionary with all fields from control header
     in index.
     """
-    packages = os.path.join(REPO_PATH, repo, 'Packages')
+    packages = os.path.join(REPO_PATH, repo, 'Packages.gz')
     if not os.path.isfile(packages):
         return dict()  # Just a template for new repository
-    with open(packages) as file:
+    with gzip.open(packages) as file:
         content = file.readlines()
     blocks = split_index(content)
     pkgs = dict()
@@ -124,7 +125,7 @@ def repo_index_write(repo, index):
     You can also create new index just by passing empty dictionary to pkg_add
     function.
     """
-    packages = os.path.join(REPO_PATH, repo, 'Packages')
+    packages = os.path.join(REPO_PATH, repo, 'Packages.gz')
     if not os.path.isfile(packages):
         if len(index) > 0:
             repo_init(repo)
@@ -132,7 +133,7 @@ def repo_index_write(repo, index):
         repo_rm(repo)
         return
     ordered = ("Package", "Version", "MD5Sum", "SHA256sum", "Filename")
-    with open(packages, 'w') as file:
+    with gzip.open(packages, 'wb') as file:
         for _, versions in index.iteritems():
             for version in versions:
                 ctl = versions[version]
@@ -153,13 +154,11 @@ def repo_init(repo):
     files directly.
     """
     repo_path = os.path.join(REPO_PATH, repo)
-    repo_pkgs = os.path.join(repo_path, 'Packages')
+    repo_pkgs = os.path.join(repo_path, 'Packages.gz')
     if os.path.isfile(repo_pkgs):
         return  # Repository seems to be already there
     if not os.path.isdir(repo_path):
         os.makedirs(repo_path)
-    with open(repo_pkgs, 'a'):
-        pass  # Just create it
     gen_updater_config()
 
 
