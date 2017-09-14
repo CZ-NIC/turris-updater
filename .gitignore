@@ -22,8 +22,8 @@ vgcore.*
 # Development
 tags
 .tags
-.ycm_extra_conf.py
-.ycm_extra_conf.pyc
+.ycm_*.py
+.ycm_*.pyc
 # Test stuff
 tests/check-compiled
 tests/luacheck-compiled
