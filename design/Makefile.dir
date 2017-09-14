@@ -1,14 +1,10 @@
 DESIGN_DOCS := \
 	requirements \
-	ideas \
 	opkg \
 	language \
 	entryscript \
-	morpher \
 	internals \
 	testing \
-	battleplan \
-	deps \
-	migration
+	deps
 
 DOCS += $(addprefix design/,$(DESIGN_DOCS))
