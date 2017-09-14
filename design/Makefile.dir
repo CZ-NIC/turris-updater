@@ -5,6 +5,7 @@ DESIGN_DOCS := \
 	entryscript \
 	internals \
 	testing \
+	test_coverage \
 	deps
 
 DOCS += $(addprefix design/,$(DESIGN_DOCS))
