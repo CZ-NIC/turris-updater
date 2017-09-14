@@ -16,7 +16,7 @@ to be installed.
 
 We provide several kinds of variables:
 
-* A variable for each package name that exists. Also, there include
+* A variable for each package name that exists. Also this includes
   virtual packages and „provided“ packages (eg. if a package has a
   „Provides“ header).
 * A variable for each package candidate that can be installed. These
@@ -63,6 +63,10 @@ request variable.
 The complex dependencies are handled by adding the corresponding
 variables. The values are forced to correspond to the values of
 subexpressions.
+
+Every formula in dependency is only active when candidate it self is
+selected. This way those formulas are not affecting computation process
+unless the corresponding candidate is selected.
 
 We add a penalty variable to each `Or` that is forced to false if
 another but first option is selected (this is different than not
