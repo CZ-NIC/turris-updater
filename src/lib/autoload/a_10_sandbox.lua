@@ -42,6 +42,7 @@ local get_updater_version = get_updater_version
 local utils = require "utils"
 local backend = require "backend"
 local requests = require "requests"
+local uri = require "uri"
 local uci_ok, uci = pcall(require, "uci")
 if not uci_ok then
 	ERROR("The uci library is not available. Continuing without it and expecting this is a test run on development PC.")
@@ -198,11 +199,14 @@ local rest_available_funcs = {
 	"WARN",
 	"INFO",
 	"DBG",
-	"TRACE",
-	"version_match",
-	"version_cmp",
-	"system_cas",
-	"no_crl"
+	"TRACE"
+}
+-- Additional available functions and "constants" not from global also available in restricted level
+local rest_additional_funcs = {
+	{"version_match", backend.version_match},
+	{"version_cmp", backend.version_cmp},
+	{"system_cas", uri.system_cas},
+	{"no_crl", uri.no_crl}
 }
 
 state_vars = nil
@@ -347,6 +351,13 @@ if uci then
 	funcs.Local.uci = {
 		mode = "inject",
 		value = uci
+	}
+end
+-- Some additional our functions and "constants"
+for _, addit in pairs(rest_additional_funcs) do
+	funcs.Restricted[addit[1]] = {
+		mode = "inject",
+		value = addit[2]
 	}
 end
 --[[
