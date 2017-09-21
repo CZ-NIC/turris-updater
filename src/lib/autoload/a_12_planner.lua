@@ -332,7 +332,10 @@ local function build_plan(pkgs, requests, sat, satmap)
 	--]]
 	local function pkg_plan(plan_pkg, ignore_missing, ignore_missing_pkg, parent_str)
 		local name = plan_pkg.name or plan_pkg -- it can be object of type "package" or "dep-package" or string containing name of package group
-		if not sat[satmap.pkg2sat[name]] then return end -- This package group is not selected, so we ignore it.
+		if not sat[satmap.pkg2sat[name]] then -- This package group is not selected, so we ignore it.
+			-- Note: In special case when package provides its own dependency package group might not be selected and so we should at least return enpty table
+			return {}
+		end
 		local missing_pkg = satmap.missing[plan_pkg] or satmap.missing[name]
 		if missing_pkg and sat[missing_pkg] then -- If missing package (name) or package dependency (plan_pkg) is selected
 			if ignore_missing or ignore_missing_pkg then
