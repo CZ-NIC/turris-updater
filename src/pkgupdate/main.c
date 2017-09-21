@@ -98,6 +98,12 @@ static bool approved(struct interpreter *interpreter, const char *approval_file,
 	return false;
 }
 
+static void approval_clean(const char *approval_file) {
+	if (approval_file)
+		unlink(approval_file);
+		// Ignore errors as there might be no file which is valid
+}
+
 static const char *time_load(void) {
 	static char timebuf[18]; // "YYYY-MM-DD HH:mm\t\0"
 	time_t tm = time(NULL);
@@ -228,16 +234,15 @@ int main(int argc, char *argv[]) {
 	ASSERT_MSG(result_count == 1, "Wrong number of results of transaction.empty");
 	bool trans_empty;
 	ASSERT_MSG(interpreter_collect_results(interpreter, "b", &trans_empty) == -1, "The result of transaction.empty is not bool");
-	if (trans_empty)
+	if (trans_empty) {
+		approval_clean(approval_file); // There is nothing to do and if we have approvals enabled we should drop approval file
 		goto CLEANUP;
+	}
 	if (!batch) {
 		// For now we want to confirm by the user.
 		fprintf(stderr, "Press return to continue, CTRL+C to abort\n");
 		getchar();
-		if (approval_file)
-			// If there is any approval_file we just approved it so remove any
-			// file. Also ignore errors as there might be none.
-			unlink(approval_file);
+		approval_clean(approval_file); // If there is any approval_file we just approved it so remove it.
 	} else if (!approved(interpreter, approval_file, approvals, approval_count))
 		// Approvals are only for non-interactive mode (implied by batch mode).
 		// Otherwise user approves on terminal in previous code block.
