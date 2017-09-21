@@ -169,13 +169,15 @@ APPROVALS=
 config_get_bool NEED_APPROVAL approvals need 0
 if [ "$NEED_APPROVAL" = "1" ] ; then
 	APPROVALS="--ask-approval=$APPROVAL_ASK_FILE"
-	# Get a treshold time when we grant approval automatically. In case we don't, we set the time to
-	# 1, which is long long time ago in the glorious times when automatic updaters were not
-	# needed.
-	config_get AUTO_GRANT_TIME approvals auto_grant_seconds
-	AUTO_GRANT_TRESHOLD=$(expr $(date -u +%s) - $AUTO_GRANT_TIME 2>/dev/null || echo 1)
-	APPROVED_HASH="$(tail -1 "$APPROVAL_GRANTED_FILE" | awk '$2 == "granted" || ( $2 == "asked" && $3 <= "'"$AUTO_GRANT_TRESHOLD"'" ) {print $1}')"
-	[ -n "$APPROVED_HASH" ] && APPROVALS="$APPROVALS --approve=$APPROVED_HASH"
+	if [ -f "$APPROVAL_GRANTED_FILE" ]; then
+		# Get a treshold time when we grant approval automatically. In case we don't, we set the time to
+		# 1, which is long long time ago in the glorious times when automatic updaters were not
+		# needed.
+		config_get AUTO_GRANT_TIME approvals auto_grant_seconds
+		AUTO_GRANT_TRESHOLD=$(expr $(date -u +%s) - $AUTO_GRANT_TIME 2>/dev/null || echo 1)
+		APPROVED_HASH="$(tail -1 "$APPROVAL_GRANTED_FILE" | awk '$2 == "granted" || ( $2 == "asked" && $3 <= "'"$AUTO_GRANT_TRESHOLD"'" ) {print $1}')"
+		[ -n "$APPROVED_HASH" ] && APPROVALS="$APPROVALS --approve=$APPROVED_HASH"
+	fi
 else
 	# If approvals aren't enabled then run always in batch mode (don't ask user)
 	PKGUPDATE_ARGS="$PKGUPDATE_ARGS --batch"
