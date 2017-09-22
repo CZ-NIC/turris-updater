@@ -65,6 +65,7 @@ end
 
 -- Stages of the transaction. Each one is written into the journal, with its results.
 local function pkg_unpack(operations, status)
+	INFO("Unpacking download packages")
 	local dir_cleanups = {}
 	--[[
 	Set of packages from the current system we want to remove.
@@ -134,6 +135,7 @@ local function pkg_unpack(operations, status)
 end
 
 local function pkg_collision_check(status, to_remove, to_install)
+	INFO("Checking for file collisions between packages")
 	local collisions, early_remove, removes = backend.collision_check(status, to_remove, to_install)
 	if next(collisions) then
 		--[[
@@ -151,6 +153,7 @@ local function pkg_collision_check(status, to_remove, to_install)
 end
 
 local function pkg_move(status, plan, early_remove, errors_collected)
+	INFO("Running pre-install scripts and merging packages to root file system")
 	-- Prepare table of not installed confs for config stealing
 	local installed_confs = backend.installed_confs(status)
 
@@ -193,6 +196,7 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 end
 
 local function pkg_scripts(status, plan, removes, to_install, errors_collected, all_configs)
+	INFO("Running post-install and post-rm scripts")
 	for _, op in ipairs(plan) do
 		if op.op == "install" then
 			script(errors_collected, op.control.Package, "postinst", "configure")
@@ -216,6 +220,7 @@ local function pkg_scripts(status, plan, removes, to_install, errors_collected, 
 		end
 	end
 	-- Clean up the files from removed or upgraded packages
+	INFO("Removing packages and leftover files")
 	state_dump("remove")
 	backend.pkg_cleanup_files(removes, all_configs)
 	for _, op in ipairs(plan) do
@@ -227,6 +232,7 @@ local function pkg_scripts(status, plan, removes, to_install, errors_collected, 
 end
 
 local function pkg_cleanup(status)
+	INFO("Cleaning up control files")
 	backend.control_cleanup(status)
 	backend.status_dump(status)
 end
