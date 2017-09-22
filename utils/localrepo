@@ -375,7 +375,7 @@ def cmd_clean(args):
             if ctl['Version'] in versions:
                 del versions[ctl['Version']]
         # Now remove any other version
-        for version in versions:
+        for version in copy(versions):
             print("Removing package " + pkg_name + '_' + version)
             rm_pkg(args.repo, index, versions[version])
     repo_index_write(args.repo, index)
