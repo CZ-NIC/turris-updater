@@ -29,6 +29,11 @@ auto-src::
 user-src::
   This is script on router in path `/etc/updater/user.lua`. It's intended for
   user's configuration. This script is executed with local security level.
+conf.d-*::
+  These are all lua scripts from `/etc/updater/conf.d`. Name of those files have
+  to have `.lua` suffix. This is handy directory where you can place script
+  distributed on router in packages. Example of this can be additional repository.
+  This script is executed with local security level.
 
 Exported variables
 ------------------

@@ -83,6 +83,15 @@ Script("auto-src", "file:///etc/updater/auto.lua", { security = "Local" })
 Script("user-src", "file:///etc/updater/user.lua", { security = "Local" })
 -- Add local repositories (might be missing if not installed or used)
 Script("localrepo", "file:///usr/share/updater/localrepo/localrepo.lua", { ignore = { "missing" } })
+-- Load all lua scripts from /etc/updater/conf.d
+local confd_type, _ = stat('/etc/updater/conf.d')
+if confd_type == 'd' then
+	for name, tp in pairs(ls('/etc/updater/conf.d')) do
+		if tp == 'r' and name:match('.*.lua') then
+			Script("conf.d-" .. name:sub(1, name:find('.lua$') - 1), "file:///etc/updater/conf.d/" .. name, { security = "Local" })
+		end
+	end
+end
 
 -- Repositories configured in opkg configuration.
 -- We read only customfeeds.conf as that should be only file where user should add additional repositories
