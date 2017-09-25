@@ -207,7 +207,7 @@ void system_reboot(bool stick) {
 	}
 	WARN("Performing system reboot.");
 	if (!fork()) {
-		ASSERT_MSG(execvp("reboot",(char*[]){NULL}), "Execution of reboot command failed");
+		ASSERT_MSG(execlp("reboot", "reboot", NULL), "Execution of reboot command failed");
 	}
 	if (stick) {
 		sigset_t sigmask;
