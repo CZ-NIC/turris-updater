@@ -81,7 +81,7 @@ static const char *opt_help[COT_LAST] = {
 	[COT_NO_IMMEDIATE_REBOOT] =
 		"--no-immediate-reboot		Don't reboot immediatelly. Just ignore immediate reboots. This is usable if you are not running on target machine.\n",
 	[COT_OUT_OF_ROOT] =
-		"--out-or-root			We are running updater out of root filesystem. This implies --no-replan and --no-immediate-reboot and is suggested to be used with -R option.\n",
+		"--out-of-root			We are running updater out of root filesystem. This implies --no-replan and --no-immediate-reboot and is suggested to be used with -R option.\n",
 	[COT_TASK_LOG] =
 		"--task-log=<file>		Append list of executed tasks into a log file.\n"
 };
