@@ -28,6 +28,7 @@
 #include "syscnf.h"
 #include "uri_lua.h"
 #include "picosat.h"
+#include "pkgsorter.h"
 
 #include <lua.h>
 #include <lualib.h>
@@ -1026,6 +1027,7 @@ struct interpreter *interpreter_create(struct events *events) {
 	syscnf_mod_init(L);
 	uri_mod_init(L);
 	picosat_mod_init(L);
+	pkgsorter_mod_init(L);
 #ifdef COVERAGE
 	interpreter_load_coverage(result);
 #endif

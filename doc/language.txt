@@ -342,7 +342,8 @@ critical::
   consistent state or be able to at least fix it without access to
   network. Other packages may stop working if the update is
   interrupted at the wrong time (for example by a power outage), but
-  would be fixed by another finished updater run.
+  would be fixed by another finished updater run. For critical packages
+  `priority` field is ignored.
 optional::
   Set this to `true` to not fail if packages is not available from any configured
   repository. Be aware that this has implications if form of possible removed
