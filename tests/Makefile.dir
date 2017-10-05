@@ -32,7 +32,8 @@ LUA_TESTS := \
 	cleanup \
 	uri \
 	picosat \
-	updater
+	pkgsorter \
+	updater 
 
 ifdef COV
 LUA_TESTS += coverage
