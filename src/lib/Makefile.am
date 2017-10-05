@@ -15,6 +15,7 @@ libupdater_la_SOURCES = \
 	%reldir%/opmode.c \
 	%reldir%/path_utils.c \
 	%reldir%/picosat.c \
+	%reldir%/pkgsorter.c \
 	%reldir%/signature.c \
 	%reldir%/subprocess.c \
 	%reldir%/syscnf.c \

@@ -23,8 +23,8 @@
 #include "events.h"
 
 #include <stdlib.h>
-#include <stdio.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <alloca.h>
 #include <unistd.h>
 

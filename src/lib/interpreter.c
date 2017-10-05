@@ -31,6 +31,7 @@
 #include "archive.h"
 #include "path_utils.h"
 #include "picosat.h"
+#include "pkgsorter.h"
 
 #include "lua/backend.lua.h"
 #include "lua/cleanup.lua.h"
@@ -997,6 +998,7 @@ struct interpreter *interpreter_create(struct events *events) {
 	archive_mod_init(L);
 	path_utils_mod_init(L);
 	picosat_mod_init(L);
+	pkgsorter_mod_init(L);
 #ifdef COVERAGE
 	interpreter_load_coverage(result);
 #endif

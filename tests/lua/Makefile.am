@@ -4,6 +4,7 @@ TESTS += \
 	%reldir%/subprocess.lua \
 	%reldir%/interpreter.lua \
 	%reldir%/journal.lua \
+	%reldir%/pkgsorter.lua \
 	%reldir%/planner.lua \
 	%reldir%/postprocess.lua \
 	%reldir%/requests.lua \
