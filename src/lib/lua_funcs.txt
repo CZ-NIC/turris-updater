@@ -208,7 +208,7 @@ The format of journal returned by recover is a table with records.
 Each record contains `type` ‒ one of the types above, and `params` ‒
 table with all the parameters stored with the record.
 
-Pisocat
+Picosat
 -------
 
 Picosat can be used trough module `picosat`. Here is briefly described
@@ -237,6 +237,28 @@ After calling `satisfiable` you can access assigned values by indexing
 object with variable you are interested in. It returns true or false.
 It can also return nil if variable was added after `satisfiable` method
 call.
+
+PkgSorter
+---------
+
+This is module implementing tree sorting algorithm with priorities.
+
+TODO document what priority for node and for edge means
+
+You can create new instance by calling `pkgsorter.new` function.
+It returns object with following methods:
+
+  node(name, priority):: Create new node with given priority.
+  edge(priority, from, to, reverse):: Add edge between two nodes.
+    Note that if you have edge from low priority node to higher priority
+    one then priority of such node is increased to be the same.
+  prune():: Prune edges forming cycles and return report about it.
+    TODO
+  isnode(name):: Check if we have node of given name.
+  iterator(root):: Returns iterator to go trough resulting order. You
+    have to call it after `prune` is called. As optional argument you
+    can specify root then instead of looking for all roots only given
+    one is expanded and iterated trough.
 
 Others
 ------

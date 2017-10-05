@@ -27,6 +27,7 @@ libupdater_MODULES := \
 	journal \
 	locks \
 	picosat \
+	pkgsorter \
 	util
 ifdef COV
 libupdater_MODULES += lcoverage.embed

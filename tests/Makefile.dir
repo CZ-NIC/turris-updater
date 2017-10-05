@@ -22,7 +22,8 @@ LUA_TESTS := \
 	transaction \
 	utils \
 	uri \
-	picosat
+	picosat \
+	pkgsorter
 
 ifdef COV
 LUA_TESTS += coverage
