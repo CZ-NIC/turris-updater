@@ -244,7 +244,8 @@ int main(int argc, char *argv[]) {
 	if (!batch) {
 		// For now we want to confirm by the user.
 		fprintf(stderr, "Press return to continue, CTRL+C to abort\n");
-		getchar();
+		if (getchar() == EOF) // Exit if stdin is not opened or if any other error occurs
+			goto CLEANUP;
 		approval_clean(approval_file); // If there is any approval_file we just approved it so remove it.
 	} else if (!approved(interpreter, approval_file, approvals, approval_count))
 		// Approvals are only for non-interactive mode (implied by batch mode).
