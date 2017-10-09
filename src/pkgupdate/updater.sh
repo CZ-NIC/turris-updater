@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2016, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
+# Copyright (c) 2016-2017, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@ ptimeout() {
 	# unless it exits till then.
 	# Because there is a lot of killing and a lot of potentially nonexistent
 	# processes we ignore stderr, but we don't want to dump stderr of process it
-	# self so we redirect it to different output and than back to stderror.
+	# self so we redirect it to different output and then back to stderror.
 	/bin/sh -c '
 		(
 			sleep $1
@@ -86,7 +86,8 @@ while [ $NET_WAIT -gt 0 ] && ! ping -c 1 -w 1 api.turris.cz >/dev/null 2>&1; do
 done
 
 get-api-crl || {
-	ptimeout 120 create_notification -s error "Updater selhal: Chybí CRL, pravděpodobně je problém v připojení k internetu." "Updater failed: Missing CRL, possibly broken Internet connection." || echo "Create notification failed" | logger -t updater -p daemon.error; 
+	ptimeout 120 create_notification -s error "Updater selhal: Chybí CRL, pravděpodobně je problém v připojení k internetu." "Updater failed: Missing CRL, possibly broken Internet connection." || \
+		echo "Create notification failed" | logger -t updater -p daemon.error
 	exit 1
 }
 
@@ -94,83 +95,84 @@ STATE_DIR=/tmp/update-state
 LOCK_DIR="$STATE_DIR/lock"
 LOG_FILE="$STATE_DIR/log2"
 PID_FILE="$STATE_DIR/pid"
+STATE_FILE="$STATE_DIR/state"
+ERROR_FILE="$STATE_DIR/last_error"
+APPROVALS=''
 APPROVAL_ASK_FILE=/usr/share/updater/need_approval
 APPROVAL_GRANTED_FILE=/usr/share/updater/approvals
 EXIT_CODE=1
 BACKGROUND=false
-BACKGROUNDED=false
-TMP_DIR="/tmp/$$.tmp"
+RAND_SLEEP=false
 PKGUPDATE_ARGS=""
 
-while [ "$1" ] ; do
-	case "$1" in
+for ARG in "$@"; do
+	case "$ARG" in
 		-h|--help)
 			echo "Usage: updater.sh [OPTION]..."
-			echo "-e (ERROR|WARNING|INFO|DBG|TRACE)	Message level printed on stderr. In default set to INFO."
+			echo "-e (ERROR|WARNING|INFO|DBG|TRACE)"
+			echo "    Message level printed on stderr. In default set to INFO."
+			echo "-b|--background"
+			echo "    Run updater in background (detach from terminal)"
+			echo "--rand-sleep"
+			echo "    Sleep random amount of the time with maximum of half an hour before running updater."
 			exit 0
 			;;
-		-b)
+		-b|--background)
 			BACKGROUND=true
 			;;
-		-r)
-			BACKGROUNDED=true
+		--rand-sleep)
+			RAND_SLEEP=true
 			;;
 		-w|-n)
-			echo "Argument $1 ignored as a compatibility measure for old updater."
+			echo "Argument $ARG ignored as a compatibility measure for old updater." >&2
 			;;
-		*)
-			PKGUPDATE_ARGS="$PKGUPDATE_ARGS $1"
+		*) # Pass any other argument to pkgupdate
+			PKGUPDATE_ARGS="$PKGUPDATE_ARGS $ARG"
 			;;
 	esac
 	shift
 done
 
-if ! $BACKGROUNDED ; then
-	# Prepare a state directory and lock
-	mkdir -p /tmp/update-state
-	if ! mkdir "$LOCK_DIR" ; then
+# Prepare a state directory and lock
+updater_lock() {
+	mkdir -p "$STATE_DIR"
+	if ! mkdir "$LOCK_DIR" 2>/dev/null ; then
 		echo "Already running" >&2
 		echo "Already running" | logger -t updater -p daemon.warning
 		EXIT_CODE=0
 		exit
 	fi
-	cat /dev/null >"$LOG_FILE"
-	echo startup >"$STATE_DIR/state"
-	rm -f "$STATE_DIR/last_error" "$STATE_DIR/log2"
-	echo $$>"$PID_FILE"
-else
-	# When we are backgrounded we can't ask user so force --batch
-	PKGUPDATE_ARGS="$PKGUPDATE_ARGS --batch"
-fi
-if $BACKGROUND ; then
-	"$0" -r --batch >/dev/null 2>&1 &
-	# Make sure the PID is of the process actually doing the work
-	echo $!>"$PID_FILE"
-	exit
-fi
-mkdir -p "$TMP_DIR"
+	rm -f "$ERROR_FILE" "$LOG_FILE"
+	echo startup >"$STATE_FILE"
+	echo $$ >"$PID_FILE"
+}
 
-WATCHER=
-CPID=
+# Cleanup to remove various files from state directory on updater exit
 trap_handler() {
-	rm -rf "$LOCK_DIR" "$PID_FILE" "$TMP_DIR"
-	[ -n "$WATCHER" ] && kill -9 $WATCHER 2>/dev/null
-	[ -n "$CPID" ] && if kill $CPID 2>/dev/null; then
-	(
-		sleep 5
-		kill -9 $CPID 2>/dev/null
-	) & fi
+	rm -rf "$LOCK_DIR" "$PID_FILE"
 	exit $EXIT_CODE
 }
-trap trap_handler EXIT INT QUIT TERM ABRT
+setup_cleanup() {
+	trap trap_handler EXIT INT QUIT TERM ABRT
+}
 
-# Check if we need an approval and if so, if we get it.
-APPROVALS=
-config_get_bool NEED_APPROVAL approvals need 0
-if [ "$NEED_APPROVAL" = "1" ] ; then
+# Execution suspend for random amount of time
+rand_suspend() {
+	# We don't have $RANDOM and base support in arithmetic mode so we use this instead
+	local T_RAND="$( printf %d 0x$(head -c 2 /dev/urandom | hexdump -e '"%x"'))"
+	T_RAND="$(( $T_RAND % 1800 ))"
+	echo "Suspending updater for $T_RAND seconds" >&2
+	echo "Suspending updater for $T_RAND seconds" | logger -t updater -p daemon.info
+	sleep $T_RAND
+}
+
+# Prepare approvals
+# This function sets APPROVALS variable. It contains option for pkgupdate to
+# enable approvals and latest approved hash.
+approvals_prepare() {
 	APPROVALS="--ask-approval=$APPROVAL_ASK_FILE"
 	if [ -f "$APPROVAL_GRANTED_FILE" ]; then
-		# Get a treshold time when we grant approval automatically. In case we don't, we set the time to
+		# Get a threshold time when we grant approval automatically. In case we don't, we set the time to
 		# 1, which is long long time ago in the glorious times when automatic updaters were not
 		# needed.
 		config_get AUTO_GRANT_TIME approvals auto_grant_seconds
@@ -178,16 +180,11 @@ if [ "$NEED_APPROVAL" = "1" ] ; then
 		APPROVED_HASH="$(tail -1 "$APPROVAL_GRANTED_FILE" | awk '$2 == "granted" || ( $2 == "asked" && $3 <= "'"$AUTO_GRANT_TRESHOLD"'" ) {print $1}')"
 		[ -n "$APPROVED_HASH" ] && APPROVALS="$APPROVALS --approve=$APPROVED_HASH"
 	fi
-else
-	# If approvals aren't enabled then run always in batch mode (don't ask user)
-	PKGUPDATE_ARGS="$PKGUPDATE_ARGS --batch"
-fi
+}
 
-# Run the actual updater
-ptimeout 3000 pkgupdate $PKGUPDATE_ARGS --state-log --task-log=/usr/share/updater/updater-log $APPROVALS
-EXIT_CODE="$?"
-
-if [ -f "$APPROVAL_ASK_FILE" ] ; then
+# Handle new generated approvals request
+approvals_request() {
+	local HASH
 	read HASH <"$APPROVAL_ASK_FILE"
 	if ! grep -q "^$HASH" "$APPROVAL_GRANTED_FILE" ; then
 		echo "$HASH asked $(date -u +%s)" >"$APPROVAL_GRANTED_FILE"
@@ -204,33 +201,92 @@ if [ -f "$APPROVAL_ASK_FILE" ] ; then
 				|| echo "Create notification failed" | logger -t updater -p daemon.error
 		fi
 	fi
-else
-	if [ "$EXIT_CODE" = 0 ] ; then
-		# When we run successfully and didn't need any further approval, we
-		# used up all the current approvals by that (if we ever want to
-		# do the same thing again, we need to ask again). So delete all
-		# the granted and asked lines ‒ asked might have reached approval
-		# by being there long enough. Keep any other (like denied) permanently.
-		sed -i -e '/asked/d;/granted/d' "$APPROVAL_GRANTED_FILE" 2>/dev/null
-	fi
-fi
-# Evaluate what has run
-STATE=$(cat "$STATE_DIR"/state)
-if [ "$STATE" != "error" ] && ([ "$EXIT_CODE" != "0" ] || [ "$STATE" != "done" ]); then
-	echo lost >"$STATE_DIR"/state
-fi
+}
 
-if [ -s "$STATE_DIR"/log2 ] && grep -q '^[IR]' "$STATE_DIR/log2" ; then
-	ptimeout 120 create_notification -s update "$(sed -ne 's/^I \(.*\) \(.*\)/ • Nainstalovaná verze \2 balíku \1/p;s/^R \(.*\)/ • Odstraněn balík \1/p' "$LOG_FILE")" "$(sed -ne 's/^I \(.*\) \(.*\)/ • Installed version \2 of package \1/p;s/^R \(.*\)/ • Removed package \1/p' "$LOG_FILE")" || echo "Create notification failed" | logger -t updater -p daemon.error
-fi
-if [ "$EXIT_CODE" != 0 ] || [ "$STATE" != "done" ] ; then
-	if [ -s "$STATE_DIR/last_error" ] ; then
-		ERROR=$(cat "$STATE_DIR/last_error")
+# Do post-update actions for approvals
+approvals_finish() {
+	if [ -f "$APPROVAL_ASK_FILE" ] ; then
+		approvals_request
 	else
-		ERROR="Unknown error"
+		if [ "$EXIT_CODE" = 0 ] ; then
+			# When we run successfully and didn't need any further approval, we
+			# used up all the current approvals by that (if we ever want to do the
+			# same thing again, we need to ask again).
+			rm -f "$APPROVAL_GRANTED_FILE"
+		fi
 	fi
-	ptimeout 120 create_notification -s error "Updater selhal: $ERROR" "Updater failed: $ERROR" || echo "Create notification failed" | logger -t updater -p daemon.error
-fi
-ptimeout 120 notifier || echo "Notifier failed" | logger -t updater -p daemon.error
+}
 
-# Let the trap clean up here
+# Create notifications
+notify_user() {
+	if [ -s "$LOG_FILE" ] && grep -q '^[IR]' "$LOG_FILE" ; then
+		ptimeout 120 create_notification -s update \
+			"$(sed -ne 's/^I \(.*\) \(.*\)/ • Nainstalovaná verze \2 balíku \1/p;s/^R \(.*\)/ • Odstraněn balík \1/p' "$LOG_FILE")" \
+			"$(sed -ne 's/^I \(.*\) \(.*\)/ • Installed version \2 of package \1/p;s/^R \(.*\)/ • Removed package \1/p' "$LOG_FILE")" \
+			|| echo "Create notification failed" | logger -t updater -p daemon.error
+	fi
+	if [ "$STATE" != "done" ] ; then
+		if [ -s "$ERROR_FILE" ] ; then
+			ERROR=$(cat "$ERROR_FILE")
+		else
+			ERROR="Unknown error"
+		fi
+		ptimeout 120 create_notification -s error "Updater selhal: $ERROR" "Updater failed: $ERROR" || echo "Create notification failed" | logger -t updater -p daemon.error
+	fi
+	ptimeout 120 notifier || echo "Notifier failed" | logger -t updater -p daemon.error
+}
+
+# Function handling everything about pkgupdate execution
+run_updater() {
+	config_get_bool NEED_APPROVAL approvals need 0
+	if [ "$NEED_APPROVAL" = "1" ] ; then
+		approvals_prepare
+	else
+		# If approvals aren't enabled then run always in batch mode (don't ask user)
+		PKGUPDATE_ARGS="$PKGUPDATE_ARGS --batch"
+	fi
+
+	# Run the actual updater
+	ptimeout 3000 pkgupdate $PKGUPDATE_ARGS --state-log --task-log=/usr/share/updater/updater-log $APPROVALS
+	EXIT_CODE="$?"
+
+	# Evaluate what has run
+	STATE=$(cat "$STATE_FILE")
+	if [ "$STATE" != "error" ] && ([ "$EXIT_CODE" != "0" ] || [ "$STATE" != "done" ]); then
+		echo lost >"$STATE_FILE"
+	fi
+
+	approvals_finish
+	notify_user
+}
+
+run_immediate() {
+	# updater_lock have to be called before calling this function
+	setup_cleanup
+	run_updater
+}
+
+run_delayed() {
+	rand_suspend
+	updater_lock
+	run_immediate
+}
+
+if $BACKGROUND; then
+	# When we are backgrounded we can't ask user so force --batch
+	PKGUPDATE_ARGS="$PKGUPDATE_ARGS --batch"
+	if $RAND_SLEEP; then
+		run_delayed >/dev/null 2>&1 </dev/null &
+	else
+		updater_lock
+		run_immediate >/dev/null 2>&1 </dev/null &
+	fi
+	echo $!>"$PID_FILE" # Make sure the PID is of the process actually doing the work
+else
+	if $RAND_SLEEP; then
+		run_delayed
+	else
+		updater_lock
+		run_immediate
+	fi
+fi
