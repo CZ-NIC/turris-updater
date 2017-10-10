@@ -11,16 +11,24 @@ before_script:
 # Test stage - run application tests
 test:
   stage: test
-
   script:
-    - make check
+    - make test test-sys
+
+test_valgrind:
+  stage: test
+  script:
+    - make valgrind valgrind-sys
 
 # Test stage with busybox embedded
 test_busybox:
   stage: test
-
   script:
     - BUSYBOX_EXEC=/bin/busybox make check
+
+test_valgrind_busybox:
+  stage: test
+  script:
+    - BUSYBOX_EXEC=/bin/busybox make valgrind valgrind-sys
 
 pages:
   stage: pages
