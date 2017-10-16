@@ -243,7 +243,7 @@ approvals_finish() {
 	if [ -f "$APPROVAL_ASK_FILE" ] ; then
 		approvals_request
 	else
-		if [ "$EXIT_CODE" = 0 ] ; then
+		if [ "$EXIT_CODE" -eq 0 ] ; then
 			# When we run successfully and didn't need any further approval, we
 			# used up all the current approvals by that (if we ever want to do the
 			# same thing again, we need to ask again).
@@ -293,7 +293,7 @@ run_updater() {
 
 	# Evaluate what has run
 	STATE=$(cat "$STATE_FILE")
-	if [ "$STATE" != "error" ] && ([ "$EXIT_CODE" != "0" ] || [ "$STATE" != "done" ]); then
+	if [ "$STATE" != "error" -a \( "$EXIT_CODE" -ne "0" -o "$STATE" != "done" \) ]; then
 		echo lost >"$STATE_FILE"
 	fi
 
