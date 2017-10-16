@@ -209,7 +209,13 @@ approvals_prepare() {
 		# needed.
 		config_get AUTO_GRANT_TIME approvals auto_grant_seconds
 		AUTO_GRANT_TRESHOLD=$(expr $(date -u +%s) - $AUTO_GRANT_TIME 2>/dev/null || echo 1)
-		APPROVED_HASH="$(tail -1 "$APPROVAL_GRANTED_FILE" | awk '$2 == "granted" || ( $2 == "asked" && $3 <= "'"$AUTO_GRANT_TRESHOLD"'" ) {print $1}')"
+
+		# only the last line is relevant
+		APPROVED_HASH="$( awk -v treshold="$AUTO_GRANT_TRESHOLD" 'END {
+						if ( $2 == "granted" || ( $2 == "asked" && $3 <= treshold ) ) {
+							print $1
+						}
+					}' "$APPROVAL_GRANTED_FILE" )"
 		[ -n "$APPROVED_HASH" ] && APPROVALS="$APPROVALS --approve=$APPROVED_HASH"
 	fi
 }
