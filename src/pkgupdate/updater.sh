@@ -70,6 +70,24 @@ ptimeout() {
 	# So we are killing children of children in for loop.
 }
 
+create_notify_message() {
+	local level="$1"
+	local msg_cz="$2"
+	local msg_en="$3"
+	ptimeout 120 create_notification -s "$level" "$msg_cz" "$msg_en" || {
+		echo 'Create notification failed' | logger -t updater -p daemon.error
+	}
+}
+
+create_notify_error() {
+	create_notify_message 'error' "$1" "$2"
+}
+
+create_notify_update() {
+	create_notify_message 'update' "$1" "$2"
+}
+
+
 config_load updater
 config_get_bool DISABLED override disable 0
 
@@ -86,8 +104,9 @@ while [ $NET_WAIT -gt 0 ] && ! ping -c 1 -w 1 api.turris.cz >/dev/null 2>&1; do
 done
 
 get-api-crl || {
-	ptimeout 120 create_notification -s error "Updater selhal: Chybí CRL, pravděpodobně je problém v připojení k internetu." "Updater failed: Missing CRL, possibly broken Internet connection." || \
-		echo "Create notification failed" | logger -t updater -p daemon.error
+	create_notify_error \
+		'Updater selhal: Chybí CRL, pravděpodobně je problém v připojení k internetu.' \
+		'Updater failed: Missing CRL, possibly broken Internet connection.'
 	exit 1
 }
 
@@ -211,10 +230,10 @@ approvals_request() {
 			# Also OPERATION is lowercase to make it pretty uppercase the first character.
 			# TODO do we want to show reboot?
 			LIST="$(awk 'NR>1{printf "\n • %s %s %s", toupper(substr($1,1,1))substr($1,2), $3, $2}' "$APPROVAL_ASK_FILE")"
-			ptimeout 120 create_notification -s update \
+
+			create_notify_update \
 				"Updater žádá o autorizaci akcí. Autorizaci můžete přidělit v administračním rozhraní Foris.$LIST" \
-				"The updater requests an autorisation of its planned actions. You can grant it in the Foris administrative interface.$LIST" \
-				|| echo "Create notification failed" | logger -t updater -p daemon.error
+				"The updater requests an autorisation of its planned actions. You can grant it in the Foris administrative interface.$LIST"
 		fi
 	fi
 }
@@ -238,10 +257,9 @@ notify_user() {
 	local ERROR
 
 	if [ -s "$LOG_FILE" ] && grep -q '^[IR]' "$LOG_FILE" ; then
-		ptimeout 120 create_notification -s update \
-			"$(sed -ne 's/^I \(.*\) \(.*\)/ • Nainstalovaná verze \2 balíku \1/p;s/^R \(.*\)/ • Odstraněn balík \1/p' "$LOG_FILE")" \
-			"$(sed -ne 's/^I \(.*\) \(.*\)/ • Installed version \2 of package \1/p;s/^R \(.*\)/ • Removed package \1/p' "$LOG_FILE")" \
-			|| echo "Create notification failed" | logger -t updater -p daemon.error
+		create_notify_update \
+			"$(sed -ne 's/^I \(.*\) \(.*\)/ • Nainstalovaná verze \2 balíku \1/p;   s/^R \(.*\)/ • Odstraněn balík \1/p' "$LOG_FILE")" \
+			"$(sed -ne 's/^I \(.*\) \(.*\)/ • Installed version \2 of package \1/p; s/^R \(.*\)/ • Removed package \1/p' "$LOG_FILE")"
 	fi
 	if [ "$STATE" != "done" ] ; then
 		if [ -s "$ERROR_FILE" ] ; then
@@ -249,7 +267,10 @@ notify_user() {
 		else
 			ERROR="Unknown error"
 		fi
-		ptimeout 120 create_notification -s error "Updater selhal: $ERROR" "Updater failed: $ERROR" || echo "Create notification failed" | logger -t updater -p daemon.error
+
+		create_notify_error \
+			"Updater selhal: $ERROR" \
+			"Updater failed: $ERROR"
 	fi
 	ptimeout 120 notifier || echo "Notifier failed" | logger -t updater -p daemon.error
 }
