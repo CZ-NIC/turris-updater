@@ -25,7 +25,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-UPDATER_CONFIG=/etc/updater/auto.lua # Automatic updater configuration file
+UPDATER_CONFIG=/etc/updater/conf.d/opkg-auto.lua # Automatic updater configuration file
 OPKG=/bin/opkg-cl # Path to opkg
 
 ARGS=""
@@ -81,12 +81,12 @@ config_clean_pkg() {
 
 # Checks if package is specified in auto.lua config
 config_pkg_in() {
-	grep -qe "^Install\((\| \)\"$1\"" "$UPDATER_CONFIG" || return 1
+	grep -qe "^Install\((\| \)\"$1\"" "$UPDATER_CONFIG"
 }
 
 # Checks if given package is installed
 pkg_installed() {
-	[ -n "$($OPKG $ARGS list-installed "$1")" ] || return 1
+	[ -n "$($OPKG $ARGS list-installed "$1")" ]
 }
 
 install() {
@@ -140,7 +140,7 @@ remove() {
 
 # Check if $UPDATER_CONFIG exists. Otherwise create.
 if [ ! -f "$UPDATER_CONFIG" ]; then
-	echo "-- A file with auto-generated Install commands. Do not edit." > "$UPDATER_CONFIG"
+	echo "-- This is automatically generated file managed by opkg wrapper script. Please don't edit!" > "$UPDATER_CONFIG"
 fi
 
 echo "$PACKAGES" | sed '1d' | while read P; do
