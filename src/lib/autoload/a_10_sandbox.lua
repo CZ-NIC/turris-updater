@@ -232,6 +232,7 @@ function load_state_vars()
 	might not have them legally and we mark that by providing nil.
 	]]
 	state_vars = {
+		root_dir = backend.root_dir,
 		model = utils.strip(utils.slurp('/tmp/sysinfo/model')),
 		board_name = utils.strip(utils.slurp('/tmp/sysinfo/board_name')),
 		turris_version = utils.strip(utils.slurp('/etc/turris-version')),

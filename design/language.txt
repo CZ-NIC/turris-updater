@@ -604,6 +604,12 @@ no effect on the updater's behaviour, unless specifically mentioned.
 Note that some of the tables might be generated on demand by
 meta-table events, making it impossible to list keys.
 
+root_dir
+~~~~~~~~
+
+Root directory specified from command line or `/` if no such option
+was specified. Use this if you are accessing some files.
+
 serial
 ~~~~~~
 
