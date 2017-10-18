@@ -195,6 +195,7 @@ local rest_available_funcs = {
 	"type",
 	"unpack",
 	"xpcall",
+	"DIE",
 	"ERROR",
 	"WARN",
 	"INFO",

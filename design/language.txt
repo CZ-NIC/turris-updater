@@ -589,9 +589,11 @@ Logging
   INFO("information text")
   WARN("warning text")
   ERROR("error text")
+  DIE("error text")
 
 These commands allows printing of messages for their corresponding
-verbosity levels.
+verbosity levels. On top of that `DIE` command also results to
+updater failure.
 
 Predefined variables
 --------------------
