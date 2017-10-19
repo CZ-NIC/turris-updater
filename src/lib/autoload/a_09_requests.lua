@@ -33,13 +33,12 @@ local assert = assert
 local table = table
 local utils = require "utils"
 local uri = require "uri"
-local backend = require "backend"
 local DBG = DBG
 local WARN = WARN
 
 module "requests"
 
--- luacheck: globals known_packages package_wrap known_repositories known_repositories_all repo_serial repository repository_get content_requests install uninstall script store_flags known_content_packages
+-- luacheck: globals known_packages package_wrap known_repositories known_repositories_all repo_serial repository repository_get content_requests install uninstall script known_content_packages
 
 -- Verifications fields are same for script, repository and package. Lets define them here once and then just append.
 local allowed_extras_verification = {
@@ -441,29 +440,33 @@ local script_insert_options = {
 	ocsp = true
 }
 
--- Remember here all executed scripts (by name)
-local script_executed = {}
+--[[
+Note that we have filler field just for backward compatibility so when we have
+just one argument or two arguments where second one is table we move all arguments
+to their appropriate variables.
 
-function script(result, context, name, script_uri, extra)
-	if script_executed[context.full_name .. '/' .. name] then
-		error(utils.exception("inconsistent", "Script with name " .. name .. " was already executed."))
+Originally filler contained name of script.
+]]
+function script(result, context, filler, script_uri, extra)
+	if (not extra and not script_uri) or type(script_uri) == "table" then
+		extra = script_uri
+		script_uri = filler
 	end
-	script_executed[context.full_name .. '/' .. name] = true
-	DBG("Running script " .. name)
+	DBG("Running script " .. script_uri)
 	extra = allowed_extras_check_type(allowed_script_extras, 'script', extra or {})
 	extra_check_verification("script", extra)
 	for name, value in pairs(extra) do
 		if name == "ignore" then
-			extra_check_table("script", name, value, {"missing", "integrity"})
+			extra_check_table("script", script_uri, value, {"missing", "integrity"})
 		end
 	end
 	local u = uri(context, script_uri, extra)
 	local ok, content = u:get()
 	if not ok then
 		if utils.arr2set(extra.ignore or {})["missing"] then
-			WARN("Script " .. name .. " not found, but ignoring its absence as requested")
+			WARN("Script " .. script_uri .. " not found, but ignoring its absence as requested")
 			result.tp = "script"
-			result.name = name
+			result.name = script_uri
 			result.ignored = true
 			return
 		end
@@ -509,7 +512,7 @@ function script(result, context, name, script_uri, extra)
 		end
 	end
 	merge.restrict = restrict
-	local err = sandbox.run_sandboxed(content, name, extra.security, context, merge)
+	local err = sandbox.run_sandboxed(content, script_uri, extra.security, context, merge)
 	if err and err.tp == 'error' then
 		if not err.origin then
 			err.oririn = script_uri
@@ -518,14 +521,7 @@ function script(result, context, name, script_uri, extra)
 	end
 	-- Return a dummy handle, just as a formality
 	result.tp = "script"
-	result.name = name
 	result.uri = script_uri
-end
-
-function store_flags(_, context, ...)
-	DBG("Storing flags ", ...)
-	backend.flags_mark(context.full_name, ...)
-	backend.flags_write(false)
 end
 
 return _M

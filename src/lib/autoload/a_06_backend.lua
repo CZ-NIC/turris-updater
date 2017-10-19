@@ -27,9 +27,6 @@ local require = require
 local next = next
 local tostring = tostring
 local tonumber = tonumber
-local loadfile = loadfile
-local setmetatable = setmetatable
-local setfenv = setfenv
 local assert = assert
 local unpack = unpack
 local io = io
@@ -49,19 +46,17 @@ local move = move
 local ls = ls
 local md5 = md5
 local sha256 = sha256
-local sync = sync
 local DBG = DBG
 local WARN = WARN
-local DataDumper = DataDumper
 local utils = require "utils"
 local locks = require "locks"
 
 module "backend"
 
 -- Functions and variables used in other files
--- luacheck: globals pkg_temp_dir repo_parse status_dump pkg_unpack pkg_examine collision_check installed_confs steal_configs dir_ensure pkg_merge_files pkg_merge_control pkg_config_info pkg_cleanup_files control_cleanup version_cmp version_match flags_load flags_get script_run flags_get_ro flags_write flags_mark run_state
+-- luacheck: globals pkg_temp_dir repo_parse status_dump pkg_unpack pkg_examine collision_check installed_confs steal_configs dir_ensure pkg_merge_files pkg_merge_control pkg_config_info pkg_cleanup_files control_cleanup version_cmp version_match script_run  run_state
 -- Variables that we want to access from outside (ex. for testing purposes)
--- luacheck: globals status_file info_dir root_dir pkg_temp_dir flags_storage cmd_timeout cmd_kill_timeout stored_flags dir_opkg_collided
+-- luacheck: globals status_file info_dir root_dir pkg_temp_dir cmd_timeout cmd_kill_timeout dir_opkg_collided
 -- Functions that we want to access from outside (ex. for testing purposes)
 -- luacheck: globals root_dir_set block_parse block_split block_dump_ordered pkg_status_dump package_postprocess status_parse get_parent config_modified
 
@@ -80,9 +75,6 @@ root_dir = "/"
 -- A directory where unpacked packages live
 local pkg_temp_dir_suffix = "/usr/share/updater/unpacked"
 pkg_temp_dir = pkg_temp_dir_suffix
--- A file with the flags from various scripts
-local flags_storage_suffix = "/usr/share/updater/flags"
-flags_storage = flags_storage_suffix
 -- Directory where we move files and directories that weren't part of any package.
 local dir_opkg_collided_suffix = "/var/opkg-collided"
 dir_opkg_collided = dir_opkg_collided_suffix
@@ -101,7 +93,6 @@ function root_dir_set(dir)
 	status_file = dir .. status_file_suffix
 	info_dir = dir .. info_dir_suffix
 	pkg_temp_dir = dir .. pkg_temp_dir_suffix
-	flags_storage = dir .. flags_storage_suffix
 	dir_opkg_collided = dir .. dir_opkg_collided_suffix
 end
 
@@ -1158,148 +1149,6 @@ function version_match(v, r)
 			ch = '='
 		end
 		return cmp_str:find(ch, 1, true) ~= nil
-	end
-end
-
-stored_flags = {}
-
-local function flags_ro_proxy(flags)
-	return setmetatable({}, {
-		__index = function (_, name)
-			local result = flags[name]
-			if result and type(result) == 'string' then
-				return result
-			elseif result then
-				WARN("Type of flag " .. name .. " is " .. type(result) .. ", foreign access prevented")
-			end
-			return nil
-		end,
-		__newindex = function ()
-			error(utils.exception("access violation", "Writing of foreign flags not allowed"))
-		end
-	})
-end
-
--- Load flags from the file and warn if it isn't possible for any reason.
-function flags_load()
-	local chunk, err = loadfile(flags_storage)
-	if not chunk then
-		WARN("Couldn't load flags: " .. err)
-		return
-	end
-	-- Disallow it to call any functions whatsoever
-	local chunk_sanitized = setfenv(chunk, {})
-	local ok, loaded = pcall(chunk_sanitized)
-	if not ok then
-		WARN("Flag storage corrupt, not loading flags: " .. err)
-		return
-	end
-	-- Store additional info to each script's flags
-	stored_flags = utils.map(loaded, function (path, values)
-		return path, {
-			values = values,
-			proxy = flags_ro_proxy(values)
-		}
-	end)
-end
-
---[[
-Get flags (read-write) for a single context, identified by its path. This is expected
-to be done after flags_load(). If the flags for this path aren't loaded (eg. previously
-unknown script), a new empty table is provided.
-
-It must not be called multiple times with the same path.
-]]
-function flags_get(path)
-	if not path then
-		-- This is during testing, we don't have any path, so no flags to consider
-		return nil
-	end
-	-- Create the flags for the script if it doesn't exist yet
-	local flags = stored_flags[path]
-	if not flags then
-		local f = {}
-		flags = {
-			provided = f,
-			proxy = flags_ro_proxy(f)
-		}
-		stored_flags[path] = flags
-		return f
-	end
-	--[[
-	Return the flags table (the one the proxy points to, so the proxies see
-	changes). But keep a copy of the original, in case we want to store partial
-	changes.
-	]]
-	assert(not flags.provided)
-	local result = flags.values
-	flags.values = utils.clone(result)
-	flags.provided = result
-	return result
-end
-
---[[
-Get a read-only proxy to access flags of a script on the given path.
-
-In case the path isn't initiated (the script hasn't run and the flags weren't loaded),
-nil is returned.
-]]
-function flags_get_ro(path)
-	return utils.multi_index(stored_flags, path, "proxy")
-end
-
-function flags_write(full)
-	if full then
-		for path, data in pairs(stored_flags) do
-			if data.provided then
-				-- Make a fresh copy of the flag data, with all the new changes
-				data.values = utils.clone(data.provided)
-				-- Wipe out anything that is not string, as these are disallowed for security reasons
-				for name, flag in pairs(data.values) do
-					if type(flag) ~= 'string' then
-						WARN("Omitting flag " .. name .. " of " .. path .. ", as it is " .. type(flag))
-						data.values[name] = nil
-					end
-				end
-			else
-				-- Not used during this run, so drop it
-				stored_flags[path] = nil
-			end
-		end
-	end
-	local to_store = utils.map(stored_flags, function (name, data)
-		return name, data.values
-	end)
-	local f, err = io.open(flags_storage .. ".tmp", "w")
-	if not f then
-		WARN("Couldn't write the flag storage: " .. err)
-		return
-	end
-	f:write(DataDumper(to_store))
-	f:close()
-	sync()
-	local ok, err = os.rename(flags_storage .. ".tmp", flags_storage)
-	if not ok then
-		WARN("Couldn't put flag storage in place: " .. err)
-		return
-	end
-end
-
---[[
-Mark given flags in the script on the given path for storage.
-Eg, push the changes to be written.
-
-The names of the flags are passed by that ellipsis.
-]]
-function flags_mark(path, ...)
-	local group = stored_flags[path]
-	-- This should be called only from within a context and every context should have its own flags
-	assert(group)
-	if not group.values then
-		group.values = {}
-	end
-	for _, name in ipairs({...}) do
-		group.values[name] = group.provided[name]
 	end
 end
 

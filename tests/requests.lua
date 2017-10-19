@@ -34,7 +34,6 @@ local sandbox_fun_i = 0
 local function run_sandbox_fun(func_code, level)
 	local chunk = "result = " .. func_code
 	local env
-	backend.stored_flags = {}
 	local result = sandbox.run_sandboxed(chunk, "Function chunk" .. tostring(sandbox_fun_i), level or "Restricted", nil, nil, function (context)
 		env = context.env
 	end)
@@ -146,7 +145,7 @@ function test_script()
 	mocks_reset()
 	-- The URI contains 'Install "pkg"'
 	local result = sandbox.run_sandboxed([[
-		Script "test-script" "data:base64,SW5zdGFsbCAicGtnIgo=" { security = 'Restricted' }
+		Script("data:base64,SW5zdGFsbCAicGtnIgo=", { security = 'Restricted' })
 	]], "test_script_chunk", "Restricted")
 	assert_equal("context", result.tp, result.msg)
 	assert_table_equal({
@@ -161,19 +160,31 @@ function test_script()
 	}, requests.content_requests)
 end
 
-function test_script_duplicate()
+-- Test legacy syntax of script
+function test_script_legacy()
+	-- We actually don't want any mocks here, let uri work as expected
 	mocks_reset()
-	local err = sandbox.run_sandboxed([[
-		Script "test-script" "data:base64,SW5zdGFsbCAicGtnIgo=" { security = 'Restricted' }
-		Script "test-script" "data:base64,SW5zdGFsbCAicGtnIgo=" { security = 'Restricted' }
-	]], "test_script_duplicate_chunk", "Restricted")
-	assert_table_equal(utils.exception("inconsistent", "Script with name test-script was already executed."), err)
+	-- The URI contains 'Install "pkg"'
+	local result = sandbox.run_sandboxed([[
+		Script("name", "data:base64,SW5zdGFsbCAicGtnIgo=", { security = 'Restricted' })
+	]], "test_script_chunk", "Restricted")
+	assert_equal("context", result.tp, result.msg)
+	assert_table_equal({
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg'
+			},
+			priority = 50
+		}
+	}, requests.content_requests)
 end
 
 function test_script_missing()
 	mocks_reset()
 	local result = sandbox.run_sandboxed([[
-		Script "test-script" "file:///does/not/exist" { ignore = {"missing"}, security = "local" }
+		Script("file:///does/not/exist", { ignore = {"missing"}, security = "local" })
 	]], "test_script_missing_chunk", "Local")
 	-- It doesn't produce an error, even when the script doesn't exist
 	assert_equal("context", result.tp, result.msg)
@@ -183,7 +194,7 @@ end
 function test_script_raise_level()
 	mocks_reset()
 	local err = sandbox.run_sandboxed([[
-		Script "test-script" "data:," { security = 'Full' }
+		Script("data:,", { security = 'Full' })
 	]], "test_script_raise_level_chunk", "Restricted")
 	assert_table_equal(utils.exception("access violation", "Attempt to raise security level from Restricted to Full"), err)
 end
@@ -195,7 +206,7 @@ function test_script_level_transition()
 	for i, from in ipairs(levels) do
 		for j, to in ipairs(levels) do
 			local result = sandbox.run_sandboxed([[
-				Script "test-script" "data:," { security = ']] .. to .. [[' }
+				Script("data:,", { security = ']] .. to .. [[' })
 			]], "test_script_level_transition_chunk " .. from .. "/" .. to, from)
 			if i > j then
 				assert_table_equal(utils.exception("access violation", "Attempt to raise security level from " .. from .. " to " .. to), result)
@@ -211,11 +222,10 @@ function test_script_pass_validation()
 	local bad_i = 0
 	local function bad(opts, msg, exctype)
 		local err = sandbox.run_sandboxed([[
-			Script "test-script" "data:," { security = 'Restricted']] .. opts .. [[ }
+			Script("data:,", { security = 'Restricted']] .. opts .. [[ })
 		]], "test_script_pass_validation_chunk1" .. tostring(bad_i), "Restricted")
 		bad_i = bad_i + 1
 		assert_table_equal(utils.exception(exctype or "bad value", msg), err)
-		backend.stored_flags = {}
 	end
 	-- Bad uri inside something
 	bad(", verification = 'sig', pubkey = 'invalid://'", "Unknown URI schema invalid")
@@ -225,7 +235,7 @@ function test_script_pass_validation()
 	bad(", pubkey = 'file:///dev/null'", "At least Local level required for file URI", "access violation")
 	-- But we allow it if there's a high enough level
 	local result = sandbox.run_sandboxed([[
-		Script "test-script" "data:," { security = 'Restricted', pubkey = 'file:///dev/null' }
+		Script("data:,", { security = 'Restricted', pubkey = 'file:///dev/null' })
 	]], "test_script_pass_validation_chunk2", "Local")
 	assert_equal("context", result.tp, result.msg)
 end
@@ -237,7 +247,7 @@ function test_restrict()
 	local run_i = 0
 	local function run(uri, options, restrict, level, err)
 		local result = orig_run_sandboxed([[
-			Script 'test-script' ']] .. uri .. [[' { security = 'Restricted']] .. options .. [[ }
+			Script(']] .. uri .. [[', { security = 'Restricted']] .. options .. [[ })
 		]], "test_restrict_chunk" .. tostring(run_i), level, nil, {restrict = "http://some%.host/.*"})
 		run_i = run_i + 1
 		if err then
@@ -252,7 +262,7 @@ function test_restrict()
 					f = "sandbox.run_sandboxed",
 					p = {
 						"",
-						"test-script",
+						uri,
 						"Restricted",
 						"context",
 						{
@@ -263,7 +273,6 @@ function test_restrict()
 			}, mocks_called)
 		end
 		mocks_called[1] = nil
-		backend.stored_flags = {}
 	end
 	run('http://some.host/index.cgi', '', 'http://some%.host/.*', "Local")
 	run('http://some.host/index.cgi', ', restrict = ".*"', ".*", "Local")
@@ -277,34 +286,10 @@ end
 function test_script_err_propagate()
 	mocks_reset()
 	local err = sandbox.run_sandboxed([[
-		Script "test-script" "data:,error()"
+		Script("data:,error()")
 	]], "test_script_err_propagate_chunk", "Restricted")
 	assert_table(err)
 	assert_equal("error", err.tp)
-end
-
-function test_store_flags()
-	local test_root = mkdtemp()
-	table.insert(tmp_dirs, test_root)
-	backend.flags_storage = test_root .. "/flags"
-	local result = sandbox.run_sandboxed([[
-		flags[""].x = "hello"
-		flags[""].y = "hi"
-		StoreFlags "x"
-	]], "", "Local")
-	assert_equal("context", result.tp, result.msg)
-	assert_table_equal({
-		[""] = {
-			values = {
-				x = "hello"
-			},
-			provided = {
-				x = "hello",
-				y = "hi"
-			},
-			proxy = {}
-		}
-	}, backend.stored_flags)
 end
 
 -- If someone wants to actually download the mock URI object, return an empty document
@@ -329,7 +314,6 @@ function teardown()
 	requests.known_packages = {}
 	requests.known_repositories = {}
 	requests.content_requests = {}
-	backend.stored_flags = {}
 	mocks_reset()
 	utils.cleanup_dirs(tmp_dirs)
 	tmp_dirs = {}

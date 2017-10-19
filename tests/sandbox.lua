@@ -68,11 +68,8 @@ function test_context_new()
 		context.env = nil
 		context.exported = nil
 		context.level_check = nil
-		local expected = {sec_level = sandbox.level(level), tp = "context", flags = {}, name = '', full_name = ''}
-		expected.root_parent = expected
-		expected.hierarchy = {[''] = expected}
+		local expected = {sec_level = sandbox.level(level), tp = "context"}
 		assert_table_equal(expected, context)
-		backend.stored_flags = {}
 	end
 end
 
@@ -128,7 +125,6 @@ function test_sandbox_run()
 			assert_table_equal(expected, result)
 		end
 		assert_equal(result_called, called)
-		backend.stored_flags = {}
 	end
 	-- We can add a function and it can access the local upvalues
 	test_do(chunk_ok, "Restricted", nil, true)
@@ -239,7 +235,6 @@ function test_deps()
 			env = context.env
 		end)
 		assert_equal("context", result.tp, result.err)
-		backend.stored_flags = {}
 		assert_table_equal({
 			tp = tp,
 			sub = {'a', 'b', 'c'}
@@ -273,23 +268,6 @@ function test_deps()
 	}, env.res)
 end
 
-function test_hierarchy()
-	local result = sandbox.run_sandboxed([[Script "script" "data:,"]], "toplevel", "Full")
-	assert_equal("context", result.tp, result.msg)
-	assert_equal("toplevel", result.name)
-	assert_equal("toplevel", result.full_name)
-	assert_equal(result, result.root_parent)
-	assert_equal(result, result.hierarchy["toplevel"])
-	local sub = result.hierarchy["toplevel/script"]
-	assert(sub)
-	assert_not_equal(result, sub)
-	assert_equal("context", sub.tp)
-	assert_equal("script", sub.name)
-	assert_equal("toplevel/script", sub.full_name)
-	assert_equal(result, sub.root_parent)
-end
-
 function teardown()
 	mocks_reset()
-	backend.stored_flags = {}
 end

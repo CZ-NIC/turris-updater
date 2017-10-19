@@ -229,7 +229,7 @@ They start with a capital letter, since they act as constructors.
 Script
 ~~~~~~
 
-  script = Script("script-name", "uri", { extra })
+  script = Script("uri", { extra })
 
 This command runs another script. The name is the local part of the
 script name.
@@ -265,6 +265,12 @@ pubkey::
 ca::
 crl::
   Options to verify the script integrity.
+
+Note that for backward compatibility we also support following format:
+
+  script = Script("script-name", "uri", { extra })
+
+Although we are no longer validating script name and is no longer used anywhere.
 
 Repository
 ~~~~~~~~~~
@@ -539,16 +545,6 @@ relation as second argument (for example:
 `version_match(installed['pkg'].version, '>=1.0.0')`)
 It returns true if version matches given version relation, otherwise false.
 
-StoreFlags
-~~~~~~~~~~
-
-  StoreFlags("flagname", "flagname")
-
-A script may request to store some of its flags right away, no matter
-how the updater terminates. It first stores its flags and then calls
-the `StoreFlags` command with the names of the flags to store. The
-rest of the flags are stored as usual.
-
 Run
 ~~~
 
@@ -687,28 +683,6 @@ install_time::
 The top-level table is instantiated (not generated through
 meta-tables), therefore it is possible to get the list of installed
 packages.
-
-flags
-~~~~~
-
-A table with flags defined by the scripts. Flags are preserved between
-the updater runs, so a script may leave notes for its future self.
-
-The table is indexed by the name of the script, either relative or
-absolute. Referencing self as an empty string works. The table is
-generated on the fly, therefore the script may not find out what other
-scripts ever run.
-
-In case of the own flags, the table is fully instantiated, so they can
-be written and iterated (using `next` and `pairs`). If it is flags
-belonging to other script, the table is read only and doesn't allow
-iterating (eg. it is possible to query a flag value, but not possible
-to discover which flags exist).
-
-Flags may be only strings.
-
-Any modification to the own flags table is stored on successful
-updater termination or when the script explicitly request it.
 
 Export variables to Script
 --------------------------

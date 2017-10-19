@@ -293,7 +293,7 @@ int main(int argc, char *argv[]) {
 		const char *hook_path = aprintf("%s%s", root_dir, hook_reboot_delayed);
 		exec_dir(events, hook_path);
 	}
-	err = interpreter_call(interpreter, "updater.cleanup", NULL, "bb", trans_ok, reboot_finished);
+	err = interpreter_call(interpreter, "updater.cleanup", NULL, "bb", reboot_finished);
 	ASSERT_MSG(!err, "%s", err);
 	if (task_log) {
 		FILE *log = fopen(task_log, "a");

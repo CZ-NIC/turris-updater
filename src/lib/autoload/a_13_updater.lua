@@ -66,7 +66,6 @@ end
 function prepare(entrypoint)
 	local required = required_pkgs(entrypoint)
 	local run_state = backend.run_state()
-	backend.flags_load()
 	local tasks = planner.filter_required(run_state.status, required, allow_replan)
 	--[[
 	Start download of all the packages. They all start (or queue, if there are
@@ -139,16 +138,13 @@ function pre_cleanup()
 end
 
 -- Note: This function don't have to return
-function cleanup(success, reboot_finished)
+function cleanup(reboot_finished)
 	if transaction.cleanup_actions.reexec and allow_replan then
 		if reboot_finished then
 			reexec('--reboot-finished')
 		else
 			reexec()
 		end
-	end
-	if success then
-		backend.flags_write(true)
 	end
 end
 
