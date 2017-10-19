@@ -179,6 +179,10 @@ rand_suspend() {
 # This function sets APPROVALS variable. It contains option for pkgupdate to
 # enable approvals and latest approved hash.
 approvals_prepare() {
+	local APPROVED_HASH
+	local AUTO_GRANT_TRESHOLD
+	local AUTO_GRANT_TIME
+
 	APPROVALS="--ask-approval=$APPROVAL_ASK_FILE"
 	if [ -f "$APPROVAL_GRANTED_FILE" ]; then
 		# Get a threshold time when we grant approval automatically. In case we don't, we set the time to
@@ -194,6 +198,9 @@ approvals_prepare() {
 # Handle new generated approvals request
 approvals_request() {
 	local HASH
+	local NOTIFY_APPROVAL
+	local LIST
+
 	read HASH <"$APPROVAL_ASK_FILE"
 	if ! grep -q "^$HASH" "$APPROVAL_GRANTED_FILE" ; then
 		echo "$HASH asked $(date -u +%s)" >"$APPROVAL_GRANTED_FILE"
@@ -228,6 +235,8 @@ approvals_finish() {
 
 # Create notifications
 notify_user() {
+	local ERROR
+
 	if [ -s "$LOG_FILE" ] && grep -q '^[IR]' "$LOG_FILE" ; then
 		ptimeout 120 create_notification -s update \
 			"$(sed -ne 's/^I \(.*\) \(.*\)/ • Nainstalovaná verze \2 balíku \1/p;s/^R \(.*\)/ • Odstraněn balík \1/p' "$LOG_FILE")" \
@@ -247,6 +256,8 @@ notify_user() {
 
 # Function handling everything about pkgupdate execution
 run_updater() {
+	local NEED_APPROVAL
+
 	config_get_bool NEED_APPROVAL approvals need 0
 	if [ "$NEED_APPROVAL" = "1" ] ; then
 		approvals_prepare
