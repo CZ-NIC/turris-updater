@@ -104,6 +104,13 @@ EXIT_CODE=1
 BACKGROUND=false
 RAND_SLEEP=false
 PKGUPDATE_ARGS=""
+# This variable is set throught env variables, we must not redefine it here
+# Just make it a non-env variable and set the default value if it is not defined
+export -n RUNNING_ON_BACKGROUND
+RUNNING_ON_BACKGROUND=${RUNNING_ON_BACKGROUND:-false}
+# ARGS for myself when running in background mode
+BACKGROUND_UPDATER_ARGS=''
+
 
 for ARG in "$@"; do
 	case "$ARG" in
@@ -122,6 +129,8 @@ for ARG in "$@"; do
 			;;
 		--rand-sleep)
 			RAND_SLEEP=true
+			# remember this arg in case of BACKGROUND mode
+			BACKGROUND_UPDATER_ARGS="$BACKGROUND_UPDATER_ARGS --rand-sleep"
 			;;
 		-w|-n)
 			echo "Argument $ARG ignored as a compatibility measure for old updater." >&2
@@ -272,21 +281,48 @@ run_delayed() {
 	run_immediate
 }
 
-if $BACKGROUND; then
-	# When we are backgrounded we can't ask user so force --batch
-	PKGUPDATE_ARGS="$PKGUPDATE_ARGS --batch"
-	if $RAND_SLEEP; then
-		run_delayed >/dev/null 2>&1 </dev/null &
-	else
-		updater_lock
-		run_immediate >/dev/null 2>&1 </dev/null &
-	fi
-	echo $!>"$PID_FILE" # Make sure the PID is of the process actually doing the work
+# Foris is running updater.sh on the background throw the NUCI interface
+# and there is a bug in it that it does not handle shell functions running on
+# background well
+# So we need to run whole script again! And do not forget to pass the args
+run_backgrounded() {
+	# we will set RUNNING_ON_BACKGROUND env variable for the child
+	# and of course in batch mode
+	RUNNING_ON_BACKGROUND='true' "$0" $BACKGROUND_UPDATER_ARGS $PKGUPDATE_ARGS --batch < /dev/null > /dev/null 2>&1 &
+
+	# Make sure the PID is of the process actually doing the work
+	echo $! > "$PID_FILE"
+	exit 0
+}
+
+
+# main -------------------------------------------------------------------------
+# There are several states of this script which needs to be handled.
+# These states are described with following variables:
+#   - RAND_SLEEP: to run with random delay (intended for cron jobs)
+#   - BACKGROUND: to drop run updater on background
+#   - RUNNING_ON_BACKGROUND: already running on background
+#
+# Not all combinations does make sense (i.e. BACKGROUND && RUNNING_ON_BACKGROUND)
+# so following logic handles these states
+
+# 1) Lock updater as soon as possible
+#    Do not lock it, if running delayed or if this proces run on background
+#    (locked already)
+if [ "$RAND_SLEEP" != 'true' -a "$RUNNING_ON_BACKGROUND" != 'true' ]; then
+	updater_lock
+fi
+
+# 2) Running on background
+#    Drop to background, if needed, but not when already on background
+if [ "$BACKGROUND" = 'true' -a "$RUNNING_ON_BACKGROUND" != 'true' ]; then
+	run_backgrounded
+fi
+
+# 3) Finally run the updater
+#    Delayed or immediately
+if $RAND_SLEEP; then
+	run_delayed
 else
-	if $RAND_SLEEP; then
-		run_delayed
-	else
-		updater_lock
-		run_immediate
-	fi
+	run_immediate
 fi
