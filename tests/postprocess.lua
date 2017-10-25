@@ -565,6 +565,31 @@ function test_conflicts_canon()
 		}}}}, postprocess.conflicts_canon("x (>1), y"))
 end
 
+function test_sort_candidates()
+	local candidates = {
+		{ Package = "pkg", Version = "3", repo = { name = "main", priority = 50 } },
+		{ Package = "nopkg", Version = "1", repo = { name = "main", priority = 50 } },
+		{ Package = "pkg", Version = "1", repo = { name = "main", priority = 50 } },
+		{ Package = "nopkg", Version = "2", repo = { name = "main", priority = 50 } },
+		{ Package = "pkg", Version = "2", repo = { name = "main", priority = 50 } },
+		{ Package = "pkg", Version = "1", repo = { name = "other", priority = 60 } },
+		{ Package = "nopkg", Version = "1", repo = { name = "other", priority = 60 } },
+		{ Package = "pkg", Version = "2", repo = { name = "other", priority = 60 } },
+	}
+	local result = {
+		candidates[8],
+		candidates[6],
+		candidates[7],
+		candidates[1],
+		candidates[5],
+		candidates[3],
+		candidates[4],
+		candidates[2],
+	}
+	postprocess.sort_candidates("pkg", candidates)
+	assert_table_equal(candidates, result)
+end
+
 function teardown()
 	requests.known_repositories_all = {}
 	requests.known_packages = {}
