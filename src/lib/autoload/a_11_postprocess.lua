@@ -41,7 +41,7 @@ local uri = require "uri"
 
 module "postprocess"
 
--- luacheck: globals get_repos deps_canon conflicts_canon available_packages pkg_aggregate run get_content_pkgs
+-- luacheck: globals get_repos deps_canon conflicts_canon available_packages pkg_aggregate run get_content_pkgs sort_candidates
 
 function get_repos()
 	DBG("Getting repos")
@@ -332,6 +332,46 @@ function conflicts_canon(conflicts)
 	return dep
 end
 
+--[[
+Sort all given candidates according to following criteria.
+
+* Source repository priority
+* For packages from same package group compare by version (preferring newer packages)
+* Prefer packages from package group we are working on (provided candidates are sorted to end)
+* Compare repository order of introduction
+* Sort alphabetically by name of package
+]]
+function sort_candidates(pkgname, candidates)
+	local function compare(a, b)
+		-- The locally created packages (with content) have no repo, create a dummy one. Get its priority from the Package command, or the default 50
+		local a_repo = a.repo or {priority = utils.multi_index(a, "pkg", "priority") or 50, serial = -1, name = ""}
+		local b_repo = b.repo or {priority = utils.multi_index(b, "pkg", "priority") or 50, serial = -1, name = ""}
+		if a_repo.priority ~= b_repo.priority then -- Check repository priority
+			return a_repo.priority > b_repo.priority
+		end
+		if a.Package == b.Package then -- Don't compare versions for different packages
+			local vers_cmp = backend.version_cmp(a.Version, b.Version)
+			if vers_cmp ~= 0 then -- Check version of package
+				return vers_cmp == 1 -- a is newer version than b
+			end
+		elseif (a.Package ~= pkgname and b.Package == pkgname) or (a.Package == pkgname and b.Package ~= pkgname) then -- When only one of packages is provided by some other packages candidate
+			return a.Package == pkgname -- Prioritize candidates of package it self, not provided ones.
+		end
+		if a_repo.serial ~= b_repo.serial then -- Check repo order of introduction
+			return a_repo.serial < b_repo.serial
+		end
+		if a.Package ~= b.Package then -- As last resort when packages are not from same and not from provided package group
+			return a.Package < b.Package -- Sort alphabetically by package name
+		end
+		-- As sorting algorithm is quicksort it sometimes compares object to it self. So we can't just strait print warning, but we have to check if it isn't same table.
+		if a ~= b then
+			WARN("Multiple candidates from same repository (" .. a_repo.name .. ") with same version (" .. a.Version .. ") for package " .. a.Package)
+		end
+		return false -- Because this is quicksort we have to as last resort return false
+	end
+	table.sort(candidates, compare)
+end
+
 available_packages = {}
 
 --[[
@@ -473,33 +513,7 @@ function pkg_aggregate()
 		pkg_group.modifiers = nil
 		-- Sort candidates
 		if pkg_group.candidates then
-			table.sort(pkg_group.candidates, function(a, b)
-				-- The locally created packages (with content) have no repo, create a dummy one. Get its priority from the Package command, or the default 50
-				local a_repo = a.repo or {priority = utils.multi_index(a, "pkg", "priority") or 50, serial = -1, name = ""}
-				local b_repo = b.repo or {priority = utils.multi_index(b, "pkg", "priority") or 50, serial = -1, name = ""}
-				if a_repo.priority ~= b_repo.priority then -- Check repository priority
-					return a_repo.priority > b_repo.priority
-				end
-				if a.Package == b.Package then -- Don't compare versions for different packages
-					local vers_cmp = backend.version_cmp(a.Version, b.Version)
-					if vers_cmp ~= 0 then -- Check version of package
-						return vers_cmp == 1 -- a is newer version than b
-					end
-				elseif (a.Package ~= name and b.Package == name) or (a.Package == name and b.Package ~= name) then -- When only one of packages is provided by some other packages candidate
-					return a.Package == name -- Prioritize candidates of package it self, not provided ones.
-				end
-				if a_repo.serial ~= b_repo.serial then -- Check repo order of introduction
-					return a_repo.serial < b_repo.serial
-				end
-				if a.Package ~= b.Package then -- As last resort when packages are not from same and not from provided package group
-					return a.Package < b.Package -- Sort alphabetically by package name
-				end
-				-- For some reason sorting algorithm sometimes compares object to it self. So we can't just strait print warning, but we have to check if it isn't same table.
-				if a ~= b then
-					WARN("Multiple candidates from same repository (" .. a_repo.name .. ") with same version (" .. a.Version .. ") for package " .. a.Package)
-				end
-				return true -- lets prioritize a, for no reason, lets make b angry.
-			end)
+			sort_candidates(name, pkg_group.candidates)
 		end
 	end
 end
