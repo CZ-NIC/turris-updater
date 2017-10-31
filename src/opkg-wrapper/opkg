@@ -72,6 +72,10 @@ $1"
 	shift
 done
 
+# delete first empty line
+PACKAGES="$( echo "$PACKAGES" | sed '1d' )"
+
+
 # As first takes name of package to be added to config file.
 config_add_pkg() {
 	echo "Install(\"$1\")" >>"$UPDATER_CONFIG"
@@ -146,7 +150,7 @@ if [ ! -f "$UPDATER_CONFIG" ]; then
 	echo "-- This is automatically generated file managed by opkg wrapper script. Please don't edit!" > "$UPDATER_CONFIG"
 fi
 
-echo "$PACKAGES" | sed '1d' | while read P; do
+echo "$PACKAGES" | while read P; do
 	case "$OPERATION" in
 		i) # Install
 			install "$P"
