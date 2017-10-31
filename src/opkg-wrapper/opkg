@@ -25,8 +25,10 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-UPDATER_CONFIG=/etc/updater/conf.d/opkg-auto.lua # Automatic updater configuration file
-OPKG=/bin/opkg-cl # Path to opkg
+# Automatic updater configuration file
+UPDATER_CONFIG='/etc/updater/conf.d/opkg-auto.lua'
+# Path to opkg
+OPKG='/bin/opkg-cl'
 
 ARGS=""
 EXC=0
@@ -52,7 +54,7 @@ shift
 
 if [ "$OPERATION" = "n" ]; then
 	# Not install or remove operation
-	$OPKG $ARGS "$@"
+	"$OPKG" $ARGS "$@"
 	exit $?
 fi
 
@@ -87,7 +89,7 @@ config_pkg_in() {
 
 # Checks if given package is installed
 pkg_installed() {
-	[ -n "$($OPKG $ARGS list-installed "$1")" ]
+	[ -n "$("$OPKG" $ARGS list-installed "$1")" ]
 }
 
 install() {
@@ -105,7 +107,7 @@ install() {
 	fi
 	pkg_installed "$PKG"
 	local WASINSTALLED=$?
-	if ! $OPKG $ARGS install "$OPKG_PKG"; then
+	if ! "$OPKG" $ARGS install "$OPKG_PKG"; then
 		# opkg failed, probably some problem with package. Lets not change anything
 		EXC=255
 		return
@@ -124,7 +126,7 @@ install() {
 remove() {
 	pkg_installed "$1"
 	local WASINSTALLED=$?
-	if ! $OPKG $ARGS remove "$1"; then
+	if ! "$OPKG" $ARGS remove "$1"; then
 		# opkg failed. But continue anyway
 		EXC=255
 	fi
