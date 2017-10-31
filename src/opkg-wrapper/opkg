@@ -32,7 +32,7 @@ ARGS=""
 EXC=0
 
 OPERATION="n"
-while [ "$1" ]; do
+while [ "$#" -gt 0 ]; do
 	case "$1" in
 		install)
 			OPERATION="i"
@@ -52,20 +52,21 @@ shift
 
 if [ "$OPERATION" = "n" ]; then
 	# Not install or remove operation
-	$OPKG $ARGS $@
+	$OPKG $ARGS "$@"
 	exit $?
 fi
 
 
 PACKAGES=""
-while [ "$1" ]; do
-	if [ "`echo "$1" | sed 's/^-/+/'`" != "$1" ]; then # ignore options
+while [ "$#" -gt 0 ]; do
+	# ignore options
+	if echo "$1" | grep -q '^-'; then
 		ARGS="$ARGS $1"
-		shift
-		continue
-	fi
-	PACKAGES="$PACKAGES
+	else
+		PACKAGES="$PACKAGES
 $1"
+	fi
+
 	shift
 done
 
