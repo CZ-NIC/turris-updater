@@ -2,7 +2,18 @@
 # Simple script for migration from Content to localrepo
 set -ex
 
-UPDATER_CONFIG="/etc/updater/auto.lua"
+# Because we no way depend on updater-ng it self we can be easily installed before
+# or after it. So if we are migrating in version 60 auto.lua to opkg-auto.lua we
+# can encounter both cases. So here check which one we have with preference on new
+# place.
+if [ -f "/etc/updater/conf.d/opkg-auto.lua" ]; then
+	UPDATER_CONFIG="/etc/updater/conf.d/opkg-auto.lua"
+elif [ -f "/etc/updater/auto.lua" ]; then
+	UPDATER_CONFIG="/etc/updater/auto.lua"
+else
+	# No automatic configuration file. This is fine if this is clean new install
+	exit
+fi
 
 # Add all content packages to localrepo
 sed -n 's/^Package.*content *= *"file:\/\/\([^"]*\)".*/\1/p' "$UPDATER_CONFIG" | \
