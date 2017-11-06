@@ -36,6 +36,7 @@ local assert = assert
 local next = next
 local TRACE = TRACE
 local WARN = WARN
+local ERROR = ERROR
 local run_command = run_command
 local events_wait = events_wait
 local get_updater_version = get_updater_version
@@ -44,10 +45,6 @@ local backend = require "backend"
 local requests = require "requests"
 local uri = require "uri"
 local uci_ok, uci = pcall(require, "uci")
-if not uci_ok then
-	ERROR("The uci library is not available. Continuing without it and expecting this is a test run on development PC.")
-	uci = nil
-end
 
 module "sandbox"
 
@@ -178,7 +175,7 @@ end
 
 -- END_MAGIC
 
--- Functions and "constants" available in the restricted level
+-- Available functions and "constants" from global environment
 local rest_available_funcs = {
 	"table",
 	"string",
@@ -201,6 +198,13 @@ local rest_available_funcs = {
 	"INFO",
 	"DBG",
 	"TRACE"
+}
+local local_available_funcs = {
+	"io",
+	"file",
+	"ls",
+	"stat",
+	"lstat"
 }
 -- Additional available functions and "constants" not from global also available in restricted level
 local rest_additional_funcs = {
@@ -345,10 +349,10 @@ for _, name in pairs(rest_available_funcs) do
 		value = G[name]
 	}
 end
-if uci then
-	funcs.Local.uci = {
+for _, name in pairs(local_available_funcs) do
+	funcs.Local[name] = {
 		mode = "inject",
-		value = uci
+		value = G[name]
 	}
 end
 -- Some additional our functions and "constants"
@@ -357,6 +361,15 @@ for _, addit in pairs(rest_additional_funcs) do
 		mode = "inject",
 		value = addit[2]
 	}
+end
+-- Uci library if available
+if uci_ok then
+	funcs.Local.uci = {
+		mode = "inject",
+		value = uci
+	}
+else
+	ERROR("The uci library is not available. Continuing without it and expecting this is a test run on development PC.")
 end
 --[[
 List the variable names here. This way we ensure they are actually set in case

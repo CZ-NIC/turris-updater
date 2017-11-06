@@ -595,6 +595,42 @@ These commands allows printing of messages for their corresponding
 verbosity levels. On top of that `DIE` command also results to
 updater failure.
 
+Access files
+~~~~~~~~~~~~
+
+On top of standard `io` and `file` updater also defines some of its own functions
+for files access.
+
+  ls(path)
+  stat(path)
+  lstat(path)
+
+All these functions have to be called with string argument containing path. Note
+that you should prepend all paths with `root_dir` variable to support off root
+execution.
+
+ls::
+  This functions returns table with file names under the given path (acts like
+  shell's `ls -a`, ommiting `.` and `..` entries). If given path is not directory
+  or doesn't exists then error is raised. Value in table for each key is the type
+  of file, which may be:
+    b;; A block device
+    c;; A character device
+    d;; A directory
+    f;; A named pipe
+    l;; A symbolic link
+    r;; A regular file
+    s;; A unix-domain socket
+    ?;; Failed to determine the type
+stat::
+  Statistics about the given file. If the file does not exist, it returns nothing.
+  Otherwise, the file type is returned (see the types of `ls`). The second result
+  is the permissions of the file, in the imitation of shell's `ls -l`, like
+  `rwxr-x---`.
+lstat::
+  Same as `stat` except the `lstat` behaviour is preferred. (eg. provides info
+  about symbolic link if it is a link, instead of the target).
+
 Predefined variables
 --------------------
 
@@ -752,5 +788,10 @@ Restricted::
   * `version_match`
 Local::
   * `uci` library
+  * `io`
+  * `file`
+  * `ls`
+  * `stat`
+  * `lstat`
 Full::
   * The whole lua library

@@ -51,11 +51,9 @@ function test_context_new()
 		assert_table_equal(string, context.env.string)
 		-- Some are just in some of the contexts
 		if level == "Full" then
-			assert_equal(io, context.env.io)
 			assert_equal(utils, context.env.utils)
 			assert_equal(getmetatable, context.env.getmetatable)
 		else
-			assert_nil(context.env.io)
 			assert_nil(context.env.utils)
 			assert_nil(context.env.getmetatable)
 		end
