@@ -5,7 +5,6 @@ This file is part of updater-ng. Don't edit it.
 local branch = ""
 local lists
 if uci then
-	-- If something is really broken, we could be unable to load the uci dynamic module. Try to do some recovery in such case and hope it works well the next time.
 	local cursor = uci.cursor()
 	branch = cursor:get("updater", "override", "branch")
 	if branch then
@@ -15,10 +14,6 @@ if uci then
 		branch = ""
 	end
 	lists = cursor:get("updater", "pkglists", "lists")
-	l10n = cursor:get("updater", "l10n", "langs")
-	if type(l10n) == "string" then
-		l10n = {l10n}
-	end
 else
 	ERROR("UCI library is not available. Not processing user lists.")
 end

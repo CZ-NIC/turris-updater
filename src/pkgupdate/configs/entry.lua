@@ -8,7 +8,14 @@ is here just for illustration.
 
 -- Prepare variables specifying localization of system.
 l10n = {} -- table with selected localizations
+if uci then
+	l10n = uci.cursor():get("updater", "l10n", "langs")
+	if type(l10n) == "string" then
+		l10n = {l10n}
+	end
+end
 Export('l10n')
+
 -- This is helper function for including localization packages.
 function for_l10n(fragment)
 	for _, lang in pairs(l10n or {}) do
