@@ -98,7 +98,7 @@ if [ "$DISABLED" = "1" ] ; then
 fi
 
 NET_WAIT=10
-while [ $NET_WAIT -gt 0 ] && ! ping -c 1 -w 1 api.turris.cz >/dev/null 2>&1; do
+while [ $NET_WAIT -gt 0 ] && ! ping -c 1 -w 1 repo.turris.cz >/dev/null 2>&1; do
 	NET_WAIT=$(($NET_WAIT - 1))
 	sleep 1 # Note: we wait in ping too (so we wait for 2 seconds), but in some cases (failed dns resolution) ping exits fast so we have to have this sleep too
 done
