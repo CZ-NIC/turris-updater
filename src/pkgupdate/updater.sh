@@ -103,13 +103,6 @@ while [ $NET_WAIT -gt 0 ] && ! ping -c 1 -w 1 repo.turris.cz >/dev/null 2>&1; do
 	sleep 1 # Note: we wait in ping too (so we wait for 2 seconds), but in some cases (failed dns resolution) ping exits fast so we have to have this sleep too
 done
 
-get-api-crl || {
-	create_notify_error \
-		'Updater selhal: Chybí CRL, pravděpodobně je problém v připojení k internetu.' \
-		'Updater failed: Missing CRL, possibly broken Internet connection.'
-	exit 1
-}
-
 STATE_DIR=/tmp/update-state
 LOCK_DIR="$STATE_DIR/lock"
 LOG_FILE="$STATE_DIR/log2"
