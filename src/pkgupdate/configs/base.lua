@@ -9,7 +9,7 @@ if uci then
 	branch = cursor:get("updater", "override", "branch")
 	if branch then
 		WARN("Branch overriden to " .. branch)
-		branch = branch .. "/"
+		branch = "-" .. branch
 	else
 		branch = ""
 	end
@@ -22,19 +22,19 @@ end
 local base_model = ""
 if model then
 	if model:match("[Oo]mnia") then
-		base_model = "omnia/"
+		base_model = "omnia"
 	elseif model:match("[Tt]urris") then
-		base_model = "turris/"
+		base_model = "turris"
 	end
 end
 
 -- Definitions common url base
-local base_url = "https://api.turris.cz/updater-defs/" .. turris_version .. "/" .. base_model .. branch
+local base_url = "https://repo.turris.cz/" .. base_model .. branch .. "/lists/"
 -- Reused options for remotely fetched scripts
 local script_options = {
 	security = "Remote",
-	ca = "file:///etc/ssl/updater.pem",
-	crl = "file:///tmp/crl.pem",
+	ca = system_cas,
+	crl = no_crl,
 	ocsp = false,
 	pubkey = {
 		"file:///etc/updater/keys/release.pub",
@@ -58,7 +58,7 @@ if lists then
 			if exec_list[l] then
 				WARN("User list " .. l .. " specified multiple times")
 			else
-				Script("userlist-" .. l, base_url .. "userlists/" .. l .. ".lua", script_options)
+				Script("userlist-" .. l, base_url .. l .. ".lua", script_options)
 				exec_list[l] = true
 			end
 		end
