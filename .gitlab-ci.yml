@@ -14,10 +14,10 @@ test:
   script:
     - make test test-sys
 
-test_valgrind:
-  stage: test
-  script:
-    - make valgrind valgrind-sys
+#test_valgrind:
+#  stage: test
+#  script:
+#    - make valgrind valgrind-sys
 
 # Test stage with busybox embedded
 test_busybox:
@@ -25,10 +25,10 @@ test_busybox:
   script:
     - BUSYBOX_EXEC=/bin/busybox make check
 
-test_valgrind_busybox:
-  stage: test
-  script:
-    - BUSYBOX_EXEC=/bin/busybox make valgrind valgrind-sys
+#test_valgrind_busybox:
+#  stage: test
+#  script:
+#    - BUSYBOX_EXEC=/bin/busybox make valgrind valgrind-sys
 
 pages:
   stage: pages
