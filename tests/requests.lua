@@ -238,49 +238,6 @@ function test_script_pass_validation()
 	assert_equal("context", result.tp, result.msg)
 end
 
--- Test guessing/setting the restrict option
-function test_restrict()
-	local orig_run_sandboxed = sandbox.run_sandboxed
-	mock_gen('sandbox.run_sandboxed')
-	local run_i = 0
-	local function run(uri, options, restrict, level, err)
-		local result = orig_run_sandboxed([[
-			Script(']] .. uri .. [[', { security = 'Restricted']] .. options .. [[ })
-		]], "test_restrict_chunk" .. tostring(run_i), level, nil, {restrict = "http://some%.host/.*"})
-		run_i = run_i + 1
-		if err then
-			assert_equal("error", result.tp)
-			assert_equal("access violation", result.reason)
-		else
-			assert_equal("context", result.tp, result.msg)
-			assert_equal(1, #mocks_called)
-			mocks_called[1].p[4] = "context"
-			assert_table_equal({
-				{
-					f = "sandbox.run_sandboxed",
-					p = {
-						"",
-						uri,
-						"Restricted",
-						"context",
-						{
-							restrict = restrict
-						}
-					}
-				}
-			}, mocks_called)
-		end
-		mocks_called[1] = nil
-	end
-	run('http://some.host/index.cgi', '', 'http://some%.host/.*', "Local")
-	run('http://some.host/index.cgi', ', restrict = ".*"', ".*", "Local")
-	run('http://some.host/index.cgi', '', 'http://some%.host/.*', "Restricted")
-	run('http://some.host/index.cgi', ', restrict = "http://some%.host/subdir/.*"', 'http://some%.host/subdir/.*', "Restricted")
-	run('http://some.host/index.cgi', ', restrict = "http://some%.host/.*"', 'http://some%.host/.*', "Restricted")
-	run('http://some.host/index.cgi', ', restrict = "http://other%.host/.*"', 'http://some%.host/.*', "Restricted", true)
-	run('http://some.host/index.cgi', ', restrict = "http://.*"', 'http://some%.host/.*', "Restricted", true)
-end
-
 function test_script_err_propagate()
 	mocks_reset()
 	local err = sandbox.run_sandboxed([[

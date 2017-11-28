@@ -246,11 +246,6 @@ security::
   raise the level, such attempt is reported as an error. If not
   specified, the level is deduced from the URI. If the URI is remote,
   it doesn't go above `remote`, otherwise it doesn't go above `local`.
-restrict::
-  If the level is `restricted`, this is the match for URIs that may be
-  referenced. If the level is `restricted` and this is not specified,
-  a match for the protocol and hostname is constructed. It has no
-  effect with higher security levels.
 ignore::
   Ignore certain errors. If they happen, don't process such script,
   but continue with the rest. This is a lua table with strings, each

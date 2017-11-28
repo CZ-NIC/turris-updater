@@ -410,7 +410,7 @@ end
 
 local allowed_script_extras = {
 	["security"] = utils.arr2set({"string"}),
-	["restrict"] = utils.arr2set({"string"}),
+	["restrict"] = utils.arr2set({"string"}), -- This is now obsoleted (not used)
 	["ignore"] = utils.arr2set({"table"})
 }
 utils.table_merge(allowed_script_extras, allowed_extras_verification)
@@ -419,7 +419,6 @@ utils.table_merge(allowed_script_extras, allowed_extras_verification)
 We want to insert these options into the new context, if they exist.
 ]]
 local script_insert_options = {
-	restrict = true,
 	pubkey = true,
 	ca = true,
 	crl = true,
@@ -464,29 +463,6 @@ function script(result, context, filler, script_uri, extra)
 	if extra.security and not context:level_check(extra.security) then
 		error(utils.exception("access violation", "Attempt to raise security level from " .. tostring(context.sec_level) .. " to " .. extra.security))
 	end
-	--[[
-	If it was hard to write, it should be hard to read, but I'll add a small hint
-	about what it does anyway, to spoil the challenge.
-
-	So, take the provided restrict option. If it is not there, fall back to guessing
-	from the current URI of the script. However, take only the protocol and host
-	part and convert it into a pattern (without anchors, they are added during
-	the match).
-	]]
-	local restrict = extra.restrict or script_uri:match('^[^:]+:/*[^/]+'):gsub('[%^%$%(%)%%%.%[%]%*%+%-%?]', '%%%0') .. "/.*"
-	--[[
-	Now check that the new restrict is at least as restrictive as the old one, if there was one to begin with.
-	Which means that both the new context and the parent context are "Restricted". However, if the parent is
-	Restricted, the new one has no other option than to be so as well.
-
-	We do so by making sure the old pattern is substring of the new one (with the exception of terminating .*).
-	We explicitly take the prefix and compare instead of using find, because find uses a pattern. We want
-	to compare tu patterns, not match one against another.
-	]]
-	local parent_restrict_trunc = (context.restrict or ''):gsub('%.%*$', '')
-	if context.sec_level == sandbox.level("Restricted") and restrict:gsub('%.%*$', ''):sub(1, parent_restrict_trunc:len()) ~= parent_restrict_trunc then
-		error(utils.exception("access violation", "Attempt to lower URL restriction"))
-	end
 	-- Insert the data related to validation, so scripts inside can reuse the info
 	local merge = {}
 	for name in pairs(script_insert_options) do
@@ -494,7 +470,6 @@ function script(result, context, filler, script_uri, extra)
 			merge[name] = utils.clone(extra[name])
 		end
 	end
-	merge.restrict = restrict
 	local err = sandbox.run_sandboxed(content, script_uri, extra.security, context, merge)
 	if err and err.tp == 'error' then
 		if not err.origin then
