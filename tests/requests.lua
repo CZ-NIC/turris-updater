@@ -229,10 +229,8 @@ function test_script_pass_validation()
 	end
 	-- Bad uri inside something
 	bad(", verification = 'sig', pubkey = 'invalid://'", "Unknown URI schema invalid")
-	-- Even when not used
-	bad(", pubkey = 'invalid://'", "Unknown URI schema invalid")
 	-- We don't allow this URI in the given context (even if it is not directly used)
-	bad(", pubkey = 'file:///dev/null'", "At least Local level required for file URI", "access violation")
+	bad(", verification = 'sig', pubkey = 'file:///dev/null'", "At least Local level required for file URI", "access violation")
 	-- But we allow it if there's a high enough level
 	local result = sandbox.run_sandboxed([[
 		Script("data:,", { security = 'Restricted', pubkey = 'file:///dev/null' })

@@ -489,7 +489,7 @@ function script(result, context, filler, script_uri, extra)
 	end
 	-- Insert the data related to validation, so scripts inside can reuse the info
 	local merge = {}
-	for name, check in pairs(script_insert_options) do
+	for name in pairs(script_insert_options) do
 		if extra[name] ~= nil then
 			merge[name] = utils.clone(extra[name])
 		end
