@@ -181,7 +181,7 @@ setup_cleanup() {
 rand_suspend() {
 	# We don't have $RANDOM and base support in arithmetic mode so we use this instead
 	local T_RAND="$( printf %d 0x$(head -c 2 /dev/urandom | hexdump -e '"%x"'))"
-	T_RAND="$(( $T_RAND % 1800 ))"
+	T_RAND="$(( $T_RAND % 7200 ))"
 	echo "Suspending updater for $T_RAND seconds" >&2
 	echo "Suspending updater for $T_RAND seconds" | logger -t updater -p daemon.info
 	sleep $T_RAND
