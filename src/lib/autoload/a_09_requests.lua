@@ -415,28 +415,14 @@ local allowed_script_extras = {
 }
 utils.table_merge(allowed_script_extras, allowed_extras_verification)
 
-local function uri_validate(name, value, context)
-	if type(value) == 'string' then
-		value = {value}
-	end
-	if type(value) ~= 'table' then
-		error('bad value', name .. " must be string or table")
-	end
-	for _, u in ipairs(value) do
-		uri.parse(context, u)
-	end
-end
-
 --[[
 We want to insert these options into the new context, if they exist.
-The value may be a function, then it is used to validate the value
-from the extra options.
 ]]
 local script_insert_options = {
 	restrict = true,
-	pubkey = uri_validate,
-	ca = uri_validate,
-	crl = uri_validate,
+	pubkey = true,
+	ca = true,
+	crl = true,
 	ocsp = true
 }
 
@@ -505,9 +491,6 @@ function script(result, context, filler, script_uri, extra)
 	local merge = {}
 	for name, check in pairs(script_insert_options) do
 		if extra[name] ~= nil then
-			if type(check) == 'function' then
-				check(name, extra[name], context)
-			end
 			merge[name] = utils.clone(extra[name])
 		end
 	end
