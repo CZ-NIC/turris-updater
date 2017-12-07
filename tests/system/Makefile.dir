@@ -19,6 +19,7 @@ UPD_SYS_TESTS := \
 	provides-replace \
 	abi-change \
 	replan \
+	replan-no-effect \
 	list-dir \
 	force-downgrade \
 	conflicts \

@@ -1,0 +1,2 @@
+#!/bin/sh
+echo "prerm" >> $ROOT_DIR/pkghooks
