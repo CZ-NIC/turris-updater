@@ -113,6 +113,10 @@ static const char *time_load(void) {
 	return timebuf;
 }
 
+// Cleanup depends on what ever we are running replan or not so for simplicity we
+// use this macro.
+#define GOTO_CLEANUP do { if (replan) goto REPLAN_CLEANUP; else goto CLEANUP; } while(false)
+
 int main(int argc, char *argv[]) {
 	// Some setup of the machinery
 	log_stderr_level(LL_INFO);
@@ -248,18 +252,18 @@ int main(int argc, char *argv[]) {
 	ASSERT_MSG(interpreter_collect_results(interpreter, "b", &trans_empty) == -1, "The result of transaction.empty is not bool");
 	if (trans_empty) {
 		approval_clean(approval_file); // There is nothing to do and if we have approvals enabled we should drop approval file
-		goto CLEANUP;
+		GOTO_CLEANUP;
 	}
 	if (!batch) {
 		// For now we want to confirm by the user.
 		fprintf(stderr, "Press return to continue, CTRL+C to abort\n");
 		if (getchar() == EOF) // Exit if stdin is not opened or if any other error occurs
-			goto CLEANUP;
+			GOTO_CLEANUP;
 		approval_clean(approval_file); // If there is any approval_file we just approved it so remove it.
 	} else if (!approved(interpreter, approval_file, approvals, approval_count))
 		// Approvals are only for non-interactive mode (implied by batch mode).
 		// Otherwise user approves on terminal in previous code block.
-		goto CLEANUP;
+		GOTO_CLEANUP;
 	if (!replan) {
 		INFO("Executing preupdate hooks...");
 		const char *hook_path = aprintf("%s%s", root_dir, hook_preupdate);
@@ -303,6 +307,7 @@ int main(int argc, char *argv[]) {
 		} else
 			WARN("Could not store task log end %s: %s", task_log, strerror(errno));
 	}
+REPLAN_CLEANUP:
 	INFO("Executing postupdate hooks...");
 	const char *hook_path = aprintf("%s%s", root_dir, hook_postupdate);
 	setenv("SUCCESS", trans_ok ? "true" : "false", true); // ROOT_DIR is already set
