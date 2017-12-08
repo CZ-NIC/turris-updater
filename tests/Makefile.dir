@@ -114,12 +114,6 @@ test-locks: $(O)/bin/locks
 valgrind-locks: $(O)/bin/locks
 	$(VALGRIND) $(O)/bin/locks
 
-# In uri test we are connecting to api.turris.cz and this downloads us crl
-test-lua-uri: $(S)/tests/api.turris.cz.crl.pem
-# Always download to ensure that it won't timeout
-$(S)/tests/api.turris.cz.crl.pem: FORCE
-	curl -k https://api.turris.cz/crl -o $@
-
 test: test-locks
 valgrind: valgrind-locks
 check: test valgrind luac-autoload luacheck cppcheck

@@ -262,53 +262,27 @@ START_TEST(command_stuff) {
 }
 END_TEST
 
-static void download_done_callback_api(struct wait_id id __attribute__((unused)), void *data __attribute__((unused)), int status, size_t out_size __attribute__((unused)), const char *out) {
-	ck_assert_uint_eq(200, status);
-	const char *res = strstr(out, "Not for your eyes");
-	ck_assert(res);
-}
-
 static void download_done_callback_repo(struct wait_id id __attribute__((unused)), void *data __attribute__((unused)), int status, size_t out_size __attribute__((unused)), const char *out) {
 	ck_assert_uint_eq(200, status);
 	const char *res = strstr(out, "Index of /");
 	ck_assert(res);
 }
 
-static void download_failed_callback(struct wait_id id __attribute__((unused)), void *data __attribute__((unused)), int status, size_t out_size __attribute__((unused)), const char *out __attribute__((unused))) {
-	ck_assert_uint_eq(500, status);
-}
-
-// Just like the done callback, but download one more thing from within this callback (and wait for it).
-static void download_recursive_callback(struct wait_id id, void *data, int status, size_t out_size, const char *out) {
-	download_done_callback_api(id, data, status, out_size, out);
-	struct wait_id new_id = download(data, download_done_callback_api, NULL, "https://api.turris.cz/index.html", NULL, NULL, false, false);
-	events_wait(data, 1, &new_id);
-}
-
 START_TEST(command_download) {
 	const char *s_dir = getenv("S");
 	if (!s_dir)
 		s_dir = ".";
-	const char *cert_file = aprintf("%s/tests/data/updater.pem", s_dir);
 	const size_t cnt = 2;
-	struct wait_id ids[cnt * 6];
+	struct wait_id ids[cnt];
 
 	struct events *events = events_new();
 	download_slot_count_set(events, 2);
 
 	for (size_t i = 0; i < cnt; i++) {
-		ids[i] = download(events, download_done_callback_api, NULL, "https://api.turris.cz/index.html", cert_file, NULL, false, true);
-		ids[i + cnt] = download(events, download_failed_callback, NULL, "https://api.turris.cz/does_not_exist.dat", cert_file, NULL, false, true);
-		ids[i + 2 * cnt] = download(events, download_recursive_callback, events, "https://api.turris.cz/index.html", cert_file, NULL, false, true);
-		// api has special ca so this should fail
-		ids[i + 3 * cnt] = download(events, download_failed_callback, NULL, "https://api.turris.cz/index.html", NULL, NULL, false, true);
-		// but with disabled ssl it should work
-		ids[i + 4 * cnt] = download(events, download_done_callback_api, NULL, "https://api.turris.cz/index.html", NULL, NULL, false, false);
-		// repo uses public ca so this should work with system one
-		ids[i + 5 * cnt] = download(events, download_done_callback_repo, NULL, "https://repo.turris.cz", NULL, NULL, false, true);
+		ids[i] = download(events, download_done_callback_repo, NULL, "https://repo.turris.cz", NULL, NULL, false, true);
 	}
 
-	events_wait(events, cnt * 6, ids);
+	events_wait(events, cnt, ids);
 	events_destroy(events);
 }
 END_TEST
