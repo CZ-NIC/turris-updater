@@ -244,7 +244,11 @@ int main(int argc, char *argv[]) {
 	}
 	// Decide what packages need to be downloaded and handled
 	const char *err = interpreter_call(interpreter, "updater.prepare", NULL, "s", top_level_config);
-	ASSERT_MSG(!err, "%s", err);
+	if (err) {
+		exit_type = COT_CRASH;
+		ERROR("%s", err);
+		GOTO_CLEANUP;
+	}
 	err = interpreter_call(interpreter, "transaction.empty", &result_count, "");
 	ASSERT_MSG(!err, "%s", err);
 	ASSERT_MSG(result_count == 1, "Wrong number of results of transaction.empty");
