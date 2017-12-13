@@ -49,7 +49,7 @@ def gen_updater_config():
         file.write("-- Auto-generated updater-ng configuration\n")
         for repo in repo_list():
             file.write("Repository('localrepo-" + repo + "', 'file://" +
-                       REPO_PATH + "/" + repo + "')")
+                       REPO_PATH + "/" + repo + "')\n")
 
 
 def parse_control(block):
@@ -183,6 +183,8 @@ def repo_init(repo):
         return  # Repository seems to be already there
     if not os.path.isdir(repo_path):
         os.makedirs(repo_path)
+    with gzip.open(repo_pkgs, 'wb') as file:
+        file.write('\n')
     gen_updater_config()
 
 
@@ -423,6 +425,8 @@ def cmd_check(args):
                 # TODO compare if we have all fields in ctl same
             # TODO go trough files and add missing packages
         repo_index_write(repo, index)
+    if args.fix:
+        gen_updater_config()  # Just to be sure, regenerate
     if consistent:
         print("Local repository seems to be consistent.")
     elif not args.fix:
