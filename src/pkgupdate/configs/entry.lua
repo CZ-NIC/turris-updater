@@ -29,7 +29,7 @@ local conf_dir = root_dir .. '/etc/updater/conf.d'
 local confd_type, _ = stat(conf_dir)
 if confd_type == 'd' then
 	for name, tp in pairs(ls(conf_dir)) do
-		if tp == 'r' and name:match('.*.lua') then
+		if tp == 'r' and name:match('.*.lua$') then
 			Script("conf.d-" .. name:sub(1, name:find('.lua$') - 1), 'file://' .. conf_dir .. '/' .. name, { security = "Local" })
 		end
 	end
