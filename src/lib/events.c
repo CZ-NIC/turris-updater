@@ -825,7 +825,7 @@ struct wait_id download(struct events *events, download_callback_t callback, voi
 		.udata = data,
 		.curl_err = ""
 	};
-
+	const char user_agent[] = "Turris Updater/" UPDATER_VERSION;
 	res->curl = curl_easy_init();
 	ASSERT_MSG(res->curl, "Curl download instance creation failed");
 #define CURL_SETOPT(OPT, VAL) ASSERT_CURL(curl_easy_setopt(res->curl, OPT, VAL))
@@ -834,6 +834,7 @@ struct wait_id download(struct events *events, download_callback_t callback, voi
 	CURL_SETOPT(CURLOPT_TIMEOUT, 120); // Timeout after 2 minutes per try so in total with possible 2 repeats it's 6 minutes (3*2)
 	CURL_SETOPT(CURLOPT_CONNECTTIMEOUT, 30); // Timeout connection after half of a minute.
 	CURL_SETOPT(CURLOPT_FAILONERROR, 1); // If we use http and request fails (response >= 400) request also fails. TODO according to documentation this doesn't cover authentications errors. If authentication is added, this won't be enough.
+	CURL_SETOPT(CURLOPT_USERAGENT, user_agent); // We set our own User Agent, so our server knows we're not just some bot
 	if (ssl) {
 		if (cacert)
 			CURL_SETOPT(CURLOPT_CAINFO, cacert);
