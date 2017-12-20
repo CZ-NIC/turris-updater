@@ -411,12 +411,14 @@ def cmd_check(args):
                 if md5sum != ctl['MD5Sum']:
                     print(idstring + """ mismatch md5sum between index and real
                           file.""")
+                    consistent = False
                     if args.fix:
                         print("-> Updating md5sum in index")
                         ctl['MD5Sum'] = md5sum
                 if sha256sum != ctl['SHA256sum']:
                     print(idstring + """ mismatch sha256sum between index and
                           real file.""")
+                    consistent = False
                     if args.fix:
                         print("-> Updating sha256sum in index")
                         ctl['SHA256sum'] = sha256sum
@@ -425,7 +427,7 @@ def cmd_check(args):
                 # TODO compare if we have all fields in ctl same
             # TODO go trough files and add missing packages
         repo_index_write(repo, index)
-    if args.fix:
+    if len(repos) != 0 and args.fix:
         gen_updater_config()  # Just to be sure, regenerate
     if consistent:
         print("Local repository seems to be consistent.")
