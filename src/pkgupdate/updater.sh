@@ -38,7 +38,7 @@ ptimeout() {
 			# We are immediately killing as busybox doesn't support delayed kill
 			timeout -t "$T" -s 9 "$@"
 		else
-			timeout -k "$(($T + 5))" "$T" "$@"
+			timeout --foreground -k "$(($T + 5))" "$T" "$@"
 		fi
 		return $?
 	fi
