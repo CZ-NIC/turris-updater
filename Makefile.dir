@@ -10,7 +10,7 @@ endif
 
 include $(S)/build/Makefile.top
 
-include $(S)/design/Makefile.dir
+include $(S)/doc/Makefile.dir
 include $(S)/src/Makefile.dir
 include $(S)/tests/Makefile.dir
 

@@ -1,4 +1,4 @@
-RESTRICT := design
+RESTRICT := doc
 RELATIVE := ../
 
 include $(RELATIVE)/Makefile
