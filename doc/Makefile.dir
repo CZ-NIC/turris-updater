@@ -1,6 +1,5 @@
 DOC_DOCS := \
 	language \
-	entryscript \
 	dev/requirements \
 	dev/opkg \
 	dev/internals \
