@@ -35,12 +35,6 @@ local requests = require "requests"
 local backend = require "backend"
 local transaction = require "transaction"
 
-local io = require "io"
-local assert = assert
-local pairs = pairs
-local tostring = tostring
-local type = type
-
 local show_progress = show_progress
 local progress_next_step = progress_next_step
 
@@ -52,41 +46,6 @@ local allow_replan = true
 function disable_replan()
 	allow_replan = false
 end
-
--- +BB support for saving table to a file (debug stuff)
-
-function print_r (t, fd)
-    fd = fd or io.stdout
-    local function print(str)
-       str = str or ""
-       fd:write(str.."\n")
-	end
-	for key, value in pairs(t) do
-		-- all values are tables
-		print("\n" .. tostring(key) .. "--------------------------------\n")
-		for k, v in pairs(value) do
-		--	if type(v) == "table" then
-			if k == "package" then
-				print(tostring(k) .. ": [")
-				for kk, vv in pairs (v) do
-					print("  " .. tostring(kk) .. ": " .. tostring(vv) .. "")
-				end
-				print("]")
-			else
-				print(tostring(k) .. ": " .. tostring(v) .. "")	
-			end
-		end
-	end
-end
-
-function savetxt (t)
-	local file = assert(io.open("/root/test.txt", "w"))
-	print_r(t, file)
-	file:close()
- end
-
--- -BB
-
 
 function required_pkgs(entrypoint)
 	-- Get the top-level script
@@ -104,10 +63,7 @@ function required_pkgs(entrypoint)
 	state_dump("examine")
 	-- Go through all the requirements and decide what we need
 	postprocess.run()
---	return planner.required_pkgs(postprocess.available_packages, requests.content_requests)
-	local output = planner.required_pkgs(postprocess.available_packages, requests.content_requests)
-	savetxt(output)
-	return output
+	return planner.required_pkgs(postprocess.available_packages, requests.content_requests)
 end
 
 function prepare(entrypoint)
@@ -119,66 +75,62 @@ function prepare(entrypoint)
 	too many). We then start taking them one by one, but that doesn't stop it
 	from being downloaded in any order.
 	]]
-	local download_switch = true
-	if download_switch == true then
-		for _, task in ipairs(tasks) do
-			if task.action == "require" and not task.package.data then -- if we already have data, skip downloading
-				-- Strip sig verification off, packages from repos don't have their own .sig files, but they are checked by hashes in the (already checked) index.
-				local veriopts = utils.shallow_copy(task.package.repo)
-				local veri = veriopts.verification or utils.private(task.package.repo).context.verification or 'both'
-				if veri == 'both' then
-					veriopts.verification = 'cert'
-				elseif veri == 'sig' then
-					veriopts.verification = 'none'
-				end
-				task.real_uri = uri(utils.private(task.package.repo).context, task.package.uri_raw, veriopts)
-				task.real_uri:cback(function()
-					log_event('D', task.name .. " " .. task.package.Version)
-				end)
+	for _, task in ipairs(tasks) do
+		if task.action == "require" and not task.package.data then -- if we already have data, skip downloading
+			-- Strip sig verification off, packages from repos don't have their own .sig files, but they are checked by hashes in the (already checked) index.
+			local veriopts = utils.shallow_copy(task.package.repo)
+			local veri = veriopts.verification or utils.private(task.package.repo).context.verification or 'both'
+			if veri == 'both' then
+				veriopts.verification = 'cert'
+			elseif veri == 'sig' then
+				veriopts.verification = 'none'
 			end
+			task.real_uri = uri(utils.private(task.package.repo).context, task.package.uri_raw, veriopts)
+			task.real_uri:cback(function()
+				log_event('D', task.name .. " " .. task.package.Version)
+			end)
 		end
-		-- BB get length of transaction for reporting 
-		local length = utils.tablelength(tasks)
-		local index = 0
-		progress_next_step()
-		-- step #2
-		-- Now push all data into the transaction
-		for _, task in ipairs(tasks) do
-			if task.action == "require" then
-				if task.package.data then -- package had content extra field and we already have data downloaded
-					INFO("!!!! 1Queue install of " .. task.name .. "//" .. task.package.Version)
-					transaction.queue_install_downloaded(task.package.data, task.name, task.package.Version, task.modifier)
-				else
-					local ok, data = task.real_uri:get()
-					if ok then
-						if task.package.MD5Sum then
-							local sum = md5(data)
-							if sum ~= task.package.MD5Sum then
-								error(utils.exception("corruption", "The md5 sum of " .. task.name .. " does not match"))
-							end
-						end
-						if task.package.SHA256Sum then
-							local sum = sha256(data)
-							if sum ~= task.package.SHA256Sum then
-								error(utils.exception("corruption", "The sha256 sum of " .. task.name .. " does not match"))
-							end
-						end
-
-					--	BB: prgress
-						index = index + 1
-						show_progress("BB: Queue install of " .. task.name, index, length)
-
-						transaction.queue_install_downloaded(data, task.name, task.package.Version, task.modifier, progress)
-					else
-						error(data)
-					end
-				end
-			elseif task.action == "remove" then
-				INFO("Queue removal of " .. task.name)
-				transaction.queue_remove(task.name)
+	end
+	-- BB get length of transaction for reporting
+	local length = utils.tablelength(tasks)
+	local index = 0
+	progress_next_step()
+	-- Now push all data into the transaction
+	for _, task in ipairs(tasks) do
+		if task.action == "require" then
+			if task.package.data then -- package had content extra field and we already have data downloaded
+				INFO("Queue install of " .. task.name .. "//" .. task.package.Version)
+				transaction.queue_install_downloaded(task.package.data, task.name, task.package.Version, task.modifier)
 			else
-				DIE("Unknown action " .. task.action)
+				local ok, data = task.real_uri:get()
+				if ok then
+					INFO("Queue install of " .. task.name .. "/" .. task.package.repo.name .. "/" .. task.package.Version)
+					if task.package.MD5Sum then
+						local sum = md5(data)
+						if sum ~= task.package.MD5Sum then
+							error(utils.exception("corruption", "The md5 sum of " .. task.name .. " does not match"))
+						end
+					end
+					if task.package.SHA256Sum then
+						local sum = sha256(data)
+						if sum ~= task.package.SHA256Sum then
+							error(utils.exception("corruption", "The sha256 sum of " .. task.name .. " does not match"))
+						end
+					end
+				--	BB: progress
+					index = index + 1
+					show_progress("BB: Queue install of " .. task.name, index, length)
+				--	-BB
+					transaction.queue_install_downloaded(data, task.name, task.package.Version, task.modifier)
+				else
+					error(data)
+				end
 			end
+		elseif task.action == "remove" then
+			INFO("Queue removal of " .. task.name)
+			transaction.queue_remove(task.name)
+		else
+			DIE("Unknown action " .. task.action)
 		end
 	end
 end
