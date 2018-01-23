@@ -156,11 +156,11 @@ install_steps = 7	-- total install steps for reporting progress
 install_step = -1	-- current index (all steps increase by 1, to make code simpler, so we start with -1, so first step can be 0)
 step_length = 0 	-- number of substeps in current step
 step_index = 0
-function calc_progress(index, length)
-	return math.floor((index / length * 100) * (1 / install_steps) + (install_step / install_steps * 100) + 0.5)
+function calc_progress()
+	return math.floor((step_index / step_length * 100) * (1 / install_steps) + (install_step / install_steps * 100) + 0.5)
 end
 function progress_next_step(length)
+	step_index = 0
 	step_length = length
 	install_step = install_step + 1
-	step_index = 0
 end
