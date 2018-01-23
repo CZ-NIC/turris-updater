@@ -89,7 +89,7 @@ local function pkg_unpack(operations, status)
 	-- -BB
 	for _, op in ipairs(operations) do
 		-- +BB reporting
-		show_progress("BB: Unpacking package " .. op.name)
+		show_progress("Unpacking package " .. op.name)
 		-- -BB
 		if op.op == "remove" then
 			if status[op.name] then
@@ -177,7 +177,7 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 	for _, op in ipairs(plan) do
 		if op.op == "install" then
 			-- +BB reporting
-			show_progress("BB: Build list for package " .. op.control.Package .. " " .. op.control.Version)
+			show_progress("Build list for package " .. op.control.Package .. " " .. op.control.Version)
 			-- -BB
 			local steal = backend.steal_configs(status, installed_confs, op.configs)
 			utils.table_merge(op.old_configs, steal)
@@ -251,7 +251,7 @@ local function pkg_scripts(status, plan, removes, to_install, errors_collected, 
 			script(errors_collected, op.name, "prerm", "remove")
 		end
 		-- +BB reporting
-		show_progress("BB:" .. msg .. " package " .. op.control.Package .. " " .. op.control.Version)
+		show_progress(msg .. " package " .. op.control.Package .. " " .. op.control.Version)
 	end
 	-- Clean up the files from removed or upgraded packages
 	INFO("Removing packages and leftover files")
@@ -263,7 +263,7 @@ local function pkg_scripts(status, plan, removes, to_install, errors_collected, 
 	-- -BB
 	for _, op in ipairs(plan) do
 		-- +BB reporting
-		show_progress("BB: Cleanup after package " .. op.control.Package .. " " .. op.control.Version)
+		show_progress("Cleanup after package " .. op.control.Package .. " " .. op.control.Version)
 		-- -BB
 		if op.op == "remove" and not to_install[op.name] then
 			script(errors_collected, op.name, "postrm", "remove")

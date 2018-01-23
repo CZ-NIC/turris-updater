@@ -116,7 +116,7 @@ function prepare(entrypoint)
 						end
 					end
 				--	BB: progress
-					show_progress("BB: Queue install of " .. task.name)
+					show_progress("Queue install of " .. task.name)
 				--	-BB
 					transaction.queue_install_downloaded(data, task.name, task.package.Version, task.modifier)
 				else

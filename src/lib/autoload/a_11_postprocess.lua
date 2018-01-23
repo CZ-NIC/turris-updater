@@ -190,12 +190,12 @@ function get_content_pkgs()
 		table.insert(uris, content_uri)
 		-- +BB report 
 		-- log_event('G', "get_content_pkg:" .. content_uri)
-		INFO("BB: Get content for package " .. pkg.name .. "(should be followed by download)")
+		INFO("Get content for package " .. pkg.name .. "(should be followed by download)")
 		-- -BB
 		local function downloaded(ok, data)
 			if ok then
 				-- +BB
-				INFO("BB: Downloaded package " .. pkg.name)
+				INFO("Downloaded package " .. pkg.name)
 				-- -BB
 				local tmpdir = mkdtemp()
 				local pkg_dir = backend.pkg_unpack(data, tmpdir)
