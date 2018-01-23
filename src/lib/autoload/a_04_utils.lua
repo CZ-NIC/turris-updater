@@ -35,7 +35,7 @@ local run_util = run_util
 
 module "utils"
 
--- luacheck: globals lines2set map set2arr arr2set cleanup_dirs slurp clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay randstr arr_prune arr_inv
+-- luacheck: globals lines2set map set2arr arr2set cleanup_dirs slurp clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay tablelength randstr arr_prune arr_inv
 
 --[[
 Convert provided text into set of lines. Doesn't care about the order.
@@ -302,6 +302,13 @@ function table_overlay(table)
 	return setmetatable({}, {
 		__index = table
 	})
+end
+
+-- BB: Get table length
+function tablelength(table)
+	local count = 0
+	for _ in pairs(table) do count = count + 1 end
+	return count
 end
 
 return _M
