@@ -32,12 +32,19 @@ local events_wait = events_wait
 local run_util = run_util
 local mkdtemp = mkdtemp
 local DBG = DBG
+local INFO = INFO
 local WARN = WARN
 local ERROR = ERROR
+local log_event = log_event
 local utils = require "utils"
 local backend = require "backend"
 local requests = require "requests"
 local uri = require "uri"
+
+local show_progress = show_progress
+local progress_next_step = progress_next_step
+
+local print = print
 
 module "postprocess"
 
@@ -68,11 +75,28 @@ function get_repos()
 	(which may be different from the order in which they are called
 	anyway).
 	]]
+
+	-- +BB progress stuff
+	local length = 0
+	local index = 0
+	for _, repo in pairs(requests.known_repositories_all) do
+		for s_, __ in pairs(utils.private(repo).index_uri) do
+			length = length + 1
+		end
+	end
+	length = length * 2
+	progress_next_step()
+	-- -BB
+
 	for _, repo in pairs(requests.known_repositories_all) do
 		repo.tp = 'parsed-repository'
 		repo.content = {}
 		for subrepo, index_uri in pairs(utils.private(repo).index_uri) do
 			local name = repo.name .. "/" .. index_uri.uri
+			-- +BB reporting
+			index = index + 1
+			show_progress("Getting repository " .. name, index, length)
+			-- -BB
 			table.insert(uris, index_uri)
 			local function broken(why, extra)
 				ERROR("Index " .. name .. " is broken (" .. why .. "): " .. tostring(extra))
@@ -84,6 +108,11 @@ function get_repos()
 			end
 			local function parse(content)
 				DBG("Parsing index " .. name)
+--				INFO("Parsing index " .. name)
+				-- +BB reporting
+				index = index + 1
+				show_progress("Parsing index " .. name, index, length)
+				-- -BB
 				local ok, list = pcall(backend.repo_parse, content)
 				if ok then
 					for _, pkg in pairs(list) do
@@ -101,6 +130,7 @@ function get_repos()
 			end
 			local function decompressed(ecode, _, stdout, stderr)
 				DBG("Decompression of " .. name .. " done")
+			--	INFO("Decompression of " .. name .. " done")
 				if ecode == 0 then
 					parse(stdout)
 				else
@@ -109,6 +139,7 @@ function get_repos()
 			end
 			local function downloaded(ok, answer)
 				DBG("Received repository index " .. name)
+			--	INFO("Received repository index " .. name)
 				if not ok then
 					-- Couldn't download
 					-- TODO: Once we have validation, this could also mean the integrity is broken, not download
@@ -155,11 +186,20 @@ function get_content_pkgs()
 	local uris = {}
 	local errors = {}
 
+	local length = utils.tablelength(requests.known_content_packages)
+
 	for _, pkg in pairs(requests.known_content_packages) do
 		local content_uri = utils.private(pkg).content_uri
 		table.insert(uris, content_uri)
+		-- +BB report 
+		-- log_event('G', "get_content_pkg:" .. content_uri)
+		INFO("BB: Get content for package " .. pkg.name .. "(should be followed by download)")
+		-- -BB
 		local function downloaded(ok, data)
 			if ok then
+				-- +BB
+				INFO("BB: Downloaded package " .. pkg.name)
+				-- -BB
 				local tmpdir = mkdtemp()
 				local pkg_dir = backend.pkg_unpack(data, tmpdir)
 				local _, _, _, control = backend.pkg_examine(pkg_dir)

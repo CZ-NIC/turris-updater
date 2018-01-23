@@ -45,6 +45,11 @@ local sync = sync
 local log_event = log_event
 local sha256 = sha256
 local system_reboot = system_reboot
+local math = math
+
+
+local show_progress = show_progress
+local progress_next_step = progress_next_step
 
 module "transaction"
 
@@ -54,6 +59,7 @@ module "transaction"
 local function script(errors_collected, name, suffix, ...)
 	local ok, stderr = backend.script_run(name, suffix, ...)
 	if stderr and stderr:len() > 0 then
+		INFO("---------->8 check here 8<-----------")
 		io.stderr:write("Output from " .. name .. "." .. suffix .. ":\n")
 		io.stderr:write(stderr)
 	end
@@ -78,7 +84,16 @@ local function pkg_unpack(operations, status)
 	-- Plan of the operations we have prepared, similar to operations, but with different things in them
 	local plan = {}
 	local cleanup_actions = {}
+	-- +BB progress stuff
+	local length = utils.tablelength(operations)
+	local index = 0
+	progress_next_step()
+	-- -BB
 	for _, op in ipairs(operations) do
+		-- +BB reporting
+		index = index + 1
+		show_progress("BB: Unpacking package " .. op.name, index, length)
+		-- -BB
 		if op.op == "remove" then
 			if status[op.name] then
 				to_remove[op.name] = true
@@ -159,15 +174,33 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 
 	local all_configs = {}
 	-- Build list of all configs and steal from not-installed
+	-- +BB progress stuff
+	local length = utils.tablelength(plan)
+	local index = 0
+	progress_next_step()
+	-- -BB
 	for _, op in ipairs(plan) do
 		if op.op == "install" then
+			-- +BB reporting
+			index = index + 1
+			show_progress("BB: Build list for package " .. op.control.Package .. " " .. op.control.Version, index, length)
+			-- -BB
 			local steal = backend.steal_configs(status, installed_confs, op.configs)
 			utils.table_merge(op.old_configs, steal)
 			utils.table_merge(all_configs, op.old_configs)
 		end
 	end
 	-- Go through the list once more and perform the prepared operations
+	-- +BB progress stuff
+	local length = utils.tablelength(plan)
+	local index = 0
+	progress_next_step()
+	-- -BB
 	for _, op in ipairs(plan) do
+		-- +BB reporting
+		index = index + 1
+		show_progress("BB: Perform " .. op.op .. " for package " .. op.control.Package .. " " .. op.control.Version, index, length)
+		-- -BB
 		if op.op == "install" then
 			state_dump("install")
 			log_event("I", op.control.Package .. " " .. op.control.Version)
@@ -197,8 +230,18 @@ end
 
 local function pkg_scripts(status, plan, removes, to_install, errors_collected, all_configs)
 	INFO("Running post-install and post-rm scripts")
+	-- +BB progress stuff
+	local length = utils.tablelength(plan)
+	local index = 0
+	progress_next_step()
+	-- -BB
 	for _, op in ipairs(plan) do
+		-- Set default message
+		local msg = "Run post-install for"
+		if op.op == "remove" then msg = "Remove" end
+		-- -BB
 		if op.op == "install" then
+			msg = "Install"
 			script(errors_collected, op.control.Package, "postinst", "configure")
 		elseif op.op == "remove" and not to_install[op.name] and utils.arr2set(utils.multi_index(status, op.name, 'Status') or {})['installed'] then
 			utils.table_merge(all_configs, status[op.name].Conffiles or {})
@@ -218,12 +261,24 @@ local function pkg_scripts(status, plan, removes, to_install, errors_collected, 
 			log_event("R", op.name)
 			script(errors_collected, op.name, "prerm", "remove")
 		end
+		-- +BB reporting
+		index = index + 1
+		show_progress("BB:" .. msg .. " package " .. op.control.Package .. " " .. op.control.Version, index, length)
 	end
 	-- Clean up the files from removed or upgraded packages
 	INFO("Removing packages and leftover files")
 	state_dump("remove")
 	backend.pkg_cleanup_files(removes, all_configs)
+
+	local length = utils.tablelength(plan)
+	local index = 0
+	progress_next_step()
+	-- -BB
 	for _, op in ipairs(plan) do
+		-- +BB reporting
+		index = index + 1
+		show_progress("BB: Cleanup after package " .. op.control.Package .. " " .. op.control.Version, index, length)
+		-- -BB
 		if op.op == "remove" and not to_install[op.name] then
 			script(errors_collected, op.name, "postrm", "remove")
 		end
@@ -447,6 +502,7 @@ function queue_install_downloaded(data, name, version, modifier)
 		reboot = modifier.reboot,
 		replan = modifier.replan
 	})
+--	end
 end
 
 local function queued_tasks(extensive)
