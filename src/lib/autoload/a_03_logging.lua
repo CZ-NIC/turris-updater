@@ -63,3 +63,102 @@ function c_pcall_error_handler(err)
 	end
 	return {msg=msg, trace=stacktraceplus.stacktrace()}
 end
+
+
+-- BB extended logging, support for console UI
+
+function split(s, delimiter)
+	local result = {};
+	for match in (s..delimiter):gmatch("(.-)"..delimiter) do
+		table.insert(result, match);
+	end
+	return result;
+end
+
+local csi = "\27["
+
+function set_cursor(row, col)
+	io.write(csi .. row .. ";" .. col .. "H")
+end
+
+function reset_colors()
+	io.write(csi .. "m")
+end
+
+function save_cursor()
+	io.write(csi .. "s")
+end
+
+function restore_cursor()
+	io.write(csi .. "u")
+end
+
+function clear_line()
+	io.write(csi .. "2K")
+end
+
+function scroll(direction, count)
+	local dir = "T"
+    if direction == "up" then dir = "S" end
+    io.write(csi .. count .. dir)
+end
+
+function print_progress(value, col)
+	local length = ((math.floor(value / 100 * col)) - 5) / 2
+	local bar = "["
+	for i = 1, length do bar = bar .. "=" end
+	bar = bar .. value .. "%"
+	for i = 1, length do bar = bar .. "=" end
+    io.write(bar .. "]")
+end
+
+function show_progress(message, index, length)
+	-- setup variables
+	local value = calc_progress(index, length)
+	local size = get_screen_size()
+	local row = size[1]
+	local col = size[2]
+	local quiet = nil
+
+	-- get settings TODO: move outside, so it's not checked on every call
+	if uci then
+		local cursor = uci.cursor()
+		quiet = cursor:get("updater", "quiet")
+	else
+		ERROR("UCI library is not available.")
+	end
+	-- 
+
+	if quiet ~= "true" then				-- change for turning progress info on/off
+		INFO(value .. "%:" .. message)
+		set_cursor(row,1)
+		clear_line()
+		scroll("up", 1)
+		set_cursor(row,1)
+		print_progress(value, col)
+		set_cursor(row - 1,1)
+	end
+end
+
+function get_screen_size()
+-- read size
+	local handle = io.popen('stty size')
+	local result = handle:read("*a")
+	handle:close()
+-- convert size to array
+	result = result:gsub("\n", "")
+	return split(result, " ")
+end
+
+install_steps = 7  -- total install steps for reporting progress
+install_step = -1   -- current index (all steps increase by 1, to make code simpler, so we start with -1, so first step can be 0)
+function calc_progress(index, length)
+--	INFO("BB: calc_progress: " .. install_step .. "/" .. install_steps .. " - " .. index .. "/" .. length)
+	return math.floor((index / length * 100) * (1 / install_steps) + (install_step / install_steps * 100) + 0.5)
+end
+function progress_next_step()
+	install_step = install_step + 1
+--	INFO("==================================================================")
+--	INFO("current step: " .. install_step)
+--	INFO("==================================================================")
+end
