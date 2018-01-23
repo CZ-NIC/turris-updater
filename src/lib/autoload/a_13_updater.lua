@@ -104,7 +104,7 @@ function prepare(entrypoint)
 			else
 				local ok, data = task.real_uri:get()
 				if ok then
-					INFO("Queue install of " .. task.name .. "/" .. task.package.repo.name .. "/" .. task.package.Version)
+				--	INFO("Queue install of " .. task.name .. "/" .. task.package.repo.name .. "/" .. task.package.Version)
 					if task.package.MD5Sum then
 						local sum = md5(data)
 						if sum ~= task.package.MD5Sum then
