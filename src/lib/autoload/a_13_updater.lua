@@ -92,9 +92,7 @@ function prepare(entrypoint)
 		end
 	end
 	-- BB get length of transaction for reporting
-	local length = utils.tablelength(tasks)
-	local index = 0
-	progress_next_step()
+	progress_next_step(utils.tablelength(tasks))
 	-- Now push all data into the transaction
 	for _, task in ipairs(tasks) do
 		if task.action == "require" then
@@ -118,8 +116,7 @@ function prepare(entrypoint)
 						end
 					end
 				--	BB: progress
-					index = index + 1
-					show_progress("BB: Queue install of " .. task.name, index, length)
+					show_progress("BB: Queue install of " .. task.name)
 				--	-BB
 					transaction.queue_install_downloaded(data, task.name, task.package.Version, task.modifier)
 				else
