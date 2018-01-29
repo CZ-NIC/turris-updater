@@ -35,7 +35,6 @@ local script_options = {
 	security = "Remote",
 	ca = system_cas,
 	crl = no_crl,
-	ocsp = false,
 	pubkey = {
 		"file:///etc/updater/keys/release.pub",
 		"file:///etc/updater/keys/standby.pub",
