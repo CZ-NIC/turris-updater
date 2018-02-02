@@ -35,7 +35,7 @@ local run_util = run_util
 
 module "utils"
 
--- luacheck: globals lines2set map set2arr arr2set cleanup_dirs slurp clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay randstr arr_prune arr_inv
+-- luacheck: globals lines2set map set2arr arr2set cleanup_dirs slurp clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay randstr arr_prune arr_inv file_exists
 
 --[[
 Convert provided text into set of lines. Doesn't care about the order.
@@ -302,6 +302,19 @@ function table_overlay(table)
 	return setmetatable({}, {
 		__index = table
 	})
+end
+
+--[[
+Check whether file exists
+]]
+function file_exists(name)
+	local f = io.open(name, "r")
+	if f ~= nil then
+		io.close(f)
+		return true
+	else
+		return false
+	end
 end
 
 return _M
