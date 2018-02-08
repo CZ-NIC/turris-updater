@@ -1,7 +1,7 @@
 #!/bin/sh
 
 die () {
-   echo "*** mkconfig: $*" 1>&2
+   echo "*** mkconfig.sh: $*" 1>&2
    exit 1
 }
 

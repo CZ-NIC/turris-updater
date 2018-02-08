@@ -38,7 +38,7 @@ endif
 libupdater_MODULES_3RDPARTY := \
 	md5 \
 	sha256 \
-	picosat-960/picosat
+	picosat-965/picosat
 
 libupdater_PKG_CONFIGS := $(LUA_NAME) libevent libcurl
 # Workaround, lua.pc doesn't containd -ldl, even when it uses dlopen

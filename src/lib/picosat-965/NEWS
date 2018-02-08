@@ -1,6 +1,10 @@
-news for release 960 since 959
+news for release 965 since 959
 ------------------------------
 
+* ADC code works again (spotted by Himanshu Jain)
+* include into R projects (with Christoph Muessel) (--rcode)
+* fixed 'undefined' + 'ptrdiff_' issues (thanks to Christoph Muessel)
+* added 'picosat_set_interrupt' and '-a <alarm>' command line option
 * fixed various issues pointed out by Stefan Hengelein:
   - fixed incremental usage of 'picosat_adjust'
   - added CPP fixes (STATS, NO_BINARY_CLAUSE versus TRACE mix-ups)

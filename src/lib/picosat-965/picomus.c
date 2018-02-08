@@ -194,8 +194,8 @@ static const char * USAGE =
 "This typically slows down this MUS extractor, since\n"
 "it only relies on clause selector variables and\n"
 "can not make use of core extraction.  To enable\n"
-"trace generation use './configure --trace' or\n"
-"'./configure -O --trace' when building PicoSAT.\n"
+"trace generation use './configure.sh --trace' or\n"
+"'./configure.sh -O --trace' when building PicoSAT.\n"
 #else
 "Since trace generation code is included, this binary\n"
 "uses also core extraction in addition to clause selector\n"
