@@ -27,7 +27,8 @@ libupdater_MODULES := \
 	journal \
 	locks \
 	picosat \
-	util
+	util \
+	logging
 ifdef COV
 libupdater_MODULES += lcoverage.embed
 endif

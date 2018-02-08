@@ -19,6 +19,7 @@
 
 #include "interpreter.h"
 #include "util.h"
+#include "logging.h"
 #include "events.h"
 #include "journal.h"
 #include "md5.h"
