@@ -19,6 +19,7 @@
 
 #include "events.h"
 #include "util.h"
+#include "logging.h"
 #include "embed_types.h"
 
 #include <event2/event.h>
