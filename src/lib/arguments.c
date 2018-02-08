@@ -19,6 +19,7 @@
 
 #include "arguments.h"
 #include "util.h"
+#include "logging.h"
 
 #include <unistd.h>
 #include <stdlib.h>

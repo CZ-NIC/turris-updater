@@ -20,6 +20,7 @@
 #include "locks.h"
 #include "inject.h"
 #include "util.h"
+#include "logging.h"
 
 #include <lauxlib.h>
 #include <lualib.h>

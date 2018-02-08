@@ -19,6 +19,7 @@
 
 #include "journal.h"
 #include "util.h"
+#include "logging.h"
 #include "inject.h"
 
 #include <lua.h>
