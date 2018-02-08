@@ -152,9 +152,11 @@ function get_screen_size()
 	return split(result, " ")
 end
 
-install_steps = 7	-- total install steps for reporting progress
-install_step = -1	-- current index (all steps increase by 1, to make code simpler, so we start with -1, so first step can be 0)
-step_length = 0 	-- number of substeps in current step
+install_stages = {1, 6}   			-- We can have multiple stages running up to 100%, number indicate number steps
+install_stage = 1					-- Current stage
+install_steps = install_stages[1]	-- total install steps for reporting progress
+install_step = -1					-- current index (all steps increase by 1, to make code simpler, so we start with -1, so first step can be 0)
+step_length = 0 					-- number of substeps in current step
 step_index = 0
 function calc_progress()
 	return math.floor((step_index / step_length * 100) * (1 / install_steps) + (install_step / install_steps * 100) + 0.5)
@@ -163,4 +165,9 @@ function progress_next_step(length)
 	step_index = 0
 	step_length = length
 	install_step = install_step + 1
+	if install_step == install_steps then
+		install_stage = install_stage + 1
+		install_steps = install_stages[install_stage]
+		install_step = 0
+	end
 end
