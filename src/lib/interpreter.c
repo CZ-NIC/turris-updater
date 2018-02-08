@@ -148,9 +148,9 @@ static int lua_log(lua_State *L) {
 	return 0;
 }
 
-static int lua_state_dump(lua_State *L) {
-	const char *state = luaL_checkstring(L, 1);
-	state_dump(state);
+static int lua_update_state(lua_State *L) {
+	enum log_state state = luaL_checkint(L, 1);
+	update_state(state);
 	return 0;
 }
 
@@ -751,7 +751,7 @@ struct injected_func {
 static const struct injected_func injected_funcs[] = {
 	{ lua_log, "log" },
 	{ lua_state_log_enabled, "state_log_enabled" },
-	{ lua_state_dump, "state_dump" },
+	{ lua_update_state, "update_state" },
 	{ lua_run_command, "run_command" },
 	{ lua_run_util, "run_util" },
 	{ lua_download, "download" },
@@ -778,6 +778,27 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_system_reboot, "system_reboot" },
 	{ lua_get_updater_version, "get_updater_version" }
 };
+
+struct {
+	int cnst;
+	const char *name;
+} injected_const[] = {
+	{ LS_INIT, "LS_INIT"},
+	{ LS_CONF, "LS_CONF"},
+	{ LS_PLAN, "LS_PLAN"},
+	{ LS_DOWN, "LS_DOWN"},
+	{ LS_PREUPD, "LS_PREUPD"},
+	{ LS_UNPACK, "LS_UNPACK"},
+	{ LS_CHECK, "LS_CHECK"},
+	{ LS_INST, "LS_INST"},
+	{ LS_POST, "LS_POST"},
+	{ LS_REM, "LS_REM"},
+	{ LS_CLEANUP, "LS_CLEANUP"},
+	{ LS_POSTUPD, "LS_POSTUPD"},
+	{ LS_EXIT, "LS_EXIT"},
+	{ LS_FAIL, "LS_FAIL"}
+};
+// Various enum values that we want to inject
 
 #ifdef COVERAGE
 // From the embed file. Coverage lua code.
@@ -839,6 +860,12 @@ struct interpreter *interpreter_create(struct events *events, const struct file_
 		TRACE("Injecting function no %zu %s/%p", i, injected_funcs[i].name, injected_funcs[i].name);
 		lua_pushcfunction(L, injected_funcs[i].func);
 		lua_setglobal(L, injected_funcs[i].name);
+	}
+	// Inject some constant/variables
+	for (size_t i = 0; i < sizeof injected_const / sizeof *injected_const; i ++) {
+		TRACE("Injecting constant no %zu %s/%d", i, injected_const[i].name, injected_const[i].cnst);
+		lua_pushinteger(L, injected_const[i].cnst);
+		lua_setglobal(L, injected_const[i].name);
 	}
 	// Some binary embedded modules
 	journal_mod_init(L);

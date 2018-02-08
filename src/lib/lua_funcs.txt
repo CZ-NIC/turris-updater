@@ -30,8 +30,23 @@ TRACE(msg, msg, ...)::
 DIE(msg, msg, ...)::
   In addition to outputting the message on the ``DIE`` level, it also
   terminates the application with error exit code.
-state_dump(msg)::
-  Dump the given message into `/tmp/update-state/state`.
+update_state(state)::
+  Dump the message for given state into `/tmp/update-state/state`.
+  Allowed states are as follow:
+  - `LS_INIT`: Initial state (`initialize`)
+  - `LS_CONF`: Running configuration scripts (`configuration`)
+  - `LS_PLAN`: Generating plan (`planning`)
+  - `LS_DOWN`: Downloading needed packages (`downloading`)
+  - `LS_PREUPD`: Running updater's preupdate hooks (`preupdate-hooks`)
+  - `LS_UNPACK`: Unpacking downloaded packages (`unpacking`)
+  - `LS_CHECK`: Checking for files collisions and more (`checking`)
+  - `LS_INST`: Running preinst scripts and merging files to filesystem (`install`)
+  - `LS_POST`: Running postinst scripts (`post-install`)
+  - `LS_REM`: Removing leftover files (`removals`)
+  - `LS_CLEANUP`: Cleaning up control files (`cleanup`)
+  - `LS_POSTUPD`: Running updater's postupdate hooks (`postupdate-hooks`)
+  - `LS_EXIT`: Updater exit (`exit`)
+  - `LS_FAIL`: Detected failure, exiting. (`failure`)
 
 Asynchronous events
 -------------------
