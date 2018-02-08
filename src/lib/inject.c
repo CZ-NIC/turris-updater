@@ -19,6 +19,7 @@
 
 #include "inject.h"
 #include "util.h"
+#include "logging.h"
 
 void inject_func_n(lua_State *L, const char *module, const struct inject_func *inject, size_t count) {
 	// Inject the functions
