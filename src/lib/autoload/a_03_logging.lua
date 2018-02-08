@@ -132,7 +132,7 @@ function show_progress(message)
 	-- 
 
 	if quiet ~= "true" then				-- change for turning progress info on/off
-		INFO(value .. "%:" .. message)
+		INFO(message)
 		set_cursor(row,1)
 		clear_line()
 		scroll("up", 1)
@@ -152,7 +152,7 @@ function get_screen_size()
 	return split(result, " ")
 end
 
-install_stages = {1, 6}   			-- We can have multiple stages running up to 100%, number indicate number steps
+install_stages = {1, 6}   			-- We can have multiple stages running up to 100%, number indicate number of steps
 install_stage = 1					-- Current stage
 install_steps = install_stages[1]	-- total install steps for reporting progress
 install_step = -1					-- current index (all steps increase by 1, to make code simpler, so we start with -1, so first step can be 0)
