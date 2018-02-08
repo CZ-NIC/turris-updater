@@ -89,7 +89,7 @@ local function pkg_unpack(operations, status)
 	-- -BB
 	for _, op in ipairs(operations) do
 		-- +BB reporting
-		show_progress("Unpacking package " .. op.name)
+		if op.name then show_progress("Unpacking package " .. op.name) end
 		-- -BB
 		if op.op == "remove" then
 			if status[op.name] then
@@ -190,7 +190,9 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 	-- -BB
 	for _, op in ipairs(plan) do
 		-- +BB reporting
-		show_progress("Perform " .. op.op .. " for package " .. op.control.Package .. " " .. op.control.Version)
+		if op.control then
+			show_progress("Perform " .. op.op .. " for package " .. op.control.Package .. " " .. op.control.Version)
+		end
 		-- -BB
 		if op.op == "install" then
 			state_dump("install")
@@ -251,7 +253,9 @@ local function pkg_scripts(status, plan, removes, to_install, errors_collected, 
 			script(errors_collected, op.name, "prerm", "remove")
 		end
 		-- +BB reporting
-		show_progress(msg .. " package " .. op.control.Package .. " " .. op.control.Version)
+		if op.control then
+			show_progress(msg .. " package " .. op.control.Package .. " " .. op.control.Version)
+		end
 	end
 	-- Clean up the files from removed or upgraded packages
 	INFO("Removing packages and leftover files")
@@ -263,7 +267,9 @@ local function pkg_scripts(status, plan, removes, to_install, errors_collected, 
 	-- -BB
 	for _, op in ipairs(plan) do
 		-- +BB reporting
-		show_progress("Cleanup after package " .. op.control.Package .. " " .. op.control.Version)
+		if op.control then
+			show_progress("Cleanup after package " .. op.control.Package .. " " .. op.control.Version)
+		end
 		-- -BB
 		if op.op == "remove" and not to_install[op.name] then
 			script(errors_collected, op.name, "postrm", "remove")

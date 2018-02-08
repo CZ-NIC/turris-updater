@@ -159,7 +159,11 @@ install_step = -1					-- current index (all steps increase by 1, to make code si
 step_length = 0 					-- number of substeps in current step
 step_index = 0
 function calc_progress()
-	return math.floor((step_index / step_length * 100) * (1 / install_steps) + (install_step / install_steps * 100) + 0.5)
+	local progress = 1
+	if install_steps then
+		progress = math.floor((step_index / step_length * 100) * (1 / install_steps) + (install_step / install_steps * 100) + 0.5)
+	end
+	return progress
 end
 function progress_next_step(length)
 	step_index = 0
