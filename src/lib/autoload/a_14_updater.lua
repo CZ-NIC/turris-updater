@@ -24,7 +24,10 @@ local INFO = INFO
 local md5 = md5
 local sha256 = sha256
 local reexec = reexec
-local state_dump = state_dump
+local LS_CONF = LS_CONF
+local LS_PLAN = LS_PLAN
+local LS_DOWN = LS_DOWN
+local update_state = update_state
 local log_event = log_event
 local utils = require "utils"
 local sandbox = require "sandbox"
@@ -50,14 +53,14 @@ function required_pkgs(entrypoint)
 	local ep_uri = uri(tlc, entrypoint)
 	local ok, tls = ep_uri:get()
 	if not ok then error(tls) end
-	state_dump("get list")
+	update_state(LS_CONF)
 	--[[
 	Run the top level script with full privileges.
 	The script shall be part of updater anyway.
 	]]
 	local err = sandbox.run_sandboxed(tls, "", 'Full')
 	if err and err.tp == 'error' then error(err) end
-	state_dump("examine")
+	update_state(LS_PLAN)
 	-- Go through all the requirements and decide what we need
 	postprocess.run()
 	return planner.required_pkgs(postprocess.available_packages, requests.content_requests)
@@ -67,6 +70,7 @@ function prepare(entrypoint)
 	local required = required_pkgs(entrypoint)
 	local run_state = backend.run_state()
 	local tasks = planner.filter_required(run_state.status, required, allow_replan)
+	update_state(LS_DOWN)
 	--[[
 	Start download of all the packages. They all start (or queue, if there are
 	too many). We then start taking them one by one, but that doesn't stop it
