@@ -23,6 +23,23 @@
 #include <stdarg.h>
 #include <string.h>
 
+const char* log_state_str[] = {
+	[LS_INIT] = "initialize",
+	[LS_CONF] = "configuration",
+	[LS_PLAN] = "planning",
+	[LS_DOWN] = "downloading",
+	[LS_PREUPD] = "preupdate-hooks",
+	[LS_UNPACK] = "unpacking",
+	[LS_CHECK] = "checking",
+	[LS_INST] = "install",
+	[LS_POST] = "post-install",
+	[LS_REM] = "removals",
+	[LS_CLEANUP] = "cleanup",
+	[LS_POSTUPD] = "postupdate-hooks",
+	[LS_EXIT] = "exit",
+	[LS_FAIL] = "failure"
+};
+
 struct level_info {
 	const char *prefix;
 	const char *name;
@@ -49,11 +66,11 @@ void set_state_log(bool state_log) {
 	state_log_enabled = state_log;
 }
 
-void state_dump(const char *msg) {
+void update_state(enum log_state state) {
 	if (state_log_enabled) {
 		FILE *f = fopen("/tmp/update-state/state", "w");
 		if (f) {
-			fprintf(f, "%s\n", msg);
+			fprintf(f, "%s\n", log_state_str[state]);
 			fclose(f);
 		} else {
 			WARN("Could not dump state: %s", strerror(errno));
@@ -96,7 +113,7 @@ void log_internal(enum log_level level, const char *file, size_t line, const cha
 			fprintf(stderr, "%s:%s:%zu (%s):%s\n", levels[level].prefix, file, line, func, msg);
 	}
 	if (level == LL_DIE) {
-		state_dump("error");
+		update_state(LS_FAIL);
 		err_dump(msg);
 	}
 }

@@ -41,7 +41,14 @@ local journal = require "journal"
 local DBG = DBG
 local WARN = WARN
 local INFO = INFO
-local state_dump = state_dump
+local LS_UNPACK = LS_UNPACK
+local LS_INST = LS_INST
+local LS_CHECK = LS_CHECK
+local LS_INST = LS_INST
+local LS_POST = LS_POST
+local LS_REM = LS_REM
+local LS_CLEANUP = LS_CLEANUP
+local update_state = update_state
 local sync = sync
 local log_event = log_event
 local sha256 = sha256
@@ -66,6 +73,7 @@ end
 
 -- Stages of the transaction. Each one is written into the journal, with its results.
 local function pkg_unpack(operations, status)
+	update_state(LS_UNPACK)
 	INFO("Unpacking download packages")
 	local dir_cleanups = {}
 	--[[
@@ -138,6 +146,7 @@ local function pkg_unpack(operations, status)
 end
 
 local function pkg_collision_check(status, to_remove, to_install)
+	update_state(LS_CHECK)
 	INFO("Checking for file collisions between packages")
 	local collisions, early_remove, removes = backend.collision_check(status, to_remove, to_install)
 	if next(collisions) then
@@ -156,6 +165,7 @@ local function pkg_collision_check(status, to_remove, to_install)
 end
 
 local function pkg_move(status, plan, early_remove, errors_collected)
+	update_state(LS_INST)
 	INFO("Running pre-install scripts and merging packages to root file system")
 	-- Prepare table of not installed confs for config stealing
 	local installed_confs = backend.installed_confs(status)
@@ -172,7 +182,6 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 	-- Go through the list once more and perform the prepared operations
 	for _, op in ipairs(plan) do
 		if op.op == "install" then
-			state_dump("install")
 			log_event("I", op.control.Package .. " " .. op.control.Version)
 			-- Unfortunately, we need to merge the control files first, otherwise the maintainer scripts won't run. They expect to live in the info dir when they are run. And we need to run the preinst script before merging the files.
 			backend.pkg_merge_control(op.dir .. "/control", op.control.Package, op.control.files)
@@ -202,6 +211,7 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 end
 
 local function pkg_scripts(status, plan, removes, to_install, errors_collected, all_configs)
+	update_state(LS_POST)
 	INFO("Running post-install and post-rm scripts")
 	for _, op in ipairs(plan) do
 		if op.op == "install" then
@@ -227,7 +237,7 @@ local function pkg_scripts(status, plan, removes, to_install, errors_collected, 
 	end
 	-- Clean up the files from removed or upgraded packages
 	INFO("Removing packages and leftover files")
-	state_dump("remove")
+	update_state(LS_REM)
 	backend.pkg_cleanup_files(removes, all_configs)
 	for _, op in ipairs(plan) do
 		if op.op == "remove" and not to_install[op.name] then
@@ -238,6 +248,7 @@ local function pkg_scripts(status, plan, removes, to_install, errors_collected, 
 end
 
 local function pkg_cleanup(status)
+	update_state(LS_CLEANUP)
 	INFO("Cleaning up control files")
 	backend.control_cleanup(status)
 	backend.status_dump(status)
