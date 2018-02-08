@@ -21,6 +21,7 @@
 #include "../lib/events.h"
 #include "../lib/interpreter.h"
 #include "../lib/util.h"
+#include "../lib/logging.h"
 
 #include <stdlib.h>
 #include <stdio.h>

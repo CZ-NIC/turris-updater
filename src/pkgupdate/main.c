@@ -20,6 +20,7 @@
 #include "../lib/events.h"
 #include "../lib/interpreter.h"
 #include "../lib/util.h"
+#include "../lib/logging.h"
 #include "../lib/arguments.h"
 #include "../lib/journal.h"
 
