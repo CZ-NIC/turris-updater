@@ -24,6 +24,25 @@
 #include <stdlib.h>
 #include "util.h"
 
+enum log_state {
+	LS_INIT, // Initial state
+	LS_CONF, // Running configuration scripts
+	LS_PLAN, // Generating plan
+	LS_DOWN, // Downloading needed packages
+	LS_PREUPD, // Running updater's preupdate hooks
+	// These are states in critical section
+	LS_UNPACK, // Unpacking downloaded packages
+	LS_CHECK, // Checking for files collisions and more
+	LS_INST, // Running preinst scripts and merging files to filesystem
+	LS_POST, // Running postinst scripts
+	LS_REM, // Removing leftover files
+	LS_CLEANUP, // Cleaning up control files
+	// End of critical section
+	LS_POSTUPD, // Running updater's postupdate hooks
+	LS_EXIT, // Updater exit
+	LS_FAIL, // Detected failure, exiting.
+};
+
 enum log_level {
 	LL_DISABLE,
 	LL_DIE,
@@ -69,8 +88,8 @@ void log_buffer_init(struct log_buffer *buf, enum log_level level) __attribute__
 
 // Sets if state and error should be dumped into files in /tmp/updater-state directory
 void set_state_log(bool state_log);
-// In the full updater mode, dump current state into /tmp/update-state/state
-void state_dump(const char *msg) __attribute__((nonnull));
+// Log state change of updater
+void update_state(enum log_state);
 // In the full updater mode, dump the error into /tmp/update-state/error
 void err_dump(const char *msg) __attribute__((nonnull));
 
