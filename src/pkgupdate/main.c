@@ -214,7 +214,7 @@ int main(int argc, char *argv[]) {
 	enum cmd_op_type exit_type = op->type;
 	free(ops);
 
-	state_dump("startup");
+	update_state(LS_INIT);
 	struct events *events = events_new();
 	// Prepare the interpreter and load it with the embedded lua scripts
 	struct interpreter *interpreter = interpreter_create(events);
@@ -276,6 +276,7 @@ int main(int argc, char *argv[]) {
 		// Otherwise user approves on terminal in previous code block.
 		GOTO_CLEANUP;
 	if (!replan) {
+		update_state(LS_PREUPD);
 		INFO("Executing preupdate hooks...");
 		const char *hook_path = aprintf("%s%s", root_dir, hook_preupdate);
 		setenv("ROOT_DIR", root_dir, true);
@@ -319,6 +320,7 @@ int main(int argc, char *argv[]) {
 			WARN("Could not store task log end %s: %s", task_log, strerror(errno));
 	}
 REPLAN_CLEANUP:
+	update_state(LS_POSTUPD);
 	INFO("Executing postupdate hooks...");
 	const char *hook_path = aprintf("%s%s", root_dir, hook_postupdate);
 	setenv("SUCCESS", trans_ok ? "true" : "false", true); // ROOT_DIR is already set
@@ -332,10 +334,10 @@ CLEANUP:
 		system_reboot(false);
 	if (exit_type == COT_EXIT) {
 		if (trans_ok) {
-			state_dump("done");
+			update_state(LS_EXIT);
 			return 0;
 		} else {
-			state_dump("error");
+			update_state(LS_FAIL);
 			return 2;
 		}
 	} else
