@@ -24,6 +24,7 @@ libupdater_MODULES := \
 	lautoload.embed \
 	embed_types \
 	events \
+	subprocess \
 	journal \
 	locks \
 	picosat \

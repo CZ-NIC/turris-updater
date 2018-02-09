@@ -23,6 +23,7 @@ check-clean:
 C_TESTS := \
 	arguments \
 	events \
+	subprocess \
 	interpreter
 
 LUA_TESTS := \
