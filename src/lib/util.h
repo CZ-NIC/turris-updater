@@ -31,7 +31,7 @@
 bool dump2file (const char *file, const char *text) __attribute__((nonnull,nonnull));
 
 // Executes all executable files in given directory
-void exec_dir(struct events *events, const char *dir) __attribute__((nonnull));
+void exec_hook(const char *dir, const char *message) __attribute__((nonnull));
 
 // Using these functions you can register/unregister cleanup function. Note that
 // they are called in reverse order of insertion. This is implemented using atexit
