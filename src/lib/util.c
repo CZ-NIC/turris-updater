@@ -21,6 +21,7 @@
 
 #include "util.h"
 #include "logging.h"
+#include "subprocess.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -40,27 +41,12 @@ bool dump2file (const char *file, const char *text) {
 	return true;
 }
 
-static void exec_dir_callback(struct wait_id id __attribute__((unused)), void *data, int status, enum command_kill_status killed __attribute__((unused)), size_t out_size, const char *out, size_t err_size, const char *err) {
-	if (out_size > 0) {
-		INFO("Subprogram output: %s:\n%s", (char *)data, out);
-		INFO("End of subprogram output");
-	}
-	if (err_size > 0) {
-		ERROR("Subprogram output: %s:\n%s", (char *)data, err);
-		ERROR("End of subprogram output");
-	}
-	if (out_size == 0 && err_size == 0)
-		INFO("Executed: %s", (char *)data);
-	if (status)
-		ERROR("Execution failed with status: %d, %s", status, (char *)data);
-}
-
 static int exec_dir_filter(const struct dirent *de) {
 	// ignore system paths and accept only files
 	return strcmp(de->d_name, ".") && strcmp(de->d_name, "..") && de->d_type == DT_REG;
 }
 
-void exec_dir(struct events *events, const char *dir) {
+void exec_hook(const char *dir, const char *message) {
 	struct dirent **namelist;
 	int count = scandir(dir, &namelist, exec_dir_filter, alphasort);
 	if (count == -1) {
@@ -69,10 +55,11 @@ void exec_dir(struct events *events, const char *dir) {
 	}
 	for (int i = 0; i < count; i++) {
 		char *fpath = aprintf("%s/%s", dir, namelist[i]->d_name);
-		if (!access(fpath, X_OK)) {
-			struct wait_id wid = run_command(events, exec_dir_callback, NULL, fpath, 0, NULL, -1, -1, fpath, (const char *)NULL);
-			events_wait(events, 1, &wid);
-		} else
+		char *msg = aprintf("%s: %s", message, namelist[i]->d_name);
+		// TODO do we want to have some timeout here?
+		if (!access(fpath, X_OK))
+			lsubprocv(LST_HOOK, msg, NULL, -1, fpath, NULL);
+		else
 			DBG("File not executed, not executable: %s", namelist[i]->d_name);
 		free(namelist[i]);
 	}

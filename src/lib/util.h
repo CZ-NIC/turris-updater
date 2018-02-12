@@ -31,7 +31,7 @@
 bool dump2file (const char *file, const char *text) __attribute__((nonnull,nonnull));
 
 // Executes all executable files in given directory
-void exec_dir(struct events *events, const char *dir) __attribute__((nonnull));
+void exec_hook(const char *dir, const char *message) __attribute__((nonnull));
 
 // Disable system reboot. If this function is called before system_reboot is than
 // system reboot just prints warning about skipped reboot and returns.
