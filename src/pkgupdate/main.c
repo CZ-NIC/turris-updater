@@ -277,10 +277,9 @@ int main(int argc, char *argv[]) {
 		GOTO_CLEANUP;
 	if (!replan) {
 		update_state(LS_PREUPD);
-		INFO("Executing preupdate hooks...");
 		const char *hook_path = aprintf("%s%s", root_dir, hook_preupdate);
 		setenv("ROOT_DIR", root_dir, true);
-		exec_dir(events, hook_path);
+		exec_hook(hook_path, "Executing preupdate hook");
 	}
 	if (task_log) {
 		FILE *log = fopen(task_log, "a");
@@ -305,9 +304,8 @@ int main(int argc, char *argv[]) {
 	bool reboot_delayed;
 	ASSERT(interpreter_collect_results(interpreter, "bb", &reboot_delayed, &reboot_finished) == -1);
 	if (reboot_delayed) {
-		INFO("Executing reboot_required hooks...");
 		const char *hook_path = aprintf("%s%s", root_dir, hook_reboot_delayed);
-		exec_dir(events, hook_path);
+		exec_hook(hook_path, "Executing reboot_required hook");
 	}
 	err = interpreter_call(interpreter, "updater.cleanup", NULL, "bb", reboot_finished);
 	ASSERT_MSG(!err, "%s", err);
@@ -321,10 +319,9 @@ int main(int argc, char *argv[]) {
 	}
 REPLAN_CLEANUP:
 	update_state(LS_POSTUPD);
-	INFO("Executing postupdate hooks...");
 	const char *hook_path = aprintf("%s%s", root_dir, hook_postupdate);
 	setenv("SUCCESS", trans_ok ? "true" : "false", true); // ROOT_DIR is already set
-	exec_dir(events, hook_path);
+	exec_hook(hook_path, "Executing postupdate hook");
 CLEANUP:
 	free(approvals);
 	interpreter_destroy(interpreter);
