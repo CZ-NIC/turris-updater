@@ -21,6 +21,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include "logging.h"
 
 /*
 This runs non-interactive programs as subprocess. It closes stdin and pipes stdout
@@ -39,9 +40,16 @@ int subprocl(int timeout, const char *command, const char *args[]);
 int subproclo(int timeout, FILE *fd[2], const char *command, const char *args[]);
 int vsubprocv(int timeout, const char *command, va_list args);
 int vsubprocvo(int timeout, FILE *fd[2], const char *command, va_list args);
+// TODO probably allow stdin passtrough?
+// TODO allow specifying env
 
 // Set subproc kill timeout. This is timeout used when primary timeout runs out
 // and SIGTERM is send but process still doesn't dies.
 void subproc_kill_t(int timeout);
+
+// Following functions integrate log_subproc with subproc to enable logging of subprocess output.
+int lsubprocv(enum log_subproc_type type, const char *message, char **output, int timeout, const char *command, ...);
+int lsubprocl(enum log_subproc_type type, const char *message, char **output, int timeout, const char *command, const char *args[]);
+int lvsubprocv(enum log_subproc_type type, const char *message, char **output, int timeout, const char *command, va_list args);
 
 #endif
