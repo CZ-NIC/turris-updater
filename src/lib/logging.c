@@ -201,7 +201,7 @@ void log_subproc_open(struct log_subproc *lsp, enum log_subproc_type type, const
 	cls->lsp = lsp;
 	lsp->err = fopencookie(cls, "w", fncs);
 	// Print info
-	INFO("%s: %s", type_string[type], message);
+	INFO("%s", message);
 }
 
 void log_subproc_close(struct log_subproc *lsp, int exit_code, char **output) {
@@ -212,6 +212,4 @@ void log_subproc_close(struct log_subproc *lsp, int exit_code, char **output) {
 		*output = lsp->buffer.buf;
 	else
 		free(lsp->buffer.buf);
-	if (exit_code)
-		WARN("%s exited with exit code: %d", type_string[lsp->type], exit_code);
 }
