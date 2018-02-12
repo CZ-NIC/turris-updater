@@ -19,6 +19,7 @@
 #ifndef UPDATER_LOGGING_H
 #define UPDATER_LOGGING_H
 
+#define _GNU_SOURCE
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -96,5 +97,31 @@ void log_syslog_level(enum log_level level);
 void log_syslog_name(const char *name);
 void log_stderr_level(enum log_level level);
 void setup_logging(enum log_level tty, enum log_level syslog);
+
+// Following functions are intended to be used with subprocess functions to log
+// out of subprocess in consistent way.
+// You can pass pointer to char* variable to receive complete output from
+// subprocess when log_subproc_close is called. Passing NULL results to buffer to
+// be dropped. Note that it's your responsibility to free used memory by output
+// afterward.
+enum log_subproc_type {
+	LST_PKG_SCRIPT, // This is post/pre install/rm script
+	LST_HOOK // This is updater's hook
+};
+
+struct log_subproc {
+	// Use following streams
+	FILE *out, *err;
+	// Don't edit following fields
+	enum log_subproc_type type;
+	struct {
+		FILE *f;
+		char *buf;
+		size_t size;
+	} buffer; // Buffer for all output/input
+};
+
+void log_subproc_open(struct log_subproc *ls, enum log_subproc_type type, const char *message) __attribute__((nonnull));
+void log_subproc_close(struct log_subproc *ls, int exit_code, char **output) __attribute__((nonnull(1)));
 
 #endif
