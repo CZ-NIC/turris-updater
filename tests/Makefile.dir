@@ -15,6 +15,7 @@ C_TESTS := \
 LUA_TESTS := \
 	backend \
 	events \
+	subprocess \
 	interpreter \
 	journal \
 	planner \
