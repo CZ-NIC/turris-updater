@@ -21,6 +21,7 @@
 #include "util.h"
 #include "logging.h"
 #include "events.h"
+#include "subprocess.h"
 #include "journal.h"
 #include "md5.h"
 #include "sha256.h"
@@ -417,6 +418,31 @@ static int lua_events_wait(lua_State *L) {
 	return 0;
 }
 
+static int lua_subprocess(lua_State *L) {
+	enum log_subproc_type type = (enum log_subproc_type)luaL_checkinteger(L, 1);
+	// TODO verify type?
+	const char *message = luaL_checkstring(L, 2);
+	int timeout = luaL_checkinteger(L, 3);
+	const char *command = luaL_checkstring(L, 4);
+
+	int ec;
+	char *output;
+	if (lua_gettop(L) > 4) {
+		const char *args[lua_gettop(L) - 4];
+		for (int i = 5; i <= lua_gettop(L); i++)
+			args[i - 5] = luaL_checkstring(L, i);
+		args[lua_gettop(L) - 4] = NULL;
+		ec = lsubprocl(type, message, &output, timeout, command, args);
+	} else {
+		ec = lsubprocv(type, message, &output, timeout, command, NULL);
+	}
+
+	lua_pushinteger(L, ec);
+	lua_pushstring(L, output);
+	free(output);
+	return 2;
+}
+
 static int lua_mkdtemp(lua_State *L) {
 	int param_count = lua_gettop(L);
 	if (param_count > 1)
@@ -761,6 +787,7 @@ static const struct injected_func injected_funcs[] = {
 	 * manage the dynamically allocated memory correctly and there doesn't
 	 * seem to be a need for them at this moment.
 	 */
+	{ lua_subprocess, "subprocess" },
 	{ lua_mkdtemp, "mkdtemp" },
 	{ lua_chdir, "chdir" },
 	{ lua_getcwd, "getcwd" },
@@ -796,7 +823,9 @@ struct {
 	{ LS_CLEANUP, "LS_CLEANUP"},
 	{ LS_POSTUPD, "LS_POSTUPD"},
 	{ LS_EXIT, "LS_EXIT"},
-	{ LS_FAIL, "LS_FAIL"}
+	{ LS_FAIL, "LS_FAIL"},
+	{ LST_PKG_SCRIPT, "LST_PKG_SCRIPT"},
+	{ LST_HOOK, "LST_HOOK"},
 };
 // Various enum values that we want to inject
 

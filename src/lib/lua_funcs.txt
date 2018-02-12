@@ -48,6 +48,33 @@ update_state(state)::
   - `LS_EXIT`: Updater exit (`exit`)
   - `LS_FAIL`: Detected failure, exiting. (`failure`)
 
+Subprocesses
+------------
+
+Family of functions ``subproc*`` defined in ``subprocess.h`` are exported to lua
+in form of function `subproc`.
+
+Function `subprocess` is defined as follows:
+`suboprocess(type, message, timeout, command ...)`
+
+  `type` is identification used to specify what type of subprocess it's. Allowed
+  predefined constants are as follows:
+    -- `LST_PKG_SCRIPT` Any script provided by package (pre/post inst/rm)
+	-- `LST_HOOK` Hook script executed on some updater state
+
+  `message` is string describing what this subprocess is to user. It's human
+  readable description of executed command.
+
+  `timeout` is time in seconds after which subprocess will be automatically
+  killed.
+
+  `command` is any arbitrary number of string arguments that are passed as command
+  and its additional arguments.
+
+This function returns exit code of executed subprocess as first argument. And
+output of this process as second argument. (Output includes both stdout and
+stderr).
+
 Asynchronous events
 -------------------
 
