@@ -29,7 +29,6 @@
 #include <sys/select.h>
 #include <time.h>
 #include <sys/wait.h>
-#include "logging.h"
 
 static int kill_timeout = 3;
 
@@ -76,6 +75,16 @@ int subprocl(int timeout, const char *cmd, const char *args[]) {
 }
 
 int subproclo(int timeout, FILE *fd[2], const char *cmd, const char *args[]) {
+	struct log_buffer log;
+	log_buffer_init(&log, LL_TRACE);
+	if (log.f) {
+		fprintf(log.f, "Running subprocess: %s", cmd);
+		for (const char **p = args; *p; p++)
+			fprintf(log.f, " %s", *p);
+		fclose(log.f);
+		TRACE("%s", log.char_buffer);
+		free(log.char_buffer);
+	}
 	// Prepare pipes for stdout and stderr
 	int p_err[2], p_out[2];
 	pipe2(p_err, O_NONBLOCK);
@@ -159,4 +168,30 @@ int vsubprocvo(int timeout, FILE *fd[2], const char *cmd, va_list args) {
 
 void subproc_kill_t(int timeout) {
 	kill_timeout = timeout;
+}
+
+int lsubprocv(enum log_subproc_type type, const char *message, char **output, int timeout, const char *cmd, ...) {
+	va_list va_args;
+	va_start(va_args, cmd);
+	int ec = lvsubprocv(type, message, output, timeout, cmd, va_args);
+	va_end(va_args);
+	return ec;
+}
+
+int lsubprocl(enum log_subproc_type type, const char *message, char **output, int timeout, const char *cmd, const char *args[]) {
+	struct log_subproc lsp;
+	log_subproc_open(&lsp, type, message);
+	FILE *fds[] = {lsp.out, lsp.err};
+	int ec = subproclo(timeout, fds, cmd, args);
+	log_subproc_close(&lsp, ec, output);
+	return ec;
+}
+
+int lvsubprocv(enum log_subproc_type type, const char *message, char **output, int timeout, const char *cmd, va_list args) {
+	struct log_subproc lsp;
+	log_subproc_open(&lsp, type, message);
+	FILE *fds[] = {lsp.out, lsp.err};
+	int ec = vsubprocvo(timeout, fds, cmd, args);
+	log_subproc_close(&lsp, ec, output);
+	return ec;
 }
