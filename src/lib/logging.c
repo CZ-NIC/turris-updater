@@ -18,6 +18,7 @@
  */
 #include "logging.h"
 
+#include <unistd.h>
 #include <syslog.h>
 #include <errno.h>
 #include <stdarg.h>
@@ -41,20 +42,20 @@ const char* log_state_str[] = {
 };
 
 struct level_info {
-	const char *prefix;
+	const char *color;
 	const char *name;
 	int syslog_prio;
 };
 
 static const struct level_info levels[] = {
-	[LL_DISABLE] = { "!!!!", "DISABLE", LOG_CRIT }, // This shouldn't actually appear
-	[LL_DIE] = { "\x1b[31;1mDIE\x1b[0m", "DIE", LOG_CRIT },
-	[LL_ERROR] = { "\x1b[31mERROR\x1b[0m", "ERROR", LOG_ERR },
-	[LL_WARN] = { "\x1b[35mWARN\x1b[0m", "WARN", LOG_WARNING },
-	[LL_INFO] = { "\x1b[34mINFO\x1b[0m", "INFO", LOG_INFO },
-	[LL_DBG] = { "DEBUG", "DBG", LOG_DEBUG },
-	[LL_TRACE] = { "TRACE", "TRACE", LOG_DEBUG },
-	[LL_UNKNOWN] = { "????", "UNKNOWN", LOG_WARNING }
+	[LL_DISABLE] = { "", "DISABLE", LOG_CRIT }, // This shouldn't actually appear
+	[LL_DIE] = { "\x1b[31;1m", "DIE", LOG_CRIT },
+	[LL_ERROR] = { "\x1b[31m", "ERROR", LOG_ERR },
+	[LL_WARN] = { "\x1b[35;1m", "WARN", LOG_WARNING },
+	[LL_INFO] = { "", "INFO", LOG_INFO },
+	[LL_DBG] = { "\x1b[37m", "DBG", LOG_DEBUG },
+	[LL_TRACE] = { "\x1b[30;1m", "TRACE", LOG_DEBUG },
+	[LL_UNKNOWN] = { "", "UNKNOWN", LOG_WARNING }
 };
 
 static enum log_level syslog_level = LL_DISABLE;
@@ -107,10 +108,16 @@ void log_internal(enum log_level level, const char *file, size_t line, const cha
 		syslog(LOG_MAKEPRI(LOG_DAEMON, levels[level].syslog_prio), "%s:%zu (%s): %s", file, line, func, msg);
 	}
 	if (do_stderr) {
-		if (stderr_level < LL_DBG)
-			fprintf(stderr, "%s:%s\n", levels[level].prefix, msg);
-		else
-			fprintf(stderr, "%s:%s:%zu (%s):%s\n", levels[level].prefix, file, line, func, msg);
+		if (stderr_level < LL_DBG) {
+			if (isatty(STDERR_FILENO))
+				fprintf(stderr, "%s%s\x1b[0m\n", levels[level].color, msg);
+			else
+				fprintf(stderr, "%s:%s\n", levels[level].name, msg);
+		} else
+			if (isatty(STDERR_FILENO))
+				fprintf(stderr, "%s%s:%zu (%s):%s\n", levels[level].color, file, line, func, msg);
+			else
+				fprintf(stderr, "%s:%s:%zu (%s):%s\n", levels[level].name, file, line, func, msg);
 	}
 	if (level == LL_DIE) {
 		update_state(LS_FAIL);
