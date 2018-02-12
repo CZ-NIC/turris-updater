@@ -153,3 +153,65 @@ enum log_level log_level_get(const char *level) {
 	}
 	return LL_UNKNOWN;
 }
+
+static const char *type_string[] = {
+	[LST_PKG_SCRIPT] = "pkg-script",
+	[LST_HOOK] = "hook"
+};
+
+// log_subproc cookie
+struct c_log_subproc {
+	bool err; // Is this out or err
+	struct log_subproc *lsp;
+};
+
+static ssize_t c_log_subproc_write(void *cookie, const char *buf, size_t size) {
+	struct c_log_subproc *cls = (struct c_log_subproc*)cookie;
+	int len = fwrite(buf, sizeof(char), size, cls->err ? stderr : stdout);
+	// This is memory buffer so there should be no problem to match system output
+	ASSERT(fwrite(buf, sizeof(char), len, cls->lsp->buffer.f) == len);
+	return len;
+}
+
+static int c_log_subproc_close(void *cookie) {
+	struct c_log_subproc *cls = (struct c_log_subproc*)cookie;
+	free(cls);
+	return 0;
+}
+
+void log_subproc_open(struct log_subproc *lsp, enum log_subproc_type type, const char *message) {
+	lsp->type = type;
+	lsp->buffer.f = open_memstream(&lsp->buffer.buf, &lsp->buffer.size);
+
+	cookie_io_functions_t fncs = {
+		 // LS_FAIL.read = NULL,
+		.write = c_log_subproc_write,
+		.seek = NULL,
+		.close = c_log_subproc_close
+	};
+	// out
+	struct c_log_subproc *cls = malloc(sizeof *cls);
+	cls->err = false;
+	cls->lsp = lsp;
+	lsp->out = fopencookie(cls, "w", fncs);
+	// err
+	// cppcheck-suppress memleak (cls is passed as cookie and freed on stream close)
+	cls = malloc(sizeof *cls);
+	cls->err = true;
+	cls->lsp = lsp;
+	lsp->err = fopencookie(cls, "w", fncs);
+	// Print info
+	INFO("%s: %s", type_string[type], message);
+}
+
+void log_subproc_close(struct log_subproc *lsp, int exit_code, char **output) {
+	fclose(lsp->out);
+	fclose(lsp->err);
+	fclose(lsp->buffer.f);
+	if (output)
+		*output = lsp->buffer.buf;
+	else
+		free(lsp->buffer.buf);
+	if (exit_code)
+		WARN("%s exited with exit code: %d", type_string[lsp->type], exit_code);
+}
