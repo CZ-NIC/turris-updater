@@ -90,10 +90,10 @@ Subprocesses
 ------------
 
 Family of functions ``subproc*`` defined in ``subprocess.h`` are exported to lua
-in form of function `subproc`.
+in form of functions `subprocess`.
 
 Function `subprocess` is defined as follows:
-`suboprocess(type, message, timeout, command ...)`
+`subprocess(type, message, timeout, environment, command ...)`
 
   `type` is identification used to specify what type of subprocess it's. Allowed
   predefined constants are as follows:
@@ -105,6 +105,10 @@ Function `subprocess` is defined as follows:
 
   `timeout` is time in seconds after which subprocess will be automatically
   killed.
+
+  `environment` is (hash) table containing changes to be done to environment
+  variables. Key has to be only strings but values can be anything that can be
+  later converted to string using `tostring` function.
 
   `command` is any arbitrary number of string arguments that are passed as command
   and its additional arguments.
