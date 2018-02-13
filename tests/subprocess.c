@@ -85,6 +85,28 @@ START_TEST(output) {
 }
 END_TEST
 
+START_TEST(environment) {
+	subproc_kill_t(0);
+
+	char *buff;
+	size_t size;
+	FILE *ff = open_memstream(&buff, &size);
+	FILE *devnull = fopen("/dev/null", "w");
+	FILE *fds[] = {ff, devnull};
+	struct env_change env[] = {
+		{.name = "TESTME", .value = "Hello" },
+		{NULL}
+	};
+	ck_assert(subprocveo(1, fds, env, "sh", "-c", "echo $TESTME", NULL) == 0);
+	fflush(ff);
+	ck_assert(strcmp("Hello\n", buff) == 0);
+
+	fclose(ff);
+	fclose(devnull);
+	free(buff);
+}
+END_TEST
+
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Subprocess");
 	TCase *subproc = tcase_create("subproc");
@@ -92,6 +114,7 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(subproc, exit_code);
 	tcase_add_test(subproc, timeout);
 	tcase_add_test(subproc, output);
+	tcase_add_test(subproc, environment);
 	suite_add_tcase(result, subproc);
 	return result;
 }
