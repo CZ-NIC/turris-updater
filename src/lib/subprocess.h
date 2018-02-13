@@ -19,9 +19,19 @@
 #ifndef UPDATER_SUBPROCESS_H
 #define UPDATER_SUBPROCESS_H
 
+#define _GNU_SOURCE
 #include <stdarg.h>
 #include <stdio.h>
 #include "logging.h"
+
+// Structure used for passing changes to environment
+struct env_change {
+	const char *name, *value;
+};
+
+// Set subproc kill timeout. This is timeout used when primary timeout runs out
+// and SIGTERM is send but process still doesn't dies.
+void subproc_kill_t(int timeout);
 
 /*
 This runs non-interactive programs as subprocess. It closes stdin and pipes stdout
@@ -31,25 +41,29 @@ no timeout is set up.
 For some functions you can also add fd argument for stdout end stderr feed for
 subprocess. This allows you to specify any other feed. In default {stdout, stderr}
 is used.
+Some functions also support ability to change environment variables of subprocess.
+You can pass array terminated with field with NULL name of env_change structures
+where name identifies name of environment variable and value is value to be set.
+Value can also be NULL and in that case we unset given environment variable.
 Note that these calls are blocking ones.
 Returned status field from wait call. See manual for wait on how to decode it.
 */
 int subprocv(int timeout, const char *command, ...); // (char *) NULL
 int subprocvo(int timeout, FILE *fd[2], const char *command, ...); // (char *) NULL
+int subprocveo(int timeout, FILE *fd[2], struct env_change env[], const char *command, ...); // (char *) NULL
 int subprocl(int timeout, const char *command, const char *args[]);
 int subproclo(int timeout, FILE *fd[2], const char *command, const char *args[]);
+int subprocleo(int timeout, FILE *fd[2], struct env_change env[], const char *command, const char *args[]);
 int vsubprocv(int timeout, const char *command, va_list args);
 int vsubprocvo(int timeout, FILE *fd[2], const char *command, va_list args);
-// TODO probably allow stdin passtrough?
-// TODO allow specifying env
-
-// Set subproc kill timeout. This is timeout used when primary timeout runs out
-// and SIGTERM is send but process still doesn't dies.
-void subproc_kill_t(int timeout);
+int vsubprocveo(int timeout, FILE *fd[2], struct env_change env[], const char *command, va_list args);
 
 // Following functions integrate log_subproc with subproc to enable logging of subprocess output.
 int lsubprocv(enum log_subproc_type type, const char *message, char **output, int timeout, const char *command, ...);
+int lsubprocve(enum log_subproc_type type, const char *message, char **output, int timeout, struct env_change env[], const char *command, ...);
 int lsubprocl(enum log_subproc_type type, const char *message, char **output, int timeout, const char *command, const char *args[]);
+int lsubprocle(enum log_subproc_type type, const char *message, char **output, int timeout, struct env_change env[], const char *command, const char *args[]);
 int lvsubprocv(enum log_subproc_type type, const char *message, char **output, int timeout, const char *command, va_list args);
+int lvsubprocve(enum log_subproc_type type, const char *message, char **output, int timeout, struct env_change env[], const char *command, va_list args);
 
 #endif
