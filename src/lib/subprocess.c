@@ -18,7 +18,7 @@
  */
 #include "subprocess.h"
 
-#define _GNU_SOURCE
+#include <stdlib.h>
 #include <sys/types.h>
 #include <errno.h>
 #include <string.h>
@@ -32,13 +32,24 @@
 
 static int kill_timeout = 3;
 
-static void run_child(const char *cmd, const char *args[], int p_out[2], int p_err[2]) {
+void subproc_kill_t(int timeout) {
+	kill_timeout = timeout;
+}
+
+static void run_child(const char *cmd, const char *args[], struct env_change env[], int p_out[2], int p_err[2]) {
 	// Close unneded FDs
 	ASSERT(close(0) != -1);
 	ASSERT(close(p_out[0]) != -1);
 	ASSERT(dup2(p_out[1], 1) != -1 && close(p_out[1]) != -1);
 	ASSERT(close(p_err[0]) != -1);
 	ASSERT(dup2(p_err[1], 2) != -1 && close(p_err[1]) != -1);
+	// Set environment
+	for (int i = 0; env[i].name != NULL; i++) {
+		if (env[i].value != NULL)
+			setenv(env[i].name, env[i].value, true);
+		else
+			unsetenv(env[i].name);
+	}
 	// Exec
 	size_t arg_c = 2; // cmd and NULL terminator
 	for (const char **p = args; *p; p++)
@@ -69,12 +80,25 @@ int subprocvo(int timeout, FILE *fd[2], const char *cmd, ...) {
 	return res;
 }
 
+int subprocveo(int timeout, FILE *fd[2], struct env_change env[], const char *cmd, ...) {
+	va_list va_args;
+	va_start(va_args, cmd);
+	int res = vsubprocveo(timeout, fd, env, cmd, va_args);
+	va_end(va_args);
+	return res;
+}
+
 int subprocl(int timeout, const char *cmd, const char *args[]) {
 	FILE *fds[2] = {stdout, stderr};
 	return subproclo(timeout, fds, cmd, args);
 }
 
 int subproclo(int timeout, FILE *fd[2], const char *cmd, const char *args[]) {
+	struct env_change env[] = {{NULL}};
+	return subprocleo(timeout, fd, env, cmd, args);
+}
+
+int subprocleo(int timeout, FILE *fd[2], struct env_change env[], const char *cmd, const char *args[]) {
 	struct log_buffer log;
 	log_buffer_init(&log, LL_TRACE);
 	if (log.f) {
@@ -95,7 +119,7 @@ int subproclo(int timeout, FILE *fd[2], const char *cmd, const char *args[]) {
 	if (pid == -1)
 		DIE("Failed to fork command %s: %s", cmd, strerror(errno));
 	else if (pid == 0)
-		run_child(cmd, args, p_out, p_err);
+		run_child(cmd, args, env, p_out, p_err);
 
 	ASSERT(close(p_out[1]) != -1);
 	ASSERT(close(p_err[1]) != -1);
@@ -150,6 +174,11 @@ int vsubprocv(int timeout, const char *cmd, va_list args) {
 }
 
 int vsubprocvo(int timeout, FILE *fd[2], const char *cmd, va_list args) {
+	struct env_change env[] = {{NULL}};
+	return vsubprocveo(timeout, fd, env, cmd, args);
+}
+
+int vsubprocveo(int timeout, FILE *fd[2], struct env_change env[], const char *cmd, va_list args) {
 	size_t argc = 1; // For NULL terminator
 	// Count (use copy for that)
 	va_list va_copy;
@@ -161,13 +190,8 @@ int vsubprocvo(int timeout, FILE *fd[2], const char *cmd, va_list args) {
 	const char *argv[argc];
 	size_t i = 0;
 	while((argv[i++] = va_arg(args, const char *)) != NULL);
-	va_end(args);
 	argv[argc - 1] = NULL;
-	return subproclo(timeout, fd, cmd, argv);
-}
-
-void subproc_kill_t(int timeout) {
-	kill_timeout = timeout;
+	return subprocleo(timeout, fd, env, cmd, argv);
 }
 
 int lsubprocv(enum log_subproc_type type, const char *message, char **output, int timeout, const char *cmd, ...) {
@@ -178,20 +202,38 @@ int lsubprocv(enum log_subproc_type type, const char *message, char **output, in
 	return ec;
 }
 
+int lsubprocve(enum log_subproc_type type, const char *message, char **output, int timeout, struct env_change env[], const char *cmd, ...) {
+	va_list va_args;
+	va_start(va_args, cmd);
+	int ec = lvsubprocve(type, message, output, timeout, env, cmd, va_args);
+	va_end(va_args);
+	return ec;
+}
+
 int lsubprocl(enum log_subproc_type type, const char *message, char **output, int timeout, const char *cmd, const char *args[]) {
+	struct env_change env[] = {{NULL}};
+	return lsubprocle(type, message, output, timeout, env, cmd, args);
+}
+
+int lsubprocle(enum log_subproc_type type, const char *message, char **output, int timeout, struct env_change env[], const char *cmd, const char *args[]) {
 	struct log_subproc lsp;
 	log_subproc_open(&lsp, type, message);
 	FILE *fds[] = {lsp.out, lsp.err};
-	int ec = subproclo(timeout, fds, cmd, args);
+	int ec = subprocleo(timeout, fds, env, cmd, args);
 	log_subproc_close(&lsp, ec, output);
 	return ec;
 }
 
 int lvsubprocv(enum log_subproc_type type, const char *message, char **output, int timeout, const char *cmd, va_list args) {
+	struct env_change env[] = {{NULL}};
+	return lsubprocve(type, message, output, timeout, env, cmd, args);
+}
+
+int lvsubprocve(enum log_subproc_type type, const char *message, char **output, int timeout, struct env_change env[], const char *cmd, va_list args) {
 	struct log_subproc lsp;
 	log_subproc_open(&lsp, type, message);
 	FILE *fds[] = {lsp.out, lsp.err};
-	int ec = vsubprocvo(timeout, fds, cmd, args);
+	int ec = vsubprocveo(timeout, fds, env, cmd, args);
 	log_subproc_close(&lsp, ec, output);
 	return ec;
 }
