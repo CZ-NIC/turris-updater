@@ -42,6 +42,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <stdio.h>
+#include <string.h>
 #include <openssl/sha.h>
 #include <openssl/md5.h>
 
@@ -458,18 +459,38 @@ static int lua_subprocess(lua_State *L) {
 	// TODO verify type?
 	const char *message = luaL_checkstring(L, 2);
 	int timeout = luaL_checkinteger(L, 3);
-	const char *command = luaL_checkstring(L, 4);
+	const char *command = luaL_checkstring(L, 5);
+	
+	// Environment
+	luaL_checktype(L, 4, LUA_TTABLE);
+	int env_size = 1; // For terminating NULL
+	lua_pushnil(L);
+	while (lua_next(L, 4) != 0) {
+		env_size++;
+		lua_pop(L, 1); // pop pushed key
+	}
+	struct env_change env[env_size];
+	lua_pushnil(L);
+	int i = 0;
+	while (lua_next(L, 4) != 0) {
+		env[i].name = strdup(luaL_checkstring(L, -2));
+		env[i].value = strdup(luaL_checkstring(L, -1));
+		lua_pop(L, 1); // pop pushed key
+		i++;
+	}
+	env[env_size - 1] = (struct env_change){NULL};
 
 	int ec;
 	char *output;
-	if (lua_gettop(L) > 4) {
+	if (lua_gettop(L) > 5) {
 		const char *args[lua_gettop(L) - 4];
-		for (int i = 5; i <= lua_gettop(L); i++)
-			args[i - 5] = luaL_checkstring(L, i);
-		args[lua_gettop(L) - 4] = NULL;
-		ec = lsubprocl(type, message, &output, timeout, command, args);
+		for (int i = 6; i <= lua_gettop(L); i++) {
+			args[i - 6] = luaL_checkstring(L, i);
+		}
+		args[lua_gettop(L) - 5] = NULL;
+		ec = lsubprocle(type, message, &output, timeout, env, command, args);
 	} else {
-		ec = lsubprocv(type, message, &output, timeout, command, NULL);
+		ec = lsubprocve(type, message, &output, timeout, env, command, NULL);
 	}
 
 	lua_pushinteger(L, ec);
