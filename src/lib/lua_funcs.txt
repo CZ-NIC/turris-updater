@@ -93,7 +93,7 @@ Family of functions ``subproc*`` defined in ``subprocess.h`` are exported to lua
 in form of functions `subprocess`.
 
 Function `subprocess` is defined as follows:
-`subprocess(type, message, timeout, environment, command ...)`
+`subprocess(type, message, timeout, callback, command ...)`
 
   `type` is identification used to specify what type of subprocess it's. Allowed
   predefined constants are as follows:
@@ -106,9 +106,10 @@ Function `subprocess` is defined as follows:
   `timeout` is time in seconds after which subprocess will be automatically
   killed.
 
-  `environment` is (hash) table containing changes to be done to environment
-  variables. Key has to be only strings but values can be anything that can be
-  later converted to string using `tostring` function.
+  `callback` is optional function that would be called in subprocess just before
+  it executes given command. If you don't want to specify it then you can pass nil
+  or you can just drop it out (in that case command is expeted on this argument
+  place). This functions should has no arguments and shouldn't return anything.
 
   `command` is any arbitrary number of string arguments that are passed as command
   and its additional arguments.
@@ -116,6 +117,10 @@ Function `subprocess` is defined as follows:
 This function returns exit code of executed subprocess as first argument. And
 output of this process as second argument. (Output includes both stdout and
 stderr).
+
+Note::
+  There is some problem with printing from lua to stdout in callback on some
+  platforms.
 
 Asynchronous events
 -------------------
