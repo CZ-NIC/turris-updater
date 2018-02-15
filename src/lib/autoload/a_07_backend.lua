@@ -36,8 +36,9 @@ local setenv = setenv
 local getcwd = getcwd
 local mkdtemp = mkdtemp
 local chdir = chdir
-local run_command = run_command
 local run_util = run_util
+local subprocess = subprocess
+local LST_PKG_SCRIPT = LST_PKG_SCRIPT
 local events_wait = events_wait
 local stat = stat
 local lstat = lstat
@@ -1033,20 +1034,18 @@ function script_run(pkg_name, script_name, ...)
 	local fname_full = info_dir:gsub('^../', getcwd() .. "/../"):gsub('^./', getcwd() .. "/") .. "/" .. fname
 	local ftype, perm = stat(fname_full)
 	if ftype == 'r' and perm:match("^r.[xs]") then
-		DBG("Running " .. script_name .. " of " .. pkg_name)
-		local s_ecode, s_stderr
-		events_wait(run_command(function (ecode, killed, _, stderr)
-			DBG("Terminated: " .. killed)
-			s_ecode = ecode
-			s_stderr = stderr
-		end, function ()
-			local dir = root_dir:gsub('^/+$', '')
-			setenv("PKG_ROOT", dir)
-			setenv("IPKG_INSTROOT", dir)
-			chdir(root_dir)
-		end, nil, cmd_timeout, cmd_kill_timeout, fname_full, ...))
-		DBG(s_stderr)
-		return s_ecode == 0, s_stderr
+		local ecode, output = subprocess(
+			LST_PKG_SCRIPT,
+			"Running " .. script_name .. " of " .. pkg_name,
+			cmd_timeout/1000,
+			function()
+				local dir = root_dir:gsub('^/+$', '')
+				setenv("PKG_ROOT", dir)
+				setenv("IPKG_INSTROOT", dir)
+				chdir(root_dir)
+			end,
+			fname_full, ...)
+		return ecode == 0, output
 	elseif ftype == 'r' then
 		WARN(fname .. " has wrong permissions " .. perm .. "(not running)")
 	elseif ftype then
