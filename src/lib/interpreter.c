@@ -454,44 +454,53 @@ static int lua_cleanup_unregister_handle(lua_State *L) {
 	return 0;
 }
 
+struct subprocess_callback_data {
+	lua_State *L;
+	char *callback;
+};
+
+static void subprocess_callback(void *vdata) {
+	struct subprocess_callback_data *dt = (struct subprocess_callback_data*)vdata;
+	if (!dt->callback)
+		return;
+	lua_State *L = dt->L;
+
+	// This may be called from C code with a dirty stack
+	luaL_checkstack(L, 4, "Not enough stack space to call subprocess callback");
+	int handler = push_err_handler(L);
+	extract_registry_value(L, dt->callback);
+
+	int result = lua_pcall(L, 0, 0, handler);
+	ASSERT_MSG(!result, "%s", interpreter_error_result(L));
+}
+
 static int lua_subprocess(lua_State *L) {
 	enum log_subproc_type type = (enum log_subproc_type)luaL_checkinteger(L, 1);
 	// TODO verify type?
 	const char *message = luaL_checkstring(L, 2);
 	int timeout = luaL_checkinteger(L, 3);
-	const char *command = luaL_checkstring(L, 5);
-	
-	// Environment
-	luaL_checktype(L, 4, LUA_TTABLE);
-	int env_size = 1; // For terminating NULL
-	lua_pushnil(L);
-	while (lua_next(L, 4) != 0) {
-		env_size++;
-		lua_pop(L, 1); // pop pushed key
+	struct subprocess_callback_data callback_data = {
+		.L = L,
+		.callback = NULL
+	}; // This can be on stack as we won't return while using this
+	int cmd_index = 4;
+	if (lua_isfunction(L, 4)) {
+		callback_data.callback = register_value(L, 4);
+		cmd_index++;
 	}
-	struct env_change env[env_size];
-	lua_pushnil(L);
-	int i = 0;
-	while (lua_next(L, 4) != 0) {
-		env[i].name = strdup(luaL_checkstring(L, -2));
-		env[i].value = strdup(luaL_checkstring(L, -1));
-		lua_pop(L, 1); // pop pushed key
-		i++;
+	const char *command = luaL_checkstring(L, cmd_index);
+	const char *args[lua_gettop(L) - cmd_index - 1];
+	for (int i = cmd_index + 1; i <= lua_gettop(L); i++) {
+		args[i - cmd_index - 1] = luaL_checkstring(L, i);
 	}
-	env[env_size - 1] = (struct env_change){NULL};
+	args[lua_gettop(L) - cmd_index] = NULL;
 
-	int ec;
 	char *output;
-	if (lua_gettop(L) > 5) {
-		const char *args[lua_gettop(L) - 4];
-		for (int i = 6; i <= lua_gettop(L); i++) {
-			args[i - 6] = luaL_checkstring(L, i);
-		}
-		args[lua_gettop(L) - 5] = NULL;
-		ec = lsubprocle(type, message, &output, timeout, env, command, args);
-	} else {
-		ec = lsubprocve(type, message, &output, timeout, env, command, NULL);
-	}
+	int ec = lsubproclc(type, message, &output, timeout, subprocess_callback, &callback_data, command, args);
+
+	// Free callback data callback name
+	if (callback_data.callback)
+		free(callback_data.callback);
 
 	lua_pushinteger(L, ec);
 	lua_pushstring(L, output);
