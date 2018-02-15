@@ -49,61 +49,76 @@ START_TEST(timeout) {
 }
 END_TEST
 
+struct buffs {
+	FILE *fds[2];
+	char *b_out, *b_err;
+	size_t s_out, s_err;
+};
+
+static struct buffs *buffs_init() {
+	struct buffs *bfs = malloc(sizeof *bfs);
+	bfs->fds[0] = open_memstream(&bfs->b_out, &bfs->s_out);
+	bfs->fds[1] = open_memstream(&bfs->b_err, &bfs->s_err);
+	return bfs;
+}
+
+static void buffs_assert(struct buffs *bfs, const char *out, const char *err) {
+	fflush(bfs->fds[0]);
+	fflush(bfs->fds[1]);
+
+	ck_assert(strcmp(out, bfs->b_out) == 0);
+	ck_assert(strcmp(err, bfs->b_err) == 0);
+
+	rewind(bfs->fds[0]);
+	rewind(bfs->fds[1]);
+	bfs->b_out[0] = '\0';
+	bfs->b_err[0] = '\0';
+}
+
+static void buffs_free(struct buffs *bfs) {
+	fclose(bfs->fds[0]);
+	fclose(bfs->fds[1]);
+	free(bfs->b_out);
+	free(bfs->b_err);
+	free(bfs);
+}
+
 START_TEST(output) {
 	subproc_kill_t(0);
 
-	char *buff_out, *buff_err;
-	size_t size_out, size_err;
-	FILE *ff_out = open_memstream(&buff_out, &size_out);
-	FILE *ff_err = open_memstream(&buff_err, &size_err);
-	FILE *fds[] = {ff_out, ff_err};
-
-#define BUFF_ASSERT(STDOUT, STDERR) do { \
-		fflush(ff_out); \
-		fflush(ff_err); \
-		ck_assert(strcmp(STDOUT, buff_out) == 0); \
-		ck_assert(strcmp(STDERR, buff_err) == 0); \
-		rewind(ff_out); \
-		rewind(ff_err); \
-		buff_out[0] = '\0'; \
-		buff_err[0] = '\0'; \
-	} while(0)
+	struct buffs *bfs = buffs_init();
 
 	// Echo to stdout
-	ck_assert(subprocvo(1, fds, "echo", "hello", NULL) == 0);
-	BUFF_ASSERT("hello\n", "");
+	ck_assert(subprocvo(1, bfs->fds, "echo", "hello", NULL) == 0);
+	buffs_assert(bfs, "hello\n", "");
 	// Echo to stderr
-	ck_assert(subprocvo(1, fds, "sh", "-c", "echo hello >&2", NULL) == 0);
-	BUFF_ASSERT("", "hello\n");
+	ck_assert(subprocvo(1, bfs->fds, "sh", "-c", "echo hello >&2", NULL) == 0);
+	buffs_assert(bfs, "", "hello\n");
 
-#undef BUFF_ASSERT
-
-	fclose(ff_out);
-	fclose(ff_err);
-	free(buff_out);
-	free(buff_err);
+	buffs_free(bfs);
 }
 END_TEST
 
-START_TEST(environment) {
+static void callback_test(void *data) {
+	if (data)
+		printf("%s", (const char *)data);
+	else
+		printf("hello");
+}
+
+START_TEST(callback) {
 	subproc_kill_t(0);
 
-	char *buff;
-	size_t size;
-	FILE *ff = open_memstream(&buff, &size);
-	FILE *devnull = fopen("/dev/null", "w");
-	FILE *fds[] = {ff, devnull};
-	struct env_change env[] = {
-		{.name = "TESTME", .value = "Hello" },
-		{NULL}
-	};
-	ck_assert(subprocveo(1, fds, env, "sh", "-c", "echo $TESTME", NULL) == 0);
-	fflush(ff);
-	ck_assert(strcmp("Hello\n", buff) == 0);
+	struct buffs *bfs = buffs_init();
 
-	fclose(ff);
-	fclose(devnull);
-	free(buff);
+	// Without data
+	ck_assert(subprocloc(1, bfs->fds, callback_test, NULL, NULL, NULL) == 0);
+	buffs_assert(bfs, "hello", "");
+	// With data
+	ck_assert(subprocvoc(1, bfs->fds, callback_test, "Hello again", NULL, NULL) == 0);
+	buffs_assert(bfs, "Hello again", "");
+
+	buffs_free(bfs);
 }
 END_TEST
 
@@ -114,7 +129,8 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(subproc, exit_code);
 	tcase_add_test(subproc, timeout);
 	tcase_add_test(subproc, output);
-	tcase_add_test(subproc, environment);
-	suite_add_tcase(result, subproc);
+	tcase_add_test(subproc, callback);
+	suite_add_tcase(
+			result, subproc);
 	return result;
 }
