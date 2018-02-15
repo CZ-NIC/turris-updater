@@ -1,5 +1,5 @@
 /*
- * Copyright 2016, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+ * Copyright 2016-2018, CZ.NIC z.s.p.o. (http://www.nic.cz/)
  *
  * This file is part of the turris updater.
  *
@@ -57,9 +57,10 @@ void exec_hook(const char *dir, const char *message) {
 		char *fpath = aprintf("%s/%s", dir, namelist[i]->d_name);
 		char *msg = aprintf("%s: %s", message, namelist[i]->d_name);
 		// TODO do we want to have some timeout here?
-		if (!access(fpath, X_OK))
-			lsubprocv(LST_HOOK, msg, NULL, -1, fpath, NULL);
-		else
+		if (!access(fpath, X_OK)) {
+			const char *args[] = {NULL};
+			lsubprocl(LST_HOOK, msg, NULL, -1, fpath, args);
+		} else
 			DBG("File not executed, not executable: %s", namelist[i]->d_name);
 		free(namelist[i]);
 	}

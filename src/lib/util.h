@@ -1,5 +1,5 @@
 /*
- * Copyright 2016, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+ * Copyright 2016-2018, CZ.NIC z.s.p.o. (http://www.nic.cz/)
  *
  * This file is part of the turris updater.
  *
@@ -55,5 +55,13 @@ size_t printf_len(const char *msg, ...) __attribute__((format(printf, 1, 2)));
 char *printf_into(char *dst, const char *msg, ...) __attribute__((format(printf, 2, 3)));
 // Like printf, but allocates the data on the stack with alloca and returns. It uses the arguments multiple times, so beware of side effects.
 #define aprintf(...) printf_into(alloca(printf_len(__VA_ARGS__)), __VA_ARGS__)
+
+// GCC 7+ reports fall troughs but previous versions doesn't understand attribute
+// for it so we have this macro to not put it in place if it's not needed.
+#if  __GNUC__ >= 7
+#define FALLTROUGH  __attribute__((fallthrough))
+#else
+#define FALLTROUGH
+#endif
 
 #endif
