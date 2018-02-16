@@ -86,6 +86,16 @@ bool dump2file (const char *file, const char *text) __attribute__((nonnull,nonnu
 // Executes all executable files in given directory
 void exec_dir(struct events *events, const char *dir) __attribute__((nonnull));
 
+// Using these functions you can register/unregister cleanup function. Note that
+// they are called in reverse order of insertion. This is implemented using atexit
+// function.
+typedef void (*cleanup_t)(void *data);
+void cleanup_register(cleanup_t func, void *data) __attribute__((nonnull(1)));
+bool cleanup_unregister(cleanup_t func) __attribute__((nonnull)); // Note: removes only first occurrence
+bool cleanup_unregister_data(cleanup_t func, void *data) __attribute__((nonnull(1))); // Also matches data, not only function
+void cleanup_run(cleanup_t func); // Run function and unregister it
+void cleanup_run_all(void); // Run all cleanup functions explicitly
+
 // Disable system reboot. If this function is called before system_reboot is than
 // system reboot just prints warning about skipped reboot and returns.
 void system_reboot_disable();

@@ -23,6 +23,7 @@ check-clean:
 C_TESTS := \
 	arguments \
 	events \
+	util \
 	interpreter
 
 LUA_TESTS := \
