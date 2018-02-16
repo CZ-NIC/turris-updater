@@ -25,7 +25,8 @@
 #include "logging.h"
 
 // Set subproc kill timeout. This is timeout used when primary timeout runs out
-// and SIGTERM is send but process still doesn't dies.
+// and SIGTERM is send but process still doesn't dies. In default it's set to 60
+// seconds.
 void subproc_kill_t(int timeout);
 
 typedef void (*subproc_callback)(void *data);
@@ -33,8 +34,8 @@ typedef void (*subproc_callback)(void *data);
 /*
 This runs non-interactive programs as subprocess. It closes stdin and pipes stdout
 and stderr trough logging system.
-You can also specify timeout in seconds. If you specify timeout less then 0 then
-no timeout is set up.
+You can also specify timeout in milliseconds. If you specify timeout less then 0
+then no timeout is set up.
 For some functions you can also add fd argument for stdout end stderr feed for
 subprocess. This allows you to specify any other feed. In default {stdout, stderr}
 is used.

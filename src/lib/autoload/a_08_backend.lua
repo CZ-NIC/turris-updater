@@ -69,6 +69,7 @@ these variables.
 -- Time after which we SIGTERM external commands. Something incredibly long, just prevent them from being stuck.
 cmd_timeout = 600000
 -- Time after which we SIGKILL external commands
+-- TODO instead of this if subprocess is used we set kill timeout globally so drop this
 cmd_kill_timeout = 900000
 
 --[[
@@ -1010,7 +1011,7 @@ function script_run(pkg_name, script_name, ...)
 		local ecode, output = subprocess(
 			LST_PKG_SCRIPT,
 			"Running " .. script_name .. " of " .. pkg_name,
-			cmd_timeout/1000,
+			cmd_timeout,
 			function()
 				-- If root is / then variable is empty otherwise absolute path is used
 				local dir = syscnf.root_dir:gsub('^/+$', '')
