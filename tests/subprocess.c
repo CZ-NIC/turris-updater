@@ -34,17 +34,17 @@ END_TEST
 START_TEST(timeout) {
 	FILE *devnull = fopen("/dev/null", "w");
 	FILE *fds[] = {devnull, devnull};
-	subproc_kill_t(1);
+	subproc_kill_t(1000);
 	// We should be able to terminate this process
-	ck_assert(subprocvo(1, fds, "sleep", "2", NULL) != 0);
+	ck_assert_int_ne(0, subprocvo(1000, fds, "sleep", "2", NULL));
 	// This process can't be terminated and has to be killed
-	ck_assert(subprocvo(1, fds, "sh", "-c", "trap true SIGTERM; sleep 5", NULL) != 0);
+	ck_assert_int_ne(0, subprocvo(1000, fds, "sh", "-c", "trap true SIGTERM; sleep 5", NULL));
 	// This process writes stuff to stdout and should be terminated
 	// This tests if we are able to correctly timeout process with non-empty pipes
-	ck_assert(subprocvo(1, fds, "sh", "-c", "while true; do echo Stuff; sleep 1; done", NULL) != 0);
+	ck_assert_int_ne(0, subprocvo(1000, fds, "sh", "-c", "while true; do echo Stuff; sleep 1; done", NULL));
 	// Just to test whole process fast we will also try both timeouts at zero
 	subproc_kill_t(0);
-	ck_assert(subprocvo(0, fds, "sleep", "1", NULL) != 0);
+	ck_assert_int_ne(0, subprocvo(0, fds, "sleep", "1", NULL));
 	fclose(devnull);
 }
 END_TEST
@@ -66,8 +66,8 @@ static void buffs_assert(struct buffs *bfs, const char *out, const char *err) {
 	fflush(bfs->fds[0]);
 	fflush(bfs->fds[1]);
 
-	ck_assert(strcmp(out, bfs->b_out) == 0);
-	ck_assert(strcmp(err, bfs->b_err) == 0);
+	ck_assert_str_eq(out, bfs->b_out);
+	ck_assert_str_eq(err, bfs->b_err);
 
 	rewind(bfs->fds[0]);
 	rewind(bfs->fds[1]);
@@ -89,10 +89,10 @@ START_TEST(output) {
 	struct buffs *bfs = buffs_init();
 
 	// Echo to stdout
-	ck_assert(subprocvo(1, bfs->fds, "echo", "hello", NULL) == 0);
+	ck_assert_int_eq(0, subprocvo(1000, bfs->fds, "echo", "hello", NULL));
 	buffs_assert(bfs, "hello\n", "");
 	// Echo to stderr
-	ck_assert(subprocvo(1, bfs->fds, "sh", "-c", "echo hello >&2", NULL) == 0);
+	ck_assert_int_eq(0, subprocvo(1000, bfs->fds, "sh", "-c", "echo hello >&2", NULL));
 	buffs_assert(bfs, "", "hello\n");
 
 	buffs_free(bfs);
@@ -112,10 +112,10 @@ START_TEST(callback) {
 	struct buffs *bfs = buffs_init();
 
 	// Without data
-	ck_assert(subprocloc(1, bfs->fds, callback_test, NULL, NULL, NULL) == 0);
+	ck_assert_int_eq(0, subprocloc(1000, bfs->fds, callback_test, NULL, NULL, NULL));
 	buffs_assert(bfs, "hello", "");
 	// With data
-	ck_assert(subprocvoc(1, bfs->fds, callback_test, "Hello again", NULL, NULL) == 0);
+	ck_assert_int_eq(0, subprocvoc(1000, bfs->fds, callback_test, "Hello again", NULL, NULL));
 	buffs_assert(bfs, "Hello again", "");
 
 	buffs_free(bfs);
