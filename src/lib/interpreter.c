@@ -508,6 +508,11 @@ static int lua_subprocess(lua_State *L) {
 	return 2;
 }
 
+static int lua_subprocess_kill_timeout(lua_State *L) {
+	subproc_kill_t(luaL_checkinteger(L, 1));
+	return 0;
+}
+
 static int lua_mkdtemp(lua_State *L) {
 	int param_count = lua_gettop(L);
 	if (param_count > 1)
@@ -902,6 +907,7 @@ static const struct injected_func injected_funcs[] = {
 	 * seem to be a need for them at this moment.
 	 */
 	{ lua_subprocess, "subprocess" },
+	{ lua_subprocess_kill_timeout, "subprocess_kill_timeout" },
 	{ lua_mkdtemp, "mkdtemp" },
 	{ lua_chdir, "chdir" },
 	{ lua_getcwd, "getcwd" },

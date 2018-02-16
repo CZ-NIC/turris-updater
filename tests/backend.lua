@@ -864,6 +864,7 @@ function test_merge_control()
 end
 
 function test_script_run()
+	subprocess_kill_timeout(0) -- Run tests faster
 	syscnf.info_dir = (os.getenv("S") or ".") .. "/tests/data/scripts"
 	-- This one doesn't exist. So the call succeeds.
 	local result, stderr = B.script_run("xyz", "preinst", "install")
