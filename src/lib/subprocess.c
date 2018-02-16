@@ -30,7 +30,7 @@
 #include <time.h>
 #include <sys/wait.h>
 
-static int kill_timeout = 3;
+static int kill_timeout = 60000;
 
 void subproc_kill_t(int timeout) {
 	kill_timeout = timeout;
@@ -129,11 +129,13 @@ int subprocloc(int timeout, FILE *fd[2], subproc_callback callback, void *data, 
 	time_t t_start = time(NULL);
 	bool term_sent = false;
 	while (true) {
-		time_t rem_t = timeout - time(NULL) + t_start;
+		int poll_timeout = -1;
+		if (timeout >= 0) {
+			int rem_t = timeout - 1000*(time(NULL) - t_start);
+			poll_timeout = rem_t < 0 ? 0 : rem_t;
+		}
 		// We ignore interrupt errors as those are really not an errors
-		// TODO what if timeout is negative?
-		// TODO also this timeout is in ms not in s!!!
-		ASSERT_MSG(poll(pfds, 2, rem_t < 0 ? 0 : rem_t) != -1 || errno == EINTR, "Subprocess poll failed with error: %s", strerror(errno));
+		ASSERT_MSG(poll(pfds, 2, poll_timeout) != -1 || errno == EINTR, "Subprocess poll failed with error: %s", strerror(errno));
 		int dead = 0;
 		for (int i = 0; i < 2; i++) {
 			if (pfds[i].revents & POLLIN) {
@@ -148,7 +150,7 @@ int subprocloc(int timeout, FILE *fd[2], subproc_callback callback, void *data, 
 		}
 		if (dead >= 2)
 			break; // Both feeds are dead so break this loop
-		if (timeout >= 0 && (time(NULL) - t_start) >= timeout) {
+		if (timeout >= 0 && 1000*(time(NULL) - t_start) >= timeout) {
 			if (term_sent) { // Send SIGKILL
 				ASSERT(kill(pid, SIGKILL) != -1);
 				break;
