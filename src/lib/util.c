@@ -194,6 +194,91 @@ void exec_dir(struct events *events, const char *dir) {
 	free(namelist);
 }
 
+static bool cleanup_registered = false;
+static struct {
+	size_t size, allocated;
+	struct {
+		cleanup_t func;
+		void *data;
+	} *funcs;
+} cleanup;
+
+void cleanup_register(cleanup_t func, void *data) {
+	if (!cleanup_registered) { // Initialize/register
+		ASSERT(atexit((void (*)(void))cleanup_run) == 0);
+		cleanup_registered = true;
+		cleanup.size = 0;
+		cleanup.allocated = 1;
+		cleanup.funcs = malloc(sizeof *cleanup.funcs);
+	}
+	if ((cleanup.size + 1) >= cleanup.allocated) { // Allocate more fields
+		cleanup.allocated *= 2;
+		cleanup.funcs = realloc(cleanup.funcs, cleanup.allocated * sizeof *cleanup.funcs);
+		ASSERT(cleanup.funcs);
+	}
+	cleanup.funcs[cleanup.size].func = func;
+	cleanup.funcs[cleanup.size].data = data;
+	cleanup.size++;
+}
+
+// This looks up latest given function in cleanup. Index + 1 is returned. If not
+// located then 0 is returned.
+static size_t cleanup_lookup(cleanup_t func) {
+	size_t i = cleanup.size;
+	for (; i > 0 && cleanup.funcs[i-1].func != func; i--);
+	return i;
+}
+
+// Shift all functions in cleanup stack down by one. (replacing index i-1)
+static void cleanup_shift(size_t i) {
+	for (; i < cleanup.size; i++) // Shift down
+		cleanup.funcs[i - 1] = cleanup.funcs[i];
+	cleanup.size--;
+}
+
+bool cleanup_unregister(cleanup_t func) {
+	if (!cleanup_registered)
+		return false;
+	size_t loc = cleanup_lookup(func);
+	if (loc > 0) {
+		cleanup_shift(loc);
+		return true;
+	} else
+		return false;
+}
+
+bool cleanup_unregister_data(cleanup_t func, void *data) {
+	if (!cleanup_registered)
+		return false;
+	size_t i = cleanup.size;
+	for (; i > 0 && \
+			!(cleanup.funcs[i-1].func == func && \
+			cleanup.funcs[i-1].data == data); i--);
+	if (i > 0) {
+		cleanup_shift(i);
+		return true;
+	} else
+		return false;
+}
+
+void cleanup_run(cleanup_t func) {
+	if (!cleanup_registered)
+		return;
+	size_t loc = cleanup_lookup(func);
+	if (loc == 0) // Not located
+		return;
+	cleanup.funcs[loc-1].func(cleanup.funcs[loc-1].data);
+	cleanup_shift(loc);
+}
+
+void cleanup_run_all(void) {
+	if (!cleanup_registered)
+		return;
+	for (size_t i = cleanup.size; i > 0; i--)
+		cleanup.funcs[i-1].func(cleanup.funcs[i-1].data);
+	cleanup.size = 0; // All cleanups called
+}
+
 static bool system_reboot_disabled = false;
 
 void system_reboot_disable() {
