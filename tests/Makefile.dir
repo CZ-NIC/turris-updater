@@ -37,6 +37,7 @@ LUA_TESTS := \
 	sandbox \
 	transaction \
 	utils \
+	cleanup \
 	uri \
 	picosat
 

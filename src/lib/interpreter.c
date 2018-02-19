@@ -416,6 +416,40 @@ static int lua_events_wait(lua_State *L) {
 	return 0;
 }
 
+// Name of lua_cleanup_data meta table
+#define CLEANUP_DATA_META "CLEANUP_DATA_META"
+
+struct lua_cleanup_data {
+	lua_State *L;
+	int index; // Index in lua table of functions
+};
+
+static void lua_cleanup_func(void *vdata) {
+	struct lua_cleanup_data *data = (struct lua_cleanup_data*)vdata;
+	lua_State *L = data->L;
+	int handler = push_err_handler(L);
+	lua_getglobal(data->L, "cleanup_run_handle");
+	lua_pushinteger(data->L, data->index);
+	int result = lua_pcall(L, 1, 0, handler);
+	ASSERT_MSG(!result, "%s", interpreter_error_result(L));
+}
+
+static int lua_cleanup_register_handle(lua_State *L) {
+	struct lua_cleanup_data *data = lua_newuserdata(L, sizeof *data);
+	luaL_newmetatable(L, CLEANUP_DATA_META);
+	lua_setmetatable(L, -2);
+	data->L = L;
+	data->index = luaL_checkinteger(L, 1);
+	cleanup_register(lua_cleanup_func, data);
+	return 1;
+}
+
+static int lua_cleanup_unregister_handle(lua_State *L) {
+	struct lua_cleanup_data *data = (struct lua_cleanup_data*)luaL_checkudata(L, 1, CLEANUP_DATA_META);
+	ASSERT(cleanup_unregister_data(lua_cleanup_func, data)); // Lua should never request nonexistent handle from us
+	return 0;
+}
+
 static int lua_mkdtemp(lua_State *L) {
 	int param_count = lua_gettop(L);
 	if (param_count > 1)
@@ -751,6 +785,8 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_log, "log" },
 	{ lua_state_log_enabled, "state_log_enabled" },
 	{ lua_state_dump, "state_dump" },
+	{ lua_cleanup_register_handle, "cleanup_register_handle" },
+	{ lua_cleanup_unregister_handle, "cleanup_unregister_handle" },
 	{ lua_run_command, "run_command" },
 	{ lua_run_util, "run_util" },
 	{ lua_download, "download" },
