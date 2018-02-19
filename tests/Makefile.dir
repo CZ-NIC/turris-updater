@@ -23,6 +23,7 @@ LUA_TESTS := \
 	transaction \
 	utils \
 	syscnf \
+	cleanup \
 	uri \
 	picosat
 
@@ -47,7 +48,7 @@ clean-coverage:
 	rm -rf $(O)/coverage
 
 # Ignore stacktraceplus and dumper, not our creation.
-LUA_AUTOLOAD := $(filter-out 01_stacktraceplus 06_dumper,$(patsubst a_%.lua,%,$(notdir $(wildcard $(S)/src/lib/autoload/a_*.lua))))
+LUA_AUTOLOAD := $(filter-out 01_stacktraceplus 07_dumper,$(patsubst a_%.lua,%,$(notdir $(wildcard $(S)/src/lib/autoload/a_*.lua))))
 
 TEST_URIINTERNAL := $(abspath $(wildcard $(S)/tests/internal/*))
 $(O)/.gen/tests/uriinternal.embedlist: $(S)/src/lib/gen_embed.sh $(S)/src/lib/embed_types.h $(TEST_URIINTERNAL)

@@ -33,6 +33,44 @@ DIE(msg, msg, ...)::
 state_dump(msg)::
   Dump the given message into `/tmp/update-state/state`.
 
+Cleanup
+-------
+
+It's common to have code that requires cleanup. But ensuring that cleanup is
+really called is tedious task. But thanks to atexit function and common DIE
+function we can ensure that cleanup functions will be called. We defined function
+to register, unregister and call cleanup function.
+
+cleanup_register(function)::
+  This registers given function as to be called when cleanup is requested.
+
+cleanup_unregister(function)::
+  This removes previously registered function from list of functions to be called
+  for cleanup. This is done without calling given function.
+
+cleanup_run(function)::
+  This runs previously registered function and removes it from list of functions
+  to be called for cleanup.
+
+Note: This is for simplicity not implemented completely in C but lua functions
+handlers is implemented in Lua it self. But we can't have that completely detached
+as we have to ensure that order of cleanup holds even if Lua and C calls are mixed
+together.
+
+Following functions are defined for internal use of cleanup functionality only.
+But they are not documented outside of the code usage so here they are:
+
+cleanup_register_handle(index)::
+  This function registers new cleanup for Lua. It expect index identifying this
+  cleanup in global table of cleanup functions. It is used to register lua cleanup
+  function handle to C cleanups. Exact Lua function is stored in Lua table and
+  only index identifying given cleanup is passed to C.
+
+cleanup_unregister_handle(index)::
+  This function unregisters existing cleanup for Lua. It expect index identifying
+  this cleanup in global table of cleanup functions. It reverse function or
+  `cleanup_register_handle`.
+
 Asynchronous events
 -------------------
 
