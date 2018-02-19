@@ -113,54 +113,83 @@ static const char *time_load(void) {
 	return timebuf;
 }
 
+struct pkgupdate_status {
+	const char *top_level_config;
+	const char *root_dir;
+	bool batch, early_exit, replan, reboot_finished;
+	const char *approval_file;
+	const char **approvals;
+	size_t approval_count;
+	const char *task_log;
+	const char *usign_exec;
+	bool no_replan;
+
+	enum cmd_op_type exit_type;
+	struct events *events;
+	struct interpreter *interpreter;
+
+	bool trans_ok;
+};
+
+static void run_postupdate_hooks(struct pkgupdate_status *s) {
+	INFO("Executing postupdate hooks...");
+	const char *hook_path = aprintf("%s%s", s->root_dir, hook_postupdate);
+	setenv("SUCCESS", s->trans_ok ? "true" : "false", true); // ROOT_DIR is already set
+	exec_dir(s->events, hook_path);
+}
+
 // Cleanup depends on what ever we are running replan or not so for simplicity we
 // use this macro.
-#define GOTO_CLEANUP do { if (replan) goto REPLAN_CLEANUP; else goto CLEANUP; } while(false)
+#define GOTO_CLEANUP do { if (s.replan) goto REPLAN_CLEANUP; else goto CLEANUP; } while(false)
 
 int main(int argc, char *argv[]) {
 	// Some setup of the machinery
 	log_stderr_level(LL_INFO);
 	log_syslog_level(LL_INFO);
 	args_backup(argc, (const char **)argv);
+	struct pkgupdate_status s;
 	// Parse the arguments
 	struct cmd_op *ops = cmd_args_parse(argc, argv, cmd_op_allows);
 	struct cmd_op *op = ops;
-	const char *top_level_config = "internal:entry_lua";
-	const char *root_dir = NULL;
-	bool batch = false, early_exit = false, replan = false, reboot_finished = false;
-	const char *approval_file = NULL;
-	const char **approvals = NULL;
-	size_t approval_count = 0;
-	const char *task_log = NULL;
-	const char *usign_exec = NULL;
-	bool no_replan = false;
+	s.top_level_config = "internal:entry_lua";
+	s.root_dir = NULL;
+	s.batch = false;
+	s.early_exit = false;
+	s.replan = false;
+	s.reboot_finished = false;
+	s.approval_file = NULL;
+	s.approvals = NULL;
+	s.approval_count = 0;
+	s.task_log = NULL;
+	s.usign_exec = NULL;
+	s.no_replan = false;
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
 			case COT_HELP:
 				print_help();
-				early_exit = true;
+				s.early_exit = true;
 				break;
 			case COT_VERSION:
 				print_version();
-				early_exit = true;
+				s.early_exit = true;
 				break;
 			case COT_ERR_MSG:
 				fputs(op->parameter, stderr);
 				break;
 			case COT_NO_OP:
-				top_level_config = op->parameter;
+				s.top_level_config = op->parameter;
 				break;
 			case COT_BATCH:
-				batch = true;
+				s.batch = true;
 				break;
 			case COT_REEXEC:
-				replan = true;
+				s.replan = true;
 				break;
 			case COT_REBOOT:
-				reboot_finished = true;
+				s.reboot_finished = true;
 				break;
 			case COT_ROOT_DIR:
-				root_dir = op->parameter;
+				s.root_dir = op->parameter;
 				break;
 			case COT_STATE_LOG:
 				set_state_log(true);
@@ -182,22 +211,22 @@ int main(int argc, char *argv[]) {
 				break;
 			}
 			case COT_ASK_APPROVAL:
-				approval_file = op->parameter;
+				s.approval_file = op->parameter;
 				break;
 			case COT_APPROVE: {
 				// cppcheck-suppress memleakOnRealloc
-				approvals = realloc(approvals, (++ approval_count) * sizeof *approvals);
-				approvals[approval_count - 1] = op->parameter;
+				s.approvals = realloc(s.approvals, (++ s.approval_count) * sizeof *s.approvals);
+				s.approvals[s.approval_count - 1] = op->parameter;
 				break;
 			}
 			case COT_TASK_LOG:
-				task_log = op->parameter;
+				s.task_log = op->parameter;
 				break;
 			case COT_USIGN:
-				usign_exec = op->parameter;
+				s.usign_exec = op->parameter;
 				break;
 			case COT_NO_REPLAN:
-				no_replan = true;
+				s.no_replan = true;
 				break;
 			case COT_NO_IMMEDIATE_REBOOT:
 				system_reboot_disable();
@@ -205,126 +234,124 @@ int main(int argc, char *argv[]) {
 			default:
 				DIE("Unknown COT");
 		}
-	enum cmd_op_type exit_type = op->type;
+	s.exit_type = op->type;
 	free(ops);
 
 	state_dump("startup");
-	struct events *events = events_new();
+	s.events = events_new();
 	// Prepare the interpreter and load it with the embedded lua scripts
-	struct interpreter *interpreter = interpreter_create(events, uriinternal);
-	const char *error = interpreter_autoload(interpreter);
+	s.interpreter = interpreter_create(s.events, uriinternal);
+	const char *error = interpreter_autoload(s.interpreter);
 	ASSERT_MSG(!error, "%s", error);
 
-	if (root_dir) {
-		const char *err = interpreter_call(interpreter, "backend.root_dir_set", NULL, "s", root_dir);
+	if (s.root_dir) {
+		const char *err = interpreter_call(s.interpreter, "backend.root_dir_set", NULL, "s", s.root_dir);
 		ASSERT_MSG(!err, "%s", err);
 	} else
-		root_dir = "";
-	if (usign_exec) {
-		const char *err = interpreter_call(interpreter, "uri.usign_exec_set", NULL, "s", usign_exec);
+		s.root_dir = "";
+	if (s.usign_exec) {
+		const char *err = interpreter_call(s.interpreter, "uri.usign_exec_set", NULL, "s", s.usign_exec);
 		ASSERT_MSG(!err, "%s", err);
 	}
-	if (no_replan) {
-		const char *err = interpreter_call(interpreter, "updater.disable_replan", NULL, "");
+	if (s.no_replan) {
+		const char *err = interpreter_call(s.interpreter, "updater.disable_replan", NULL, "");
 		ASSERT_MSG(!err, "%s", err);
 	}
-	bool trans_ok = true;
-	if (exit_type != COT_EXIT)
+	s.trans_ok = true;
+	if (s.exit_type != COT_EXIT)
 		goto CLEANUP;
-	if (early_exit)
+	if (s.early_exit)
 		goto CLEANUP;
 	size_t result_count;
 	// Check if we should recover previous execution first if so do
-	if (journal_exists(root_dir)) {
+	if (journal_exists(s.root_dir)) {
 		INFO("Detected existing journal. Trying to recover it.");
-		const char *err = interpreter_call(interpreter, "transaction.recover_pretty", &result_count, "");
+		const char *err = interpreter_call(s.interpreter, "transaction.recover_pretty", &result_count, "");
 		ASSERT_MSG(!err, "%s", err);
-		if (!results_interpret(interpreter, result_count))
+		if (!results_interpret(s.interpreter, result_count))
 			goto CLEANUP;
 	}
 	// Decide what packages need to be downloaded and handled
-	const char *err = interpreter_call(interpreter, "updater.prepare", NULL, "s", top_level_config);
+	const char *err = interpreter_call(s.interpreter, "updater.prepare", NULL, "s", s.top_level_config);
 	if (err) {
-		exit_type = COT_CRASH;
+		s.exit_type = COT_CRASH;
 		ERROR("%s", err);
 		GOTO_CLEANUP;
 	}
-	err = interpreter_call(interpreter, "transaction.empty", &result_count, "");
+	err = interpreter_call(s.interpreter, "transaction.empty", &result_count, "");
 	ASSERT_MSG(!err, "%s", err);
 	ASSERT_MSG(result_count == 1, "Wrong number of results of transaction.empty");
 	bool trans_empty;
-	ASSERT_MSG(interpreter_collect_results(interpreter, "b", &trans_empty) == -1, "The result of transaction.empty is not bool");
+	ASSERT_MSG(interpreter_collect_results(s.interpreter, "b", &trans_empty) == -1, "The result of transaction.empty is not bool");
 	if (trans_empty) {
-		approval_clean(approval_file); // There is nothing to do and if we have approvals enabled we should drop approval file
+		approval_clean(s.approval_file); // There is nothing to do and if we have approvals enabled we should drop approval file
 		GOTO_CLEANUP;
 	}
-	if (!batch) {
+	if (!s.batch) {
 		// For now we want to confirm by the user.
 		fprintf(stderr, "Press return to continue, CTRL+C to abort\n");
 		if (getchar() == EOF) // Exit if stdin is not opened or if any other error occurs
 			GOTO_CLEANUP;
-		approval_clean(approval_file); // If there is any approval_file we just approved it so remove it.
-	} else if (!approved(interpreter, approval_file, approvals, approval_count))
+		approval_clean(s.approval_file); // If there is any approval_file we just approved it so remove it.
+	} else if (!approved(s.interpreter, s.approval_file, s.approvals, s.approval_count))
 		// Approvals are only for non-interactive mode (implied by batch mode).
 		// Otherwise user approves on terminal in previous code block.
 		GOTO_CLEANUP;
-	if (!replan) {
+	if (!s.replan) {
 		INFO("Executing preupdate hooks...");
-		const char *hook_path = aprintf("%s%s", root_dir, hook_preupdate);
-		setenv("ROOT_DIR", root_dir, true);
-		exec_dir(events, hook_path);
+		const char *hook_path = aprintf("%s%s", s.root_dir, hook_preupdate);
+		setenv("ROOT_DIR", s.root_dir, true);
+		exec_dir(s.events, hook_path);
 	}
-	if (task_log) {
-		FILE *log = fopen(task_log, "a");
+	cleanup_register((cleanup_t)run_postupdate_hooks, &s);
+	if (s.task_log) {
+		FILE *log = fopen(s.task_log, "a");
 		if (log) {
 			const char *timebuf = time_load();
 			fprintf(log, "%sTRANSACTION START\n", timebuf);
-			err = interpreter_call(interpreter, "transaction.task_report", &result_count, "s", timebuf);
+			err = interpreter_call(s.interpreter, "transaction.task_report", &result_count, "s", timebuf);
 			ASSERT_MSG(!err, "%s", err);
 			const char *content;
 			ASSERT_MSG(result_count == 1, "Wrong number of results of transaction.task_report (%zu)", result_count);
-			ASSERT_MSG(interpreter_collect_results(interpreter, "s", &content) == -1, "The result of transaction.task_report is not string");
+			ASSERT_MSG(interpreter_collect_results(s.interpreter, "s", &content) == -1, "The result of transaction.task_report is not string");
 			fputs(content, log);
 			fclose(log);
 		} else
-			WARN("Couldn't store task log %s: %s", task_log, strerror(errno));
+			WARN("Couldn't store task log %s: %s", s.task_log, strerror(errno));
 	}
-	err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
+	err = interpreter_call(s.interpreter, "transaction.perform_queue", &result_count, "");
 	ASSERT_MSG(!err, "%s", err);
-	trans_ok = results_interpret(interpreter, result_count);
-	err = interpreter_call(interpreter, "updater.pre_cleanup", NULL, "");
+	s.trans_ok = results_interpret(s.interpreter, result_count);
+	err = interpreter_call(s.interpreter, "updater.pre_cleanup", NULL, "");
 	ASSERT_MSG(!err, "%s", err);
 	bool reboot_delayed;
-	ASSERT(interpreter_collect_results(interpreter, "bb", &reboot_delayed, &reboot_finished) == -1);
+	ASSERT(interpreter_collect_results(s.interpreter, "bb", &reboot_delayed, &s.reboot_finished) == -1);
 	if (reboot_delayed) {
 		INFO("Executing reboot_required hooks...");
-		const char *hook_path = aprintf("%s%s", root_dir, hook_reboot_delayed);
-		exec_dir(events, hook_path);
+		const char *hook_path = aprintf("%s%s", s.root_dir, hook_reboot_delayed);
+		exec_dir(s.events, hook_path);
 	}
-	err = interpreter_call(interpreter, "updater.cleanup", NULL, "bb", reboot_finished);
+	err = interpreter_call(s.interpreter, "updater.cleanup", NULL, "bb", s.reboot_finished);
 	ASSERT_MSG(!err, "%s", err);
-	if (task_log) {
-		FILE *log = fopen(task_log, "a");
+	if (s.task_log) {
+		FILE *log = fopen(s.task_log, "a");
 		if (log) {
 			fprintf(log, "%sTRANSACTION END\n", time_load());
 			fclose(log);
 		} else
-			WARN("Could not store task log end %s: %s", task_log, strerror(errno));
+			WARN("Could not store task log end %s: %s", s.task_log, strerror(errno));
 	}
 REPLAN_CLEANUP:
-	INFO("Executing postupdate hooks...");
-	const char *hook_path = aprintf("%s%s", root_dir, hook_postupdate);
-	setenv("SUCCESS", trans_ok ? "true" : "false", true); // ROOT_DIR is already set
-	exec_dir(events, hook_path);
+	cleanup_run((cleanup_t)run_postupdate_hooks);
 CLEANUP:
-	free(approvals);
-	interpreter_destroy(interpreter);
-	events_destroy(events);
+	free(s.approvals);
+	interpreter_destroy(s.interpreter);
+	events_destroy(s.events);
 	arg_backup_clear();
-	if (reboot_finished)
+	if (s.reboot_finished)
 		system_reboot(false);
-	if (exit_type == COT_EXIT) {
-		if (trans_ok) {
+	if (s.exit_type == COT_EXIT) {
+		if (s.trans_ok) {
 			state_dump("done");
 			return 0;
 		} else {
