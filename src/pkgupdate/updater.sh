@@ -231,8 +231,8 @@ approvals_request() {
 			LIST="$(awk 'NR>1{printf "\n • %s %s %s", toupper(substr($1,1,1))substr($1,2), $3, $2}' "$APPROVAL_ASK_FILE")"
 
 			create_notify_update \
-				"Updater žádá o autorizaci akcí. Autorizaci můžete přidělit v administračním rozhraní Foris.$LIST" \
-				"The updater requests an autorisation of its planned actions. You can grant it in the Foris administrative interface.$LIST"
+				"Updater žádá o autorizaci akcí. Autorizaci můžete přidělit v administračním rozhraní Foris v záložce 'Updater'.$LIST" \
+				"Your approval is required to apply pending updates. You can grant it in the Foris administrative interface in the 'Updater' menu.$LIST"
 		fi
 	fi
 }
