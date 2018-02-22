@@ -1,4 +1,4 @@
-image: gl-ci-turris-testing
+image: registry.labs.nic.cz/turris/updater
 
 stages:
   - test
