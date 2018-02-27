@@ -5,19 +5,12 @@ BINARIES_NOTARGET += tests/locks
 locks_MODULES += locks
 locks_LOCAL_LIBS += updater
 
-$(O)/tests/check-compiled/compiled:
-	mkdir -p $(O)/tests/check-compiled
-	cd $(O)/tests/check-compiled && cmake $(abspath $(S))/tests/check -DHAVE_SUBUNIT=0
-	+make -C $(O)/tests/check-compiled
-	touch $(O)/tests/check-compiled/compiled
-
 $(O)/tests/luacheck-compiled/bin/luacheck:
 	mkdir -p $(O)/tests/luacheck-compiled
 	cd $(S)/tests/luacheck && ./install.lua $(abspath $(O)/tests/luacheck-compiled)
 
 clean: check-clean
 check-clean:
-	rm -rf $(O)/tests/check-compiled
 	rm -rf $(O)/tests/luacheck-compiled
 
 C_TESTS := \
@@ -72,12 +65,9 @@ define DO_C_TEST
 
 BINARIES_NOTARGET += tests/ctest-$(1)
 ctest-$(1)_MODULES += $(1) uriinternal.embed ctest
-$$(patsubst %,$(O)/.objs/tests/%.o,$$(ctest-$(1)_MODULES)): $(O)/tests/check-compiled/compiled
-ctest-$(1)_SYSTEM_LIBS += check m rt
+ctest-$(1)_SYSTEM_LIBS += m rt
+ctest-$(1)_PKG_CONFIGS += check
 ctest-$(1)_LOCAL_LIBS += updater
-$(O)/bin/ctest-$(1): EXTRA_LIBDIRS := $(O)/tests/check-compiled/src/
-$(O)/bin/ctest-$(1): EXTRA_INCLUDES := $(O)/tests/check-compiled/src $(S)/tests/check/src/ $(S)/tests/check-compiled/
-$(O)/bin/ctest-$(1): $(O)/tests/check-compiled/compiled
 
 test: test-c-$(1)
 valgrind: valgrind-c-$(1)
