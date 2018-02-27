@@ -188,8 +188,6 @@ function test_https_cert()
 	local u4 = uri(context, "https://api.turris.cz/", {verification = "cert", ca = uri.system_cas, ocsp = false})
 	-- systam_cas should result in success on repo as it's signed by common authority
 	local u5 = uri(context, "https://repo.turris.cz/", {verification = "cert", ca = uri.system_cas})
-	-- We can specify crl
-	local u6 = uri(context, "https://api.turris.cz/", {verification = "cert", ca = ca_file, crl = crl_file, ocsp = false})
 	local ok1 = u1:get()
 	assert(ok1)
 	local ok2 = u2:get()
@@ -200,8 +198,6 @@ function test_https_cert()
 	assert_false(ok4)
 	local ok5 = u5:get()
 	assert(ok5)
-	local ok6 = u6:get()
-	assert(ok6)
 	-- Check we can put the verification stuff into the context
 	context.ca = ca_file
 	context.verification = "cert"
