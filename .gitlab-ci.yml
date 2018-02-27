@@ -8,28 +8,29 @@ before_script:
   - git submodule init
   - git submodule update
 
-# Test stage - run application tests
-test:
+# Unit tests #
+unit-tests:
   stage: test
   script:
-    - make test test-sys
+    - make test
 
-#test_valgrind:
-#  stage: test
-#  script:
-#    - make valgrind valgrind-sys
-
-# Test stage with busybox embedded
-test_busybox:
+unit-valgrind-tests:
   stage: test
   script:
-    - BUSYBOX_EXEC=/bin/busybox make check
+    - make valgrind
 
-#test_valgrind_busybox:
-#  stage: test
-#  script:
-#    - BUSYBOX_EXEC=/bin/busybox make valgrind valgrind-sys
+# System integration tests #
+system-tests:
+  stage: test
+  script:
+    - make test-sys
 
+system-valgrind-tests:
+  stage: test
+  script:
+    - make test valgrind-sys
+
+# Gitlab pages #
 pages:
   stage: pages
   script:
