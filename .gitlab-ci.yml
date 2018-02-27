@@ -17,7 +17,7 @@ unit-tests:
 unit-valgrind-tests:
   stage: test
   script:
-    - make valgrind
+    - make OPENSSL_PURITY=y valgrind
 
 # System integration tests #
 system-tests:
@@ -28,7 +28,18 @@ system-tests:
 system-valgrind-tests:
   stage: test
   script:
-    - make test valgrind-sys
+    - make OPENSSL_PURITY=y valgrind-sys
+
+# Static checkers #
+cppcheck:
+  stage: test
+  script:
+    - make cppcheck
+
+luacheck:
+  stage: test
+  script:
+    - make luacheck
 
 # Gitlab pages #
 pages:
