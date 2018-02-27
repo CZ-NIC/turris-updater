@@ -11,7 +11,7 @@ RUN \
     check cppcheck lua-check valgrind \
     libcurl4-openssl-dev libevent-dev \
     lua5.1 liblua5.1-0-dev \
-    asciidoc lcov libcommon-sense-perl \
+    asciidoc lcov markdown libcommon-sense-perl \
     wget procps && \
   apt-get clean
 
