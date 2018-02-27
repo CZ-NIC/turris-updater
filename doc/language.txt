@@ -693,6 +693,8 @@ conflicts::
   Updater supports `Conflicts` control field.
 abi_change::
   Updater can handle and propagate ABI change.
+abi_change_deep::
+  Updater can handle and propagate deep ABI change.
 replan_string::
   Updater expects replan to be a string (if this feature isn't set than it's
   expected to be only boolean).

@@ -56,6 +56,7 @@ local updater_features = utils.arr2set({
 	'provides',
 	'conflicts',
 	'abi_change',
+	'abi_change_deep',
 	'replan_string'
 })
 
