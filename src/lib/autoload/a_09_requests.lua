@@ -38,7 +38,7 @@ local WARN = WARN
 
 module "requests"
 
--- luacheck: globals known_packages package_wrap known_repositories known_repositories_all repo_serial repository repository_get content_requests install uninstall script known_content_packages
+-- luacheck: globals known_packages package_wrap known_repositories known_repositories_all repo_serial repository repository_get content_requests install uninstall script known_content_packages package
 
 -- Verifications fields are same for script, repository and package. Lets define them here once and then just append.
 local allowed_extras_verification = {
@@ -150,8 +150,8 @@ local function extra_check_deps(what, field, deps)
 		error(utils.exception("bad value", "Invalid type " .. tostring(v) .. " (expecting dependency description) of extra option " .. field .. " for a " .. what))
 	end
 	if type(deps) == "table" then
-		if table.tp then
-			local tp = table.tp
+		if deps.tp then
+			local tp = deps.tp
 			if tp ~= "dep-and" and tp ~= "dep-or" and tp ~= "dep-not" and tp ~= "package" then
 				invalid(tp)
 			end

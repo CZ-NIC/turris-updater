@@ -4,6 +4,3 @@
 [submodule "tests/lunit-launch/lunit"]
 	path = tests/lunit-launch/lunit
 	url = http://repo.or.cz/lunit.git
-[submodule "tests/luacheck"]
-	path = tests/luacheck
-	url = https://github.com/mpeterv/luacheck.git

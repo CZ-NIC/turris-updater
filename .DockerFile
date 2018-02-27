@@ -8,7 +8,7 @@ RUN \
   apt-get -y install --no-install-recommends \
     busybox ca-certificates curl git \
     make pkg-config gcc cmake \
-    check cppcheck valgrind \
+    check cppcheck lua-check valgrind \
     libcurl4-openssl-dev libevent-dev \
     lua5.1 liblua5.1-0-dev \
     asciidoc lcov markdown libcommon-sense-perl \

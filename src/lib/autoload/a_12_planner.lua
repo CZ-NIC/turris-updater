@@ -91,7 +91,7 @@ end
 -- Returns sat variable for package group of given name. If it is not yet added, then we create new variable for it and also for all its dependencies and candidates.
 -- Note that this have to work if the group is unknown (dependency on package we don't know)
 function sat_pkg_group(state, name)
-	if state.pkg2sat[name] then 
+	if state.pkg2sat[name] then
 		return state.pkg2sat[name] -- Already added package group, return its variable.
 	end
 	-- Create new variable for this package
@@ -156,7 +156,7 @@ function sat_pkg_group(state, name)
 	return pkg_var
 end
 
--- Returns sat variable for specified requirements on given package. 
+-- Returns sat variable for specified requirements on given package.
 function sat_dep(state, pkg, version, repository)
 	local name = pkg.name or pkg
 	local group_var = sat_pkg_group(state, name) -- This also ensures that candidates are in sat
@@ -424,7 +424,7 @@ local function build_plan(pkgs, requests, sat, satmap)
 	end
 
 	-- We plan packages with immediate replan first to ensure that such replan happens as soon as possible.
-	for name, pkg in pairs(pkgs) do 
+	for name, pkg in pairs(pkgs) do
 		-- pkgs contains all packages so we have to check if package is in sat at all
 		if utils.multi_index(pkg, 'modifier', 'replan') == "immediate" and satmap.pkg2sat[name] and not (satmap.missing[pkg] or satmap.missing[name]) then -- we ignore missing packages, as they wouldn't be planned anyway and error or warning should be given by requests and other packages later on.
 			pkg_plan(name, false, false, 'Planned package with replan enabled'); -- we don't expect to see this parent_str because we are planning this first, but it theoretically can happen so this makes at least some what sense.
@@ -636,7 +636,7 @@ abi_change_deep fields.
 local function check_abi_change(requests, install)
 	local reqs = utils.map(requests, function(_, v) return v.name, v end)
 	-- Build inverted dependencies
-	local invdep -- initialized 
+	local invdep -- initialized
 	local function abi_changed(name, abi_ch, causepkg)
 		-- Ignore package that we don't request. Also ignore if no abi change is
 		-- passed and package is not going to be installed.

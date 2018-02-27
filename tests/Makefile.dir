@@ -1,17 +1,9 @@
 
-.PHONY: check-clean test valgrind luacheck check test-locks valgrind-locks luac-autoload luacheck coverage $(O)/.coverage.info
+.PHONY: test valgrind luacheck check test-locks valgrind-locks luac-autoload coverage $(O)/.coverage.info
 
 BINARIES_NOTARGET += tests/locks
 locks_MODULES += locks
 locks_LOCAL_LIBS += updater
-
-$(O)/tests/luacheck-compiled/bin/luacheck:
-	mkdir -p $(O)/tests/luacheck-compiled
-	cd $(S)/tests/luacheck && ./install.lua $(abspath $(O)/tests/luacheck-compiled)
-
-clean: check-clean
-check-clean:
-	rm -rf $(O)/tests/luacheck-compiled
 
 C_TESTS := \
 	arguments \
@@ -134,8 +126,8 @@ valgrind-lua-%: $(S)/tests/%.lua $(O)/bin/lulaunch $(OPENSSL_LIBS) FORCE
 luac-autoload-%: $(S)/src/lib/autoload/a_%.lua FORCE
 	luac -p $<
 
-luacheck-%: $(S)/src/lib/autoload/a_%.lua $(O)/tests/luacheck-compiled/bin/luacheck $(S)/tests/luacheck.config FORCE
-	$(O)/tests/luacheck-compiled/bin/luacheck --config $(S)/tests/luacheck.config $<
+luacheck-%: $(S)/src/lib/autoload/a_%.lua $(S)/tests/luacheck.config FORCE
+	luacheck --config $(S)/tests/luacheck.config $<
 
 test-locks: $(O)/bin/locks
 	$(O)/bin/locks

@@ -50,7 +50,7 @@ module "sandbox"
 
 -- luacheck: globals morpher state_vars level new run_sandboxed load_state_vars
 
--- This can be changed often (always when we add some new feature). So it is defined here at top and not buried in code. 
+-- This can be changed often (always when we add some new feature). So it is defined here at top and not buried in code.
 local updater_features = utils.arr2set({
 	'priorities',
 	'provides',
