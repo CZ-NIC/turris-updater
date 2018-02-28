@@ -1,0 +1,57 @@
+#!/bin/sh
+set -e
+
+[ -n "$O" ] || {
+	echo "O variable has to be defined (output path)"
+	exit 1
+}
+[ -n "$S" ] || {
+	echo "S variable has to be defined (source path)"
+	exit 1
+}
+
+TDIR="$O/testdir/localrepo/$1"
+mkdir -p "$TDIR"
+
+LOCALREPO="$S/src/localrepo/localrepo --path $TDIR"
+TESTDIR="$(dirname "$0")/$1"
+PKGS="$(dirname "$0")/packages"
+
+# Prepare initial layout
+cp -r "$TESTDIR/init/." "$TDIR/"
+
+# Define compare function
+# Call this with name of directory in TESTDIR as first argument and with names of
+# defined repositories as all other arguments
+compare_with() {
+	echo "Comparing current status with: $1"
+
+	local TMP1="$(mktemp -d)"
+	local TMP2="$(mktemp -d)"
+	# Copy reference and result to temporally location
+	cp -r "$TESTDIR/$1/." "$TMP1/"
+	cp -r "$TDIR/." "$TMP2/"
+	shift
+	# Generate relevant index
+	# TODO this can be just static file if we support relative paths in scripts
+	echo "-- Auto-generated updater-ng configuration" > "$TMP1/localrepo.lua"
+	for ARG in "$@"; do
+		echo "Repository('localrepo-$ARG', 'file://$(readlink -f "$TDIR/$ARG")')" >> "$TMP1/localrepo.lua"
+	done
+	# Unzip all repository indexes
+	for INDEX in $(find "$TMP2" -name Packages.gz); do
+		gunzip "$INDEX"
+	done
+
+	local EC=0
+	diff -u -N -r "$TMP1" "$TMP2" || EC=$?
+
+	rm -rf "$TMP1" "$TMP2"
+	return $EC
+}
+
+# Run test specific script
+. "$TESTDIR/script"
+
+# Cleanup
+rm -rf "$TDIR"

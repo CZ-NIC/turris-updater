@@ -1,0 +1,4 @@
+# vim: ft=sh
+
+$LOCALREPO add "$PKGS/testpkg.ipk"
+compare_with simple_add user

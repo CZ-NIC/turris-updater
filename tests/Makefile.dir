@@ -126,3 +126,4 @@ check: test valgrind luac-autoload luacheck cppcheck
 
 include $(S)/tests/lunit-launch/Makefile.dir
 include $(S)/tests/system/Makefile.dir
+include $(S)/tests/localrepo/Makefile.dir

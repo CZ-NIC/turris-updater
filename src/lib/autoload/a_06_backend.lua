@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
-local ERROR=ERROR
+local ERROR = ERROR
 local error = error
 local type = type
 local pairs = pairs

@@ -1,0 +1,22 @@
+LOCALREPO_TESTS := \
+	add
+
+	#clean \
+	get \
+	rm
+
+.PHONY: test-localrepo check
+
+check: test-localrepo
+
+define DO_LOCALREPO_TEST
+
+test-localrepo: test-localrepo-$(1)
+.PHONY: test-localrepo-$(1)
+
+test-localrepo-$(1):
+	S=$(S) O=$(abspath $(O)) $(S)/tests/localrepo/run $(1)
+
+endef
+
+$(eval $(foreach TEST,$(LOCALREPO_TESTS),$(call DO_LOCALREPO_TEST,$(TEST))))
