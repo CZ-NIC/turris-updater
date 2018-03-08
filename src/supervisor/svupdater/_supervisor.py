@@ -33,8 +33,11 @@ import atexit
 import signal
 from threading import Thread
 from .utils import setup_alarm, report
-from .const import PKGUPDATE_CMD, PKGUPDATE_TIMEOUT, PKGUPDATE_TIMEOUT_KILL
+from .const import PKGUPDATE_CMD, APPROVALS_ASK_FILE
 from ._pidlock import PidLock
+from .config import Config
+from .approvals import _approved as approval_approved
+from .approvals import _update_stat as approval_update_stat
 
 
 class Supervisor:
@@ -56,8 +59,17 @@ class Supervisor:
         "Run pkgupdate"
         if self.process is not None:
             raise Exception("Only one call to Supervisor.run is allowed.")
+        # Prepare command to be run
+        cmd = list(PKGUPDATE_CMD)
+        with Config() as cnf:
+            if cnf.approvals_need():
+                cmd.append('--ask-approval=' + APPROVALS_ASK_FILE)
+                approved = approval_approved()
+                if approved is not None:
+                    cmd.append('--approve=' + approved)
+        # Open process
         self.process = subprocess.Popen(
-            PKGUPDATE_CMD,
+            cmd,
             stdin=self._devnull,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE)
@@ -126,7 +138,6 @@ def run(ensure_run, timeout, timeout_kill, verbose):
 
     while True:
         pidlock.unblock()
-        # TODO prepare approvals
         supervisor = Supervisor(verbose=verbose)
         report("Running pkgupdate")
         supervisor.run()
@@ -134,8 +145,8 @@ def run(ensure_run, timeout, timeout_kill, verbose):
         if exit_code != 0:
             report("pkgupdate exited with: " + str(exit_code))
         del supervisor  # To clean signals and more
+        approval_update_stat()
         # TODO generate report
-        # TODO evaluate approvals
         pidlock.block()
         if pidlock.sigusr1:
             report("Rerunning pkgupdate as requested.")

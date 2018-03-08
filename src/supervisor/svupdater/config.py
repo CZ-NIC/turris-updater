@@ -66,3 +66,18 @@ class Config:
         if not branch:
             branch = "deploy"
         return branch
+
+    def approvals_need(self):
+        """Returns True if updater.approvals.need is set.
+        """
+        return self._get("updater", "approvals", "need", bool)
+
+    def approvals_auto_grant_seconds(self):
+        """Returns number of seconds after which should be approval
+        automatically granted. In configuration it's a
+        updater.approvals.auto_grant_seconds option. It returns None if
+        approvals are disabled or if such option is not set.
+        """
+        if not self.approvals_need():
+            return None
+        return self._get("updater", "approvals", "auto_grant_seconds", int)

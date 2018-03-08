@@ -33,6 +33,13 @@ class ExceptionUpdaterDisabled(Exception):
     pass
 
 
+class ExceptionUpdaterApproveInvalid(Exception):
+    """Exception thrown from either approve.approve() or approve.deny() when
+    given hash doesn't match the one from approve.current().
+    """
+    pass
+
+
 class ExceptionUpdaterPidLockFailure(Exception):
     """This exception is thrown when we encounter some invalid usage of
     pidlock.
