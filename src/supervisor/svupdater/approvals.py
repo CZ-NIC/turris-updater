@@ -1,5 +1,3 @@
-# coding=utf-8
-
 # Copyright (c) 2018, CZ.NIC, z.s.p.o. (http://www.nic.cz/)
 # All rights reserved.
 #
@@ -26,12 +24,11 @@
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import os
 import time
-import subprocess
 from .config import Config
 from .const import APPROVALS_ASK_FILE, APPROVALS_STAT_FILE
-from .const import NOTIFY_MESSAGE_CS, NOTIFY_MESSAGE_EN
 from .utils import report
 from .exceptions import ExceptionUpdaterApproveInvalid
+from . import notify
 
 
 def current():
@@ -176,17 +173,7 @@ def _gen_new_stat(new_hash):
     with open(APPROVALS_STAT_FILE, 'w') as file:
         file.write(' '.join((new_hash, 'asked', str(int(time.time())))))
     # Send notification
-    # Note: now we have consisten stat and ask file so we can use current
-    apprv = current()
-    text = ""
-    for pkg in apprv['plan']:
-        text += u"\n • {0} {1} {2}".format(
-            pkg['op'].title(), pkg['name'],
-            "" if pkg['new_ver'] is None else pkg['new_ver'])
-    if subprocess.call(['create_notification', '-s', 'update',
-                        NOTIFY_MESSAGE_CS + text, NOTIFY_MESSAGE_EN + text]) \
-            != 0:
-        report('Notification creation failed.')
+    notify.approval()
 
 
 def _update_stat():

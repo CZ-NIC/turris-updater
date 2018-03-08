@@ -31,13 +31,14 @@ import sys
 import subprocess
 import atexit
 import signal
-from threading import Thread
+import errno
+from threading import Thread, Lock
+from . import approvals
+from . import notify
 from .utils import setup_alarm, report
-from .const import PKGUPDATE_CMD, APPROVALS_ASK_FILE
+from .const import PKGUPDATE_CMD, APPROVALS_ASK_FILE, PKGUPDATE_STATE
 from ._pidlock import PidLock
 from .config import Config
-from .approvals import _approved as approval_approved
-from .approvals import _update_stat as approval_update_stat
 
 
 class Supervisor:
@@ -46,6 +47,8 @@ class Supervisor:
         self.verbose = verbose
         self.kill_timeout = 0
         self.process = None
+        self.trace = None
+        self.trace_lock = Lock()
         self._devnull = open(os.devnull, 'w')
         self._stdout_thread = Thread(
             target=self._stdout,
@@ -59,14 +62,23 @@ class Supervisor:
         "Run pkgupdate"
         if self.process is not None:
             raise Exception("Only one call to Supervisor.run is allowed.")
+        self.trace = ""
+        # Create state directory
+        try:
+            os.mkdir(PKGUPDATE_STATE)
+        except OSError as exc:
+            if exc.errno != errno.EEXIST:
+                raise
         # Prepare command to be run
         cmd = list(PKGUPDATE_CMD)
         with Config() as cnf:
             if cnf.approvals_need():
                 cmd.append('--ask-approval=' + APPROVALS_ASK_FILE)
-                approved = approval_approved()
+                approved = approvals._approved()
                 if approved is not None:
                     cmd.append('--approve=' + approved)
+        # Clear old dump files
+        notify.clear_logs()
         # Open process
         self.process = subprocess.Popen(
             cmd,
@@ -92,9 +104,11 @@ class Supervisor:
         return exit_code
 
     def _stdout(self):
-        # TODO record block to report failures
         while True:
             line = self.process.stdout.readline()
+            self.trace_lock.acquire()
+            self.trace += line
+            self.trace_lock.release()
             if not line:
                 break
             if self.verbose:
@@ -102,9 +116,11 @@ class Supervisor:
                 sys.stdout.flush()
 
     def _stderr(self):
-        # TODO record block to report failures
         while True:
             line = self.process.stderr.readline()
+            self.trace_lock.acquire()
+            self.trace += line
+            self.trace_lock.release()
             if not line:
                 break
             if self.verbose:
@@ -144,16 +160,18 @@ def run(ensure_run, timeout, timeout_kill, verbose):
         exit_code = supervisor.join(timeout, timeout_kill)
         if exit_code != 0:
             report("pkgupdate exited with: " + str(exit_code))
+            notify.failure(exit_code, supervisor.trace)
+        else:
+            report("pkgupdate reported no errors")
         del supervisor  # To clean signals and more
-        approval_update_stat()
-        # TODO generate report
+        approvals._update_stat()
+        notify.changes()
         pidlock.block()
         if pidlock.sigusr1:
             report("Rerunning pkgupdate as requested.")
         else:
             break
 
-    # TODO send notifications if needed
+    notify.notifier()
     # Note: pid_lock is freed using atexit
     return exit_code
-

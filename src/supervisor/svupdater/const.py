@@ -9,8 +9,18 @@ FAIL_DUMP_PATH = "/var/log/updater-dump"
 # This is path to opkg lock
 OPKG_LOCK = "/var/lock/opkg.lock"
 
+PKGUPDATE_STATE = "/tmp/update-state"
+# File containing log of changes done on system
+PKGUPDATE_LOG = PKGUPDATE_STATE + "/log2"
+# File with latest error dumped from pkgupdate
+PKGUPDATE_ERROR_LOG = PKGUPDATE_STATE + "/last_error"
+# File containing stack trace from Lua
+PKGUPDATE_CRASH_LOG = "/tmp/updater_crash.log"
+
 # Updater run command
-PKGUPDATE_CMD = ['pkgupdate', '--batch']
+# TODO get rid of state log
+PKGUPDATE_CMD = ['pkgupdate', '--batch', '--state-log',
+                 '--task-log=/usr/share/updater/updater-log']
 # pkgupdate default timeout
 PKGUPDATE_TIMEOUT = 3000
 # pkgupdate default kill timeout
