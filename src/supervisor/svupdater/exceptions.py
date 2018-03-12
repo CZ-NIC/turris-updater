@@ -45,3 +45,16 @@ class ExceptionUpdaterPidLockFailure(Exception):
     pidlock.
     """
     pass
+
+
+class ExceptionUpdaterNoSuchList(Exception):
+    """Exception thrown from lists.update when non-existent list is given.
+    """
+    pass
+
+
+class ExceptionUpdaterNoSuchLang(Exception):
+    """Exception thrown from l10n.update when unsupported language code is
+    given.
+    """
+    pass

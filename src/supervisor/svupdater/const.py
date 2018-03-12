@@ -41,3 +41,8 @@ NOTIFY_MESSAGE_CS = u"Updater žádá o autorizaci akcí. Autorizaci můžete" +
 NOTIFY_MESSAGE_EN = "Your approval is required to apply pending updates." + \
         "You can grant it in the Foris administrative interface in the" + \
         " 'Updater' menu."
+
+# File containing l10n symbols as a list of supported ones
+L10N_FILE = "/usr/share/updater/l10n_supported"
+# File containing list of known userlists in json
+USERLISTS_FILE = "/usr/share/updater/definitions.json"
