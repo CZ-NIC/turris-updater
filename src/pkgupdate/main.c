@@ -247,6 +247,7 @@ int main(int argc, char *argv[]) {
 	if (err) {
 		exit_type = COT_CRASH;
 		ERROR("%s", err);
+		err_dump(err);
 		GOTO_CLEANUP;
 	}
 	err = interpreter_call(interpreter, "transaction.empty", &result_count, "");
