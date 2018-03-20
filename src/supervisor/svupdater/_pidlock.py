@@ -63,14 +63,17 @@ def pid_lock_content():
     # TODO timeout
     fcntl.flock(file, fcntl.LOCK_SH)  # Lock for shared read
     # Check if we are reading existing file (if it wasn't unlinked)
+    invalid = False
     try:
         if os.fstat(file).st_ino != os.stat(PID_FILE_PATH).st_ino:
-            # Otherwise try again
-            os.close(file)
-            return pid_lock_content()
+            invalid = True
     except OSError as excp:
-        if excp.errno != errno.ENOENT:
-            raise
+        if excp.errno == errno.ENOENT:
+            invalid = True
+        raise
+    if invalid:  # Otherwise try again
+        os.close(file)
+        return pid_lock_content()
     val = None
     with os.fdopen(file, 'r') as filed:
         try:
@@ -125,15 +128,19 @@ class PidLock():
                 raise
             # There is possible race condition when file is removed before we
             # lock it. This ensures that we have file that is on FS
+            invalid = False
             try:
                 if os.fstat(self.file).st_ino == os.stat(PID_FILE_PATH).st_ino:
-                    os.ftruncate(self.file, 0)
-                    os.write(self.file, str.encode(str(os.getpid())))
-                    os.fsync(self.file)
-                    return True
+                    invalid = True
             except OSError as excp:
-                if excp.errno != errno.ENOENT:
-                    raise
+                if excp.errno == errno.ENOENT:
+                    invalid = True
+                raise
+            if invalid:
+                os.ftruncate(self.file, 0)
+                os.write(self.file, str.encode(str(os.getpid())))
+                os.fsync(self.file)
+                return True
             # File was removed before we were able to acquire lock. Try again.
             os.close(self.file)
 

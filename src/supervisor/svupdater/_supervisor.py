@@ -35,6 +35,7 @@ import errno
 from threading import Thread, Lock
 from . import approvals
 from . import notify
+from . import hook
 from .utils import setup_alarm, report
 from .const import PKGUPDATE_CMD, APPROVALS_ASK_FILE, PKGUPDATE_STATE
 from ._pidlock import PidLock
@@ -144,11 +145,13 @@ class Supervisor:
         self.process.kill()
 
 
-def run(ensure_run, timeout, timeout_kill, verbose):
+def run(ensure_run, timeout, timeout_kill, verbose, hooklist=None):
     """Run updater
     """
     pidlock = PidLock()
-    if not pidlock.acquire(ensure_run):
+    plown = pidlock.acquire(ensure_run)
+    hook.register_list(hooklist)
+    if not plown:
         sys.exit(1)
     exit_code = 0
 
@@ -172,6 +175,7 @@ def run(ensure_run, timeout, timeout_kill, verbose):
         else:
             break
 
+    hook._run()
     notify.notifier()
     # Note: pid_lock is freed using atexit
     return exit_code

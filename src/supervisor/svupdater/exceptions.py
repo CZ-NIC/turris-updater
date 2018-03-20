@@ -58,3 +58,10 @@ class ExceptionUpdaterNoSuchLang(Exception):
     given.
     """
     pass
+
+
+class ExceptionUpdaterInvalidHookCommand(Exception):
+    """Thrown from hook.register when argument command contains more than one
+    line.
+    """
+    pass

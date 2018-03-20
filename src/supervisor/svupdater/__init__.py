@@ -49,7 +49,7 @@ def updater_supervised():
 
 
 def run(wait_for_network=False, ensure_run=False, timeout=PKGUPDATE_TIMEOUT,
-        timeout_kill=PKGUPDATE_TIMEOUT_KILL):
+        timeout_kill=PKGUPDATE_TIMEOUT_KILL, hooklist=None):
     """Run updater.
     This call will spawn daemon process and returns. But be aware that at first
     it checks if some other supervisor is not running and it takes file lock
@@ -58,6 +58,7 @@ def run(wait_for_network=False, ensure_run=False, timeout=PKGUPDATE_TIMEOUT,
     applications.
     If there is already running daemon then it just sends signal to it and
     exits.
+    You can pass hooks (single line shell scripts) to be run after updater.
     """
     with Config() as cnf:
         if cnf.disable():
@@ -76,5 +77,6 @@ def run(wait_for_network=False, ensure_run=False, timeout=PKGUPDATE_TIMEOUT,
         ensure_run=ensure_run,
         timeout=timeout,
         timeout_kill=timeout_kill,
-        verbose=False)
+        verbose=False,
+        hooklist=hooklist)
     exit()

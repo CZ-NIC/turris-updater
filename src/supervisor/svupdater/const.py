@@ -46,3 +46,6 @@ NOTIFY_MESSAGE_EN = "Your approval is required to apply pending updates." + \
 L10N_FILE = "/usr/share/updater/l10n_supported"
 # File containing list of known userlists in json
 USERLISTS_FILE = "/usr/share/updater/definitions.json"
+
+# Hooks file containing commands to be run after updater execution finished.
+POSTRUN_HOOK_FILE = "/tmp/updater-postrun-hook"
