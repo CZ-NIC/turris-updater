@@ -54,7 +54,7 @@ def setup_alarm(func, timeout):
     signal.alarm(timeout)
 
 
-def check_exclusive_flock(path):
+def check_exclusive_lock(path, isflock=False):
     """This returns True if someone holds exclusive lock on given path.
     Otherwise it returns False.
     """
@@ -66,14 +66,16 @@ def check_exclusive_flock(path):
             return False
         raise
     try:
-        fcntl.flock(file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if isflock:
+            fcntl.flock(file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        else:
+            fcntl.lockf(file, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except IOError as excp:
         os.close(file)
         if excp.errno == errno.EACCES or excp.errno == errno.EAGAIN:
             # We can't take lock so someone holds it
             return True
         raise
-    fcntl.lockf(file, fcntl.LOCK_UN)
     os.close(file)
     # We successfully locked file so no one holds its lock
     return False

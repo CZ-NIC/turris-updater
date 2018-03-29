@@ -31,10 +31,9 @@ holding lock and any other spawned instance.
 import os
 import fcntl
 import errno
-import atexit
 import signal
 from .const import PID_FILE_PATH
-from .utils import report, check_exclusive_flock
+from .utils import report, check_exclusive_lock
 from .exceptions import ExceptionUpdaterPidLockFailure
 
 
@@ -45,7 +44,7 @@ def pid_locked():
     because some other instance can have shared lock at the same time because
     it wants to read content.
     """
-    return check_exclusive_flock(PID_FILE_PATH)
+    return check_exclusive_lock(PID_FILE_PATH, True)
 
 
 def pid_lock_content():
@@ -95,7 +94,6 @@ class PidLock():
     def __init__(self):
         self.file = None
         self._sigusr_rec = False
-        atexit.register(self.free)
         signal.signal(signal.SIGUSR1, self._sigusr1)
 
     def __del__(self):
@@ -191,6 +189,7 @@ class PidLock():
         fcntl.flock(file, fcntl.LOCK_EX)
         os.remove(PID_FILE_PATH)
         os.close(file)
+        file = None
 
     def block(self):
         """Block read access to pid lock.

@@ -24,7 +24,7 @@
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from .const import OPKG_LOCK, PING_TIMEOUT, PKGUPDATE_TIMEOUT
 from .const import PKGUPDATE_TIMEOUT_KILL
-from .utils import check_exclusive_flock as _check_exclusive_flock
+from .utils import check_exclusive_lock as _check_exclusive_lock
 from .utils import daemonize as _daemonize
 from ._pidlock import pid_locked as _pid_locked
 from .config import Config
@@ -37,7 +37,7 @@ def opkg_lock():
     """Returns True if opkg lock is taken. It can be taken by any other
     process. It doesn't have to be updater.
     """
-    return _check_exclusive_flock(OPKG_LOCK)
+    return _check_exclusive_lock(OPKG_LOCK, False)
 
 
 def updater_supervised():
