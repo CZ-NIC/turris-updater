@@ -102,7 +102,14 @@ def daemonize():
     # Setup exceptions reporting hook
     sys.excepthook = lambda type, value, tb: report(
         ' '.join(traceback.format_exception(type, value, tb)))
-    # Close all other file descriptors
+    # Disconnect from ubus if connected
+    try:
+        import ubus
+        if ubus.get_connected():
+            ubus.disconnect(False)
+    except Exception as excp:
+        report("Ubus disconnect failed: " + str(excp))
+    # Close all non-standard file descriptors
     for fd in range(3, resource.getrlimit(resource.RLIMIT_NOFILE)[0]):
         try:
             os.close(fd)
