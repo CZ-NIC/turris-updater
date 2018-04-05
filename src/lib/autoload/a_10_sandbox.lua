@@ -203,6 +203,7 @@ local rest_available_funcs = {
 local local_available_funcs = {
 	"io",
 	"file",
+	"os",
 	"ls",
 	"stat",
 	"lstat"
