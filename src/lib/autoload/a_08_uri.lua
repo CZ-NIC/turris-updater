@@ -122,7 +122,7 @@ local function handler_file(uri, err_cback, done_cback)
 	if not ok then
 		return err_cback(utils.exception("malformed URI", "Bad URL encoding"))
 	end
-	local ok, content, err = pcall(utils.slurp, fname)
+	local ok, content, err = pcall(utils.read_file, fname)
 	if (not ok) or (not content) then
 		return err_cback(utils.exception("unreachable", tostring(content or err)))
 	end

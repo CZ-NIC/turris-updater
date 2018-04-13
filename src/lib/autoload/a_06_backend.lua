@@ -296,7 +296,7 @@ end
 -- Get pkg_name's file's content with given suffix. Nil on error.
 local function pkg_file(pkg_name, suffix, _)
 	local fname = info_dir .. pkg_name .. "." .. suffix
-	local content, err = utils.slurp(fname)
+	local content, err = utils.read_file(fname)
 	if not content then
 		WARN("Could not read ." .. suffix .. " file of " .. pkg_name .. ": " .. err)
 	end
@@ -531,7 +531,7 @@ function pkg_examine(dir)
 	end
 	conffiles = slashes_sanitize(conffiles)
 	-- Load the control file of the package and parse it
-	local control = package_postprocess(block_parse(utils.slurp(control_dir .. "/control")));
+	local control = package_postprocess(block_parse(utils.read_file(control_dir .. "/control")));
 	-- Wait for all asynchronous processes to finish
 	events_wait(unpack(events))
 	-- How well did it go?
