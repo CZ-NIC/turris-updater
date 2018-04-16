@@ -125,7 +125,7 @@ function test_recover_broken()
 	J.write(J.UNPACKED, { data = "xyz" }, { "x", "y", "z" })
 	J.finish(true)
 	-- Now damage the file a little bit
-	local content = utils.slurp(dir .. '/journal')
+	local content = utils.read_file(dir .. '/journal')
 	local f, err = io.open(dir .. '/journal', "w")
 	assert(f, err)
 	-- Store everything except for the last 3 bytes. That should kill the last FINISH record

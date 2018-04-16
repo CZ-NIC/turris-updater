@@ -35,7 +35,7 @@ local run_util = run_util
 
 module "utils"
 
--- luacheck: globals lines2set map set2arr arr2set cleanup_dirs slurp clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay randstr arr_prune arr_inv file_exists
+-- luacheck: globals lines2set map set2arr arr2set cleanup_dirs read_file clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay randstr arr_prune arr_inv file_exists
 
 --[[
 Convert provided text into set of lines. Doesn't care about the order.
@@ -116,7 +116,7 @@ end
 Read the whole content of given file. Return the content, or nil and error message.
 In case of errors during the reading (instead of when opening), it calls error()
 ]]
-function slurp(filename)
+function read_file(filename)
 	local f, err = io.open(filename)
 	if not f then
 		return nil, err

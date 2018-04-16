@@ -430,7 +430,7 @@ end
 
 -- Queue a request to install a package from the given file name.
 function queue_install(filename)
-	local content, err = utils.slurp(filename)
+	local content, err = utils.read_file(filename)
 	if content then
 		table.insert(queue, {op = "install", data = content})
 	else
