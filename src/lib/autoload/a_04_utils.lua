@@ -35,11 +35,8 @@ local run_util = run_util
 
 module "utils"
 
-<<<<<<< HEAD
--- luacheck: globals lines2set map set2arr arr2set cleanup_dirs slurp clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay tablelength randstr arr_prune arr_inv
-=======
+
 -- luacheck: globals lines2set map set2arr arr2set cleanup_dirs read_file clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay randstr arr_prune arr_inv file_exists
->>>>>>> master
 
 --[[
 Convert provided text into set of lines. Doesn't care about the order.
