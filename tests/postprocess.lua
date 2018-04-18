@@ -146,7 +146,7 @@ end
 
 function test_get_repos_gzip()
 	local datadir = (os.getenv("S") or ".") .. "/tests/data"
-	local content = utils.slurp(datadir .. "/Packages.gz")
+	local content = utils.read_file(datadir .. "/Packages.gz")
 	requests.known_repositories_all = {repo_fake("test1", "http://example.org/test1", true, content)}
 	assert_nil(postprocess.get_repos())
 	assert_table_equal(example_output, requests.known_repositories_all)

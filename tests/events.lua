@@ -104,20 +104,3 @@ function test_run_util()
 	assert_equal(1, called)
 end
 
-function test_download()
-	local cert = (os.getenv("S") or ".") .. "/tests/data/updater.pem"
-	local called1 = 0
-	local id1 = download(function (status, answer)
-		assert_equal(200, status)
-		assert(answer:match("Not for your eyes"))
-		called1 = called1 + 1;
-	end, "https://api.turris.cz", cert);
-	local called2 = 0
-	local id2 = download(function (status, answer)
-		assert_equal(500, status)
-		called2 = called2 + 1
-	end, "https://api.turris.cz/does/not/exist", cert);
-	events_wait(id1, id2);
-	assert_equal(1, called1);
-	assert_equal(1, called2);
-end

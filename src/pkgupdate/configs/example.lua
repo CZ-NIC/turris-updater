@@ -1,6 +1,8 @@
 --[[
 This is example configuration file. You can use it as quick reference for your own
 configurations.
+You can create any additional file in same directory as this file
+(/etc/updater/conf.d) and use it for your configuration.
 
 Note that this is Lua 5.1 so you can write any Lua code to these configuration
 files and it will be executed as part of updater execution.

@@ -10,6 +10,7 @@ static=yes
 shared=no
 thirtytwobit=no
 static=no
+rcode=no
 
 while [ $# -gt 0 ]
 do
@@ -21,11 +22,13 @@ do
     -t|--trace) trace=yes;;
     --no-stats) stats=no;;
     --no-trace) trace=no;;
+    --no-rcode) rcode=no;;
+    --rcode) rcode=yes;;
     -32|--32|-m32) thirtytwobit=yes;;
     -static|--static) static=yes;;
     -shared|--shared) shared=yes;;
     *) cat <<EOF
-usage: ./configure [<option> ...]
+usage: ./configure.sh [<option> ...]
 
 where <option> is one of the following:
 
@@ -37,6 +40,7 @@ where <option> is one of the following:
   --no-stats           disable expensive stats
   --no-trace           enable trace generation
   -32|--32|-m32        compile for 32 bit machine even on 64 bit host
+  -rcode|--no-rcode    enable/disable compatibility for used in R exension
   -static|--static     produce static binary
   -shared|--shared     produce shared library
 EOF
@@ -83,6 +87,7 @@ then
   [ $stats = yes ] && CFLAGS="$CFLAGS -DSTATS"
   [ $trace = yes ] && CFLAGS="$CFLAGS -DTRACE"
   [ $static = yes ] && CFLAGS="$CFLAGS -static"
+  [ $rcode = yes ] && CFLAGS="$CFLAGS -DRCODE"
   case X"$CC" in
     X*gcc*)
       CFLAGS="$CFLAGS -Wall -Wextra"
@@ -105,7 +110,25 @@ then
   esac
 fi
 
-TARGETS="picosat picomcs picomus picogcnf libpicosat.a"
+if [ $rcode = yes ]
+then
+  for rdoth in /usr/share/R/include/R.h $RINC undefined
+  do
+    [ -f $rdoth ] && break
+  done
+  if [ $rdoth = undefined ]
+  then
+    echo "R.h ... not found (add '-I' manually or 'RHEADER=...  ./configure')"
+  else
+    RINC="-I`dirname $rdoth`"
+    CFLAGS="$CFLAGS $RINC"
+    echo "R.h ... added '$RINC' include directive"
+  fi
+  TARGETS="libpicosat.a"
+else
+  TARGETS="picosat picomcs picomus picogcnf libpicosat.a"
+fi
+
 if [ $shared = yes ]
 then
   TARGETS="$TARGETS libpicosat.so"

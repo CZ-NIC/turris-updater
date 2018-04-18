@@ -252,7 +252,7 @@ local tmp_dirs = {}
 Test the chain of functions ‒ unpack, examine
 ]]
 function test_pkg_unpack()
-	local path = B.pkg_unpack(utils.slurp(datadir .. "updater.ipk"))
+	local path = B.pkg_unpack(utils.read_file(datadir .. "updater.ipk"))
 	-- Make sure it is deleted on teardown
 	table.insert(tmp_dirs, path)
 	-- Check list of extracted files
@@ -851,8 +851,8 @@ function test_merge_control()
 	B.pkg_merge_control(src_dir, "pkg1", { file = true })
 	-- The files are in the destination directory with the right content
 	assert_table_equal({["pkg1.control"] = 'r', ["pkg1.list"] = 'r'}, ls(dst_dir))
-	assert_equal("test\n", utils.slurp(dst_dir .. "/pkg1.control"))
-	assert_equal("file\n", utils.slurp(dst_dir .. "/pkg1.list"))
+	assert_equal("test\n", utils.read_file(dst_dir .. "/pkg1.control"))
+	assert_equal("file\n", utils.read_file(dst_dir .. "/pkg1.list"))
 	-- The file stayed at the origin as well
 	assert_table_equal({["control"] = 'r'}, ls(src_dir))
 end

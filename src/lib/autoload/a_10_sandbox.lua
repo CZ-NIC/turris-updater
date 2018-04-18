@@ -50,12 +50,13 @@ module "sandbox"
 
 -- luacheck: globals morpher state_vars level new run_sandboxed load_state_vars
 
--- This can be changed often (always when we add some new feature). So it is defined here at top and not buried in code. 
+-- This can be changed often (always when we add some new feature). So it is defined here at top and not buried in code.
 local updater_features = utils.arr2set({
 	'priorities',
 	'provides',
 	'conflicts',
 	'abi_change',
+	'abi_change_deep',
 	'replan_string'
 })
 
@@ -202,6 +203,7 @@ local rest_available_funcs = {
 local local_available_funcs = {
 	"io",
 	"file",
+	"os",
 	"ls",
 	"stat",
 	"lstat"
@@ -237,9 +239,9 @@ function load_state_vars()
 	]]
 	state_vars = {
 		root_dir = backend.root_dir,
-		model = utils.strip(utils.slurp('/tmp/sysinfo/model')),
-		board_name = utils.strip(utils.slurp('/tmp/sysinfo/board_name')),
-		turris_version = utils.strip(utils.slurp('/etc/turris-version')),
+		model = utils.strip(utils.read_file('/tmp/sysinfo/model')),
+		board_name = utils.strip(utils.read_file('/tmp/sysinfo/board_name')),
+		turris_version = utils.strip(utils.read_file('/etc/turris-version')),
 		self_version = get_updater_version(),
 		language_version = 1,
 		features = updater_features,
@@ -248,7 +250,7 @@ function load_state_vars()
 		an empty string, which produces nil ‒ the element won't be in there.
 		We don't have a better fallback for platforms we don't know for now.
 		]]
-		architectures = {'all', (utils.slurp('/etc/openwrt_release') or ""):match("DISTRIB_TARGET='([^'/]*)")},
+		architectures = {'all', (utils.read_file('/etc/openwrt_release') or ""):match("DISTRIB_TARGET='([^'/]*)")},
 		installed = utils.map(status, function (name, pkg)
 			if utils.multi_index(pkg, "Status", 3) == "installed" then
 				return name, {

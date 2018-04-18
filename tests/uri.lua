@@ -44,11 +44,8 @@ function test_methods()
 
 	local context = sandbox.new("Local")
 	-- Check on success
-	local u1 = uri(context, "https://api.turris.cz/", {verification = 'none'})
-	-- Missing ca and crl files
-	local u2 = uri(context, "https://api.turris.cz/", {ca = "file:///tmp/missing.ca", crl = "file:///tmp/missing.pem", pubkey = "file:///tmp/missing.pub"})
+	local u1 = uri(context, "https://repo.turris.cz/", {verification = 'none'})
 	method_assert(u1)
-	method_assert(u2)
 end
 
 local function check_sync(level, input, output)
@@ -145,8 +142,8 @@ end
 
 function test_https()
 	local context = sandbox.new("Remote")
-	local u1 = uri(context, "https://api.turris.cz/", {verification = 'none'})
-	local u2 = uri(context, "https://api.turris.cz/does/not/exist", {verification = 'none'})
+	local u1 = uri(context, "https://repo.turris.cz/", {verification = 'none'})
+	local u2 = uri(context, "https://repo.turris.cz/does/not/exist", {verification = 'none'})
 	assert_false(u1.done)
 	assert_false(u2.done)
 	local called1 = false
@@ -154,7 +151,7 @@ function test_https()
 	u1:cback(function (ok, content)
 		called1 = true
 		assert(ok)
-		assert(content:match("Not for your eyes"))
+		assert(content:match("Index of"))
 	end)
 	u2:cback(function (ok, err)
 		called2 = true
@@ -167,59 +164,16 @@ function test_https()
 	local ok, content = u1:get()
 	assert(called1)
 	assert(ok)
-	assert(content:match("Not for your eyes"))
+	assert(content:match("Index of"))
 	uri.wait(u1, u2)
 	assert(called2)
 	local ok = u2:get()
 	assert_false(ok)
 end
 
-function test_https_cert()
-	local context = sandbox.new("Local")
-	local ca_file = "file://" .. dir .. "tests/data/updater.pem"
-	local crl_file = "file://" .. dir .. "tests/api.turris.cz.crl.pem"
-	-- It should succeed with the correct CA
-	local u1 = uri(context, "https://api.turris.cz/", {verification = "cert", ca = ca_file, ocsp = false})
-	-- But should fail with a wrong one
-	local u2 = uri(context, "https://api.turris.cz/", {verification = "cert", ca = "file:///dev/null", ocsp = false})
-	-- We may specify the ca as a table of possibilities
-	local u3 = uri(context, "https://api.turris.cz/", {verification = "cert", ca = {"file:///dev/null", ca_file}, ocsp = false})
-	-- system_cas should result in failure as api has certificate not added to standard paths
-	local u4 = uri(context, "https://api.turris.cz/", {verification = "cert", ca = uri.system_cas, ocsp = false})
-	-- systam_cas should result in success on repo as it's signed by common authority
-	local u5 = uri(context, "https://repo.turris.cz/", {verification = "cert", ca = uri.system_cas})
-	-- We can specify crl
-	local u6 = uri(context, "https://api.turris.cz/", {verification = "cert", ca = ca_file, crl = crl_file, ocsp = false})
-	local ok1 = u1:get()
-	assert(ok1)
-	local ok2 = u2:get()
-	assert_false(ok2)
-	local ok3 = u3:get()
-	assert(ok3)
-	local ok4 = u4:get()
-	assert_false(ok4)
-	local ok5 = u5:get()
-	assert(ok5)
-	local ok6 = u6:get()
-	assert(ok6)
-	-- Check we can put the verification stuff into the context
-	context.ca = ca_file
-	context.verification = "cert"
-	context.ocsp = false
-	u1 = uri(context, "https://api.turris.cz/")
-	u2 = uri(context, "https://api.turris.cz/", {ca = "file:///dev/null"})
-	ok1 = u1:get()
-	ok2 = u2:get()
-	assert(ok1)
-	assert_false(ok2)
-	-- It refuses local URIs inside the ca field if refered from the wrong context
-	context = sandbox.new("Remote")
-	assert_exception(function () uri(context, "https://api.turris.cz/", {verification = "cert", ca = ca_file}) end, "access violation")
-end
-
 function test_restricted()
 	local context = sandbox.new("Restricted")
-	context.restrict = 'https://api%.turris%.cz/.*'
+	context.restrict = 'https://repo%.turris%.cz/.*'
 	local function u(location)
 		local result = uri(context, location, {verification = 'none'})
 		--[[
@@ -229,10 +183,8 @@ function test_restricted()
 		]]
 		result:get()
 	end
-	assert_pass(function () u("https://api.turris.cz/") end)
-	assert_pass(function () u("https://api.turris.cz/index.html") end)
-	assert_exception(function () u("https://api.turris.cz") end, "access violation")
-	assert_exception(function () u("http://api.turris.cz/index.html") end, "access violation")
+	assert_pass(function () u("https://repo.turris.cz/") end)
+	assert_exception(function () u("https://repo.turris.cz") end, "access violation")
 	assert_exception(function () u("https://www.turris.cz/index.html") end, "access violation")
 end
 
@@ -274,3 +226,4 @@ function test_vermode()
 	local context = sandbox.new("Restricted")
 	assert_exception(function () uri(context, "data:,data", {verification = 'typo'}) end, 'bad value')
 end
+

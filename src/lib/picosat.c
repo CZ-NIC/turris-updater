@@ -17,7 +17,7 @@
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "picosat-960/picosat.h"
+#include "picosat-965/picosat.h"
 #include "picosat.h"
 #include "inject.h"
 #include "util.h"

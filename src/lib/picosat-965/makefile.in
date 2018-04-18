@@ -45,8 +45,8 @@ picosat.o: picosat.c picosat.h makefile
 version.o: version.c config.h makefile
 	$(CC) $(CFLAGS) -c $<
 
-config.h: makefile VERSION mkconfig # and actually picosat.c
-	rm -f $@; ./mkconfig > $@
+config.h: makefile VERSION mkconfig.sh # and actually picosat.c
+	rm -f $@; ./mkconfig.sh > $@
 
 libpicosat.a: picosat.o version.o
 	ar rc $@ picosat.o version.o

@@ -1,9 +1,12 @@
 #include "picosat.h"
 
 #include <assert.h>
-#include <string.h>
 #include <ctype.h>
+#include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #define GUNZIP "gunzip -c %s"
 #define BUNZIP2 "bzcat %s"
@@ -11,6 +14,8 @@
 
 FILE * popen (const char *, const char*);
 int pclose (FILE *);
+
+static PicoSAT * picosat;
 
 static int lineno;
 static FILE *input;
@@ -359,6 +364,122 @@ write_to_file (PicoSAT * picosat,
     fprintf (output, "*** picosat: can not write to '%s'\n", name);
 }
 
+static int catched;
+
+static void (*sig_int_handler);
+static void (*sig_segv_handler);
+static void (*sig_abrt_handler);
+static void (*sig_term_handler);
+#ifndef NALLSIGNALS
+static void (*sig_kill_handler);
+static void (*sig_xcpu_handler);
+static void (*sig_xfsz_handler);
+#endif
+
+static void
+resetsighandlers (void)
+{
+  (void) signal (SIGINT, sig_int_handler);
+  (void) signal (SIGSEGV, sig_segv_handler);
+  (void) signal (SIGABRT, sig_abrt_handler);
+  (void) signal (SIGTERM, sig_term_handler);
+#ifndef NALLSIGNALS
+  (void) signal (SIGKILL, sig_kill_handler);
+  (void) signal (SIGXCPU, sig_xcpu_handler);
+  (void) signal (SIGXFSZ, sig_xfsz_handler);
+#endif
+}
+
+static int time_limit_in_seconds;
+static void (*sig_alarm_handler);
+static int ought_to_be_interrupted, interrupt_notified;
+
+static void
+alarm_triggered (int sig)
+{
+  (void) sig;
+  assert (sig == SIGALRM);
+  assert (time_limit_in_seconds);
+  assert (!ought_to_be_interrupted);
+  ought_to_be_interrupted = 1;
+  assert (!interrupt_notified);
+}
+
+static int
+interrupt_call_back (void * dummy)
+{
+  (void) dummy;
+  if (!ought_to_be_interrupted)
+    return 0;
+  if (!interrupt_notified)
+    {
+      if (verbose)
+	{
+	  picosat_message (picosat, 1, "");
+	  picosat_message (picosat, 1,
+	    "*** TIME LIMIT OF %d SECONDS REACHED ***",
+	    time_limit_in_seconds);
+	  picosat_message (picosat, 1, "");
+	}
+      interrupt_notified = 1;
+    }
+  return 1;
+}
+
+static void
+setalarm ()
+{
+  assert (time_limit_in_seconds > 0);
+  sig_alarm_handler = signal (SIGALRM, alarm_triggered);
+  alarm (time_limit_in_seconds);
+  assert (picosat);
+  picosat_set_interrupt (picosat, 0, interrupt_call_back);
+}
+
+static void
+resetalarm ()
+{
+  assert (time_limit_in_seconds > 0);
+  (void) signal (SIGALRM, sig_term_handler);
+}
+
+static void
+message (int sig)
+{
+  picosat_message (picosat, 1, "");
+  picosat_message (picosat, 1, "*** CAUGHT SIGNAL %d ***", sig);
+  picosat_message (picosat, 1, "");
+}
+
+static void
+catch (int sig)
+{
+  if (!catched)
+    {
+      message (sig);
+      catched = 1;
+      picosat_stats (picosat);
+      message (sig);
+    }
+
+  resetsighandlers ();
+  raise (sig);
+}
+
+static void
+setsighandlers (void)
+{
+  sig_int_handler = signal (SIGINT, catch);
+  sig_segv_handler = signal (SIGSEGV, catch);
+  sig_abrt_handler = signal (SIGABRT, catch);
+  sig_term_handler = signal (SIGTERM, catch);
+#ifndef NALLSIGNALS
+  sig_kill_handler = signal (SIGKILL, catch);
+  sig_xcpu_handler = signal (SIGXCPU, catch);
+  sig_xfsz_handler = signal (SIGXFSZ, catch);
+#endif
+}
+
 #define USAGE \
 "usage: picosat [ <option> ... ] [ <input> ]\n" \
 "\n" \
@@ -375,6 +496,7 @@ write_to_file (PicoSAT * picosat,
 "  --plain      disable preprocessing (failed literal probing)\n" \
 "  -a <lit>     start with an assumption\n" \
 "  -l <limit>   set decision limit (no limit per default)\n" \
+"  -L <limit>   set time limit in seconds (no limit per default)\n" \
 "  -P <limit>   set propagation limit (no limit per default)\n" \
 "  -i [0-3]     [0-3]=[FALSE,TRUE,JWH,RAND] initial phase (default 2=JWH)\n" \
 "  -s <seed>    set random number generator seed (default 0)\n" \
@@ -394,7 +516,7 @@ write_to_file (PicoSAT * picosat,
 "and <input> is an optional input file in DIMACS format.\n"
 
 int
-picosat_main (PicoSAT ** psptr, int argc, char **argv)
+picosat_main (int argc, char **argv)
 {
   int res, done, err, print_satisfying_assignment, force, print_formula;
   const char *compact_trace_name, *extended_trace_name, * rup_trace_name;
@@ -410,8 +532,6 @@ picosat_main (PicoSAT ** psptr, int argc, char **argv)
   unsigned seed;
   FILE *file;
   int trace;
-
-  PicoSAT * picosat;
 
   start_time = picosat_time_stamp ();
 
@@ -446,8 +566,6 @@ picosat_main (PicoSAT ** psptr, int argc, char **argv)
   sols= 0;
 
   picosat = 0;
-  if (psptr)
-    *psptr = 0;
 
   print_satisfying_assignment = 1;
   print_formula = 0;
@@ -502,6 +620,23 @@ picosat_main (PicoSAT ** psptr, int argc, char **argv)
 	    }
 	  else
 	    decision_limit = atoi (argv[i]);
+	}
+      else if (!strcmp (argv[i], "-L"))
+	{
+	  if (++i == argc)
+	    {
+	      fprintf (output, "*** picosat: argument to '-L' missing\n");
+	      err = 1;
+	    }
+	  else
+	    {
+	      time_limit_in_seconds = atoi (argv[i]);
+	      if (time_limit_in_seconds <= 0)
+		{
+		  fprintf (output, "*** picosat: invalid '-L' argument\n");
+		  err = 1;
+		}
+	    }
 	}
       else if (!strcmp (argv[i], "-P"))
 	{
@@ -832,8 +967,12 @@ picosat_main (PicoSAT ** psptr, int argc, char **argv)
 	}
 
       picosat = picosat_init ();
-      if (psptr)
-	*psptr = picosat;
+
+      if (verbose)
+	setsighandlers ();
+
+      if (time_limit_in_seconds)
+	setalarm ();
 
       picosat_enter (picosat);
 
@@ -1027,8 +1166,13 @@ NEXT_SOLUTION:
 	}
 
       picosat_leave (picosat);
-      if (psptr)
-	*psptr = 0;
+
+      if (time_limit_in_seconds)
+	resetalarm ();
+
+      if (verbose)
+	resetsighandlers ();
+
       picosat_reset (picosat);
     }
 
