@@ -48,6 +48,7 @@ local md5_file = md5_file
 local sha256_file = sha256_file
 local DBG = DBG
 local WARN = WARN
+local INFO = INFO
 local utils = require "utils"
 local locks = require "locks"
 
@@ -1044,6 +1045,7 @@ is returned.
 ]]
 function config_modified(file, hash)
 	DBG("Checking if file " .. file .. " is modified against " .. hash)
+	INFO("Checking if file " .. file .. " is modified against " .. hash)
 	local len = hash:len()
 	local hasher
 	if len == 32 then
@@ -1067,6 +1069,7 @@ function config_modified(file, hash)
 		local got = hasher(file):lower()
 		hash = hash:lower()
 		DBG("Hashes: " .. got .. " " .. hash)
+		INFO("Hashes: " .. got .. " " .. hash)
 		return hasher(file):lower() ~= hash:lower()
 	else
 		return nil
