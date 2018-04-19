@@ -513,6 +513,29 @@ static int lua_move(lua_State *L) {
 	return 0;
 }
 
+static int lua_copy(lua_State *L) {
+	const char *old = luaL_checkstring(L, 1);
+	const char *new = luaL_checkstring(L, 2);
+	/*
+	 * NOTE:
+	 * This is blatant copy of `lua_move`, therefore same structures are used
+	 * named `mv_*` instead of `cp_*` that would make more sense.
+	 * Both functions will be replaced once we start using Lua Posix library
+	 * so it's just a temporary solution.
+	 */
+	struct events *events = extract_registry(L, "events");
+	ASSERT(events);
+	struct mv_result_data mv_result_data = { .err = NULL };
+	struct wait_id id = run_util(events, mv_result, NULL, &mv_result_data, 0, NULL, -1, -1, "cp", "-f", old, new, (const char *)NULL);
+	events_wait(events, 1, &id);
+	if (mv_result_data.status) {
+		lua_pushfstring(L, "Failed to copy '%s' to '%s': %s (ecode %d)", old, new, mv_result_data.err, mv_result_data.status);
+		free(mv_result_data.err);
+		return lua_error(L);
+	}
+	return 0;
+}
+
 static const char *stat2str(const struct stat *buf) {
 	switch (buf->st_mode & S_IFMT) {
 		case S_IFSOCK:
@@ -807,6 +830,7 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_getcwd, "getcwd" },
 	{ lua_mkdir, "mkdir" },
 	{ lua_move, "move" },
+	{ lua_copy, "copy" },
 	{ lua_ls, "ls" },
 	{ lua_stat, "stat" },
 	{ lua_lstat, "lstat" },

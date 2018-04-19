@@ -18,6 +18,7 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
 require 'lunit'
+local print = print
 local B = require 'backend'
 require 'utils'
 
@@ -117,6 +118,7 @@ function test_package_postprocces()
 		Depends = "libc, kernel (= 3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10), kmod-nls-base",
 		Status = "install user installed",
 		Architecture = "mpc85xx",
+		ChangedFiles = {},
 		Conffiles =
 [[
  /etc/config/dhcp f81fe9bd228dede2165be71e5c9dcf76cc
@@ -135,7 +137,8 @@ function test_package_postprocces()
 	local pack_nomod = {
 		Package = "wget",
 		Version = "1.17.1-1",
-		Architecture = "mpc85xx"
+		Architecture = "mpc85xx",
+		ChangedFiles = {},
 	}
 	local pack_nomod_cp = {}
 	for n, v in pairs(pack_nomod) do
@@ -160,6 +163,7 @@ function test_status_parse()
 		Package = "kmod-usb-storage",
 		Version = "3.18.21+10-1-70ea6b9a4b789c558ac9d579b5c1022f-10",
 		Architecture = "mpc85xx",
+		ChangedFiles = {},
 		Source = "package/kernel/linux",
 		License = "GPLv2",
 		Section = "kernel",
@@ -178,6 +182,7 @@ function test_status_parse()
 		Package = "terminfo",
 		Version = "5.9-2",
 		Architecture = "mpc85xx",
+		ChangedFiles = {},
 		Source = "package/libs/ncurses",
 		License = "MIT",
 		LicenseFiles = "README",
@@ -205,6 +210,7 @@ function test_status_parse()
 		Package = "dnsmasq-dhcpv6",
 		Version = "2.73-1",
 		Architecture = "mpc85xx",
+		ChangedFiles = {},
 		Source = "package/network/services/dnsmasq",
 		License = "GPL-2.0",
 		LicenseFiles = "COPYING",
@@ -233,6 +239,7 @@ function test_status_parse()
 		Package = "ucollect-count",
 		Version = "27",
 		Architecture = "mpc85xx",
+		ChangedFiles = {},
 		["Installed-Time"] = "1453896279",
 		Depends = "libc, ucollect-prog",
 		Status = std_status,
@@ -773,6 +780,7 @@ function test_status_parse_dump()
 	status["New"] = {
 		Package = "New",
 		Version = "1",
+		ChangedFiles = {},
 		["Installed-Time"] = "1",
 		Depends = "Dep1, dep2",
 		Status = { "flag" }
@@ -973,4 +981,4 @@ function teardown()
 	B.root_dir= orig_root_dir
 	utils.cleanup_dirs(tmp_dirs)
 	tmp_dirs = {}
-end
+	end

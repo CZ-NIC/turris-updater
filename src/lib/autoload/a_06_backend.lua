@@ -43,23 +43,23 @@ local stat = stat
 local lstat = lstat
 local mkdir = mkdir
 local move = move
+local copy = copy
 local ls = ls
 local md5_file = md5_file
 local sha256_file = sha256_file
 local DBG = DBG
 local WARN = WARN
-local INFO = INFO
 local utils = require "utils"
 local locks = require "locks"
 
 module "backend"
 
 -- Functions and variables used in other files
--- luacheck: globals pkg_temp_dir repo_parse status_dump pkg_unpack pkg_examine collision_check installed_confs steal_configs dir_ensure pkg_merge_files pkg_merge_control pkg_config_info pkg_cleanup_files control_cleanup version_cmp version_match script_run  run_state
+-- luacheck: globals pkg_temp_dir repo_parse status_dump pkg_unpack pkg_examine collision_check installed_confs steal_configs dir_ensure pkg_merge_files pkg_merge_control pkg_config_info pkg_cleanup_files control_cleanup version_cmp version_match script_run  run_state user_path_move
 -- Variables that we want to access from outside (ex. for testing purposes)
 -- luacheck: globals status_file info_dir root_dir pkg_temp_dir cmd_timeout cmd_kill_timeout dir_opkg_collided
 -- Functions that we want to access from outside (ex. for testing purposes)
--- luacheck: globals root_dir_set block_parse block_split block_dump_ordered pkg_status_dump package_postprocess status_parse get_parent config_modified
+-- luacheck: globals root_dir_set block_parse block_split block_dump_ordered pkg_status_dump package_postprocess status_parse get_parent config_modified get_nonconf_files get_changed_files pkg_backup_files
 
 --[[
 Configuration of the module. It is supported (yet unlikely to be
@@ -77,12 +77,38 @@ root_dir = "/"
 local pkg_temp_dir_suffix = "/usr/share/updater/unpacked"
 pkg_temp_dir = pkg_temp_dir_suffix
 -- Directory where we move files and directories that weren't part of any package.
-local dir_opkg_collided_suffix = "/var/opkg-collided"
+local dir_opkg_collided_suffix = "/usr/share/updater/collided"
 dir_opkg_collided = dir_opkg_collided_suffix
 -- Time after which we SIGTERM external commands. Something incredibly long, just prevent them from being stuck.
 cmd_timeout = 600000
 -- Time after which we SIGKILL external commands
 cmd_kill_timeout = 900000
+
+--[[
+Move anything on given path to dir_opkg_collided. This backups and removes original files.
+When keep is set to TRUE, file is copied instead of moved
+]]
+local function user_path_move(path, keep)
+	-- At first create same parent directory relative to dir_opkg_collided
+	local fpath = ""
+	for dir in (dir_opkg_collided .. path):gsub("[^/]*/?$", ""):gmatch("[^/]+") do
+		local randex = ""
+		while not dir_ensure(fpath .. "/" .. dir .. randex) do
+			-- If there is file with same name, then append some random extension
+			randex = "." .. utils.randstr(6)
+		end
+		fpath = fpath .. "/" .. dir .. randex
+	end
+	WARN("Collision with existing path. Moving " .. path .. " to " .. fpath)
+	 -- fpath is directory so path will be placed to that directory
+	 -- If in fpath is file of same name, then it is replaced. And if there is
+	 -- directory of same name then it is placed inside. But lets not care.
+	if keep then
+		copy(path, fpath)
+	else
+		move(path, fpath)
+	end
+end
 
 --[[
 Set all the configurable directories to be inside the provided dir
@@ -342,6 +368,43 @@ local function merge(target, additions)
 	end
 end
 
+-- Return table of package files with hashes. Configuration files are excluded.
+function get_nonconf_files(pkg)
+	local pkg_path = info_dir .. pkg.Package
+	local files = {}
+	local md5sum_file = io.open(pkg_path .. ".files-md5sum")
+	if md5sum_file then
+		for line in md5sum_file:lines() do
+			local hash, name = line:match('^(%S+)%s+(%S+)$')
+			if name and hash then
+				files[name] = hash
+			end
+		end
+		md5sum_file:close()
+	end
+	local conffile = io.open(pkg_path .. ".conffiles")
+	if conffile then
+		for filename in conffile:lines() do
+			files[filename] = nil  -- remove config file from files
+		end
+		conffile:close()
+	end
+	return files
+end
+
+function get_changed_files(files)
+	local changed = {}
+	for filename, hash in pairs(files) do
+		if utils.file_exists(filename) then
+			local filehash = md5_file(filename)
+			if filehash ~= hash then
+				table.insert(changed, filename)
+			end
+		end
+	end
+	return changed
+end
+
 function status_parse()
 	DBG("Parsing status file ", status_file)
 	local result = {}
@@ -357,6 +420,9 @@ function status_parse()
 				merge(pkg, pkg_control(pkg.Package))
 				pkg.files = pkg_files(pkg.Package)
 			end
+			-- Get list of changed files (without config files)
+			-- and put it into the journal
+			pkg.ChangedFiles = get_changed_files(get_nonconf_files(pkg))
 			pkg = package_postprocess(pkg)
 			result[pkg.Package] = pkg
 		end
@@ -768,25 +834,6 @@ function dir_ensure(dir)
 	return true
 end
 
--- Move anything on given path to dir_opkg_collided. This backups and removes original files.
-local function user_path_move(path)
-	-- At first create same parent directory relative to dir_opkg_collided
-	local fpath = ""
-	for dir in (dir_opkg_collided .. path):gsub("[^/]*/?$", ""):gmatch("[^/]+") do
-		local randex = ""
-		while not dir_ensure(fpath .. "/" .. dir .. randex) do
-			-- If there is file with same name, then append some random extension
-			randex = "." .. utils.randstr(6)
-		end
-		fpath = fpath .. "/" .. dir .. randex
-	end
-	WARN("Collision with existing path. Moving " .. path .. " to " .. fpath)
-	 -- fpath is directory so path will be placed to that directory
-	 -- If in fpath is file of same name, then it is replaced. And if there is
-	 -- directory of same name then it is placed inside. But lets not care.
-	move(path, fpath)
-end
-
 --[[
 Merge the given package into the live system and remove the temporary directory.
 
@@ -1045,7 +1092,6 @@ is returned.
 ]]
 function config_modified(file, hash)
 	DBG("Checking if file " .. file .. " is modified against " .. hash)
-	INFO("Checking if file " .. file .. " is modified against " .. hash)
 	local len = hash:len()
 	local hasher
 	if len == 32 then
@@ -1068,8 +1114,7 @@ function config_modified(file, hash)
 	if utils.file_exists(file) then
 		local got = hasher(file):lower()
 		hash = hash:lower()
-		DBG("Hashes: " .. got .. " " .. hash)
-		INFO("Hashes: " .. got .. " " .. hash)
+		DBG("Hashes: for " .. file .. ": " .. got .. " " .. hash)
 		return hasher(file):lower() ~= hash:lower()
 	else
 		return nil

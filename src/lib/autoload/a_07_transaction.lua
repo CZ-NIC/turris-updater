@@ -111,6 +111,7 @@ local function pkg_unpack(operations, status)
 			else
 				old_configs = configs or {}
 			end
+			local changed_files = utils.multi_index(status, control.Package, "changed_files")
 			table.insert(plan, {
 				op = "install",
 				dir = pkg_dir,
@@ -118,6 +119,7 @@ local function pkg_unpack(operations, status)
 				dirs = dirs,
 				configs = configs,
 				old_configs = old_configs,
+				changed_files = changed_files,
 				control = control,
 				reboot_immediate = op.reboot == "immediate"
 			})
@@ -181,6 +183,9 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 			end
 			if early_remove[op.control.Package] then
 				backend.pkg_cleanup_files(early_remove[op.control.Package], all_configs)
+			end
+			for _, path in pairs(utils.multi_index(status, op.control.Package, 'ChangedFiles') or {}) do
+				backend.user_path_move(path, true)
 			end
 			local did_merge = backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.old_configs)
 			status[op.control.Package] = op.control
