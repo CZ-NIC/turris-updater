@@ -21,8 +21,6 @@
 #include "util.h"
 #include "events.h"
 #include "journal.h"
-#include "md5.h"
-#include "sha256.h"
 #include "locks.h"
 #include "arguments.h"
 #include "picosat.h"
@@ -42,6 +40,8 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <stdio.h>
+#include <openssl/sha.h>
+#include <openssl/md5.h>
 
 // The name used in lua registry to store stuff
 #define REGISTRY_NAME "libupdater"
@@ -682,8 +682,11 @@ static void push_hex(lua_State *L, const uint8_t *buffer, size_t size) {
 static int lua_md5(lua_State *L) {
 	size_t len;
 	const char *buffer = luaL_checklstring(L, 1, &len);
-	uint8_t result[MD5_DIGEST_SIZE];
-	md5_buffer(buffer, len, result);
+	uint8_t result[MD5_DIGEST_LENGTH];
+	MD5_CTX md5;
+	MD5_Init(&md5);
+	MD5_Update(&md5, buffer, len);
+	MD5_Final(result, &md5);
 	push_hex(L, result, sizeof result);
 	return 1;
 }
@@ -691,26 +694,28 @@ static int lua_md5(lua_State *L) {
 static int lua_md5_file(lua_State *L) {
 	size_t len;
 	const char *filename = luaL_checklstring(L, 1, &len);
+	MD5_CTX md5;
+	MD5_Init(&md5);
+	char buffer[32768];
+	int read = 0;
 	FILE *f = fopen(filename, "rb");
-	fseek (f, 0, SEEK_END);
-	long fsize = ftell(f);
-	fseek(f, 0, SEEK_SET);
-	char *buffer = malloc(fsize + 1);
-	fread(buffer, fsize, 1, f);
+	while((read = fread(buffer, 1, sizeof(buffer), f)))
+		MD5_Update(&md5, buffer, read);
 	fclose(f);
-	buffer[fsize] = 0;
-	uint8_t result[MD5_DIGEST_SIZE];
-	md5_buffer(buffer, fsize, result);
+	uint8_t result[MD5_DIGEST_LENGTH];
+	MD5_Final(result, &md5);
 	push_hex(L, result, sizeof result);
-	free(buffer);
 	return 1;	
 }
 
 static int lua_sha256(lua_State *L) {
 	size_t len;
 	const char *buffer = luaL_checklstring(L, 1, &len);
-	uint8_t result[SHA256_DIGEST_SIZE];
-	sha256_buffer(buffer, len, result);
+	uint8_t result[SHA256_DIGEST_LENGTH];
+	SHA256_CTX sha256;
+	SHA256_Init(&sha256);
+	SHA256_Update(&sha256, buffer, len);
+	SHA256_Final(result, &sha256);
 	push_hex(L, result, sizeof result);
 	return 1;
 }
@@ -718,18 +723,17 @@ static int lua_sha256(lua_State *L) {
 static int lua_sha256_file(lua_State *L) {
 	size_t len;
 	const char *filename = luaL_checklstring(L, 1, &len);
+	SHA256_CTX sha256;
+	SHA256_Init(&sha256);
+	char buffer[32768];
+	int read = 0;
 	FILE *f = fopen(filename, "rb");
-	fseek (f, 0, SEEK_END);
-	long fsize = ftell(f);
-	fseek(f, 0, SEEK_SET);
-	char *buffer = malloc(fsize + 1);
-	fread(buffer, fsize, 1, f);
+	while((read = fread(buffer, 1, sizeof(buffer), f)))
+		SHA256_Update(&sha256, buffer, read);
 	fclose(f);
-	buffer[fsize] = 0;
-	uint8_t result[SHA256_DIGEST_SIZE];
-	sha256_buffer(buffer, fsize, result);
+	uint8_t result[SHA256_DIGEST_LENGTH];
+	SHA256_Final(result, &sha256);
 	push_hex(L, result, sizeof result);
-	free(buffer);
 	return 1;	
 }
 
