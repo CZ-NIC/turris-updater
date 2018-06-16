@@ -34,7 +34,6 @@ There are two types of tests. Unit and integration tests. (Integration tests are
 called as system one in this project).
 
 You can run all tests using following command:
-
 ```
 make check
 ```
