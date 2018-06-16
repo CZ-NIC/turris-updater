@@ -65,7 +65,7 @@ static const char *opt_help[COT_LAST] = {
 	[COT_STDERR_LEVEL] =
 		"-e <stderr-level>		What level of messages to send to stderr.\n",
 	[COT_SYSLOG_NAME] =
-		"-S <syslog-name>		Under which name messages are send to syslog.\n",
+		"-S <syslog-name>		Under which name messages are sent to syslog.\n",
 	[COT_ASK_APPROVAL] =
 		"--ask-approval=<report-file>	Require user's approval to proceed (abort if --approve with appropriate ID is not present, plan of action is put into the report-file if approval is needed)\n",
 	[COT_APPROVE] =
@@ -79,7 +79,7 @@ static const char *opt_help[COT_LAST] = {
 	[COT_NO_REPLAN] =
 		"--no-replan			Don't replan. Install everyting at once. Use this if updater you are running isn't from packages it installs.\n",
 	[COT_NO_IMMEDIATE_REBOOT] =
-		"--no-immediate-reboot		Don't reboot immediatelly. Just ignore immediate reboots. This is usable if you are not running on target machine.\n",
+		"--no-immediate-reboot		Don't reboot immediately. Just ignore immediate reboots. This is usable if you are not running on target machine.\n",
 	[COT_OUT_OF_ROOT] =
 		"--out-of-root			We are running updater out of root filesystem. This implies --no-replan and --no-immediate-reboot and is suggested to be used with -R option.\n",
 	[COT_TASK_LOG] =
