@@ -166,7 +166,7 @@ function test_status_parse()
 		["Installed-Size"] = "22537",
 		Description = "Kernel support for USB Mass Storage devices",
 		["Installed-Time"] = "1453896142",
-		Depends = "kernel (=3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10), kmod-scsi-core, kmod-usb-core",
+		Depends = "kernel (= 3.18.21-1-70ea6b9a4b789c558ac9d579b5c1022f-10), kmod-scsi-core, kmod-usb-core",
 		Status = std_status,
 		files = {
 			["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
