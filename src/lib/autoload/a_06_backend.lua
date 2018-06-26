@@ -335,7 +335,9 @@ end
 -- Merge additions into target (both are tables)
 local function merge(target, additions)
 	for n, v in pairs(additions) do
-		target[n] = v
+		if not target[n] then
+			target[n] = v
+		end
 	end
 end
 
