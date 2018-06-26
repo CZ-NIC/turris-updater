@@ -396,7 +396,7 @@ local function build_plan(pkgs, requests, sat, satmap)
 		for _, candidate in pairs(candidates) do -- Now plan candidate's dependencies and packages that provides this package
 			if candidate.Package ~= name then
 				-- If Candidate is from other group, then plan that group instead now.
-				utils.arr_append(r, pkg_plan(candidate.Package, ignore_missing, ignore_missing_pkg, parent_str))
+				utils.arr_append(r, pkg_plan(candidate.Package, ignore_missing, ignore_missing_pkg, parent_str) or {})
 				-- Candidate dependencies are planed as part of pkg_plan call here
 			else
 				no_pkg_candidate = false
