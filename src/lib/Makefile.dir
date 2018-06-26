@@ -35,12 +35,9 @@ ifdef BUSYBOX_EXEC
 libupdater_MODULES += busybox_exec.embed
 endif
 
-libupdater_MODULES_3RDPARTY := \
-	md5 \
-	sha256 \
-	picosat-965/picosat
+libupdater_MODULES_3RDPARTY := picosat-965/picosat
 
-libupdater_PKG_CONFIGS := $(LUA_NAME) libevent libcurl
+libupdater_PKG_CONFIGS := $(LUA_NAME) libevent libcurl libcrypto
 # Workaround, lua.pc doesn't containd -ldl, even when it uses dlopen
 libupdater_SO_LIBS += dl
 
