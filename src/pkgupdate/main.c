@@ -47,7 +47,7 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 }
 
 static const enum cmd_op_type cmd_op_allows[] = {
-	COT_BATCH, COT_NO_OP, COT_REEXEC, COT_REBOOT, COT_STATE_LOG, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_TASK_LOG, COT_USIGN, COT_NO_REPLAN, COT_NO_IMMEDIATE_REBOOT, COT_LAST
+	COT_BATCH, COT_NO_OP, COT_REEXEC, COT_REBOOT, COT_STATE_LOG, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_TASK_LOG, COT_USIGN, COT_MODEL, COT_BOARD, COT_NO_REPLAN, COT_NO_IMMEDIATE_REBOOT, COT_LAST
 };
 
 static void print_help() {
@@ -127,6 +127,8 @@ int main(int argc, char *argv[]) {
 	struct cmd_op *op = ops;
 	const char *top_level_config = "internal:entry_lua";
 	const char *root_dir = NULL;
+	const char *target_model = NULL;
+	const char *target_board = NULL;
 	bool batch = false, early_exit = false, replan = false, reboot_finished = false;
 	const char *approval_file = NULL;
 	const char **approvals = NULL;
@@ -161,6 +163,12 @@ int main(int argc, char *argv[]) {
 				break;
 			case COT_ROOT_DIR:
 				root_dir = op->parameter;
+				break;
+			case COT_MODEL:
+				target_model = op->parameter;
+				break;
+			case COT_BOARD:
+				target_board = op->parameter;
 				break;
 			case COT_STATE_LOG:
 				set_state_log(true);
@@ -215,35 +223,33 @@ int main(int argc, char *argv[]) {
 	const char *error = interpreter_autoload(interpreter);
 	ASSERT_MSG(!error, "%s", error);
 
-	if (root_dir) {
-		const char *err = interpreter_call(interpreter, "backend.root_dir_set", NULL, "s", root_dir);
-		ASSERT_MSG(!err, "%s", err);
-	} else
-		root_dir = "";
+	bool trans_ok = true;
+	if (exit_type != COT_EXIT || early_exit)
+		goto CLEANUP;
+	size_t result_count;
+	// Set some configuration
+	const char *err = interpreter_call(interpreter, "syscnf.set_root_dir", NULL, "s", root_dir);
+	ASSERT_MSG(!err, "%s", err);
+	err = interpreter_call(interpreter, "syscnf.set_target", NULL, "ss", target_model, target_board);
+	ASSERT_MSG(!err, "%s", err);
 	if (usign_exec) {
-		const char *err = interpreter_call(interpreter, "uri.usign_exec_set", NULL, "s", usign_exec);
+		err = interpreter_call(interpreter, "uri.usign_exec_set", NULL, "s", usign_exec);
 		ASSERT_MSG(!err, "%s", err);
 	}
 	if (no_replan) {
-		const char *err = interpreter_call(interpreter, "updater.disable_replan", NULL, "");
+		err = interpreter_call(interpreter, "updater.disable_replan", NULL, "");
 		ASSERT_MSG(!err, "%s", err);
 	}
-	bool trans_ok = true;
-	if (exit_type != COT_EXIT)
-		goto CLEANUP;
-	if (early_exit)
-		goto CLEANUP;
-	size_t result_count;
 	// Check if we should recover previous execution first if so do
 	if (journal_exists(root_dir)) {
 		INFO("Detected existing journal. Trying to recover it.");
-		const char *err = interpreter_call(interpreter, "transaction.recover_pretty", &result_count, "");
+		err = interpreter_call(interpreter, "transaction.recover_pretty", &result_count, "");
 		ASSERT_MSG(!err, "%s", err);
 		if (!results_interpret(interpreter, result_count))
 			goto CLEANUP;
 	}
 	// Decide what packages need to be downloaded and handled
-	const char *err = interpreter_call(interpreter, "updater.prepare", NULL, "s", top_level_config);
+	err = interpreter_call(interpreter, "updater.prepare", NULL, "s", top_level_config);
 	if (err) {
 		exit_type = COT_CRASH;
 		ERROR("%s", err);

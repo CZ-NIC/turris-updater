@@ -43,6 +43,7 @@ local get_updater_version = get_updater_version
 local utils = require "utils"
 local backend = require "backend"
 local requests = require "requests"
+local syscnf = require "syscnf"
 local uri = require "uri"
 local uci_ok, uci = pcall(require, "uci")
 
@@ -238,9 +239,9 @@ function load_state_vars()
 	might not have them legally and we mark that by providing nil.
 	]]
 	state_vars = {
-		root_dir = backend.root_dir,
-		model = utils.strip(utils.read_file('/tmp/sysinfo/model')),
-		board_name = utils.strip(utils.read_file('/tmp/sysinfo/board_name')),
+		root_dir = syscnf.root_dir,
+		model = syscnf.target_model,
+		board_name = syscnf.target_board,
 		turris_version = utils.strip(utils.read_file('/etc/turris-version')),
 		self_version = get_updater_version(),
 		language_version = 1,

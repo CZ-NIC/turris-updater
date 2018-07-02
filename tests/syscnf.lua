@@ -1,5 +1,5 @@
 --[[
-Copyright 2016, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+Copyright 2018, CZ.NIC z.s.p.o. (http://www.nic.cz/)
 
 This file is part of the turris updater.
 
@@ -17,26 +17,20 @@ You should have received a copy of the GNU General Public License
 along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
--- Just for testing purposes
-local testing = {}
+require 'lunit'
+local SC = require "syscnf"
 
-function testing.values()
-	return 42, "hello"
+module("syscnf-tests", package.seeall, lunit.testcase)
+
+function test_set_root_dir()
+	SC.set_root_dir("/dir")
+	assert_equal("/dir/usr/lib/opkg/status", SC.status_file)
+	assert_equal("/dir/usr/lib/opkg/info/", SC.info_dir)
+	assert_equal("/dir/usr/share/updater/unpacked", SC.pkg_temp_dir)
 end
 
-function testing:method()
-	return type(self)
+function test_set_target()
+	SC.set_target("Turris", "unknown")
+	assert_equal("Turris", SC.target_model)
+	assert_equal("unknown", SC.target_board)
 end
-
-testing.subtable = {}
-function testing.subtable.echo(...)
-	return ...
-end
-
-function testing.twoerrs()
-	local multi = utils.exception('multiple', "Multiple exceptions (2)")
-	multi.errors = { "error1", utils.exception('simulation', "error2") }
-	error(multi)
-end
-
-return testing

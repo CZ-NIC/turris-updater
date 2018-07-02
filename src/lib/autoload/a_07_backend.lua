@@ -17,7 +17,6 @@ You should have received a copy of the GNU General Public License
 along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
-local ERROR=ERROR
 local error = error
 local type = type
 local pairs = pairs
@@ -49,79 +48,27 @@ local md5_file = md5_file
 local sha256_file = sha256_file
 local DBG = DBG
 local WARN = WARN
+local ERROR = ERROR
+local syscnf = require "syscnf"
 local utils = require "utils"
 local locks = require "locks"
 
 module "backend"
 
--- Functions and variables used in other files
--- luacheck: globals pkg_temp_dir repo_parse status_dump pkg_unpack pkg_examine collision_check installed_confs steal_configs dir_ensure pkg_merge_files pkg_merge_control pkg_config_info pkg_cleanup_files control_cleanup version_cmp version_match script_run  run_state user_path_move
 -- Variables that we want to access from outside (ex. for testing purposes)
--- luacheck: globals status_file info_dir root_dir pkg_temp_dir cmd_timeout cmd_kill_timeout dir_opkg_collided
+-- luacheck: globals cmd_timeout cmd_kill_timeout
 -- Functions that we want to access from outside (ex. for testing purposes)
--- luacheck: globals root_dir_set block_parse block_split block_dump_ordered pkg_status_dump package_postprocess status_parse get_parent config_modified get_nonconf_files get_changed_files pkg_backup_files
+-- luacheck: globals block_parse block_split block_dump_ordered pkg_status_dump package_postprocess status_parse get_parent config_modified
+-- luacheck: globals repo_parse status_dump pkg_unpack pkg_examine collision_check installed_confs steal_configs dir_ensure pkg_merge_files pkg_merge_control pkg_config_info pkg_cleanup_files script_run control_cleanup version_cmp version_match run_state user_path_move get_nonconf_files get_changed_files
 
 --[[
-Configuration of the module. It is supported (yet unlikely to be
-needed) to modify these variables.
+Configuration of the module. It is supported (yet unlikely to be needed) to modify
+these variables.
 ]]
--- The file with status of installed packages
-local status_file_suffix = "/usr/lib/opkg/status"
-status_file = status_file_suffix
--- The directory where unpacked control files of the packages live
-local info_dir_suffix = "/usr/lib/opkg/info/"
-info_dir = info_dir_suffix
--- A root directory
-root_dir = "/"
--- A directory where unpacked packages live
-local pkg_temp_dir_suffix = "/usr/share/updater/unpacked"
-pkg_temp_dir = pkg_temp_dir_suffix
--- Directory where we move files and directories that weren't part of any package.
-local dir_opkg_collided_suffix = "/usr/share/updater/collided"
-dir_opkg_collided = dir_opkg_collided_suffix
 -- Time after which we SIGTERM external commands. Something incredibly long, just prevent them from being stuck.
 cmd_timeout = 600000
 -- Time after which we SIGKILL external commands
 cmd_kill_timeout = 900000
-
---[[
-Move anything on given path to dir_opkg_collided. This backups and removes original files.
-When keep is set to TRUE, file is copied instead of moved
-]]
-local function user_path_move(path, keep)
-	-- At first create same parent directory relative to dir_opkg_collided
-	local fpath = ""
-	for dir in (dir_opkg_collided .. path):gsub("[^/]*/?$", ""):gmatch("[^/]+") do
-		local randex = ""
-		while not dir_ensure(fpath .. "/" .. dir .. randex) do
-			-- If there is file with same name, then append some random extension
-			randex = "." .. utils.randstr(6)
-		end
-		fpath = fpath .. "/" .. dir .. randex
-	end
-	WARN("Collision with existing path. Moving " .. path .. " to " .. fpath)
-	 -- fpath is directory so path will be placed to that directory
-	 -- If in fpath is file of same name, then it is replaced. And if there is
-	 -- directory of same name then it is placed inside. But lets not care.
-	if keep then
-		copy(path, fpath)
-	else
-		move(path, fpath)
-	end
-end
-
---[[
-Set all the configurable directories to be inside the provided dir
-Effectively sets that the whole system is mounted under some
-prefix.
-]]
-function root_dir_set(dir)
-	root_dir = dir .. "/"
-	status_file = dir .. status_file_suffix
-	info_dir = dir .. info_dir_suffix
-	pkg_temp_dir = dir .. pkg_temp_dir_suffix
-	dir_opkg_collided = dir .. dir_opkg_collided_suffix
-end
 
 --[[
 Parse a single block of mail-header-like records.
@@ -322,7 +269,7 @@ end
 
 -- Get pkg_name's file's content with given suffix. Nil on error.
 local function pkg_file(pkg_name, suffix, _)
-	local fname = info_dir .. pkg_name .. "." .. suffix
+	local fname = syscnf.info_dir .. pkg_name .. "." .. suffix
 	local content, err = utils.read_file(fname)
 	if not content then
 		WARN("Could not read ." .. suffix .. " file of " .. pkg_name .. ": " .. err)
@@ -370,7 +317,7 @@ end
 
 -- Return table of package files with hashes. Configuration files are excluded.
 function get_nonconf_files(pkg)
-	local pkg_path = info_dir .. pkg.Package
+	local pkg_path = syscnf.info_dir .. pkg.Package
 	local files = {}
 	local md5sum_file = io.open(pkg_path .. ".files-md5sum")
 	if md5sum_file then
@@ -406,9 +353,9 @@ function get_changed_files(files)
 end
 
 function status_parse()
-	DBG("Parsing status file ", status_file)
+	DBG("Parsing status file ", syscnf.status_file)
 	local result = {}
-	local f, err = io.open(status_file)
+	local f, err = io.open(syscnf.status_file)
 	if f then
 		local content = f:read("*a")
 		f:close()
@@ -427,7 +374,7 @@ function status_parse()
 			result[pkg.Package] = pkg
 		end
 	else
-		error("Couldn't read status file " .. status_file .. ": " .. err)
+		error("Couldn't read status file " .. syscnf.status_file .. ": " .. err)
 	end
 	return result
 end
@@ -446,12 +393,12 @@ function repo_parse(content)
 end
 
 function status_dump(status)
-	DBG("Writing status file ", status_file)
+	DBG("Writing status file ", syscnf.status_file)
 	--[[
 	Use a temporary file, so we don't garble the real and precious file.
 	Write the thing first and then switch attomicaly.
 	]]
-	local tmp_file = status_file .. ".tmp"
+	local tmp_file = syscnf.status_file .. ".tmp"
 	local f, err = io.open(tmp_file, "w")
 	if f then
 		for _, pkg in pairs(status) do
@@ -459,9 +406,9 @@ function status_dump(status)
 		end
 		f:close()
 		-- Override the resulting file (btrfs guarantees the data is there once we rename it)
-		local _, err = os.rename(tmp_file, status_file)
+		local _, err = os.rename(tmp_file, syscnf.status_file)
 		if err then
-			error("Couldn't rename status file " .. tmp_file .. " to " .. status_file .. ": " .. err)
+			error("Couldn't rename status file " .. tmp_file .. " to " .. syscnf.status_file .. ": " .. err)
 		end
 	else
 		error("Couldn't write status file " .. tmp_file .. ": " .. err)
@@ -835,6 +782,32 @@ function dir_ensure(dir)
 end
 
 --[[
+Move anything on given path to dir_opkg_collided. This backups and removes original files.
+When keep is set to true, file is copied instead of moved.
+]]
+local function user_path_move(path, keep)
+	-- At first create same parent directory relative to dir_opkg_collided
+	local fpath = ""
+	for dir in (syscnf.dir_opkg_collided .. path):gsub("[^/]*/?$", ""):gmatch("[^/]+") do
+		local randex = ""
+		while not dir_ensure(fpath .. "/" .. dir .. randex) do
+			-- If there is file with same name, then append some random extension
+			randex = "." .. utils.randstr(6)
+		end
+		fpath = fpath .. "/" .. dir .. randex
+	end
+	WARN("Collision with existing path. Moving " .. path .. " to " .. fpath)
+	 -- fpath is directory so path will be placed to that directory
+	 -- If in fpath is file of same name, then it is replaced. And if there is
+	 -- directory of same name then it is placed inside. But lets not care.
+	if keep then
+		copy(path, fpath)
+	else
+		move(path, fpath)
+	end
+end
+
+--[[
 Merge the given package into the live system and remove the temporary directory.
 
 The configs parameter describes the previous version of the package, not
@@ -866,7 +839,7 @@ function pkg_merge_files(dir, dirs, files, configs)
 	end)
 	for _, new_dir in ipairs(dirs_sorted) do
 		DBG("Creating dir " .. new_dir)
-		local dir = root_dir .. new_dir
+		local dir = syscnf.root_dir .. new_dir
 		if not dir_ensure(dir) then
 			-- There is some file that user created. Move it away
 			user_path_move(dir)
@@ -883,7 +856,7 @@ function pkg_merge_files(dir, dirs, files, configs)
 		else
 			DBG("Installing file " .. f)
 			local hash = configs[f]
-			local result = root_dir .. f
+			local result = syscnf.root_dir .. f
 			if hash and config_modified(result, hash) then
 				WARN("Config file " .. f .. " modified by the user. Backing up the new one into " .. f .. "-opkg")
 				result = result .. "-opkg"
@@ -914,10 +887,10 @@ function pkg_merge_control(dir, name, files)
 	]]
 	local prefix = name .. '.'
 	local plen = prefix:len()
-	for fname in pairs(ls(info_dir)) do
+	for fname in pairs(ls(syscnf.info_dir)) do
 		if fname:sub(1, plen) == prefix then
 			DBG("Removing previous version control file " .. fname)
-			local _, err = os.remove(info_dir .. "/" .. fname)
+			local _, err = os.remove(syscnf.info_dir .. "/" .. fname)
 			if err then
 				error(err)
 			end
@@ -943,14 +916,14 @@ function pkg_merge_control(dir, name, files)
 			table.insert(events, run_util(function (ecode, _, _, stderr)
 				ec = ecode
 				err = stderr
-			end, nil, nil, cmd_timeout, cmd_kill_timeout, "cp", "-Lpf", dir .. "/" .. fname, info_dir .. "/" .. name .. '.' .. fname))
+			end, nil, nil, cmd_timeout, cmd_kill_timeout, "cp", "-Lpf", dir .. "/" .. fname, syscnf.info_dir .. "/" .. name .. '.' .. fname))
 		end
 		if ec ~= 0 then
 			error(err)
 		end
 	end
 	-- Create the list of files
-	local f, err = io.open(info_dir .. "/" .. name .. ".list", "w")
+	local f, err = io.open(syscnf.info_dir .. "/" .. name .. ".list", "w")
 	if err then
 		error(err)
 	end
@@ -963,7 +936,7 @@ end
 function pkg_config_info(f, configs)
 	-- Make sure there are no // in there, which would confuse the directory cleaning code
 	f = f:gsub("/+", "/")
-	local path = root_dir .. f
+	local path = syscnf.root_dir .. f
 	local hash = configs[f]
 	return path, hash and config_modified(path, hash)
 end
@@ -997,16 +970,16 @@ function pkg_cleanup_files(files, rm_configs)
 				return f
 			end
 			for parent in get_parent do
-				local ok, entries = pcall(ls, root_dir .. parent)
+				local ok, entries = pcall(ls, syscnf.root_dir .. parent)
 				if not ok then
-					DBG("Directory " .. root_dir .. parent .. " is already gone")
+					DBG("Directory " .. syscnf.root_dir .. parent .. " is already gone")
 				elseif next(entries) then
-					DBG("Directory " .. root_dir .. parent .. " not empty, keeping in place")
+					DBG("Directory " .. syscnf.root_dir .. parent .. " not empty, keeping in place")
 					-- It is not empty
 					break
 				else
-					DBG("Removing empty directory " .. root_dir .. parent)
-					local ok, _ = pcall(function () os.remove(root_dir .. parent) end)
+					DBG("Removing empty directory " .. syscnf.root_dir .. parent)
+					local ok, _ = pcall(function () os.remove(syscnf.root_dir .. parent) end)
 					if not ok then
 						-- It is an error, but we don't want to give up on the rest of the operation because of that
 						ERROR("Failed to removed empty " .. parent .. ", ignoring")
@@ -1030,7 +1003,7 @@ If the script doesn't exist, true is returned (and no stderr is provided).
 ]]
 function script_run(pkg_name, script_name, ...)
 	local fname = pkg_name .. "." .. script_name
-	local fname_full = info_dir:gsub('^../', getcwd() .. "/../"):gsub('^./', getcwd() .. "/") .. "/" .. fname
+	local fname_full = syscnf.info_dir:gsub('^../', getcwd() .. "/../"):gsub('^./', getcwd() .. "/") .. "/" .. fname
 	local ftype, perm = stat(fname_full)
 	if ftype == 'r' and perm:match("^r.[xs]") then
 		DBG("Running " .. script_name .. " of " .. pkg_name)
@@ -1040,10 +1013,10 @@ function script_run(pkg_name, script_name, ...)
 			s_ecode = ecode
 			s_stderr = stderr
 		end, function ()
-			local dir = root_dir:gsub('^/+$', '')
+			local dir = syscnf.root_dir:gsub('^/+$', '')
 			setenv("PKG_ROOT", dir)
 			setenv("IPKG_INSTROOT", dir)
-			chdir(root_dir)
+			chdir(syscnf.root_dir)
 		end, nil, cmd_timeout, cmd_kill_timeout, fname_full, ...))
 		DBG(s_stderr)
 		return s_ecode == 0, s_stderr
@@ -1060,7 +1033,7 @@ Clean up the control files of packages. Leave only the ones related to packages
 installed, as listed by status.
 ]]
 function control_cleanup(status)
-	for file, tp in pairs(ls(info_dir)) do
+	for file, tp in pairs(ls(syscnf.info_dir)) do
 		if tp ~= 'r' and tp ~= '?' then
 			WARN("Non-file " .. file .. " in control directory")
 		else
@@ -1073,7 +1046,7 @@ function control_cleanup(status)
 				local pname = file:sub(1, suffix_index - 1)
 				if utils.multi_index(status, pname, "Status", 3) ~= "installed" then
 					DBG("Removing control file " .. file)
-					local _, err = os.remove(info_dir .. "/" .. file)
+					local _, err = os.remove(syscnf.info_dir .. "/" .. file)
 					if err then
 						ERROR(err)
 					end
@@ -1209,7 +1182,7 @@ function run_state_cache:init()
 	assert(not self.status)
 	-- TODO: Make it configurable? OpenWRT hardcodes this into the binary, but we may want to be usable on non-OpenWRT systems as well.
 	local ok, err = pcall(function()
-		self.lfile = locks.acquire(root_dir .. "/var/lock/opkg.lock")
+		self.lfile = locks.acquire(syscnf.root_dir .. "/var/lock/opkg.lock")
 		self.status = status_parse()
 		self.initialized = true
 	end)

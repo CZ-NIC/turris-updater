@@ -36,6 +36,7 @@ local io = io
 local table = table
 local backend = require "backend"
 local utils = require "utils"
+local syscnf = require "syscnf"
 local journal = require "journal"
 local DBG = DBG
 local WARN = WARN
@@ -87,7 +88,7 @@ local function pkg_unpack(operations, status)
 				WARN("Package " .. op.name .. " is not installed. Can't remove")
 			end
 		elseif op.op == "install" then
-			local pkg_dir = backend.pkg_unpack(op.data, backend.pkg_temp_dir)
+			local pkg_dir = backend.pkg_unpack(op.data, syscnf.pkg_temp_dir)
 			table.insert(dir_cleanups, pkg_dir)
 			local files, dirs, configs, control = backend.pkg_examine(pkg_dir)
 			to_remove[control.Package] = true
@@ -286,7 +287,7 @@ local function perform_internal(operations, journal_status, run_state)
 	local ok, err = pcall(function ()
 		-- Make sure the temporary directory for unpacked packages exist
 		local created = ""
-		for segment in (backend.pkg_temp_dir .. "/"):gmatch("([^/]*)/") do
+		for segment in (syscnf.pkg_temp_dir .. "/"):gmatch("([^/]*)/") do
 			created = created .. segment .. "/"
 			backend.dir_ensure(created)
 		end

@@ -203,20 +203,21 @@ START_INTERPRETER_TEST(call_echo)
 	 * Test we can pass some types of parameters and get the results back.
 	 */
 	size_t results;
-	const char *error = interpreter_call(interpreter, "testing.subtable.echo", &results, "ibsnf", 42, true, "hello", 3.1415);
+	const char *error = interpreter_call(interpreter, "testing.subtable.echo", &results, "ibssnf", 42, true, "hello", NULL, 3.1415);
 	ck_assert_msg(!error, "Failed to run the function: %s", error);
-	ck_assert_uint_eq(5, results);
+	ck_assert_uint_eq(6, results);
 	int i;
 	bool b;
-	const char *s;
+	const char *s, *sn;
 	size_t l;
 	double f;
 	// Mix the binary and null-terminated string ‒ that is allowed
-	ck_assert_int_eq(-1, interpreter_collect_results(interpreter, "ibSnf", &i, &b, &s, &l, &f));
+	ck_assert_int_eq(-1, interpreter_collect_results(interpreter, "ibSsnf", &i, &b, &s, &l, &sn, &f));
 	ck_assert_int_eq(42, i);
 	ck_assert(b);
 	ck_assert_str_eq(s, "hello");
 	ck_assert_uint_eq(5, l);
+	ck_assert(sn == NULL);
 	ck_assert_msg(3.1414 < f && f < 3.1416, "Wrong double got through: %lf", f);
 	// Check we can skip parameters when reading
 	ck_assert_int_eq(-1, interpreter_collect_results(interpreter, "--s", &s));

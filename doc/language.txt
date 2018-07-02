@@ -655,13 +655,14 @@ Allowed package architectures (in a table).
 model
 ~~~~~
 
-Content of `/tmp/sysinfo/model`. Might be nil on non-OpenWRT systems.
+Content of `/tmp/sysinfo/model`. On non-OpenWRT systems it has to be supplied by
+`--model` argument.
 
 board_name
 ~~~~~~~~~~
 
-Content of `/tmp/sysinfo/board_name`. Might be nil on non-OpenWRT
-systems.
+Content of `/tmp/sysinfo/board_name`. On non-OpenWRT systems it has to be supplied
+by `--board` argument.
 
 turris_version
 ~~~~~~~~~~~~~~

@@ -1,5 +1,5 @@
 --[[
-Copyright 2016-2017, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+Copyright 2016-2018, CZ.NIC z.s.p.o. (http://www.nic.cz/)
 
 This file is part of the turris updater.
 
@@ -20,6 +20,7 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 require 'lunit'
 local print = print
 local B = require 'backend'
+require "syscnf"
 require 'utils'
 
 local lines2set = utils.lines2set
@@ -246,13 +247,10 @@ function test_status_parse()
 		files = {}
 	})
 	-- More broken case - the whole status file missing
-	B.status_file = "/does/not/exist"
+	syscnf.status_file = "/does/not/exist"
 	assert_error(B.status_parse)
 end
 
-local orig_status_file = B.status_file
-local orig_info_dir = B.info_dir
-local orig_root_dir = B.root_dir
 local tmp_dirs = {}
 
 --[[
@@ -348,7 +346,7 @@ function test_pkg_unpack()
 	}, control)
 	local test_root = mkdtemp()
 	table.insert(tmp_dirs, test_root)
-	B.root_dir = test_root
+	syscnf.set_root_dir(test_root)
 	-- Try merging it to a „root“ directory. We need to find all the files and directories.
 	--[[
 	Omit the empty directories. They wouldn't get cleared currently, and
@@ -408,7 +406,7 @@ function test_cleanup_files_config()
 	-- Create an empty testing file
 	local fname = test_root .. "/config"
 	io.open(fname, "w"):close()
-	B.root_dir = test_root
+	syscnf.set_root_dir(test_root)
 	-- First try with a non-matching hash ‒ the file has been modified
 	B.pkg_cleanup_files({["/config"] = true}, {["/config"] = "12345678901234567890123456789012"})
 	-- It is left there
@@ -771,7 +769,7 @@ function test_status_parse_dump()
 	-- Make a copy of the status file, we'are going to write into it
 	local test_dir = mkdtemp()
 	table.insert(tmp_dirs, test_dir)
-	B.status_file = test_dir .. "/status"
+	syscnf.status_file = test_dir .. "/status"
 	B.status_dump(status)
 	-- Now read it again. It must be the same
 	local status2 = B.status_parse()
@@ -800,7 +798,7 @@ function test_control_cleanup()
 	]]
 	local test_dir = mkdtemp() .. "/"
 	table.insert(tmp_dirs, test_dir)
-	B.info_dir = test_dir
+	syscnf.info_dir = test_dir
 	local all_files = {
 		["pkg1.control"] = "r",
 		["pkg1.list"] = "r",
@@ -850,7 +848,7 @@ function test_merge_control()
 	f:close()
 	local dst_dir = mkdtemp()
 	table.insert(tmp_dirs, dst_dir)
-	B.info_dir = dst_dir
+	syscnf.info_dir = dst_dir
 	-- Place an "outdated" file in the destination, which should disappear by the merge
 	local f, err = io.open(dst_dir .. "/pkg1.outdated", "w")
 	assert_not_nil(f, err)
@@ -866,7 +864,7 @@ function test_merge_control()
 end
 
 function test_script_run()
-	B.info_dir = (os.getenv("S") or ".") .. "/tests/data/scripts"
+	syscnf.info_dir = (os.getenv("S") or ".") .. "/tests/data/scripts"
 	-- This one doesn't exist. So the call succeeds.
 	local result, stderr = B.script_run("xyz", "preinst", "install")
 	assert(result)
@@ -893,13 +891,6 @@ PKG_ROOT=
 	assert_false(result)
 	assert_equal("", stderr)
 	B.cmd_timeout = old_cmd_timeout
-end
-
-function test_root_dir_set()
-	B.root_dir_set("/dir")
-	assert_equal("/dir/usr/lib/opkg/status", B.status_file)
-	assert_equal("/dir/usr/lib/opkg/info/", B.info_dir)
-	assert_equal("/dir/usr/share/updater/unpacked", B.pkg_temp_dir)
 end
 
 function test_config_modified()
@@ -970,15 +961,13 @@ end
 function setup()
 	local sdir = os.getenv("S") or "."
 	-- Use a shortened version of a real status file for tests
-	B.status_file = sdir .. "/tests/data/opkg/status"
-	B.info_dir = sdir .. "/tests/data/opkg/info/"
+	syscnf.status_file = sdir .. "/tests/data/opkg/status"
+	syscnf.info_dir = sdir .. "/tests/data/opkg/info/"
 end
 
 function teardown()
 	-- Clean up, return the original file name
-	B.status_file = orig_status_file
-	B.info_dir = orig_info_dir
-	B.root_dir= orig_root_dir
+	syscnf.set_root_dir()
 	utils.cleanup_dirs(tmp_dirs)
 	tmp_dirs = {}
 	end

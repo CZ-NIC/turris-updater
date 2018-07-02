@@ -76,6 +76,10 @@ static const char *opt_help[COT_LAST] = {
 		"--exclude=<name>		Exclude this from output.\n",
 	[COT_USIGN] =
 		"--usign=<path>			Path to usign tool used to verify packages signature. In default /usr/bin/usign.\n",
+	[COT_MODEL] =
+		"--model=<model>			Set/override target system model (e.g. Turris Omnia)\n",
+	[COT_BOARD] =
+		"--board=<board>			Set/override target system board (e.g. rtrom01)\n",
 	[COT_NO_REPLAN] =
 		"--no-replan			Don't replan. Install everyting at once. Use this if updater you are running isn't from packages it installs.\n",
 	[COT_NO_IMMEDIATE_REBOOT] =
@@ -97,6 +101,8 @@ enum option_val {
 	OPT_TASK_LOG_VAL,
 	OPT_EXCLUDE,
 	OPT_USIGN,
+	OPT_MODEL,
+	OPT_BOARD,
 	OPT_NO_REPLAN,
 	OPT_NO_IMMEDIATE_REBOOT,
 	OPT_OUT_OF_ROOT,
@@ -120,6 +126,8 @@ static const struct option opt_long[] = {
 	{ .name = "task-log", .has_arg = required_argument, .val = OPT_TASK_LOG_VAL },
 	{ .name = "exclude", .has_arg = required_argument, .val = OPT_EXCLUDE },
 	{ .name = "usign", .has_arg = required_argument, .val = OPT_USIGN },
+	{ .name = "model", .has_arg = required_argument, .val = OPT_MODEL },
+	{ .name = "board", .has_arg = required_argument, .val = OPT_BOARD },
 	{ .name = "no-replan", .has_arg = no_argument, .val = OPT_NO_REPLAN },
 	{ .name = "no-immediate-reboot", .has_arg = no_argument, .val = OPT_NO_IMMEDIATE_REBOOT },
 	{ .name = "out-of-root", .has_arg = no_argument, .val = OPT_OUT_OF_ROOT },
@@ -145,6 +153,8 @@ static const struct simple_opt {
 	[OPT_TASK_LOG_VAL] = { COT_TASK_LOG, true, true },
 	[OPT_EXCLUDE] = { COT_EXCLUDE, true, true },
 	[OPT_USIGN] = { COT_USIGN, true, true },
+	[OPT_MODEL] = { COT_MODEL, true, true },
+	[OPT_BOARD] = { COT_BOARD, true, true },
 	[OPT_NO_REPLAN] = { COT_NO_REPLAN, false, true },
 	[OPT_NO_IMMEDIATE_REBOOT] = { COT_NO_IMMEDIATE_REBOOT, false, true },
 	[OPT_OUT_OF_ROOT] = { COT_OUT_OF_ROOT, false, false },
@@ -265,6 +275,8 @@ struct cmd_op *cmd_args_parse(int argc, char *argv[], const enum cmd_op_type acc
 			case COT_APPROVE:
 			case COT_EXCLUDE:
 			case COT_USIGN:
+			case COT_MODEL:
+			case COT_BOARD:
 			case COT_NO_REPLAN:
 			case COT_TASK_LOG: {
 				struct cmd_op tmp = result[i];

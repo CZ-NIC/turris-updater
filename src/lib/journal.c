@@ -126,7 +126,7 @@ static bool journal_open(lua_State *L, int flags) {
 		luaL_error(L, "Journal already open");
 	// Get current root directory
 	// TODO this should probably be argument instead
-	lua_getglobal(L, "backend");
+	lua_getglobal(L, "syscnf");
 	lua_getfield(L, -1, "root_dir");
 	const char *root_dir = lua_tostring(L, -1);
 	journal_path = malloc(strlen(root_dir) + strlen(DEFAULT_JOURNAL_PATH) + 1);

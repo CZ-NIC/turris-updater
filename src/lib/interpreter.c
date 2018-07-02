@@ -1087,7 +1087,14 @@ const char *interpreter_call(struct interpreter *interpreter, const char *functi
 				lua_pushnil(L);
 				break;
 			CASE(int, 'i', integer);
-			CASE(const char *, 's', string);
+			case 's': { // string that can be NULL
+				const char *s = va_arg(args, const char *);
+				if (s)
+					lua_pushstring(L, s);
+				else
+					lua_pushnil(L);
+				break;
+			}
 			case 'S': { // binary string, it has 2 parameters
 				const char *s = va_arg(args, const char *);
 				size_t len = va_arg(args, size_t);
@@ -1156,6 +1163,9 @@ int interpreter_collect_results(struct interpreter *interpreter, const char *spe
 				if (lua_isstring(L, pos + 1)) {
 					const char **s = va_arg(args, const char **);
 					*s = lua_tostring(L, pos + 1);
+				} else if (lua_isnil(L, pos + 1)) {
+					const char **s = va_arg(args, const char **);
+					*s = NULL;
 				} else
 					return pos;
 				break;

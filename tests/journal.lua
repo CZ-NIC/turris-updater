@@ -22,6 +22,9 @@ require 'lunit'
 require 'utils'
 local J = require 'journal'
 local backend = require 'backend'
+require "syscnf"
+
+syscnf.set_root_dir()
 
 module("journal-tests", package.seeall, lunit.testcase)
 
@@ -52,7 +55,7 @@ end
 function dir_init()
 	local dir = mkdtemp()
 	table.insert(tmp_dirs, dir)
-	backend.root_dir = dir
+	syscnf.root_dir = dir
 	mkpath = dir
 	for dr in journal_path:gmatch('[^/]+') do
 		mkpath = mkpath .. '/' .. dr
