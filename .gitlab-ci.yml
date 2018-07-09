@@ -5,8 +5,7 @@ stages:
   - pages
 
 before_script:
-  - git submodule init
-  - git submodule update
+  - git submodule update --init --recursive
 
 # Unit tests #
 unit-tests:
