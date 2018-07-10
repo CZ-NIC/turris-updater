@@ -23,6 +23,7 @@
 #include "logging.h"
 #include "subprocess.h"
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -39,6 +40,22 @@ bool dump2file (const char *file, const char *text) {
 	fputs(text, f);
 	fclose(f);
 	return true;
+}
+
+char *readfile(const char *file) {
+	FILE *f = fopen(file, "r");
+	if (!f) {
+		ERROR("Read of file \"%s\" failed: %s", file, strerror(errno));
+		return NULL;
+	}
+	fseek(f, 0, SEEK_END);
+	long fsize = ftell(f);
+	rewind(f);
+	char *ret = malloc(fsize + 1);
+	fread(ret, fsize, 1, f);
+	fclose(f);
+	ret[fsize] = 0;
+	return ret;
 }
 
 static int exec_dir_filter(const struct dirent *de) {
