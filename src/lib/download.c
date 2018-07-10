@@ -135,6 +135,7 @@ static void download_timer_cb(int fd __attribute__((unused)), short kind __attri
 }
 
 struct downloader *downloader_new(int parallel) {
+	TRACE("Downloader allocation");
 	struct downloader *d = malloc(sizeof *d);
 
 	struct event_config *econfig = event_config_new();
@@ -163,6 +164,7 @@ struct downloader *downloader_new(int parallel) {
 }
 
 void downloader_free(struct downloader *d) {
+	TRACE("Downloader free");
 	// Instances are freed from back because that prevents data shift in array
 	for (int i = d->i_size - 1; i >= 0; i--)
 		if (d->instances[i])
@@ -176,6 +178,7 @@ void downloader_free(struct downloader *d) {
 }
 
 struct download_i *downloader_run(struct downloader *downloader) {
+	TRACE("Downloader run");
 	event_base_dispatch(downloader->ebase);
 	if (downloader->failed) {
 		struct download_i *inst = downloader->failed;
@@ -232,6 +235,7 @@ static size_t download_write_callback(char *ptr, size_t size, size_t nmemb, void
 static struct download_i *new_instance(struct downloader *downloader,
 		const char *url, const char *output_path, const struct download_opts *opts,
 		bool autodrop, enum download_output_type type) {
+	// TODO TRACE configured options
 	struct download_i *inst = malloc(sizeof *inst);
 	switch (type) {
 		case DOWN_OUT_T_FILE:
@@ -295,15 +299,18 @@ static struct download_i *new_instance(struct downloader *downloader,
 
 struct download_i *download_file(struct downloader *downloader, const char *url,
 		const char *output_path, bool autodrop, const struct download_opts *opts) {
+	TRACE("Downloder: url %s to file %s", url, output_path);
 	return new_instance(downloader, url, output_path, opts, autodrop, DOWN_OUT_T_FILE);
 }
 
 struct download_i *download_data(struct downloader *downloader, const char *url,
 		const struct download_opts *opts) {
+	TRACE("Downloder: url %s", url);
 	return new_instance(downloader, url, NULL, opts, false, DOWN_OUT_T_BUFFER);
 }
 
 void download_i_free(struct download_i *inst) {
+	TRACE("Downloader: free instance");
 	// Remove instance from downloader
 	int i = inst->downloader->i_size - 1;
 	while (i >= 0 && inst->downloader->instances[i] != inst)
