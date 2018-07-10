@@ -25,6 +25,7 @@ libupdater_MODULES := \
 	embed_types \
 	events \
 	subprocess \
+	download \
 	journal \
 	locks \
 	picosat \
