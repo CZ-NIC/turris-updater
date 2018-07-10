@@ -30,6 +30,10 @@
 // Writes given text to file. Be aware that no information about failure is given.
 bool dump2file (const char *file, const char *text) __attribute__((nonnull,nonnull));
 
+// Read content of whole file and return it as string
+// Returned memory has to be freed by used.
+char *readfile(const char *file) __attribute__((nonnull));
+
 // Executes all executable files in given directory
 void exec_hook(const char *dir, const char *message) __attribute__((nonnull));
 
