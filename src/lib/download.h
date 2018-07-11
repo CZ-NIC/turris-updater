@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <event2/event.h>
 #include <curl/curl.h>
+#include <lua.h>
 #include "logging.h"
 
 struct download_i;
@@ -116,5 +117,9 @@ struct download_i *download_data(struct downloader *downloader, const char *url,
 
 // Free download instance
 void download_i_free(struct download_i*) __attribute__((nonnull));
+
+
+// Create the downloader module and inject it into the lua state
+void downloader_mod_init(lua_State *L) __attribute__((nonnull));
 
 #endif
