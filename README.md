@@ -8,6 +8,7 @@ Dependencies
 ------------
 Binary dependencies:
 * C compiler (gcc preferred)
+* uthash
 * Lua 5.1
 * libcurl
 * libevent2
