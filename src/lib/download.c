@@ -196,6 +196,7 @@ void download_opts_def(struct download_opts *opts) {
 	opts->ssl_verify = true;
 	opts->ocsp = true;
 	opts->cacert_file = NULL; // In default use system CAs
+	opts->capath = NULL; // In default use compiled in path (system path)
 	opts->crl_file = NULL; // In default don't check CRL
 }
 
@@ -273,6 +274,8 @@ static struct download_i *new_instance(struct downloader *downloader,
 	if (opts->ssl_verify) {
 		if (opts->cacert_file)
 			CURL_SETOPT(CURLOPT_CAINFO, opts->cacert_file);
+		if (opts->capath)
+			CURL_SETOPT(CURLOPT_CAPATH, opts->capath);
 		if (opts->crl_file)
 			CURL_SETOPT(CURLOPT_CRLFILE, opts->crl_file);
 		CURL_SETOPT(CURLOPT_SSL_VERIFYSTATUS, opts->ocsp);

@@ -175,6 +175,7 @@ START_TEST(cert_pinning) {
 	if (!s_dir)
 		s_dir = ".";
 	opts.cacert_file = aprintf("%s/tests/data/lets_encrypt_roots.pem", s_dir);
+	opts.capath = "/dev/null";
 
 	struct download_i *inst = download_data(d, HTTP_SMALL, &opts);
 
@@ -194,8 +195,12 @@ START_TEST(cert_invalid) {
 	struct download_opts opts;
 	download_opts_def(&opts);
 
-	// No certificate is invalid certificate
-	opts.cacert_file = "/dev/null";
+
+	const char *s_dir = getenv("S");
+	if (!s_dir)
+		s_dir = ".";
+	opts.cacert_file = aprintf("%s/tests/data/opentrust_ca_g1.pem", s_dir);
+	opts.capath = "/dev/null";
 
 	struct download_i *inst = download_data(d, HTTP_SMALL, &opts);
 

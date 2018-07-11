@@ -49,6 +49,7 @@ struct download_opts {
 	bool ssl_verify; // If SSL should be verified
 	bool ocsp; // If OCSP should be used for certificate verification
 	const char *cacert_file; // Path to custom CA certificate bundle
+	const char *capath; // Path to directory containing CA certificates
 	const char *crl_file; // Path to custom CA crl
 };
 
@@ -65,7 +66,6 @@ struct download_i {
 	char error[CURL_ERROR_SIZE]; // error message if download fails
 	int retries; // Number of reties we have
 	struct downloader *downloader; // parent downloader
-	void *udata; // User data that can be used to identify this instance
 
 	enum download_output_type out_t; // What output this instance utilizes
 	union {
