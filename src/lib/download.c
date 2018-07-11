@@ -23,6 +23,11 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <string.h>
+#include <lauxlib.h>
+#include <lualib.h>
+#include <uthash.h>
+#include "inject.h"
+#include "util.h"
 
 // Initial size of storage buffer
 #define BUFFER_INIT_SIZE 2048
@@ -31,6 +36,8 @@
 
 #define ASSERT_CURL(X) ASSERT((X) == CURLE_OK)
 #define ASSERT_CURLM(X) ASSERT((X) == CURLM_OK)
+
+#define DOWNLOADER_META "updater_downloader_meta"
 
 static bool download_check_info(struct downloader *downloader) {
 	CURLMsg *msg;
@@ -337,4 +344,166 @@ void download_i_free(struct download_i *inst) {
 			break;
 	}
 	free(inst);
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+
+struct lua_instance {
+	char *url; // Key in hash
+	struct download_i *inst;
+	UT_hash_handle hh;
+};
+
+struct lua_download {
+	struct downloader *downloader;
+	struct lua_instance *instances;
+};
+
+static int lua_download_new(lua_State *L) {
+	int paralel = 4;
+	if (!lua_isnoneornil(L, 1))
+		paralel = luaL_checkint(L, 1);
+	struct lua_download *data = lua_newuserdata(L, sizeof *data);
+	data->downloader = downloader_new(paralel);
+	data->instances = NULL;
+	luaL_getmetatable(L, DOWNLOADER_META);
+	lua_setmetatable(L, -2);
+	return 1;
+}
+
+static const struct inject_func funcs[] = {
+	{ lua_download_new, "new" }
+};
+
+static int lua_download_download(lua_State *L, bool is_file) {
+	struct lua_download *data = luaL_checkudata(L, 1, DOWNLOADER_META);
+	const char *url = luaL_checkstring(L, 2);
+	const char *file;
+	int opts_i = 3;
+	if (is_file) {
+		file = luaL_checkstring(L, 3);
+		opts_i = 4;
+	}
+	struct download_opts opts;
+	download_opts_def(&opts);
+	if (!lua_isnoneornil(L, opts_i)) {
+		luaL_checktype(L, opts_i, LUA_TTABLE);
+#define FLD(NAME, CONV) do { \
+		lua_getfield(L, opts_i, #NAME); \
+		if (!lua_isnil(L, -1)) \
+			opts.NAME = CONV(L, -1); \
+		lua_pop(L, 1); \
+	} while(false)
+		FLD(timeout, luaL_checkint);
+		FLD(connect_timeout, luaL_checkint);
+		FLD(retries, luaL_checkint);
+		FLD(follow_redirect, lua_toboolean);
+		FLD(ssl_verify, lua_toboolean);
+		FLD(ocsp, lua_toboolean);
+		FLD(cacert_file, luaL_checkstring);
+		FLD(capath, luaL_checkstring);
+		FLD(crl_file, luaL_checkstring);
+#undef FLD
+	}
+
+	// Check if this URL isn't already added
+	struct lua_instance *einst;
+	HASH_FIND_STR(data->instances, url, einst);
+	if (einst) {
+		if (einst->inst->out_t != DOWN_OUT_T_FILE && is_file) {
+			return luaL_error(L, aprintf("Downloads to both file and buffer from"
+					" same URL is unsupported in Lua API (url: %s)", url));
+		} else {
+			TRACE("Skipping already added download: %s", url);
+			return 0;
+		}
+	}
+
+	struct lua_instance *linst = malloc(sizeof *linst);
+	linst->url = strdup(url);
+	if (is_file)
+		linst->inst = download_file(data->downloader, url, file, true, &opts);
+	else
+		linst->inst = download_data(data->downloader, url, &opts);
+	HASH_ADD_KEYPTR(hh, data->instances, linst->url, strlen(linst->url), linst);
+	return 0;
+}
+
+static int lua_download_download_data(lua_State *L) {
+	return lua_download_download(L, false);
+}
+
+static int lua_download_download_file(lua_State *L) {
+	return lua_download_download(L, true);
+}
+
+static int lua_download_run(lua_State *L) {
+	struct lua_download *data = luaL_checkudata(L, 1, DOWNLOADER_META);
+	struct download_i *inst = downloader_run(data->downloader);
+	if (inst) {
+		// Generate error report table 
+		lua_newtable(L);
+		struct lua_instance *iinst = NULL, *tmp = NULL;
+		HASH_ITER(hh, data->instances, iinst, tmp) {
+			// This is not exactly effective but we are doing that only on failure so be it
+			if (iinst->inst == inst) {
+				lua_pushstring(L, iinst->url);
+				break;
+			}
+		}
+		ASSERT(iinst->inst == inst); // sanity check to be sure that we have pushed url to stack
+		lua_setfield(L, -2, "url");
+		lua_pushstring(L, inst->error);
+		lua_setfield(L, -2, "error");
+	} else
+		lua_pushnil(L);
+	return 1;
+}
+
+static int lua_download_index(lua_State *L) {
+	struct lua_download *data = luaL_checkudata(L, 1, DOWNLOADER_META);
+	const char *url = luaL_checkstring(L, 2);
+
+	if (luaL_getmetafield(L, 1, url)) // calling method not url
+		return 1;
+	struct lua_instance *inst;
+	HASH_FIND_STR(data->instances, url, inst);
+	if (inst) {
+		if (inst->inst->done && inst->inst->success && inst->inst->out_t == DOWN_OUT_T_BUFFER)
+			lua_pushlstring(L, (const char*)inst->inst->out.buff->data, inst->inst->out.buff->size);
+		else
+			lua_pushboolean(L, inst->inst->done && inst->inst->success);
+	} else
+		lua_pushnil(L);
+	return 1;
+}
+
+static int lua_download_gc(lua_State *L) {
+	struct lua_download *data = luaL_checkudata(L, 1, DOWNLOADER_META);
+	struct lua_instance *inst = NULL, *tmp = NULL;
+    HASH_ITER(hh, data->instances, inst, tmp) {
+		HASH_DEL(data->instances, inst);
+		free(inst->url);
+		free(inst);
+    }
+	downloader_free(data->downloader);
+	return 0;
+}
+
+static const struct inject_func downloader_meta[] = {
+	{ lua_download_download_data, "download_data" },
+	{ lua_download_download_file, "download_file" },
+	{ lua_download_run, "run" },
+	{ lua_download_index, "__index" },
+	{ lua_download_gc, "__gc" }
+};
+
+
+void downloader_mod_init(lua_State *L) {
+	TRACE("Download module init");
+	lua_newtable(L);
+	inject_func_n(L, "downloader", funcs, sizeof funcs / sizeof *funcs);
+	inject_module(L, "downloader");
+	ASSERT(luaL_newmetatable(L, DOWNLOADER_META) == 1);
+	inject_func_n(L, DOWNLOADER_META, downloader_meta, sizeof downloader_meta / sizeof *downloader_meta);
 }
