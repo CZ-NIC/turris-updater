@@ -28,6 +28,7 @@ LUA_TESTS := \
 	syscnf \
 	cleanup \
 	uri \
+	download \
 	picosat
 
 ifdef COV
