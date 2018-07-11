@@ -122,6 +122,76 @@ Note::
   There is some problem with printing from lua to stdout in callback on some
   platforms.
 
+Download manager (download)
+---------------------------
+
+Downloader allowing you to download files using libcurl/curl. It supports parallel
+downloads, repeats on failure and more. It is implemented in C and is exported to
+Lua as an module `download`.
+
+New instance of download object has to be created by calling following function:
+`new(parallel)` 
+
+* Parameter `parallel` should be number that specifies number of parallel
+  downloads to be run.
+
+Function `new(parallel)` returns object with following methods:
+
+download_data(url, opts)::
+  Add new download request. Downloaded data are stored to buffer in program. After
+  successful `run()` execution (`nil` is returned) you can access them by indexing
+  `downloader` object with `url`. Buffer is in such case threated as containing
+  text and everything up to size of received buffer or zero byte is returned.
+
+  * `url` is string URL to data to be downloaded. See curl for supported protocols
+	and formats.
+  * `opts` is table with connect options. These options are described in
+	subsequent section.
+
+download_file(url, file, opts)::
+  Add new download request. Downloaded data are written to file specified by
+  `file` parameter.
+
+  * `url` is string URL to data to be downloaded. See curl for supported protocols
+	and formats.
+  * `file` is string with path to output file. File it can exist (in such case is
+	overwritten) but it's not required. Directory containing given file has to
+	exist.
+  * `opts` is table with connect options. These options are described in
+	subsequent section.
+
+run()::
+  Downloads all registered requests. This method returns either when all downloads
+  are finished or when error is encountered with one of downloads. In case of
+  error return happens as soon as possible and return table describing failed
+  download. If program would like to continue with downloads then it should call
+  `run()` again as soon as possible. In such case failed instance/request is
+  ignored. In case of no error then `run()` return `nil`. Table returned in case
+  of error has following fields:
+
+  * `url` string URL passed to one of `download_*` methods
+  * `error` string containing error message
+
+Methods `download_data` and `download_file` has parameter `opts`. This is optional
+table with options to be used for connection configuration primarily for security
+options. Following field can be specified (values here should be used as a key)::
+
+  * `timeout`: Download timeout in seconds for single retry
+  * `connect_timeout`: Download timeout for single connection
+  * `retries`: Number of retries
+  * `follow_redirect`: Boolean value if redirects should be followed. Otherwise
+	such connection is reported as failed.
+  * `ssl_verify`: Boolean value if SSL certificate should be verified.
+  * `ocsp`: Boolean value if OCSP should be used for certificate validity
+	verification. This is used only if `ssl_verify` is set to `True`.
+  * `cacert_file`: Path to CA certificate in PEM format. Usable for certification
+	pinning.
+  * `capath`: Path to directory containing CA certificates in PEM format. You can
+	use `/dev/null` if `cacert_file` is used for certification pinning.
+  * `crl_file`: Path to CRL file that will be used for certificate validity
+	verification. Note that OCSP is preferred way and this is just for backward
+	compatibility.
+
 Asynchronous events
 -------------------
 
