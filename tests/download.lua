@@ -90,3 +90,12 @@ function test_invalid_certificate()
 		}, d:run())
 	-- Note: this error can change on curl version but that is not highly probable
 end
+
+function test_adding_url_multiple_times()
+	local d = download.new()
+	d:download_data(http_small)
+	d:download_data(http_small)
+	assert_nil(d:run())
+	assert_string("lorem ipsum\n", d[http_small])
+	d:download_data(http_small)
+end
