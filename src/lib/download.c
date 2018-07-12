@@ -27,6 +27,7 @@
 #include <lualib.h>
 #include <uthash.h>
 #include "inject.h"
+#include "util.h"
 
 // Initial size of storage buffer
 #define BUFFER_INIT_SIZE 2048
@@ -362,11 +363,9 @@ static int lua_download_new(lua_State *L) {
 	int paralel = 4;
 	if (!lua_isnoneornil(L, 1))
 		paralel = luaL_checkint(L, 1);
-
 	struct lua_download *data = lua_newuserdata(L, sizeof *data);
 	data->downloader = downloader_new(paralel);
 	data->instances = NULL;
-
 	luaL_getmetatable(L, DOWNLOADER_META);
 	lua_setmetatable(L, -2);
 	return 1;
@@ -405,6 +404,19 @@ static int lua_download_download(lua_State *L, bool is_file) {
 		FLD(capath, luaL_checkstring);
 		FLD(crl_file, luaL_checkstring);
 #undef FLD
+	}
+
+	// Check if this URL isn't already added
+	struct lua_instance *einst;
+	HASH_FIND_STR(data->instances, url, einst);
+	if (einst) {
+		if (einst->inst->out_t != DOWN_OUT_T_FILE && is_file) {
+			return luaL_error(L, aprintf("Downloads to both file and buffer from"
+					" same URL is unsupported in Lua API (url: %s)", url));
+		} else {
+			TRACE("Skipping already added download: %s", url);
+			return 0;
+		}
 	}
 
 	struct lua_instance *linst = malloc(sizeof *linst);
