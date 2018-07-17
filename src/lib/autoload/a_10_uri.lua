@@ -42,7 +42,6 @@ local run_command = run_command
 local run_util = run_util
 local utils = require "utils"
 local TRACE = TRACE
-local uri_internal_get = uri_internal_get
 local sha256 = sha256
 
 module "uri"
@@ -129,24 +128,6 @@ local function handler_file(uri, err_cback, done_cback)
 	done_cback(content)
 end
 
-local function handler_internal(uri, err_cback, done_cback)
-	local iname = uri:match('^internal:(.*)')
-	if not iname then
-		return err_cback(utils.exception("malformed URI", "Not a internal:// URI"))
-	end
-	local ok
-	ok, iname = pcall(percent_decode, iname)
-	if not ok then
-		return err_cback(utils.exception("malformed URI", "Bad URL encoding"))
-	end
-	local content
-	ok, content = pcall(uri_internal_get, iname)
-	if not ok then
-		return err_cback(utils.exception("unreachable", tostring(content)))
-	end
-	done_cback(content)
-end
-
 -- Actually, both for http and https
 local function handler_http(uri, err_cback, done_cback, ca, crl, ocsp, use_ssl)
 	return download(function (status, answer)
@@ -175,12 +156,6 @@ local handlers = {
 	},
 	file = {
 		handler = handler_file,
-		immediate = true,
-		def_verif = 'none',
-		sec_level = 'Local'
-	},
-	internal = {
-		handler = handler_internal,
 		immediate = true,
 		def_verif = 'none',
 		sec_level = 'Local'

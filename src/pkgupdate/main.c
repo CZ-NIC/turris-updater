@@ -219,7 +219,7 @@ int main(int argc, char *argv[]) {
 	state_dump("startup");
 	struct events *events = events_new();
 	// Prepare the interpreter and load it with the embedded lua scripts
-	struct interpreter *interpreter = interpreter_create(events, NULL);
+	struct interpreter *interpreter = interpreter_create(events);
 	const char *error = interpreter_autoload(interpreter);
 	ASSERT_MSG(!error, "%s", error);
 

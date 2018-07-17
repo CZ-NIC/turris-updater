@@ -37,7 +37,7 @@
 
 int main(int argc __attribute__((unused)), char *argv[] __attribute__((unused))) {
 	struct events *events = events_new();
-	struct interpreter *interpreter = interpreter_create(events, NULL);
+	struct interpreter *interpreter = interpreter_create(events);
 	interpreter_autoload(interpreter);
 	const char *err = interpreter_call(interpreter, "mkdtemp", NULL, "");
 	ASSERT_MSG(!err, "%s", err);
