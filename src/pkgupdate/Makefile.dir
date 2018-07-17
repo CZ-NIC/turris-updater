@@ -1,10 +1,6 @@
 BINARIES += src/pkgupdate/pkgupdate
 
-$(O)/.gen/src/pkgupdate/uriinternal.embedlist: $(wildcard $(S)/src/pkgupdate/internal/*)
-
-pkgupdate_MODULES := \
-	main \
-	uriinternal.embed
+pkgupdate_MODULES := main 
 
 pkgupdate_LOCAL_LIBS := updater
 pkgupdate_PKG_CONFIGS := $(LUA_NAME)

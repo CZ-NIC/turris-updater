@@ -30,9 +30,6 @@
 #include <errno.h>
 #include <time.h>
 
-// From the embed file, embedded files to binary
-extern struct file_index_element uriinternal[];
-
 static bool results_interpret(struct interpreter *interpreter, size_t result_count) {
 	bool result = true;
 	if (result_count >= 2) {
@@ -125,7 +122,7 @@ int main(int argc, char *argv[]) {
 	// Parse the arguments
 	struct cmd_op *ops = cmd_args_parse(argc, argv, cmd_op_allows);
 	struct cmd_op *op = ops;
-	const char *top_level_config = "internal:entry_lua";
+	const char *top_level_config = "file:///etc/updater/entry.lua";
 	const char *root_dir = NULL;
 	const char *target_model = NULL;
 	const char *target_board = NULL;
@@ -219,7 +216,7 @@ int main(int argc, char *argv[]) {
 	state_dump("startup");
 	struct events *events = events_new();
 	// Prepare the interpreter and load it with the embedded lua scripts
-	struct interpreter *interpreter = interpreter_create(events, uriinternal);
+	struct interpreter *interpreter = interpreter_create(events, NULL);
 	const char *error = interpreter_autoload(interpreter);
 	ASSERT_MSG(!error, "%s", error);
 
