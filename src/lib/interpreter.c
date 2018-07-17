@@ -869,23 +869,6 @@ static int lua_reexec(lua_State *L) {
 	return 0;
 }
 
-// Stores pointer to internal files used as uri.
-static const struct file_index_element *uriinternal;
-
-static int lua_uri_internal_get(lua_State *L) {
-	int param_count = lua_gettop(L);
-	if (param_count > 1)
-		return luaL_error(L, "Too many parameters to uri_internal_get: %d", param_count);
-	const char *name = luaL_checkstring(L, 1);
-	if (!uriinternal)
-		return luaL_error(L, "Internal uri is not supported.", name);
-	const struct file_index_element *file = index_element_find(uriinternal, name);
-	if (!file)
-		return luaL_error(L, "No internal with name: %s", name);
-	lua_pushlstring(L, (const char *)file->data, file->size);
-	return 1;
-}
-
 static int lua_system_reboot(lua_State *L) {
 	bool stick = lua_toboolean(L, 1);
 	system_reboot(stick);
@@ -942,7 +925,6 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_sha256, "sha256" },
 	{ lua_sha256_file, "sha256_file" },
 	{ lua_reexec, "reexec" },
-	{ lua_uri_internal_get, "uri_internal_get" },
 	{ lua_system_reboot, "system_reboot" },
 	{ lua_get_updater_version, "get_updater_version" }
 };
@@ -1009,8 +991,7 @@ static void interpreter_load_coverage(struct interpreter *interpreter) {
 }
 #endif
 
-struct interpreter *interpreter_create(struct events *events, const struct file_index_element *uriinter) {
-	uriinternal = uriinter;
+struct interpreter *interpreter_create(struct events *events) {
 	struct interpreter *result = malloc(sizeof *result);
 	lua_State *L = luaL_newstate();
 	*result = (struct interpreter) {
