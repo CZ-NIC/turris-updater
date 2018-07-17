@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
 	// Parse the arguments
 	struct cmd_op *ops = cmd_args_parse(argc, argv, cmd_op_allows);
 	struct cmd_op *op = ops;
-	const char *top_level_config = "file:///etc/updater/entry.lua";
+	const char *top_level_config = "file:///etc/updater/conf.lua";
 	const char *root_dir = NULL;
 	const char *target_model = NULL;
 	const char *target_board = NULL;
