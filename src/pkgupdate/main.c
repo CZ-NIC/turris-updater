@@ -30,9 +30,6 @@
 #include <errno.h>
 #include <time.h>
 
-// From the embed file, embedded files to binary
-extern struct file_index_element uriinternal[];
-
 static bool results_interpret(struct interpreter *interpreter, size_t result_count) {
 	bool result = true;
 	if (result_count >= 2) {
