@@ -62,3 +62,28 @@ function test_cleanup_unregister()
 	assert_false(cleanup_unregister(cleanup_local))
 	assert_false(cleaned);
 end
+
+-- Test if we correctly recognize closures
+function test_cleanup_local()
+	local cl_a = false
+	local cl_b = false
+	local function new_clean(is_a)
+		local function lclean()
+			if is_a then
+				cl_a = true
+			else
+				cl_b = true
+			end
+		end
+		cleanup_register(lclean)
+		return lclean
+	end
+
+	local f_a = new_clean(true)
+	local f_b = new_clean(false)
+	cleanup_run(f_a)
+	assert_true(cl_a)
+	assert_false(cl_b)
+	cleanup_run(f_b)
+	assert_true(cl_b)
+end
