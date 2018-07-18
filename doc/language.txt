@@ -261,11 +261,10 @@ ca::
 crl::
   Options to verify the script integrity.
 
-Note that for backward compatibility we also support following format:
+NOTE: For backward compatibility we also support following format: `script =
+Script("script-name", "uri", { extra })`. Although `script-name` is no longer used
+nor validated.
 
-  script = Script("script-name", "uri", { extra })
-
-Although we are no longer validating script name and is no longer used anywhere.
 
 Repository
 ~~~~~~~~~~
