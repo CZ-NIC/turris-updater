@@ -375,21 +375,16 @@ static const struct inject_func funcs[] = {
 	{ lua_download_new, "new" }
 };
 
-static int lua_download_download(lua_State *L, bool is_file) {
+static int lua_download_download(lua_State *L) {
 	struct lua_download *data = luaL_checkudata(L, 1, DOWNLOADER_META);
 	const char *url = luaL_checkstring(L, 2);
-	const char *file;
-	int opts_i = 3;
-	if (is_file) {
-		file = luaL_checkstring(L, 3);
-		opts_i = 4;
-	}
 	struct download_opts opts;
+	int file_i = 3;
 	download_opts_def(&opts);
-	if (!lua_isnoneornil(L, opts_i)) {
-		luaL_checktype(L, opts_i, LUA_TTABLE);
+	if (lua_type(L, 3) == LUA_TTABLE) {
+		file_i = 4;
 #define FLD(NAME, CONV) do { \
-		lua_getfield(L, opts_i, #NAME); \
+		lua_getfield(L, 3, #NAME); \
 		if (!lua_isnil(L, -1)) \
 			opts.NAME = CONV(L, -1); \
 		lua_pop(L, 1); \
@@ -405,12 +400,16 @@ static int lua_download_download(lua_State *L, bool is_file) {
 		FLD(crl_file, luaL_checkstring);
 #undef FLD
 	}
+	const char *file = NULL;
+	if (!lua_isnoneornil(L, file_i))
+		file = luaL_checkstring(L, file_i);
 
 	// Check if this URL isn't already added
 	struct lua_instance *einst;
 	HASH_FIND_STR(data->instances, url, einst);
 	if (einst) {
-		if (einst->inst->out_t != DOWN_OUT_T_FILE && is_file) {
+		if (einst->inst->out_t != DOWN_OUT_T_FILE && file) {
+			// TODO add support for this somehow (probably prefer file and read from in if buffer requested)
 			return luaL_error(L, aprintf("Downloads to both file and buffer from"
 					" same URL is unsupported in Lua API (url: %s)", url));
 		} else {
@@ -421,20 +420,12 @@ static int lua_download_download(lua_State *L, bool is_file) {
 
 	struct lua_instance *linst = malloc(sizeof *linst);
 	linst->url = strdup(url);
-	if (is_file)
+	if (file)
 		linst->inst = download_file(data->downloader, url, file, true, &opts);
 	else
 		linst->inst = download_data(data->downloader, url, &opts);
 	HASH_ADD_KEYPTR(hh, data->instances, linst->url, strlen(linst->url), linst);
 	return 0;
-}
-
-static int lua_download_download_data(lua_State *L) {
-	return lua_download_download(L, false);
-}
-
-static int lua_download_download_file(lua_State *L) {
-	return lua_download_download(L, true);
 }
 
 static int lua_download_run(lua_State *L) {
@@ -491,8 +482,7 @@ static int lua_download_gc(lua_State *L) {
 }
 
 static const struct inject_func downloader_meta[] = {
-	{ lua_download_download_data, "download_data" },
-	{ lua_download_download_file, "download_file" },
+	{ lua_download_download, "download" },
 	{ lua_download_run, "run" },
 	{ lua_download_index, "__index" },
 	{ lua_download_gc, "__gc" }
