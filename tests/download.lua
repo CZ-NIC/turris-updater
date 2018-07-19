@@ -32,8 +32,8 @@ local lorem_ipsum_file = (os.getenv("S") or ".") .. "/tests/data/lorem_ipsum.txt
 
 function test_download_data()
 	local d = download.new()
-	d:download_data(http_small)
-	d:download_data(http_big)
+	d:download(http_small)
+	d:download(http_big)
 	assert_nil(d:run())
 	assert_string("lorem ipsum\n", d[http_small])
 	assert_string(utils.read_file(lorem_ipsum_file), d[http_big])
@@ -44,8 +44,8 @@ function test_download_file()
 	local smallf = (os.getenv("TMPDIR") or "/tmp") .. "/download_small.txt"
 	local bigf = (os.getenv("TMPDIR") or "/tmp") .. "/download_big.txt"
 	local d = download.new()
-	d:download_file(http_small, smallf)
-	d:download_file(http_big, bigf)
+	d:download(http_small, smallf)
+	d:download(http_big, bigf)
 
 	assert_nil(d:run())
 
@@ -60,7 +60,7 @@ end
 function test_error()
 	local ref = http_url .. "/invalid"
 	local d = download.new()
-	d:download_data(ref)
+	d:download(ref)
 	assert_table_equal({
 		["url"] = ref,
 		["error"] = "The requested URL returned error: 404 Not Found"
@@ -70,7 +70,7 @@ end
 
 function test_certificate()
 	local d = download.new()
-	d:download_data(http_small, {
+	d:download(http_small, {
 		["capath"] = '/dev/null',
 		["cacert_file"] = (os.getenv("S") or ".") .. "/tests/data/lets_encrypt_roots.pem"
 	})
@@ -80,7 +80,7 @@ end
 
 function test_invalid_certificate()
 	local d = download.new()
-	d:download_data(http_small, {
+	d:download(http_small, {
 		["capath"] = '/dev/null',
 		["cacert_file"] = (os.getenv("S") or ".") .. "/tests/data/opentrust_ca_g1.pem"
 	})
@@ -93,9 +93,9 @@ end
 
 function test_adding_url_multiple_times()
 	local d = download.new()
-	d:download_data(http_small)
-	d:download_data(http_small)
+	d:download(http_small)
+	d:download(http_small)
 	assert_nil(d:run())
 	assert_string("lorem ipsum\n", d[http_small])
-	d:download_data(http_small)
+	d:download(http_small)
 end
