@@ -156,7 +156,8 @@ enum log_level log_level_get(const char *level) {
 
 static const char *type_string[] = {
 	[LST_PKG_SCRIPT] = "pkg-script",
-	[LST_HOOK] = "hook"
+	[LST_HOOK] = "hook",
+	[LST_USIGN] = "usign",
 };
 
 // log_subproc cookie
@@ -168,7 +169,7 @@ struct c_log_subproc {
 static ssize_t c_log_subproc_write(void *cookie, const char *buf, size_t size) {
 	struct c_log_subproc *cls = (struct c_log_subproc*)cookie;
 	size_t len = size;
-	if (would_log(LL_INFO))
+	if (would_log(cls->lsp->type == LST_USIGN ? LL_DBG : LL_INFO))
 		len = fwrite(buf, sizeof(char), size, cls->err ? stderr : stdout);
 	// This is memory buffer so there should be no problem to match system output
 	ASSERT(fwrite(buf, sizeof(char), len, cls->lsp->buffer.f) == len);
@@ -203,7 +204,10 @@ void log_subproc_open(struct log_subproc *lsp, enum log_subproc_type type, const
 	cls->lsp = lsp;
 	lsp->err = fopencookie(cls, "w", fncs);
 	// Print info
-	INFO("%s", message);
+	if (type == LST_USIGN)
+		DBG("%s", message);
+	else
+		INFO("%s", message);
 }
 
 void log_subproc_close(struct log_subproc *lsp, char **output) {
