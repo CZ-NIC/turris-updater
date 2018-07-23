@@ -101,9 +101,9 @@ live in the local filesystem or be on an external server.
 
 These are the types of URIs supported:
 
-* `file://`
 * `http://`
 * `https://`
+* `file://`
 * `data:`
 
 The remote ones (`http` and `https`) may need verification of the
@@ -114,71 +114,63 @@ The `data:` is slightly limited compared to what the standard (RFC
 2397) allows. The media type and charset are irrelevant to the
 updater and are therefore not supported.
 
-Scripts with access level of `remote` or lower are not allowed to use
-the `file://` and `internal:` schemes.
-
 NOTE: In previous versions there was an `internal:` URI but that one is no longer
 available and can't be used.
 
 Verification
-------------
+~~~~~~~~~~~~
 
-It is desirable to verify that the scripts and repository indices
-weren't tampered with. It isn't needed to verify the packages (unless
-they are stand-alone without repository), because the repository index
-contains hashes of the packages.
+To make remote access secure we need to verify downloaded content. This
+is relevant to `http://` and `https://` URIs.
 
-There are two things we may verify. The server certificate (with the
-`https` schema) and the file signature.
+Options relevant to `https://` URI::
 
-Each command that takes an URI as a parameter can have following extra
-options:
-
-verification::
-  This specifies how the resource is verified. Possible values are
-  (case insensitive):
-  none;;
-    Doesn't do any verification. This is the default for `file://`,
-    `data://` and `internal://` URIs.
-  cert;;
-    Verify the server's SSL certificate.
-  sig;;
-    Verify file signature. This is the default for `http://` URIs.
-  both;;
-    Do both `cert` and `sig` verification. This is the default for
-    `https://` URIs.
-sig::
-  URI where the signature of the resource lives. This one is not
-  verified. If it isn't specified, it is constructed by adding `.sig`
-  to the end of the verified URI. The option has effect only with
-  `sig` and `both` verification.
-pubkey::
-  An URI or table of URIs with trusted public signature keys. These
-  are not verified (therefore it is recommended to come from a already
-  verified source ‒ like `data:` URI or `file://` URI). If it is not
-  specified (`nil`), it is inherited from the verification of the script
-  running the command. While it has no direct effect if the option is
-  specified on another verification than `sig` or `both`, it
-  influences the inheritance. Default value is `{}`.
-ca::
-  An URI or table of URIs with trusted SSL certificate authorities, in
-  PEM format. Similar notes as with `pubkey` apply. But instead of table
-  or URI you can also specify special value `system_cas`, which results
-  into system authorities to be used. `system_cas` is also default value.
-crl::
-  An URI or table of URIs with CRLs relevant to the server. If set into
-  `no_crl`, CRL is not checked. Note that the `crl` field is also
-  inherited, therefore you may want to set it manually to `no_crl`.
-  Default value is `no_crl`.
-ocsp::
+ca;;
+  An URI or table of URIs with trusted SSL certificate authorities, in PEM format.
+  These URIs are not verified. `true` can be specified and in such case all system
+  certificates are considered (generally all files in `/etc/ssl/certs`).
+  If `false` or empty table is specified then CA verification is skipped. If not
+  specified (or set to `nil`) it is inherited from the verification of script
+  running the command. In default it is set to `true` so it verifies server
+  against all installed CA certificates.
+crl;;
+  An URI or table of URIs with CRLs relevant to the server. Can be set to `false`
+  or empty table and in such case CRL is not checked. If set to `nil` then its
+  value is inherited from the verification of script running the command. In
+  default it is set to `{}`.
+ocsp;;
   `true` of `false` if you want or don't want to use OCSP (Online Certificate
-  Status Protocol). Default value is `true`. Inheritance is same as with
-  `pubkey`.
+  Status Protocol). If set to `nil` then value is inherited from verification of
+  the script. Default value is `true`.
 
-The file signature is verified using the `usign` utility.
+Options relevant to `http://` and `https://` URIs::
 
-Note that while a `remote` or `restricted` script may not specify
-local (`file://` and `internal:`) URIs, it may inherit them.
+pubkey;;
+  An URI or table of URIs with trusted public signature keys. These are not
+  verified (therefore it is recommended to come from a already verified source ‒
+  like `data:` or `file://` URI). If it is not specified (`nil`), it is inherited
+  from the verification of the script running the command. If empty table is
+  specified then no signature checking is done. Default value is `{}`.
+sig;;
+  URI where the signature of the resource lives. This one is not verified. If it
+  is set to `nil`, it is constructed by adding `.sig` to the end of the verified
+  URI. The option has effect only if `pubkey` is set so signature checking is
+  done. In default it's set to `nil`.
+
+URIs specified in these verification options are not verified (default values, not
+inherited ones, are used). Because of that it is suggested to used only
+trusted/secure URIs for that purpose. Suggested are `file://` and `data://`.
+
+NOTE::
+  Another option `verification` exist. It was originally used for verification
+  level specification but that is now replaced with `pubkey` and `ca` option
+  specific values. For backward compatibility it is silently ignored.
+
+NOTE::
+  For `ca` option there is also constant `system_cas` and for `crl` option there
+  is constant `no_crl`. These are obsoleted but are still defined. `system_cas` is
+  defined as `true` and `no_crl` is defined as `false`.
+  `system_cas` 
 
 Dependency description
 ----------------------
@@ -250,11 +242,11 @@ ignore::
     If the script can't be found.
   integrity;;
     Some signatures don't match.
-verification::
 sig::
 pubkey::
 ca::
 crl::
+ocsp::
   Options to verify the script integrity.
 
 Note that following format is now marked as obsolete and should not be used:
@@ -318,11 +310,11 @@ priority::
   of equality, the one introduced first wins. The default when the
   option is not specified is 50. The number must be an integer between
   0 and 100.
-verification::
 sig::
 pubkey::
 ca::
 crl::
+ocsp::
   Options to verify the index integrity.
 
 Uninstall
