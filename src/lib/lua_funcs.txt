@@ -99,17 +99,18 @@ Function `subprocess` is defined as follows:
   predefined constants are as follows:
   - `LST_PKG_SCRIPT` Any script provided by package (pre/post inst/rm)
   - `LST_HOOK` Hook script executed on some updater state
+  - `LST_USIGN` usign binary used for signature validation
 
 * `message` is string describing what this subprocess is to user. It's human
   readable description of executed command.
 
-* `timeout` is time in seconds after which subprocess will be automatically
+* `timeout` is time in milliseconds after which subprocess will be automatically
   killed.
 
 * `callback` is optional function that would be called in subprocess just before
   It executes given command. If you don't want to specify it then you can pass nil
   Or you can just drop it out (in that case command is expeted on this argument
-  Place). This functions should has no arguments and shouldn't return anything.
+  Place). This functions should have no arguments and shouldn't return anything.
 
 * `command` is any arbitrary number of string arguments that are passed as command
   and its additional arguments.
