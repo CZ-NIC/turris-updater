@@ -335,7 +335,7 @@ void download_i_free(struct download_i *inst) {
 	switch (inst->out_t) {
 		case DOWN_OUT_T_FILE:
 			close(inst->out.file->fd);
-			if (!inst->done || (inst->done && !inst->success)) // remove unfinished file
+			if (!inst->done || !inst->success) // remove unfinished file
 				unlink(inst->out.file->fpath);
 			free(inst->out.file->fpath);
 			free(inst->out.file);
