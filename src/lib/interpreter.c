@@ -680,14 +680,20 @@ static void push_hex(lua_State *L, const uint8_t *buffer, size_t size) {
 }
 
 static int lua_md5(lua_State *L) {
+	WARN("md5");
 	size_t len;
 	const char *buffer = luaL_checklstring(L, 1, &len);
 	uint8_t result[MD5_DIGEST_LENGTH];
 	MD5_CTX md5;
+	WARN("init");
 	MD5_Init(&md5);
+	WARN("update");
 	MD5_Update(&md5, buffer, len);
+	WARN("final");
 	MD5_Final(result, &md5);
+	WARN("push %d", sizeof result);
 	push_hex(L, result, sizeof result);
+	WARN("ret");
 	return 1;
 }
 
