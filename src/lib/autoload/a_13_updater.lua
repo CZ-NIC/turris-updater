@@ -92,9 +92,11 @@ function prepare(entrypoint)
 	for _, task in ipairs(tasks) do
 		if task.action == "require" then
 			if task.package.data then -- package had content extra field and we already have data downloaded
+				WARN("wtf downloaded")
 				INFO("Queue install of " .. task.name .. "//" .. task.package.Version)
 				transaction.queue_install_downloaded(task.package.data, task.name, task.package.Version, task.modifier)
 			else
+				WARN("Getting " + task.name)
 				local ok, data = task.real_uri:get()
 				if ok then
 					INFO("Queue install of " .. task.name .. "/" .. task.package.repo.name .. "/" .. task.package.Version)
@@ -110,6 +112,7 @@ function prepare(entrypoint)
 							error(utils.exception("corruption", "The sha256 sum of " .. task.name .. " does not match"))
 						end
 					end
+					WARN("Queue " + task.name)
 					transaction.queue_install_downloaded(data, task.name, task.package.Version, task.modifier)
 				else
 					error(data)
