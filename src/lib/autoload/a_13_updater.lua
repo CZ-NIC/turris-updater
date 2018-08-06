@@ -92,6 +92,7 @@ function prepare(entrypoint)
 	for _, task in ipairs(tasks) do
 		if task.action == "require" then
 			if task.package.data then -- package had content extra field and we already have data downloaded
+				WARN("wtf downloaded")
 				INFO("Queue install of " .. task.name .. "//" .. task.package.Version)
 				transaction.queue_install_downloaded(task.package.data, task.name, task.package.Version, task.modifier)
 			else
