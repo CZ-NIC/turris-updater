@@ -99,12 +99,14 @@ function prepare(entrypoint)
 				if ok then
 					INFO("Queue install of " .. task.name .. "/" .. task.package.repo.name .. "/" .. task.package.Version)
 					if task.package.MD5Sum then
+						WARN("md5")
 						local sum = md5(data)
 						if sum ~= task.package.MD5Sum then
 							error(utils.exception("corruption", "The md5 sum of " .. task.name .. " does not match"))
 						end
 					end
 					if task.package.SHA256Sum then
+						WARN("sha256")
 						local sum = sha256(data)
 						if sum ~= task.package.SHA256Sum then
 							error(utils.exception("corruption", "The sha256 sum of " .. task.name .. " does not match"))
