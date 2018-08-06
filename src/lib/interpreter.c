@@ -673,10 +673,12 @@ static int lua_setenv(lua_State *L) {
 }
 
 static void push_hex(lua_State *L, const uint8_t *buffer, size_t size) {
-	char result[2 * size];
+	char result[2 * size + 1];
 	for (size_t i = 0; i < size; i ++)
-		sprintf(result + 2 * i, "%02hhx", buffer[i]);
+		snprintf(result + 2 * i, 3, "%02hhx", buffer[i]);
 	lua_pushlstring(L, result, 2 * size);
+	WARN("top1 %p %d", L, lua_gettop(L));
+	WARN("point1 %p", L);
 }
 
 static int lua_md5(lua_State *L) {
@@ -687,7 +689,10 @@ static int lua_md5(lua_State *L) {
 	MD5_Init(&md5);
 	MD5_Update(&md5, buffer, len);
 	MD5_Final(result, &md5);
+	WARN("point %p", L);
 	push_hex(L, result, sizeof result);
+	WARN("point %p", L);
+	WARN("top %d", lua_gettop(L));
 	return 1;
 }
 
