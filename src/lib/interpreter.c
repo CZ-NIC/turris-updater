@@ -673,9 +673,9 @@ static int lua_setenv(lua_State *L) {
 }
 
 static void push_hex(lua_State *L, const uint8_t *buffer, size_t size) {
-	char result[2 * size];
+	char result[2 * size + 1];
 	for (size_t i = 0; i < size; i ++)
-		sprintf(result + 2 * i, "%02hhx", buffer[i]);
+		snprintf(result + 2 * i, 3, "%02hhx", buffer[i]);
 	lua_pushlstring(L, result, 2 * size);
 }
 
