@@ -676,7 +676,10 @@ static void push_hex(lua_State *L, const uint8_t *buffer, size_t size) {
 	char result[2 * size];
 	for (size_t i = 0; i < size; i ++)
 		sprintf(result + 2 * i, "%02hhx", buffer[i]);
+	//result[2 * size] = '\0';
+	WARN("size %d", 2*size);
 	lua_pushlstring(L, result, 2 * size);
+	WARN("top1 %d", lua_gettop(L));
 }
 
 static int lua_md5(lua_State *L) {
@@ -688,6 +691,7 @@ static int lua_md5(lua_State *L) {
 	MD5_Update(&md5, buffer, len);
 	MD5_Final(result, &md5);
 	push_hex(L, result, sizeof result);
+	WARN("top %d", lua_gettop(L));
 	return 1;
 }
 
