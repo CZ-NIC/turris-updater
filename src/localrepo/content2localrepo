@@ -11,8 +11,8 @@ if [ -f "/etc/updater/conf.d/opkg-auto.lua" ]; then
 elif [ -f "/etc/updater/auto.lua" ]; then
 	UPDATER_CONFIG="/etc/updater/auto.lua"
 else
-	# No automatic configuration file. This is fine if this is clean new install
-	exit
+	# No automatic configuration file. This is ok if this is clean new install
+	exit 0
 fi
 
 # Add all content packages to localrepo
