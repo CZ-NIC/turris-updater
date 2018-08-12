@@ -1,2 +1,0 @@
-SRC_SUBDIRS := lib pkgtransaction pkgupdate
-include $(patsubst %,$(S)/src/%/Makefile.dir,$(SRC_SUBDIRS))
