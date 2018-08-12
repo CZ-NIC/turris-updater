@@ -1,8 +1,0 @@
-BINARIES += src/pkgupdate/pkgupdate
-
-pkgupdate_MODULES := main 
-
-pkgupdate_LOCAL_LIBS := updater
-pkgupdate_PKG_CONFIGS := $(LUA_NAME)
-
-DOCS += src/pkgupdate/interaction

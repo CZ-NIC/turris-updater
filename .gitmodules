@@ -1,6 +1,3 @@
-[submodule "build"]
-	path = build
-	url = https://gitlab.labs.nic.cz/turris/buildsystem.git
 [submodule "tests/lunit-launch/lunit"]
 	path = tests/lunit-launch/lunit
 	url = http://repo.or.cz/lunit.git
