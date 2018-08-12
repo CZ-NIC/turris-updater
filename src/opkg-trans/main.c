@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
 	struct cmd_op *ops = cmd_args_parse(argc, argv, cmd_op_allows);
 	struct cmd_op *op = ops;
 	// Prepare the interpreter and load it with the embedded lua scripts
-	struct interpreter *interpreter = interpreter_create(events, NULL);
+	struct interpreter *interpreter = interpreter_create(events);
 	const char *error = interpreter_autoload(interpreter);
 	if (error) {
 		fputs(error, stderr);

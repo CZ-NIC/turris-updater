@@ -50,16 +50,10 @@ clean-coverage:
 # Ignore stacktraceplus and dumper, not our creation.
 LUA_AUTOLOAD := $(filter-out 01_stacktraceplus 07_dumper,$(patsubst a_%.lua,%,$(notdir $(wildcard $(S)/src/lib/autoload/a_*.lua))))
 
-TEST_URIINTERNAL := $(abspath $(wildcard $(S)/tests/internal/*))
-$(O)/.gen/tests/uriinternal.embedlist: $(S)/src/lib/gen_embed.sh $(S)/src/lib/embed_types.h $(TEST_URIINTERNAL)
-	$(M) GEN $@
-	$(Q) mkdir -p $(dir $@)
-	$(Q)$< "" uriinternal $(S)/src/lib/embed_types.h $(TEST_URIINTERNAL) >$@
-
 define DO_C_TEST
 
 BINARIES_NOTARGET += tests/ctest-$(1)
-ctest-$(1)_MODULES += $(1) uriinternal.embed ctest
+ctest-$(1)_MODULES += $(1) ctest
 ctest-$(1)_SYSTEM_LIBS += m rt
 ctest-$(1)_PKG_CONFIGS += check
 ctest-$(1)_LOCAL_LIBS += updater

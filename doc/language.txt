@@ -105,7 +105,6 @@ These are the types of URIs supported:
 * `http://`
 * `https://`
 * `data:`
-* `internal:`
 
 The remote ones (`http` and `https`) may need verification of the
 integrity of its content. The other are considered secure and don't
@@ -115,13 +114,11 @@ The `data:` is slightly limited compared to what the standard (RFC
 2397) allows. The media type and charset are irrelevant to the
 updater and are therefore not supported.
 
-The `internal:` URI is a non-standard scheme. The updater may contain
-compiled-in resources (embedded files). Each such resource has a
-unique name. The `internal:` scheme accesses these embedded files. The
-colon is directly followed by the name.
-
 Scripts with access level of `remote` or lower are not allowed to use
 the `file://` and `internal:` schemes.
+
+NOTE: In previous versions there was an `internal:` URI but that one is no longer
+available and can't be used.
 
 Verification
 ------------
