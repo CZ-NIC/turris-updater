@@ -343,10 +343,14 @@ void journal_mod_init(lua_State *L) {
 }
 
 bool journal_exists(const char *root_dir) {
+	WARN("check it");
 	if (fd != -1)
 		return true; // journal already open so it exists
+	WARN("ok?");
 	char *path = alloca(strlen(root_dir) + strlen(DEFAULT_JOURNAL_PATH) + 1);
 	strcpy(path, root_dir);
+	WARN("some string operations1");
 	strcat(path, DEFAULT_JOURNAL_PATH);
+	WARN("some string operations2");
 	return access(path, F_OK) == 0;
 }
