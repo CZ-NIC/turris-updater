@@ -243,6 +243,7 @@ int main(int argc, char *argv[]) {
 		err = interpreter_call(interpreter, "updater.disable_replan", NULL, "");
 		ASSERT_MSG(!err, "%s", err);
 	}
+	WARN("postcheck");
 	// Check if we should recover previous execution first if so do
 	if (journal_exists(root_dir)) {
 		INFO("Detected existing journal. Trying to recover it.");
@@ -251,6 +252,7 @@ int main(int argc, char *argv[]) {
 		if (!results_interpret(interpreter, result_count))
 			goto CLEANUP;
 	}
+	WARN("skip journal?");
 	// Decide what packages need to be downloaded and handled
 	err = interpreter_call(interpreter, "updater.prepare", NULL, "s", top_level_config);
 	if (err) {
