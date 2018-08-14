@@ -348,6 +348,7 @@ bool journal_exists(const char *root_dir) {
 		return true; // journal already open so it exists
 	WARN("ok?");
 	char *path = alloca(strlen(root_dir) + strlen(DEFAULT_JOURNAL_PATH) + 1);
+	WARN("ok");
 	strcpy(path, root_dir);
 	WARN("some string operations1");
 	strcat(path, DEFAULT_JOURNAL_PATH);
