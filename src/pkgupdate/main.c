@@ -230,8 +230,11 @@ int main(int argc, char *argv[]) {
 	// Set some configuration
 	const char *err = interpreter_call(interpreter, "syscnf.set_root_dir", NULL, "s", root_dir);
 	ASSERT_MSG(!err, "%s", err);
+	WARN("precall");
 	err = interpreter_call(interpreter, "syscnf.set_target", NULL, "ss", target_model, target_board);
+	WARN("postcall");
 	ASSERT_MSG(!err, "%s", err);
+	WARN("postassert");
 	if (usign_exec) {
 		err = interpreter_call(interpreter, "uri.usign_exec_set", NULL, "s", usign_exec);
 		ASSERT_MSG(!err, "%s", err);
