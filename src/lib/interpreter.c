@@ -1154,13 +1154,16 @@ const char *interpreter_call(struct interpreter *interpreter, const char *functi
 		}
 	}
 	va_end(args);
+	WARN("calling %s", function);
 	int result = lua_pcall(L, nparams, LUA_MULTRET, handler);
+	WARN("returned from call");
 	lua_remove(L, handler);
 	if (result) {
 		return interpreter_error_result(L);
 	}
 	if (result_count)
 		*result_count = lua_gettop(L);
+	WARN("return from interpreter call");
 	return NULL;
 }
 
