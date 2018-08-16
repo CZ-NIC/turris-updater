@@ -39,7 +39,7 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 }
 
 static const enum cmd_op_type cmd_op_allows[] = {
-	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_REEXEC, COT_USIGN, COT_MODEL, COT_BOARD, COT_LAST };
+	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_REEXEC, COT_USIGN, COT_LAST };
 
 static void print_help() {
 	fputs("Usage: opkg-trans [OPTION]...\n", stderr);
@@ -74,8 +74,6 @@ int main(int argc, char *argv[]) {
 	bool early_exit = false;
 	const char *usign_exec = NULL;
 	const char *root_dir = NULL;
-	const char *target_model = NULL;
-	const char *target_board = NULL;
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
 			case COT_HELP:
@@ -115,14 +113,6 @@ int main(int argc, char *argv[]) {
 				ASSERT_MSG(!err, "%s", err);
 				break;
 			}
-			case COT_MODEL: {
-				target_model = op->parameter;
-				break;
-			}
-			case COT_BOARD: {
-				target_board = op->parameter;
-				break;
-			}
 			case COT_SYSLOG_LEVEL: {
 				enum log_level level = log_level_get(op->parameter);
 				ASSERT_MSG(level != LL_UNKNOWN, "Unknown log level %s", op->parameter);
@@ -151,8 +141,6 @@ int main(int argc, char *argv[]) {
 
 	// Some configurations
 	const char *err = interpreter_call(interpreter, "syscnf.set_root_dir", NULL, "s", root_dir);
-	ASSERT_MSG(!err, "%s", err);
-	err = interpreter_call(interpreter, "syscnf.set_target", NULL, "ss", target_model, target_board);
 	ASSERT_MSG(!err, "%s", err);
 
 	size_t result_count;
