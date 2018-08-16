@@ -32,18 +32,19 @@ my $source = $ARGV[2];
 # TODO probably implement some search here instead
 my %module2path = (
 	coverage => "coverage.lua",
-	testing => "autoload/a_02_testing.lua",
-	logging => "autoload/a_03_logging.lua",
-	utils => "autoload/a_04_utils.lua",
-	backend => "autoload/a_06_backend.lua",
-	transaction => "autoload/a_07_transaction.lua",
-	uri => "autoload/a_08_uri.lua",
-	requests => "autoload/a_09_requests.lua",
-	sandbox => "autoload/a_10_sandbox.lua",
-	postprocess => "autoload/a_11_postprocess.lua",
-	planner => "autoload/a_12_planner.lua",
-	updater => "autoload/a_13_updater.lua",
-	migrator => "autoload/a_14_migrator.lua"
+	utils => "autoload/a_02_utils.lua",
+	testing => "autoload/a_03_testing.lua",
+	logging => "autoload/a_04_logging.lua",
+	cleanup => "autoload/a_05_cleanup.lua",
+	syscnf => "autoload/a_06_syscnf.lua",
+	backend => "autoload/a_08_backend.lua",
+	transaction => "autoload/a_09_transaction.lua",
+	uri => "autoload/a_10_uri.lua",
+	requests => "autoload/a_11_requests.lua",
+	sandbox => "autoload/a_12_sandbox.lua",
+	postprocess => "autoload/a_13_postprocess.lua",
+	planner => "autoload/a_14_planner.lua",
+	updater => "autoload/a_15_updater.lua",
 );
 foreach my $module (keys %module2path) {
 	$module2path{$module} = abs_path($source . '/src/lib/' . $module2path{$module});
