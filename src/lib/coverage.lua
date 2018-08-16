@@ -17,11 +17,10 @@ You should have received a copy of the GNU General Public License
 along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
-local getmetatable = getmetatable
-local setmetatable = setmetatable
 local tostring = tostring
 local pairs = pairs
 local pcall = pcall
+local print = print
 local io = io
 local os = os
 local mkdir = mkdir
@@ -60,9 +59,13 @@ function dump(dir)
 			fname = fname:gsub('/', '-')
 		end
 		fname = dir .. '/' .. fname
-		file = io.open(fname, 'a')
-		for line, hits in pairs(lines) do
-			file:write(tostring(line) .. ":" .. tostring(hits) .. "\n")
+		local file, err = io.open(fname, 'a')
+		if err then
+			print("Coverage dump for mod " .. tostring(mod) .. " failed: " .. tostring(err))
+		else
+			for ln, hits in pairs(lines) do
+				file:write(tostring(ln) .. ":" .. tostring(hits) .. "\n")
+			end
 		end
 	end
 end
