@@ -785,7 +785,7 @@ end
 Move anything on given path to dir_opkg_collided. This backups and removes original files.
 When keep is set to true, file is copied instead of moved.
 ]]
-local function user_path_move(path, keep)
+function user_path_move(path, keep)
 	-- At first create same parent directory relative to dir_opkg_collided
 	local fpath = ""
 	for dir in (syscnf.dir_opkg_collided .. path):gsub("[^/]*/?$", ""):gmatch("[^/]+") do
