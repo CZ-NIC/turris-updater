@@ -17,6 +17,9 @@ You should have received a copy of the GNU General Public License
 along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
+local utils = require "utils"
+local stacktraceplus = require "stacktraceplus"
+
 -- Generate appropriate logging functions
 for _, name in ipairs({ 'ERROR', 'WARN', 'INFO', 'DBG', 'TRACE' }) do
 	_G[name] = function(...)

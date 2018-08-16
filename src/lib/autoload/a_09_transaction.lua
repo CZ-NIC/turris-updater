@@ -36,6 +36,7 @@ local io = io
 local table = table
 local backend = require "backend"
 local utils = require "utils"
+local syscnf = require "syscnf"
 local journal = require "journal"
 local DBG = DBG
 local WARN = WARN
@@ -99,7 +100,7 @@ local function pkg_unpack(operations, status)
 				WARN("Package " .. op.name .. " is not installed. Can't remove")
 			end
 		elseif op.op == "install" then
-			local pkg_dir = backend.pkg_unpack(op.data, backend.pkg_temp_dir)
+			local pkg_dir = backend.pkg_unpack(op.data, syscnf.pkg_temp_dir)
 			table.insert(dir_cleanups, pkg_dir)
 			local files, dirs, configs, control = backend.pkg_examine(pkg_dir)
 			to_remove[control.Package] = true
@@ -123,6 +124,7 @@ local function pkg_unpack(operations, status)
 			else
 				old_configs = configs or {}
 			end
+			local changed_files = utils.multi_index(status, control.Package, "changed_files")
 			table.insert(plan, {
 				op = "install",
 				dir = pkg_dir,
@@ -130,6 +132,7 @@ local function pkg_unpack(operations, status)
 				dirs = dirs,
 				configs = configs,
 				old_configs = old_configs,
+				changed_files = changed_files,
 				control = control,
 				reboot_immediate = op.reboot == "immediate"
 			})
@@ -207,6 +210,9 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 			end
 			if early_remove[op.control.Package] then
 				backend.pkg_cleanup_files(early_remove[op.control.Package], all_configs)
+			end
+			for _, path in pairs(utils.multi_index(status, op.control.Package, 'ChangedFiles') or {}) do
+				backend.user_path_move(path, true)
 			end
 			local did_merge = backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.old_configs)
 			status[op.control.Package] = op.control
@@ -328,7 +334,7 @@ local function perform_internal(operations, journal_status, run_state)
 	local ok, err = pcall(function ()
 		-- Make sure the temporary directory for unpacked packages exist
 		local created = ""
-		for segment in (backend.pkg_temp_dir .. "/"):gmatch("([^/]*)/") do
+		for segment in (syscnf.pkg_temp_dir .. "/"):gmatch("([^/]*)/") do
 			created = created .. segment .. "/"
 			backend.dir_ensure(created)
 		end

@@ -21,8 +21,6 @@
 #include "util.h"
 #include "events.h"
 #include "journal.h"
-#include "md5.h"
-#include "sha256.h"
 #include "locks.h"
 #include "arguments.h"
 #include "picosat.h"
@@ -42,6 +40,8 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <stdio.h>
+#include <openssl/sha.h>
+#include <openssl/md5.h>
 
 // The name used in lua registry to store stuff
 #define REGISTRY_NAME "libupdater"
@@ -417,6 +417,40 @@ static int lua_events_wait(lua_State *L) {
 	return 0;
 }
 
+// Name of lua_cleanup_data meta table
+#define CLEANUP_DATA_META "CLEANUP_DATA_META"
+
+struct lua_cleanup_data {
+	lua_State *L;
+	int index; // Index in lua table of functions
+};
+
+static void lua_cleanup_func(void *vdata) {
+	struct lua_cleanup_data *data = (struct lua_cleanup_data*)vdata;
+	lua_State *L = data->L;
+	int handler = push_err_handler(L);
+	lua_getglobal(data->L, "cleanup_run_handle");
+	lua_pushinteger(data->L, data->index);
+	int result = lua_pcall(L, 1, 0, handler);
+	ASSERT_MSG(!result, "%s", interpreter_error_result(L));
+}
+
+static int lua_cleanup_register_handle(lua_State *L) {
+	struct lua_cleanup_data *data = lua_newuserdata(L, sizeof *data);
+	luaL_newmetatable(L, CLEANUP_DATA_META);
+	lua_setmetatable(L, -2);
+	data->L = L;
+	data->index = luaL_checkinteger(L, 1);
+	cleanup_register(lua_cleanup_func, data);
+	return 1;
+}
+
+static int lua_cleanup_unregister_handle(lua_State *L) {
+	struct lua_cleanup_data *data = (struct lua_cleanup_data*)luaL_checkudata(L, 1, CLEANUP_DATA_META);
+	ASSERT(cleanup_unregister_data(lua_cleanup_func, data)); // Lua should never request nonexistent handle from us
+	return 0;
+}
+
 static int lua_mkdtemp(lua_State *L) {
 	int param_count = lua_gettop(L);
 	if (param_count > 1)
@@ -507,6 +541,29 @@ static int lua_move(lua_State *L) {
 	events_wait(events, 1, &id);
 	if (mv_result_data.status) {
 		lua_pushfstring(L, "Failed to move '%s' to '%s': %s (ecode %d)", old, new, mv_result_data.err, mv_result_data.status);
+		free(mv_result_data.err);
+		return lua_error(L);
+	}
+	return 0;
+}
+
+static int lua_copy(lua_State *L) {
+	const char *old = luaL_checkstring(L, 1);
+	const char *new = luaL_checkstring(L, 2);
+	/*
+	 * NOTE:
+	 * This is blatant copy of `lua_move`, therefore same structures are used
+	 * named `mv_*` instead of `cp_*` that would make more sense.
+	 * Both functions will be replaced once we start using Lua Posix library
+	 * so it's just a temporary solution.
+	 */
+	struct events *events = extract_registry(L, "events");
+	ASSERT(events);
+	struct mv_result_data mv_result_data = { .err = NULL };
+	struct wait_id id = run_util(events, mv_result, NULL, &mv_result_data, 0, NULL, -1, -1, "cp", "-f", old, new, (const char *)NULL);
+	events_wait(events, 1, &id);
+	if (mv_result_data.status) {
+		lua_pushfstring(L, "Failed to copy '%s' to '%s': %s (ecode %d)", old, new, mv_result_data.err, mv_result_data.status);
 		free(mv_result_data.err);
 		return lua_error(L);
 	}
@@ -673,17 +730,20 @@ static int lua_setenv(lua_State *L) {
 }
 
 static void push_hex(lua_State *L, const uint8_t *buffer, size_t size) {
-	char result[2 * size];
+	char result[2 * size + 1];
 	for (size_t i = 0; i < size; i ++)
-		sprintf(result + 2 * i, "%02hhx", buffer[i]);
+		snprintf(result + 2 * i, 3, "%02hhx", buffer[i]);
 	lua_pushlstring(L, result, 2 * size);
 }
 
 static int lua_md5(lua_State *L) {
 	size_t len;
 	const char *buffer = luaL_checklstring(L, 1, &len);
-	uint8_t result[MD5_DIGEST_SIZE];
-	md5_buffer(buffer, len, result);
+	uint8_t result[MD5_DIGEST_LENGTH];
+	MD5_CTX md5;
+	MD5_Init(&md5);
+	MD5_Update(&md5, buffer, len);
+	MD5_Final(result, &md5);
 	push_hex(L, result, sizeof result);
 	return 1;
 }
@@ -691,26 +751,28 @@ static int lua_md5(lua_State *L) {
 static int lua_md5_file(lua_State *L) {
 	size_t len;
 	const char *filename = luaL_checklstring(L, 1, &len);
+	MD5_CTX md5;
+	MD5_Init(&md5);
+	char buffer[32768];
+	int read = 0;
 	FILE *f = fopen(filename, "rb");
-	fseek (f, 0, SEEK_END);
-	long fsize = ftell(f);
-	fseek(f, 0, SEEK_SET);
-	char *buffer = malloc(fsize + 1);
-	fread(buffer, fsize, 1, f);
+	while((read = fread(buffer, 1, sizeof(buffer), f)))
+		MD5_Update(&md5, buffer, read);
 	fclose(f);
-	buffer[fsize] = 0;
-	uint8_t result[MD5_DIGEST_SIZE];
-	md5_buffer(buffer, fsize, result);
+	uint8_t result[MD5_DIGEST_LENGTH];
+	MD5_Final(result, &md5);
 	push_hex(L, result, sizeof result);
-	free(buffer);
 	return 1;	
 }
 
 static int lua_sha256(lua_State *L) {
 	size_t len;
 	const char *buffer = luaL_checklstring(L, 1, &len);
-	uint8_t result[SHA256_DIGEST_SIZE];
-	sha256_buffer(buffer, len, result);
+	uint8_t result[SHA256_DIGEST_LENGTH];
+	SHA256_CTX sha256;
+	SHA256_Init(&sha256);
+	SHA256_Update(&sha256, buffer, len);
+	SHA256_Final(result, &sha256);
 	push_hex(L, result, sizeof result);
 	return 1;
 }
@@ -718,18 +780,17 @@ static int lua_sha256(lua_State *L) {
 static int lua_sha256_file(lua_State *L) {
 	size_t len;
 	const char *filename = luaL_checklstring(L, 1, &len);
+	SHA256_CTX sha256;
+	SHA256_Init(&sha256);
+	char buffer[32768];
+	int read = 0;
 	FILE *f = fopen(filename, "rb");
-	fseek (f, 0, SEEK_END);
-	long fsize = ftell(f);
-	fseek(f, 0, SEEK_SET);
-	char *buffer = malloc(fsize + 1);
-	fread(buffer, fsize, 1, f);
+	while((read = fread(buffer, 1, sizeof(buffer), f)))
+		SHA256_Update(&sha256, buffer, read);
 	fclose(f);
-	buffer[fsize] = 0;
-	uint8_t result[SHA256_DIGEST_SIZE];
-	sha256_buffer(buffer, fsize, result);
+	uint8_t result[SHA256_DIGEST_LENGTH];
+	SHA256_Final(result, &sha256);
 	push_hex(L, result, sizeof result);
-	free(buffer);
 	return 1;	
 }
 
@@ -743,23 +804,6 @@ static int lua_reexec(lua_State *L) {
 	}
 	reexec(args_c, (char**) args);
 	return 0;
-}
-
-// Stores pointer to internal files used as uri.
-static const struct file_index_element *uriinternal;
-
-static int lua_uri_internal_get(lua_State *L) {
-	int param_count = lua_gettop(L);
-	if (param_count > 1)
-		return luaL_error(L, "Too many parameters to uri_internal_get: %d", param_count);
-	const char *name = luaL_checkstring(L, 1);
-	if (!uriinternal)
-		return luaL_error(L, "Internal uri is not supported.", name);
-	const struct file_index_element *file = index_element_find(uriinternal, name);
-	if (!file)
-		return luaL_error(L, "No internal with name: %s", name);
-	lua_pushlstring(L, (const char *)file->data, file->size);
-	return 1;
 }
 
 static int lua_system_reboot(lua_State *L) {
@@ -789,6 +833,8 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_log, "log" },
 	{ lua_state_log_enabled, "state_log_enabled" },
 	{ lua_state_dump, "state_dump" },
+	{ lua_cleanup_register_handle, "cleanup_register_handle" },
+	{ lua_cleanup_unregister_handle, "cleanup_unregister_handle" },
 	{ lua_run_command, "run_command" },
 	{ lua_run_util, "run_util" },
 	{ lua_download, "download" },
@@ -803,6 +849,7 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_getcwd, "getcwd" },
 	{ lua_mkdir, "mkdir" },
 	{ lua_move, "move" },
+	{ lua_copy, "copy" },
 	{ lua_ls, "ls" },
 	{ lua_stat, "stat" },
 	{ lua_lstat, "lstat" },
@@ -813,7 +860,6 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_sha256, "sha256" },
 	{ lua_sha256_file, "sha256_file" },
 	{ lua_reexec, "reexec" },
-	{ lua_uri_internal_get, "uri_internal_get" },
 	{ lua_system_reboot, "system_reboot" },
 	{ lua_get_updater_version, "get_updater_version" }
 };
@@ -857,8 +903,7 @@ static void interpreter_load_coverage(struct interpreter *interpreter) {
 }
 #endif
 
-struct interpreter *interpreter_create(struct events *events, const struct file_index_element *uriinter) {
-	uriinternal = uriinter;
+struct interpreter *interpreter_create(struct events *events) {
 	struct interpreter *result = malloc(sizeof *result);
 	lua_State *L = luaL_newstate();
 	*result = (struct interpreter) {
@@ -1053,13 +1098,20 @@ const char *interpreter_call(struct interpreter *interpreter, const char *functi
 				break; \
 			}
 			// Represent bool as int, because of C type promotions
-			// cppcheck-suppress va_end_missing (false positive: look just below the for cycle)
+			// cppcheck-suppress va_end_missing // false positive: look just below the for cycle
 			CASE(int, 'b', boolean);
 			case 'n': // No param here
 				lua_pushnil(L);
 				break;
 			CASE(int, 'i', integer);
-			CASE(const char *, 's', string);
+			case 's': { // string that can be NULL
+				const char *s = va_arg(args, const char *);
+				if (s)
+					lua_pushstring(L, s);
+				else
+					lua_pushnil(L);
+				break;
+			}
 			case 'S': { // binary string, it has 2 parameters
 				const char *s = va_arg(args, const char *);
 				size_t len = va_arg(args, size_t);
@@ -1128,6 +1180,9 @@ int interpreter_collect_results(struct interpreter *interpreter, const char *spe
 				if (lua_isstring(L, pos + 1)) {
 					const char **s = va_arg(args, const char **);
 					*s = lua_tostring(L, pos + 1);
+				} else if (lua_isnil(L, pos + 1)) {
+					const char **s = va_arg(args, const char **);
+					*s = NULL;
 				} else
 					return pos;
 				break;

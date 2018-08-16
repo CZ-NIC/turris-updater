@@ -42,7 +42,9 @@ end
 -- Guess what board this is.
 local base_model = ""
 if model then
-	if model:match("[Oo]mnia") then
+	if model:match("Turris Mox") then
+		base_model = "mox"
+	elseif model:match("[Oo]mnia") then
 		base_model = "omnia"
 	elseif model:match("[Tt]urris") then
 		base_model = "turris"

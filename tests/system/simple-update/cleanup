@@ -5,6 +5,6 @@ for file in "$ROOT_DIR"/usr/lib/opkg/info/*.list; do
 	LC_ALL=C sort -d -o "$file".out "$file"
 	mv -f "$file".out "$file"
 done
-for file in "$ROOT_DIR"/var/opkg-collided/"$ROOT_DIR"/*; do
-	mv "$file" "$ROOT_DIR"/var/opkg-collided/
+for file in "$ROOT_DIR"/usr/share/updater/collided/"$ROOT_DIR"/*; do
+	mv "$file" "$ROOT_DIR"/usr/share/updater/collided
 done

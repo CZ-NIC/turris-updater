@@ -22,6 +22,9 @@ local B = require 'backend'
 local T = require 'transaction'
 local utils = require 'utils'
 local journal = require 'journal'
+require "syscnf"
+
+syscnf.set_root_dir()
 
 module("transaction-tests", package.seeall, lunit.testcase)
 
@@ -220,7 +223,7 @@ function test_perform_ok()
 	local expected = tables_join(intro, {
 		{
 			f = "backend.pkg_unpack",
-			p = {"<package data>", B.pkg_temp_dir}
+			p = {"<package data>", syscnf.pkg_temp_dir}
 		},
 		{
 			f = "backend.pkg_examine",
@@ -367,7 +370,7 @@ function test_perform_collision()
 	local expected = tables_join(intro, {
 		{
 			f = "backend.pkg_unpack",
-			p = {"<pkg1data>", B.pkg_temp_dir}
+			p = {"<pkg1data>", syscnf.pkg_temp_dir}
 		},
 		{
 			f = "backend.pkg_examine",
@@ -375,7 +378,7 @@ function test_perform_collision()
 		},
 		{
 			f = "backend.pkg_unpack",
-			p = {"<pkg2data>", B.pkg_temp_dir}
+			p = {"<pkg2data>", syscnf.pkg_temp_dir}
 		},
 		{
 			f = "backend.pkg_examine",

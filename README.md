@@ -34,7 +34,7 @@ There are two types of tests. Unit and integration tests. (Integration tests are
 called as system one in this project).
 
 You can run all tests using following command:
-````
+```
 make check
 ```
 
@@ -46,10 +46,10 @@ of that test).
 All tests can also be executed with valgrind. You can do that by replacing `test`
 with `valgrind` in all previous possible `make` calls.
 There is a known problem with OpenSSL and valgrind. Because of that we have to
-compile our own OpenSSL version (although we link against system one) with PURITY
+compile our own OpenSSL version (although we link against the system one) with PURITY
 flag set. If you have OpenSSL on your system compiled with this flag then you can
 specify `OPENSSL_PURITY=y` to makefile calls.
 
-On top of standard tests this project can be also checked with cppcheck and
+On top of standard tests, this project can be also checked with cppcheck and
 luacheck. Both of these have their make target. Respectively it's `make cppcheck`
 and `make luacheck`.

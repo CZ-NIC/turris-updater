@@ -23,7 +23,9 @@ local requests = require "requests"
 local postprocess = require "postprocess"
 local utils = require "utils"
 local uri = require "uri"
+require "syscnf"
 
+syscnf.set_root_dir()
 local dir = (os.getenv("S") .. "/") or ''
 
 module("postprocess-tests", package.seeall, lunit.testcase)

@@ -39,7 +39,7 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 }
 
 static const enum cmd_op_type cmd_op_allows[] = {
-	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_REEXEC, COT_USIGN, COT_LAST };
+	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_REEXEC, COT_USIGN, COT_MODEL, COT_BOARD, COT_LAST };
 
 static void print_help() {
 	fputs("Usage: opkg-trans [OPTION]...\n", stderr);
@@ -62,16 +62,20 @@ int main(int argc, char *argv[]) {
 	struct cmd_op *ops = cmd_args_parse(argc, argv, cmd_op_allows);
 	struct cmd_op *op = ops;
 	// Prepare the interpreter and load it with the embedded lua scripts
-	struct interpreter *interpreter = interpreter_create(events, NULL);
+	struct interpreter *interpreter = interpreter_create(events);
 	const char *error = interpreter_autoload(interpreter);
 	if (error) {
 		fputs(error, stderr);
 		return 1;
 	}
 	bool transaction_run = false;
+	bool journal_resume = false;
 	bool trans_ok = true;
 	bool early_exit = false;
 	const char *usign_exec = NULL;
+	const char *root_dir = NULL;
+	const char *target_model = NULL;
+	const char *target_board = NULL;
 	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
 		switch (op->type) {
 			case COT_HELP:
@@ -85,6 +89,9 @@ int main(int argc, char *argv[]) {
 			case COT_ERR_MSG:
 				fputs(op->parameter, stderr);
 				break;
+			case COT_JOURNAL_RESUME:
+				journal_resume = true;
+				break;
 			case COT_INSTALL: {
 				const char *err = interpreter_call(interpreter, "transaction.queue_install", NULL, "s", op->parameter);
 				ASSERT_MSG(!err, "%s", err);
@@ -97,24 +104,23 @@ int main(int argc, char *argv[]) {
 				transaction_run = true;
 				break;
 			}
-			case COT_JOURNAL_RESUME: {
-				size_t result_count;
-				const char *err = interpreter_call(interpreter, "transaction.recover_pretty", &result_count, "");
-				ASSERT_MSG(!err, "%s", err);
-				trans_ok = results_interpret(interpreter, result_count);
-				early_exit = true;
-				break;
-			}
 #define NIP(TYPE) case COT_##TYPE: fputs("Operation " #TYPE " not implemented yet\n", stderr); return 1
 				NIP(JOURNAL_ABORT);
 			case COT_ROOT_DIR: {
-				const char *err = interpreter_call(interpreter, "backend.root_dir_set", NULL, "s", op->parameter);
-				ASSERT_MSG(!err, "%s", err);
+				root_dir = op->parameter;
 				break;
 			}
 			case COT_USIGN: {
 				const char *err = interpreter_call(interpreter, "uri.usign_exec_set", NULL, "s", usign_exec);
 				ASSERT_MSG(!err, "%s", err);
+				break;
+			}
+			case COT_MODEL: {
+				target_model = op->parameter;
+				break;
+			}
+			case COT_BOARD: {
+				target_board = op->parameter;
 				break;
 			}
 			case COT_SYSLOG_LEVEL: {
@@ -140,10 +146,22 @@ int main(int argc, char *argv[]) {
 				assert(0);
 		}
 	enum cmd_op_type exit_type = op->type;
-	free(ops);
-	if (transaction_run && exit_type == COT_EXIT) {
-		size_t result_count;
-		const char *err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
+	if (exit_type != COT_EXIT || early_exit)
+		goto CLEANUP;
+
+	// Some configurations
+	const char *err = interpreter_call(interpreter, "syscnf.set_root_dir", NULL, "s", root_dir);
+	ASSERT_MSG(!err, "%s", err);
+	err = interpreter_call(interpreter, "syscnf.set_target", NULL, "ss", target_model, target_board);
+	ASSERT_MSG(!err, "%s", err);
+
+	size_t result_count;
+	if (journal_resume) {
+		err = interpreter_call(interpreter, "transaction.recover_pretty", &result_count, "");
+		ASSERT_MSG(!err, "%s", err);
+		trans_ok = results_interpret(interpreter, result_count);
+	} else if (transaction_run) {
+		err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
 		ASSERT_MSG(!err, "%s", err);
 		trans_ok = results_interpret(interpreter, result_count);
 	} else if (!early_exit && exit_type != COT_CRASH) {
@@ -152,6 +170,8 @@ int main(int argc, char *argv[]) {
 		exit_type = COT_CRASH;
 	}
 
+CLEANUP:
+	free(ops);
 	interpreter_destroy(interpreter);
 	events_destroy(events);
 	arg_backup_clear();

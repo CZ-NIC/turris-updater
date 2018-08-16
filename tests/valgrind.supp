@@ -1,7 +1,0 @@
-# This ignores leaks in openssl (libcrypto). We can't do anything else with it.
-{
-   libcrypto_leaks
-   Memcheck:Leak
-   ...
-   obj:*/libcrypto.so.*
-}

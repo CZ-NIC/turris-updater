@@ -71,7 +71,7 @@ def failure(exit_code, trace):
         msg_en += "Unknown error"
         msg_cs += "Neznámá chyba"
 
-    if subprocess.call(['create_notification', '-s', 'update',
+    if subprocess.call(['create_notification', '-s', 'error',
                         msg_cs, msg_en]) != 0:
         report('Notification creation failed.')
 

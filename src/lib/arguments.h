@@ -68,6 +68,10 @@ enum cmd_op_type {
 	COT_EXCLUDE,
 	// Path to usign tool
 	COT_USIGN,
+	// Target model specification
+	COT_MODEL,
+	// Target board specification
+	COT_BOARD,
 	// Don't replan (do whole install at once)
 	COT_NO_REPLAN,
 	// Don't immediatelly reboot system
