@@ -45,6 +45,9 @@ local INFO = INFO
 local TRACE = TRACE
 local sha256 = sha256
 
+-- BB: luaposix
+local pstime = require "posix.time"
+
 module "uri"
 
 -- luacheck: globals wait signature_check parse new  system_cas no_crl usign_exec_set
@@ -410,6 +413,7 @@ function new(context, uri, verification)
 							end
 						end
 						INFO("BB: a_10@412 run_util(gzip)")
+						INFO("BB: posix time:", pstime)
 						events_wait(run_util(gzip_done, nil, result.content, -1, -1, 'gzip', '-c', '-d'))
 					end
 					if not found then
