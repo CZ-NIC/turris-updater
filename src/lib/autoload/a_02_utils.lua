@@ -105,7 +105,7 @@ end
 -- Run rm -rf on all dirs in the provided table
 function cleanup_dirs(dirs)
 	if next(dirs) then
-		INFO("BB: a_02@108 run_util(rm)")
+		print("*BB: a_02@108 run_util(rm)")
 		events_wait(run_util(function (ecode, _, _, stderr)
 			if ecode ~= 0 then
 				error("rm -rf failed: " .. stderr)
