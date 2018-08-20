@@ -33,6 +33,7 @@ local unpack = unpack
 local events_wait = events_wait
 local run_util = run_util
 local INFO = INFO
+local print = print
 
 module "utils"
 
