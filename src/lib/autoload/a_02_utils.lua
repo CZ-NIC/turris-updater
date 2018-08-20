@@ -32,6 +32,7 @@ local io = io
 local unpack = unpack
 local events_wait = events_wait
 local run_util = run_util
+local INFO = INFO
 
 module "utils"
 
@@ -104,6 +105,7 @@ end
 -- Run rm -rf on all dirs in the provided table
 function cleanup_dirs(dirs)
 	if next(dirs) then
+		INFO("BB: a_02@108 run_util(rm)")
 		events_wait(run_util(function (ecode, _, _, stderr)
 			if ecode ~= 0 then
 				error("rm -rf failed: " .. stderr)

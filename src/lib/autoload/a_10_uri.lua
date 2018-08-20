@@ -41,6 +41,7 @@ local download = download
 local run_command = run_command
 local run_util = run_util
 local utils = require "utils"
+local INFO = INFO
 local TRACE = TRACE
 local sha256 = sha256
 
@@ -408,6 +409,7 @@ function new(context, uri, verification)
 								sigval(stdout)
 							end
 						end
+						INFO("BB: a_10@412 run_util(gzip)")
 						events_wait(run_util(gzip_done, nil, result.content, -1, -1, 'gzip', '-c', '-d'))
 					end
 					if not found then
