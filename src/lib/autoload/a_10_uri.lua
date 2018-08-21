@@ -45,8 +45,10 @@ local INFO = INFO
 local TRACE = TRACE
 local sha256 = sha256
 
--- BB: luaposix
+-- BB: luaposix+zlib
 local pstime = require "posix.time"
+local zlib = require "zlib"
+-- BB: /
 
 module "uri"
 
@@ -414,6 +416,7 @@ function new(context, uri, verification)
 						end
 						INFO("BB: a_10@412 run_util(gzip)")
 						INFO("BB: posix time:", pstime.time())
+						INFO("BB: zlib version", zlib.version())
 						events_wait(run_util(gzip_done, nil, result.content, -1, -1, 'gzip', '-c', '-d'))
 					end
 					if not found then
