@@ -35,6 +35,16 @@ local run_util = run_util
 local INFO = INFO
 local print = print
 
+|
+local dir = require "posix.dirent".dir
+local isdir = require "posix.sys.stat".S_ISDIR
+local stat = require "posix.sys.stat".stat
+local pwd = require "posix.unistd".getcwd
+local rmdir = require "posix.unistd".rmdir
+local rm = require "posix.unistd".unlink
+
+
+
 module "utils"
 
 -- luacheck: globals lines2set map set2arr arr2set cleanup_dirs read_file clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay randstr arr_prune arr_inv file_exists
@@ -318,6 +328,44 @@ function file_exists(name)
 	else
 		return false
 	end
+end
+
+--[[
+Remove a directory and all its content
+]]
+
+function myrmdir(path)
+	-- this function will remove all files in directory
+	-- all subdirs and then finally the directory itself
+
+	local cannot_read = function(path)
+		return "cannot read file info for " .. path
+	end
+
+	-- check if it's really a directory
+	local info = assert(stat(path), cannot_read(path))
+	assert(isdir(info.st_mode) == 1, path .. " is not a directory")
+
+	local files = dir(path)
+	for _, file in ipairs(files) do
+		local fullpath = string.format("%s/%s", path, file)
+		local info = assert(stat(fullpath), cannot_read(path))
+		if isdir(info.st_mode) == 1 then
+			-- directory
+			-- ignore ".." and "."
+			if file ~= "." and file ~= ".." then
+				print(fullpath .. " is directory")
+				myrmdir(fullpath)
+			end
+		else
+			-- file
+			print(fullpath .. " is file")
+			rm(fullpath)
+		end
+	end
+	-- directory now should be empty, remove it
+	local ret = rmdir(path)
+	if ret ~= 0 then error("cannot delete directory - " .. ret) end
 end
 
 return _M
