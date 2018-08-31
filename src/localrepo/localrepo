@@ -158,12 +158,12 @@ def repo_index_write(repo, index):
         return
     ordered = ("Package", "Version", "MD5Sum", "SHA256sum", "Filename")
     with gzip.open(packages, 'wb') as file:
-        for _, versions in index.iteritems():
+        for _, versions in index.items():
             for version in versions:
                 ctl = versions[version]
                 for key in ordered:
                     file.write(key + ': ' + ctl[key] + '\n')
-                for key, value in ctl.iteritems():
+                for key, value in ctl.items():
                     if key not in ordered and key != "Description":
                         file.write(key + ': ' + value + '\n')
                 if ctl["Description"] is not None:
@@ -210,10 +210,10 @@ def repo_index_list(index, pkg, version):
     Return list of all packages matching pkg and version.
     """
     match = []
-    for pkg_name, versions in index.iteritems():
+    for pkg_name, versions in index.items():
         if not fnmatch.fnmatch(pkg_name, pkg):
             continue
-        for vers, ctl in versions.iteritems():
+        for vers, ctl in versions.items():
             if not fnmatch.fnmatch(vers, version):
                 continue
             match.append(ctl)
@@ -338,8 +338,8 @@ def cmd_get(args):
 
     index = repo_index_parse(args.repo)
     if args.all:
-        for _, versions in index.iteritems():
-            for _, ctl in versions.iteritems():
+        for _, versions in index.items():
+            for _, ctl in versions.items():
                 getter(ctl)
     else:
         for pkg in args.package:
@@ -365,7 +365,7 @@ def cmd_clean(args):
         print("Clean command can be run only on Turris OS system.")
         exit(1)
     index = repo_index_parse(args.repo)
-    for pkg_name, versions in copy(index).iteritems():
+    for pkg_name, versions in copy(index).items():
         # Remove currently installed version from versions
         controlf = os.path.join(OPKG_INFO, pkg_name + '.control')
         if os.path.isfile(controlf):
@@ -391,8 +391,8 @@ def cmd_check(args):
     consistent = True
     for repo in repos:
         index = repo_index_parse(repo)
-        for pkg_name, versions in copy(index).iteritems():
-            for version, ctl in copy(versions).iteritems():
+        for pkg_name, versions in copy(index).items():
+            for version, ctl in copy(versions).items():
                 file = os.path.join(REPO_PATH, repo, ctl['Filename'])
                 idstring = "Package " + pkg_name + "_" + version
                 # Check file existence
@@ -444,7 +444,7 @@ def cmd_list(args):
         repos = repo_list()
     for repo in repos:
         print(repo + ":")
-        for pkg_name, versions in repo_index_parse(repo).iteritems():
+        for pkg_name, versions in repo_index_parse(repo).items():
             outln = '  ' + pkg_name + ':'
             for version in versions:
                 outln += ' ' + version
