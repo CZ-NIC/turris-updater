@@ -35,7 +35,6 @@ local run_util = run_util
 local INFO = INFO
 local print = print
 
-|
 local dir = require "posix.dirent".dir
 local isdir = require "posix.sys.stat".S_ISDIR
 local stat = require "posix.sys.stat".stat
@@ -117,11 +116,14 @@ end
 function cleanup_dirs(dirs)
 	if next(dirs) then
 		print("*BB: a_02@108 run_util(rm)")
+--[[
 		events_wait(run_util(function (ecode, _, _, stderr)
 			if ecode ~= 0 then
 				error("rm -rf failed: " .. stderr)
 			end
 		end, nil, nil, -1, -1, "rm", "-rf", unpack(dirs)));
+]]
+		rmdir(unpack(dirs))
 	end
 end
 

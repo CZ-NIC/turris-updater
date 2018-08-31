@@ -470,11 +470,14 @@ function pkg_unpack(package, tmp_dir)
 	local function remove(dir)
 		-- TODO: Would it be better to remove from within our code, without calling rm?
 		INFO("BB: a08@471 - run_util(rm)")
+--[[
 		table.insert(events, run_util(function (ecode, _, _, stderr)
 			if ecode ~= 0 then
 				WARN("Failed to clean up work directory ", dir, ": ", stderr)
 			end
 		end, nil, nil, cmd_timeout, cmd_kill_timeout, "rm", "-rf", dir))
+]]
+		
 	end
 	-- Intermediate work space, not needed by the caller
 	remove(s1dir)
