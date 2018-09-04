@@ -29,7 +29,7 @@ local table = table
 local string = string
 local math = math
 local io = io
-local unpack = unpack
+local einpack = unpack
 local events_wait = events_wait
 local run_util = run_util
 local INFO = INFO
@@ -126,8 +126,8 @@ function cleanup_dirs(dirs)
 		end, nil, nil, -1, -1, "rm", "-rf", unpack(dirs)));
 ]]
 		local t = unpack(dirs)
-		print("type: " .. type(t) .. " - " .. tostring(t))
-		rmdir(unpack(dirs))
+		print("type: " .. type(t) .. " - '" .. tostring(t) .. "'")
+		rmdir(t)
 	end
 end
 
@@ -340,7 +340,7 @@ end
 Remove a directory and all its content
 ]]
 
-function rmrf(path)
+function rmrf(...)
 	-- this function will remove all files in directory
 	-- all subdirs and then finally the directory itself
 
@@ -348,30 +348,34 @@ function rmrf(path)
 		return "cannot read file info for " .. path
 	end
 
-	-- check if it's really a directory
-	local info = assert(stat(path), cannot_read(path))
-	assert(isdir(info.st_mode) == 1, path .. " is not a directory")
+	for i = 1, #arg do
+		local path = arg[i]
 
-	local files = dir(path)
-	for _, file in ipairs(files) do
-		local fullpath = string.format("%s/%s", path, file)
-		local info = assert(stat(fullpath), cannot_read(path))
-		if isdir(info.st_mode) == 1 then
-			-- directory
-			-- ignore ".." and "."
-			if file ~= "." and file ~= ".." then
-				print(fullpath .. " is directory")
-				rmrf(fullpath)
+		-- check if it's really a directory
+		local info = assert(stat(path), cannot_read(path))
+		assert(isdir(info.st_mode) == 1, path .. " is not a directory")
+
+		local files = dir(path)
+		for _, file in ipairs(files) do
+			local fullpath = string.format("%s/%s", path, file)
+			local info = assert(stat(fullpath), cannot_read(path))
+			if isdir(info.st_mode) == 1 then
+				-- directory
+				-- ignore ".." and "."
+				if file ~= "." and file ~= ".." then
+					print(fullpath .. " is directory")
+					rmrf(fullpath)
+				end
+			else
+				-- file
+				print(fullpath .. " is file")
+				rm(fullpath)
 			end
-		else
-			-- file
-			print(fullpath .. " is file")
-			rm(fullpath)
 		end
+		-- directory now should be empty, remove it
+		local ret = rmdir(path)
+		if ret ~= 0 then error("cannot delete directory - " .. ret) end
 	end
-	-- directory now should be empty, remove it
-	local ret = rmdir(path)
-	if ret ~= 0 then error("cannot delete directory - " .. ret) end
 end
 
 return _M
