@@ -47,7 +47,7 @@ local sha256 = sha256
 
 -- BB: luaposix
 local pstime = require "posix.time"
-local psmkdir = require "posix.sys.stat.mkdir"
+local psmkdir = require "posix.sys.stat".mkdir
 -- BB: /
 
 module "uri"
