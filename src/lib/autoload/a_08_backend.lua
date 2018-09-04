@@ -477,7 +477,7 @@ function pkg_unpack(package, tmp_dir)
 			end
 		end, nil, nil, cmd_timeout, cmd_kill_timeout, "rm", "-rf", dir))
 ]]
-		rmdir(dir)	
+		utils.rmrf(dir)	
 	end
 	-- Intermediate work space, not needed by the caller
 	remove(s1dir)

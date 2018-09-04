@@ -336,7 +336,7 @@ end
 Remove a directory and all its content
 ]]
 
-function myrmdir(path)
+function rmrf(path)
 	-- this function will remove all files in directory
 	-- all subdirs and then finally the directory itself
 
