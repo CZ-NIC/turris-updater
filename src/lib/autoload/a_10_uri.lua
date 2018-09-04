@@ -45,9 +45,8 @@ local INFO = INFO
 local TRACE = TRACE
 local sha256 = sha256
 
--- BB: luaposix+zlib
+-- BB: luaposix
 local pstime = require "posix.time"
-local zlib = require "zlib"
 local psmkdir = require "posix.sys.stat.mkdir"
 -- BB: /
 
