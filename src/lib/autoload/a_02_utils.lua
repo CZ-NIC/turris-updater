@@ -123,6 +123,8 @@ function cleanup_dirs(dirs)
 			end
 		end, nil, nil, -1, -1, "rm", "-rf", unpack(dirs)));
 ]]
+		local t = unpack(dirs)
+		INFO("type: ", type(t), " - ", tostring(t))
 		rmdir(unpack(dirs))
 	end
 end
@@ -357,7 +359,7 @@ function rmrf(path)
 			-- ignore ".." and "."
 			if file ~= "." and file ~= ".." then
 				print(fullpath .. " is directory")
-				myrmdir(fullpath)
+				rmrf(fullpath)
 			end
 		else
 			-- file
