@@ -33,7 +33,9 @@ local unpack = unpack
 local events_wait = events_wait
 local run_util = run_util
 local INFO = INFO
+
 local print = print
+local tostring = tostring
 
 local dir = require "posix.dirent".dir
 local isdir = require "posix.sys.stat".S_ISDIR
