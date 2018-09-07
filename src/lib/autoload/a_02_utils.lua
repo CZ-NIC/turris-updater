@@ -33,9 +33,7 @@ local unpack = unpack
 local events_wait = events_wait
 local run_util = run_util
 local INFO = INFO
-
 local print = print
-local tostring = tostring
 
 local dir = require "posix.dirent".dir
 local isdir = require "posix.sys.stat".S_ISDIR
@@ -125,15 +123,17 @@ function cleanup_dirs(dirs)
 			end
 		end, nil, nil, -1, -1, "rm", "-rf", unpack(dirs)));
 ]]
-		local t = unpack(dirs)
-		print("type: " .. type(t) .. " - '" .. tostring(t) .. "'")
-		rmdir(t)
+		rmdir(unpack(dirs))
 	end
 end
 
 --[[
 Read the whole content of given file. Return the content, or nil and error message.
 In case of errors during the reading (instead of when opening), it calls error()
+]]
+function read_file(filename)
+	local f, err = io.open(filename)
+	if not f then
 ]]
 function read_file(filename)
 	local f, err = io.open(filename)
@@ -280,10 +280,6 @@ function filter_best(arr, property, cmp)
 		end
 		-- Otherwise it's worse, so just ignore it
 	end
-	return best
-end
-
---[[
 Strip whitespace from both ends of the given string. \n is considered whitespace.
 It passes other types through (eg. nil).
 ]]
@@ -340,7 +336,7 @@ end
 Remove a directory and all its content
 ]]
 
-function rmrf(...)
+function myrmdir(path)
 	-- this function will remove all files in directory
 	-- all subdirs and then finally the directory itself
 
@@ -348,35 +344,30 @@ function rmrf(...)
 		return "cannot read file info for " .. path
 	end
 
-	for i = 1, #arg do
-		local path = arg[i]
+	-- check if it's really a directory
+	local info = assert(stat(path), cannot_read(path))
+	assert(isdir(info.st_mode) == 1, path .. " is not a directory")
 
-		-- check if it's really a directory
-		local info = assert(stat(path), cannot_read(path))
-		assert(isdir(info.st_mode) == 1, path .. " is not a directory")
-
-		local files = dir(path)
-		for _, file in ipairs(files) do
-			local fullpath = string.format("%s/%s", path, file)
-			local info = assert(stat(fullpath), cannot_read(path))
-			if isdir(info.st_mode) == 1 then
-				-- directory
-				-- ignore ".." and "."
-				if file ~= "." and file ~= ".." then
-					print(fullpath .. " is directory")
-					rmrf(fullpath)
-				end
-			else
-				-- file
-				print(fullpath .. " is file")
-				rm(fullpath)
+	local files = dir(path)
+	for _, file in ipairs(files) do
+		local fullpath = string.format("%s/%s", path, file)
+		local info = assert(stat(fullpath), cannot_read(path))
+		if isdir(info.st_mode) == 1 then
+			-- directory
+			-- ignore ".." and "."
+			if file ~= "." and file ~= ".." then
+				print(fullpath .. " is directory")
+				myrmdir(fullpath)
 			end
+		else
+			-- file
+			print(fullpath .. " is file")
+			rm(fullpath)
 		end
-		-- directory now should be empty, remove it
-		print("BB: " .. path .. " can now be removed")
-		local ret = rmdir(path)
-		if ret ~= 0 then error("cannot delete directory - " .. ret) end
 	end
+	-- directory now should be empty, remove it
+	local ret = rmdir(path)
+	if ret ~= 0 then error("cannot delete directory - " .. ret) end
 end
 
 return _M
