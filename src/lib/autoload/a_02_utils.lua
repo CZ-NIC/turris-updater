@@ -127,7 +127,7 @@ function cleanup_dirs(dirs)
 ]]
 		local t = unpack(dirs)
 		print("type: " .. type(t) .. " - '" .. tostring(t) .. "'")
-		rmdir(t)
+		rmrf(t)
 	end
 end
 
