@@ -276,6 +276,8 @@ function filter_best(arr, property, cmp)
 		end
 		-- Otherwise it's worse, so just ignore it
 	end
+end
+--[[
 Strip whitespace from both ends of the given string. \n is considered whitespace.
 It passes other types through (eg. nil).
 ]]
