@@ -359,6 +359,7 @@ function rmrf(...)
 		for _, file in ipairs(files) do
 			local fullpath = string.format("%s/%s", path, file)
 			local info = assert(stat(fullpath), cannot_read(path))
+			print("FIle: " .. fullpath .. " = " .. info.st_mode)
 			if isdir(info.st_mode) == 1 then
 				-- directory
 				-- ignore ".." and "."
@@ -374,6 +375,7 @@ function rmrf(...)
 		end
 		-- directory now should be empty, remove it
 		local ret = rmdir(path)
+		print("rmdir returned " ret)
 		if ret ~= 0 then error("cannot delete directory - " .. ret) end
 	end
 end
