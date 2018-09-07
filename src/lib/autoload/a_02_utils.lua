@@ -375,8 +375,10 @@ function rmrf(...)
 		end
 		-- directory now should be empty, remove it
 		local ret = rmdir(path)
-		print("rmdir returned " ret)
-		if ret ~= 0 then error("cannot delete directory - " .. ret) end
+		print("rmdir returned " .. ret)
+		if ret ~= 0 then 
+			error("cannot delete directory - " .. ret) 
+		end
 	end
 end
 
