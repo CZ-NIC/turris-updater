@@ -134,10 +134,6 @@ In case of errors during the reading (instead of when opening), it calls error()
 function read_file(filename)
 	local f, err = io.open(filename)
 	if not f then
-]]
-function read_file(filename)
-	local f, err = io.open(filename)
-	if not f then
 		return nil, err
 	end
 	local content = f:read("*a")
