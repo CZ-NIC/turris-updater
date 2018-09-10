@@ -30,12 +30,15 @@ local string = string
 local math = math
 local io = io
 local unpack = unpack
-local events_wait = events_wait
-local run_util = run_util
+local dir = require "posix.dirent".dir
+local isdir = require "posix.sys.stat".S_ISDIR
+local stat = require "posix.sys.stat".stat
+local rmdir = require "posix.unistd".rmdir
+local rm = require "posix.unistd".unlink
 
 module "utils"
 
--- luacheck: globals lines2set map set2arr arr2set cleanup_dirs read_file clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay randstr arr_prune arr_inv file_exists
+-- luacheck: globals lines2set map set2arr arr2set cleanup_dirs read_file clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay randstr arr_prune arr_inv file_exists rmrf
 
 --[[
 Convert provided text into set of lines. Doesn't care about the order.
@@ -104,11 +107,7 @@ end
 -- Run rm -rf on all dirs in the provided table
 function cleanup_dirs(dirs)
 	if next(dirs) then
-		events_wait(run_util(function (ecode, _, _, stderr)
-			if ecode ~= 0 then
-				error("rm -rf failed: " .. stderr)
-			end
-		end, nil, nil, -1, -1, "rm", "-rf", unpack(dirs)));
+		rmrf(unpack(dirs))
 	end
 end
 
@@ -314,6 +313,48 @@ function file_exists(name)
 		return true
 	else
 		return false
+	end
+end
+
+--[[
+Remove a directory and all its content
+]]
+
+function rmrf(...)
+	-- this function will remove all files in directory
+	-- all subdirs and then finally the directory itself
+
+	local cannot_read = function(path)
+		return "cannot read file info for " .. path
+	end
+
+	for i = 1, #arg do
+		local path = arg[i]
+
+		-- check if it's really a directory
+		local info = assert(stat(path), cannot_read(path))
+		assert(isdir(info.st_mode) == 1, path .. " is not a directory")
+
+		local files = dir(path)
+		for _, file in ipairs(files) do
+			local fullpath = string.format("%s/%s", path, file)
+			local info = assert(stat(fullpath), cannot_read(path))
+			if isdir(info.st_mode) == 1 then
+				-- directory
+				-- ignore ".." and "."
+				if file ~= "." and file ~= ".." then
+					rmrf(fullpath)
+				end
+			else
+				-- file
+				rm(fullpath)
+			end
+		end
+		-- directory now should be empty, remove it
+		local ret = rmdir(path)
+		if ret ~= 0 then
+			error("cannot delete directory - " .. ret)
+		end
 	end
 end
 

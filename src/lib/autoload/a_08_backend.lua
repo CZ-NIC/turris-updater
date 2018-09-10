@@ -47,11 +47,14 @@ local ls = ls
 local md5_file = md5_file
 local sha256_file = sha256_file
 local DBG = DBG
+local INFO = INFO
 local WARN = WARN
 local ERROR = ERROR
 local syscnf = require "syscnf"
 local utils = require "utils"
 local locks = require "locks"
+
+
 
 module "backend"
 
@@ -464,19 +467,11 @@ function pkg_unpack(package, tmp_dir)
 	local success, ok = pcall(function () return stage1() and stage2() end)
 	-- Do the cleanups
 	local events = {}
-	local function remove(dir)
-		-- TODO: Would it be better to remove from within our code, without calling rm?
-		table.insert(events, run_util(function (ecode, _, _, stderr)
-			if ecode ~= 0 then
-				WARN("Failed to clean up work directory ", dir, ": ", stderr)
-			end
-		end, nil, nil, cmd_timeout, cmd_kill_timeout, "rm", "-rf", dir))
-	end
 	-- Intermediate work space, not needed by the caller
-	remove(s1dir)
+	utils.rmrf(s1dir)
 	if err then
 		-- Clean up the resulting directory in case of errors
-		remove(s2dir)
+		utils.rmrf(s2dir)
 	end
 	-- Run all the cleanup removes in parallel
 	events_wait(unpack(events))
