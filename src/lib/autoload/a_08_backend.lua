@@ -470,10 +470,10 @@ function pkg_unpack(package, tmp_dir)
 	-- Do the cleanups
 	local events = {}
 	-- Intermediate work space, not needed by the caller
-	rmrf(s1dir)
+	utils.rmrf(s1dir)
 	if err then
 		-- Clean up the resulting directory in case of errors
-		rmrf(s2dir)
+		utils.rmrf(s2dir)
 	end
 	-- Run all the cleanup removes in parallel
 	events_wait(unpack(events))
