@@ -415,9 +415,6 @@ function new(context, uri, verification)
 							end
 						end
 						INFO("BB: a_10@412 run_util(gzip)")
-						INFO("BB: posix time:", pstime.time())
-						INFO("BB: trying to make dir (it seems to work")
-						psmkdir("/root/pstmp")
 						events_wait(run_util(gzip_done, nil, result.content, -1, -1, 'gzip', '-c', '-d'))
 					end
 					if not found then
