@@ -409,7 +409,6 @@ function new(context, uri, verification)
 								sigval(stdout)
 							end
 						end
-						INFO("BB: a_10@412 run_util(gzip)")
 						events_wait(run_util(gzip_done, nil, result.content, -1, -1, 'gzip', '-c', '-d'))
 					end
 					if not found then

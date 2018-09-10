@@ -441,7 +441,6 @@ function pkg_unpack(package, tmp_dir)
 	local err
 	-- Unpack the ipk into s1dir, getting control.tar.gz and data.tar.gz
 	local function stage1()
-		INFO("BB: a08@441 - run_util(sh, gzip)")
 		events_wait(run_util(function (ecode, _, _, stderr)
 			if ecode ~= 0 then
 				err = "Stage 1 unpack failed: " .. stderr
@@ -454,7 +453,6 @@ function pkg_unpack(package, tmp_dir)
 	local function unpack_archive(what)
 		local archive = s1dir .. "/" .. what .. ".tar.gz"
 		local dir = s2dir .. "/" .. what
-		INFO("BB: a08@454 - run_util(sh, mkdir, cd, gzip)")
 		return run_util(function (ecode, _, _, stderr)
 			if ecode ~= 0 then
 				err = "Stage 2 unpack of " .. what .. " failed: " .. stderr
@@ -512,7 +510,6 @@ function pkg_examine(dir)
 				err = stderr
 			end
 		end
-		INFO ("BB: a08@521 run_util(chdir)")
 		local event = run_util(cback, function () chdir(data_dir) end, nil, cmd_timeout, cmd_kill_timeout, ...)
 		table.insert(events, event)
 	end

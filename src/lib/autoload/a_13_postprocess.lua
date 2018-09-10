@@ -117,7 +117,6 @@ function get_repos()
 				elseif answer:sub(1, 2) == string.char(0x1F, 0x8B) then
 					-- It starts with gzip magic - we want to decompress it
 					DBG("Index " .. name .. " is compressed, decompressing")
-					INFO("BB: a_13@120 run_util(gzip)")
 					table.insert(extract_events, run_util(decompressed, nil, answer, -1, -1, 'gzip', '-dc'))
 				else
 					parse(answer)
