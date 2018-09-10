@@ -469,23 +469,11 @@ function pkg_unpack(package, tmp_dir)
 	local success, ok = pcall(function () return stage1() and stage2() end)
 	-- Do the cleanups
 	local events = {}
-	local function remove(dir)
-		-- TODO: Would it be better to remove from within our code, without calling rm?
-		INFO("BB: a08@471 - run_util(rm)")
---[[
-		table.insert(events, run_util(function (ecode, _, _, stderr)
-			if ecode ~= 0 then
-				WARN("Failed to clean up work directory ", dir, ": ", stderr)
-			end
-		end, nil, nil, cmd_timeout, cmd_kill_timeout, "rm", "-rf", dir))
-]]
-		utils.rmrf(dir)	
-	end
 	-- Intermediate work space, not needed by the caller
-	remove(s1dir)
+	rmrf(s1dir)
 	if err then
 		-- Clean up the resulting directory in case of errors
-		remove(s2dir)
+		rmrf(s2dir)
 	end
 	-- Run all the cleanup removes in parallel
 	events_wait(unpack(events))

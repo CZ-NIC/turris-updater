@@ -117,14 +117,6 @@ end
 -- Run rm -rf on all dirs in the provided table
 function cleanup_dirs(dirs)
 	if next(dirs) then
-		print("*BB: a_02@108 run_util(rm)")
---[[
-		events_wait(run_util(function (ecode, _, _, stderr)
-			if ecode ~= 0 then
-				error("rm -rf failed: " .. stderr)
-			end
-		end, nil, nil, -1, -1, "rm", "-rf", unpack(dirs)));
-]]
 		rmrf(unpack(dirs))
 	end
 end
@@ -346,8 +338,6 @@ function rmrf(...)
 		return "cannot read file info for " .. path
 	end
 
-	print("RMRF called for " .. #arg .. " args")
-
 	for i = 1, #arg do
 		local path = arg[i]
 
@@ -359,23 +349,19 @@ function rmrf(...)
 		for _, file in ipairs(files) do
 			local fullpath = string.format("%s/%s", path, file)
 			local info = assert(stat(fullpath), cannot_read(path))
-			print("FIle: " .. fullpath .. " = " .. info.st_mode)
 			if isdir(info.st_mode) == 1 then
 				-- directory
 				-- ignore ".." and "."
 				if file ~= "." and file ~= ".." then
-					print(fullpath .. " is directory")
 					rmrf(fullpath)
 				end
 			else
 				-- file
-				print(fullpath .. " is file")
 				rm(fullpath)
 			end
 		end
 		-- directory now should be empty, remove it
 		local ret = rmdir(path)
-		print("rmdir returned " .. ret)
 		if ret ~= 0 then 
 			error("cannot delete directory - " .. ret) 
 		end

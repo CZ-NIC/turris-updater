@@ -45,11 +45,6 @@ local INFO = INFO
 local TRACE = TRACE
 local sha256 = sha256
 
--- BB: luaposix
-local pstime = require "posix.time"
-local psmkdir = require "posix.sys.stat".mkdir
--- BB: /
-
 module "uri"
 
 -- luacheck: globals wait signature_check parse new  system_cas no_crl usign_exec_set
