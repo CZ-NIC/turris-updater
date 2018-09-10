@@ -348,6 +348,8 @@ function rmrf(...)
 		return "cannot read file info for " .. path
 	end
 
+	print("RMRF called for " .. #arg .. " args")
+
 	for i = 1, #arg do
 		local path = arg[i]
 
