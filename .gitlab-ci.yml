@@ -13,6 +13,11 @@ unit-tests:
   script:
     - make test
 
+utils-test:
+  stage: test
+  script:
+    - make test-lua-utils
+
 unit-valgrind-tests:
   stage: test
   script:
