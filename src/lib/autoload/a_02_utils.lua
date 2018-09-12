@@ -30,11 +30,12 @@ local string = string
 local math = math
 local io = io
 local unpack = unpack
-local dir = require "posix.dirent".dir
-local isdir = require "posix.sys.stat".S_ISDIR
-local stat = require "posix.sys.stat".stat
-local rmdir = require "posix.unistd".rmdir
-local rm = require "posix.unistd".unlink
+local posix = require "posix"
+local dir = posix.dirent.dir
+local isdir = posix.sys.stat.S_ISDIR
+local stat = posix.sys.stat.stat
+local rmdir = posix.unistd.rmdir
+local rm = posix.unistd.unlink
 
 module "utils"
 

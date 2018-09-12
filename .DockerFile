@@ -10,7 +10,7 @@ RUN \
     make pkg-config gcc \
     check cppcheck lua-check valgrind \
     libcurl4-openssl-dev libevent-dev libssl-dev \
-    lua5.1 liblua5.1-0-dev \
+    lua5.1 liblua5.1-0-dev lua-posix \
     asciidoc lcov markdown libcommon-sense-perl \
     wget procps && \
   apt-get clean
