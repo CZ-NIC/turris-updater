@@ -41,7 +41,6 @@ local download = download
 local run_command = run_command
 local run_util = run_util
 local utils = require "utils"
-local INFO = INFO
 local TRACE = TRACE
 local sha256 = sha256
 

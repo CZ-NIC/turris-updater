@@ -32,7 +32,6 @@ local events_wait = events_wait
 local run_util = run_util
 local mkdtemp = mkdtemp
 local DBG = DBG
-local INFO = INFO
 local WARN = WARN
 local ERROR = ERROR
 local utils = require "utils"

@@ -47,7 +47,6 @@ local ls = ls
 local md5_file = md5_file
 local sha256_file = sha256_file
 local DBG = DBG
-local INFO = INFO
 local WARN = WARN
 local ERROR = ERROR
 local syscnf = require "syscnf"

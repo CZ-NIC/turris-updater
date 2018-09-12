@@ -329,9 +329,7 @@ function rmrf(...)
 		return "cannot read file info for " .. path
 	end
 
-	for i = 1, #arg do
-		local path = arg[i]
-
+	for _, path in pairs({...}) do
 		-- check if it's really a directory
 		local info = assert(stat(path), cannot_read(path))
 		assert(isdir(info.st_mode) == 1, path .. " is not a directory")
