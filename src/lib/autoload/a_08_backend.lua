@@ -537,7 +537,6 @@ In case of errors, it raises error()
 ]]
 function pkg_examine(dir)
 	local data_dir = dir .. "/data"
-	local err = nil
 	local files, dirs = list_files(data_dir)
 	-- Get list of config files, if there are any
 	local control_dir = dir .. "/control"
