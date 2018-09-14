@@ -520,7 +520,7 @@ static void mv_result(struct wait_id id __attribute__((unused)), void *data, int
 		mv_result_data->err = strdup(err);
 }
 
-static int lua_move(lua_State *L) {
+static int lua_moveold(lua_State *L) {
 	const char *old = luaL_checkstring(L, 1);
 	const char *new = luaL_checkstring(L, 2);
 	/*
@@ -562,22 +562,21 @@ char* get_filename(char *path)
 
 char* get_full_dst(char *src, char *dst)
 {
-    char *fulldst;
     struct stat statbuf;
-    int ret, len, add_slash;
     char *srcname = get_filename(src);
-    
     /* check if destination is directory */
-    ret = stat(dst, &statbuf);
+    stat(dst, &statbuf);
     if(S_ISDIR(statbuf.st_mode) != 0)
     {
         /* construct full path and add trailing `/` when needed */
-        len = strlen(src) + strlen(dst) + 1;
+		int add_slash = 0;
+        int len = strlen(src) + strlen(dst) + 1;
         if (dst[strlen(dst) - 1] != 47)
         {   
             add_slash = 1;
             ++len;
         }
+		/* TODO: check for errors here */
         char *fulldst = malloc(len);
         strcpy(fulldst, dst);
         if (add_slash == 1) 
@@ -589,13 +588,12 @@ char* get_full_dst(char *src, char *dst)
         return dst;
 }
 
-static int lua_moveposix(lua_State *L) {
-    char *src = luaL_checkstring(L, 1);
-    char *dst = luaL_checkstring(L, 2);
+static int lua_move(lua_State *L) {
+    const char *old = luaL_checkstring(L, 1);
+    const char *new = luaL_checkstring(L, 2);
     
-	struct stat statbuf;
-    int ret, len;
-    int add_slash = 0;
+	char *src = strdup(old);
+	char *dst = strdup(new);
     char *fulldst = get_full_dst(src, dst);
     printf("Moving %s to %s.\n", src, fulldst);
     /* check if source exists */
@@ -616,6 +614,7 @@ static int lua_moveposix(lua_State *L) {
     }
     /* now we can rename original file and we're done */
     rename(src, fulldst);
+	free(fulldst);
 	/* TODO: what it should return? */
     return 0;
 }
