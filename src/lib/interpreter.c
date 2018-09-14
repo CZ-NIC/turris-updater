@@ -547,6 +547,79 @@ static int lua_move(lua_State *L) {
 	return 0;
 }
 
+/*
+ * return filename from path
+ */
+char* get_filename(char *path)
+{
+    char *pos;
+    pos = strrchr(path, 47); /* 47 = `/` */
+    if (pos == NULL)
+        return path;
+    else
+        return pos + 1;
+}
+
+char* get_full_dst(char *src, char *dst)
+{
+    char *fulldst;
+    struct stat statbuf;
+    int ret, len, add_slash;
+    char *srcname = get_filename(src);
+    
+    /* check if destination is directory */
+    ret = stat(dst, &statbuf);
+    if(S_ISDIR(statbuf.st_mode) != 0)
+    {
+        /* construct full path and add trailing `/` when needed */
+        len = strlen(src) + strlen(dst) + 1;
+        if (dst[strlen(dst) - 1] != 47)
+        {   
+            add_slash = 1;
+            ++len;
+        }
+        char *fulldst = malloc(len);
+        strcpy(fulldst, dst);
+        if (add_slash == 1) 
+            strcat(fulldst, "/");
+        strcat(fulldst, srcname);
+        return fulldst;
+    }
+    else
+        return dst;
+}
+
+static int lua_moveposix(lua_State *L) {
+    char *src = luaL_checkstring(L, 1);
+    char *dst = luaL_checkstring(L, 2);
+    
+	struct stat statbuf;
+    int ret, len;
+    int add_slash = 0;
+    char *fulldst = get_full_dst(src, dst);
+    printf("Moving %s to %s.\n", src, fulldst);
+    /* check if source exists */
+    FILE *fp;
+    fp = fopen(src, "r");
+    if (fp == NULL) {
+        /* file does not exist, return error */
+        printf("Error: file %s does not exist.\n", src);
+        return -1;
+    }
+    else
+        fclose(fp);
+    /* check if destination exists and if yes, remove it */
+    if ((fp = fopen(fulldst, "r")) != NULL) {
+        /* file already exists, so remove it first */
+        fclose(fp);
+        unlink(fulldst); /* NOTE: can something bad happen here? */
+    }
+    /* now we can rename original file and we're done */
+    rename(src, fulldst);
+	/* TODO: what it should return? */
+    return 0;
+}
+
 static int lua_copy(lua_State *L) {
 	const char *old = luaL_checkstring(L, 1);
 	const char *new = luaL_checkstring(L, 2);
