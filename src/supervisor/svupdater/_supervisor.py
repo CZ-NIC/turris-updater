@@ -106,7 +106,7 @@ class Supervisor:
 
     def _stdout(self):
         while True:
-            line = self.process.stdout.readline()
+            line = self.process.stdout.readline().decode(sys.getdefaultencoding())
             self.trace_lock.acquire()
             self.trace += line
             self.trace_lock.release()
@@ -118,15 +118,14 @@ class Supervisor:
 
     def _stderr(self):
         while True:
-            line = self.process.stderr.readline()
+            line = self.process.stderr.readline().decode(sys.getdefaultencoding())
             self.trace_lock.acquire()
             self.trace += line
             self.trace_lock.release()
             if not line:
                 break
             if self.verbose:
-                print(line.decode(sys.getdefaultencoding()), end='',
-                      file=sys.stderr)
+                print(line, end='', file=sys.stderr)
                 sys.stderr.flush()
 
     def _at_exit(self):
