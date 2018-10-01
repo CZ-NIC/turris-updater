@@ -606,7 +606,7 @@ static int lua_move(lua_State *L) {
     if (fp == NULL) {
         /* file does not exist, return error */
         printf("Error: file %s does not exist.\n", src);
-        return -1;
+        return 0;
     }
     else
         fclose(fp);
