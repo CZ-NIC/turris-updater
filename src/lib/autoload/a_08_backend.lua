@@ -31,6 +31,7 @@ local unpack = unpack
 local io = io
 local os = os
 local table = table
+local string = string
 local setenv = setenv
 local getcwd = getcwd
 local mkdtemp = mkdtemp
@@ -52,6 +53,7 @@ local ERROR = ERROR
 local syscnf = require "syscnf"
 local utils = require "utils"
 local locks = require "locks"
+local dir = require "posix.dirent".dir
 
 module "backend"
 
@@ -194,6 +196,38 @@ function block_split(string)
 		return result
 	end
 	return filter_empty
+end
+
+--[[
+Returns two tables -
+1) set of files, symlinks, pipes, etc.
+2) set of directories
+]]
+local function list_files(path)
+    local files = {}
+    local dirs = {}
+    dirs["/"] = true -- add root dir
+    local function inner_find(ipath)
+        local fls = dir(ipath)
+        for _, file in ipairs(fls) do
+            if file ~= "." and file ~= ".." then
+				local fullpath = ipath .. "/" .. file
+                --[[
+                    Normalized name - leading dots are removed and, in case
+                    there was only a dot, replace it by /.
+                ]]
+                local normpath = fullpath:sub(#path + 1):gsub("^%.", ""):gsub("^$", "/")
+                if lstat(fullpath) == "d" then
+                    dirs[normpath] = true
+                    inner_find(fullpath)
+                else
+                    files[normpath] = true
+                end
+            end
+        end
+    end
+    inner_find(path)
+    return files, dirs
 end
 
 --[[
@@ -503,33 +537,8 @@ In case of errors, it raises error()
 ]]
 function pkg_examine(dir)
 	local data_dir = dir .. "/data"
-	-- Events to wait for
-	local events = {}
 	local err = nil
-	-- Launch scans of the data directory
-	local function launch(postprocess, ...)
-		local function cback(ecode, _, stdout, stderr)
-			if ecode == 0 then
-				postprocess(stdout)
-			else
-				err = stderr
-			end
-		end
-		local event = run_util(cback, function () chdir(data_dir) end, nil, cmd_timeout, cmd_kill_timeout, ...)
-		table.insert(events, event)
-	end
-	local function find_result(text)
-		--[[
-		Split into „lines“ separated by 0-char. Then eat leading dots and, in case
-		there was only a dot, replace it by /.
-		]]
-		return utils.map(utils.lines2set(text, "%z"), function (f) return f:gsub("^%.", ""):gsub("^$", "/"), true end)
-	end
-	local files, dirs
-	-- One for non-directories
-	launch(function (text) files = slashes_sanitize(find_result(text)) end, "find", "!", "-type", "d", "-print0")
-	-- One for directories
-	launch(function (text) dirs = slashes_sanitize(find_result(text)) end, "find", "-type", "d", "-print0")
+	local files, dirs = list_files(data_dir)
 	-- Get list of config files, if there are any
 	local control_dir = dir .. "/control"
 	local cidx = io.open(control_dir .. "/conffiles")
@@ -548,12 +557,6 @@ function pkg_examine(dir)
 	conffiles = slashes_sanitize(conffiles)
 	-- Load the control file of the package and parse it
 	local control = package_postprocess(block_parse(utils.read_file(control_dir .. "/control")));
-	-- Wait for all asynchronous processes to finish
-	events_wait(unpack(events))
-	-- How well did it go?
-	if err then
-		error(err)
-	end
 	-- Complete the control structure
 	control.files = files
 	if next(conffiles) then -- Don't store empty config files
