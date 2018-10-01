@@ -564,8 +564,12 @@ char* get_full_dst(char *src, char *dst)
 {
     struct stat statbuf;
     char *srcname = get_filename(src);
+    int result = stat(dst, &statbuf);
+	/* if destination does not exist, it's new filename */
+	if(result == -1) return dst;
+	printf("dst: %s\n", dst);
+	printf("stat result: %d\n", result);
     /* check if destination is directory */
-    stat(dst, &statbuf);
     if(S_ISDIR(statbuf.st_mode) != 0)
     {
         /* construct full path and add trailing `/` when needed */
