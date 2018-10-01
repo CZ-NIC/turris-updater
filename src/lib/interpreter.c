@@ -615,6 +615,7 @@ static int lua_move(lua_State *L) {
     /* now we can rename original file and we're done */
     rename(src, fulldst);
 	free(fulldst);
+	free(src);
 	/* TODO: what it should return? */
     return 0;
 }
