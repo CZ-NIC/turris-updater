@@ -523,6 +523,7 @@ static void mv_result(struct wait_id id __attribute__((unused)), void *data, int
 static int lua_move(lua_State *L) {
 	const char *old = luaL_checkstring(L, 1);
 	const char *new = luaL_checkstring(L, 2);
+	printf("\n****************************\nlua_move called, it wants its file >%s< back.\n", old);
 	/*
 	 * TODO:
 	 * We need to support cross-device move. But that one is a hell
@@ -560,6 +561,7 @@ static int lua_copy(lua_State *L) {
 	struct events *events = extract_registry(L, "events");
 	ASSERT(events);
 	struct mv_result_data mv_result_data = { .err = NULL };
+	printf("\n****************************\nlua_copy called, it wants its file >%s< back.\n", old);
 	struct wait_id id = run_util(events, mv_result, NULL, &mv_result_data, 0, NULL, -1, -1, "cp", "-f", old, new, (const char *)NULL);
 	events_wait(events, 1, &id);
 	if (mv_result_data.status) {
@@ -569,7 +571,16 @@ static int lua_copy(lua_State *L) {
 	}
 	return 0;
 }
+/*
+static int lua_copynew(lua_State *L) {
+	const char *old = luaL_checkstring(L, 1);
+	const char *new = luaL_checkstring(L, 2);
+	char buffer[32768];
+	char *src = strdup(old);
+	char *dst = strdup(new);
 
+}
+*/
 static const char *stat2str(const struct stat *buf) {
 	switch (buf->st_mode & S_IFMT) {
 		case S_IFSOCK:
