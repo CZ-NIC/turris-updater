@@ -203,30 +203,29 @@ Returns two tables -
 2) set of directories
 ]]
 local function list_files(path)
-    local files = {}
-    local dirs = {}
-    dirs["/"] = true -- add root dir
-    local function inner_find(ipath)
-        local fls = dir(ipath)
-        for _, file in ipairs(fls) do
-            if file ~= "." and file ~= ".." then
+	local files = {}
+	local dirs = {}
+	dirs["/"] = true -- add root dir
+	local function inner_find(ipath)
+		local fls = dir(ipath)
+		for _, file in ipairs(fls) do
+			if file ~= "." and file ~= ".." then
 				local fullpath = ipath .. "/" .. file
-                --[[
-                    Normalized name - leading dots are removed and, in case
-                    there was only a dot, replace it by /.
-                ]]
-                local normpath = fullpath:sub(#path + 1):gsub("^%.", ""):gsub("^$", "/")
-                if lstat(fullpath) == "d" then
-                    dirs[normpath] = true
-                    inner_find(fullpath)
-                else
-                    files[normpath] = true
-                end
-            end
-        end
-    end
-    inner_find(path)
-    return files, dirs
+				--[[
+					Normalized name - leading dots are removed and, in case
+					there was only a dot, replace it by /.
+				]]
+				if lstat(fullpath) == "d" then
+					dirs[fullpath] = true
+					inner_find(fullpath)
+				else
+					files[fullpath] = true
+				end
+			end
+		end
+	end
+	inner_find(path)
+	return files, dirs
 end
 
 --[[
