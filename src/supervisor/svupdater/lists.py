@@ -96,4 +96,5 @@ def update_userlists(lists):
 
     # Set
     with Uci() as uci:
+        uci.set('updater', 'pkglists', 'pkglists')
         uci.set('updater', 'pkglists', 'lists', tuple(lists))
