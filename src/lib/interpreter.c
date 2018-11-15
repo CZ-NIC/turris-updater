@@ -616,11 +616,35 @@ static int lua_move(lua_State *L) {
         fclose(fp);
         unlink(fulldst); /* NOTE: can something bad happen here? */
     }
+	/* TODO: what it should return? */
+
+	int sr;
+	struct stat sb;
+
+	sr = stat(src, &sb);
+	printf("\t***sr=%d\n", sr);
+
+	if (sr == -1) {
+		/* file does not exist */
+		printf("\tno such file, too baaad\n");
+	} else if (S_ISDIR == sb.st_mode) {
+		/* directory */
+		printf("\tthis is directory, you know?\n");
+	} else if (S_ISLNK == sb.st_mode) {
+		/* link */
+		printf("\twow, such link!\n");
+	} else {
+		/* should be file */
+		printf("\tnow this is boring. stupid file.\n");
+	}
+
+
+
     /* now we can rename original file and we're done */
     rename(src, fulldst);
 	free(fulldst);
 	free(src);
-	/* TODO: what it should return? */
+
     return 0;
 }
 
