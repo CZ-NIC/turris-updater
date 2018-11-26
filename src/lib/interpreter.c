@@ -520,31 +520,9 @@ static void mv_result(struct wait_id id __attribute__((unused)), void *data, int
 		mv_result_data->err = strdup(err);
 }
 
-static int lua_moveold(lua_State *L) {
-	const char *old = luaL_checkstring(L, 1);
-	const char *new = luaL_checkstring(L, 2);
-	/*
-	 * TODO:
-	 * We need to support cross-device move. But that one is a hell
-	 * to implement (because it might be a symlink, block or character
-	 * device, we need to support file permissions, etc. We use
-	 * external mv for now instead, we may want to reconsider later.
-	 *
-	 * Also, musl seems to have a bug of not overwriting one symlink by
-	 * another, which can cause strange errors, including not booting
-	 * up the kernel.
-	 */
-	struct events *events = extract_registry(L, "events");
-	ASSERT(events);
-	struct mv_result_data mv_result_data = { .err = NULL };
-	struct wait_id id = run_util(events, mv_result, NULL, &mv_result_data, 0, NULL, -1, -1, "mv", "-f", old, new, (const char *)NULL);
-	events_wait(events, 1, &id);
-	if (mv_result_data.status) {
-		lua_pushfstring(L, "Failed to move '%s' to '%s': %s (ecode %d)", old, new, mv_result_data.err, mv_result_data.status);
-		free(mv_result_data.err);
-		return lua_error(L);
-	}
-	return 0;
+static int file_exists(const char *file) {
+	struct stat sb;
+	return lstat(file, &sb);
 }
 
 /*
@@ -592,6 +570,33 @@ char* get_full_dst(char *src, char *dst)
         return dst;
 }
 
+static int _lua_move(lua_State *L) {
+	const char *old = luaL_checkstring(L, 1);
+	const char *new = luaL_checkstring(L, 2);
+	/*
+	 * TODO:
+	 * We need to support cross-device move. But that one is a hell
+	 * to implement (because it might be a symlink, block or character
+	 * device, we need to support file permissions, etc. We use
+	 * external mv for now instead, we may want to reconsider later.
+	 *
+	 * Also, musl seems to have a bug of not overwriting one symlink by
+	 * another, which can cause strange errors, including not booting
+	 * up the kernel.
+	 */
+	struct events *events = extract_registry(L, "events");
+	ASSERT(events);
+	struct mv_result_data mv_result_data = { .err = NULL };
+	struct wait_id id = run_util(events, mv_result, NULL, &mv_result_data, 0, NULL, -1, -1, "mv", "-f", old, new, (const char *)NULL);
+	events_wait(events, 1, &id);
+	if (mv_result_data.status) {
+		lua_pushfstring(L, "Failed to move '%s' to '%s': %s (ecode %d)", old, new, mv_result_data.err, mv_result_data.status);
+		free(mv_result_data.err);
+		return lua_error(L);
+	}
+	return 0;
+}
+
 static int lua_move(lua_State *L) {
     const char *old = luaL_checkstring(L, 1);
     const char *new = luaL_checkstring(L, 2);
@@ -599,47 +604,16 @@ static int lua_move(lua_State *L) {
 	char *src = strdup(old);
 	char *dst = strdup(new);
     char *fulldst = get_full_dst(src, dst);
-    printf("Moving %s to %s.\n", src, fulldst);
     /* check if source exists */
-    FILE *fp;
-    fp = fopen(src, "r");
-    if (fp == NULL) {
-        /* file does not exist, return error */
+	if (file_exists(src) == -1) {
         printf("Error: file %s does not exist.\n", src);
         return 0;
-    }
-    else
-        fclose(fp);
-    /* check if destination exists and if yes, remove it */
-    if ((fp = fopen(fulldst, "r")) != NULL) {
-        /* file already exists, so remove it first */
-        fclose(fp);
-        unlink(fulldst); /* NOTE: can something bad happen here? */
-    }
-	/* TODO: what it should return? */
-
-	int sr;
-	struct stat sb;
-
-	sr = stat(src, &sb);
-	printf("\t***sr=%d\n", sr);
-
-	if (sr == -1) {
-		/* file does not exist */
-		printf("\tno such file, too baaad\n");
-	} else if (S_ISDIR == sb.st_mode) {
-		/* directory */
-		printf("\tthis is directory, you know?\n");
-	} else if (S_ISLNK == sb.st_mode) {
-		/* link */
-		printf("\twow, such link!\n");
-	} else {
-		/* should be file */
-		printf("\tnow this is boring. stupid file.\n");
 	}
-
-
-
+    /* check if destination exists and if yes, remove it */
+	if (file_exists(fulldst) != -1) {
+		/* NOTE: can something bad happen here? */
+		unlink(fulldst);
+	}
     /* now we can rename original file and we're done */
     rename(src, fulldst);
 	free(fulldst);
