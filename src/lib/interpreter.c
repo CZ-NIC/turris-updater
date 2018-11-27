@@ -37,6 +37,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+#include <libgen.h>
 #include <unistd.h>
 #include <dirent.h>
 #include <stdio.h>
@@ -528,8 +529,7 @@ static int file_exists(const char *file) {
 /*
  * return filename from path
  */
-char* get_filename(char *path)
-{
+const char* get_filename(const char *path) {
     char *pos;
     pos = strrchr(path, 47); /* 47 = `/` */
     if (pos == NULL)
@@ -538,23 +538,25 @@ char* get_filename(char *path)
         return pos + 1;
 }
 
-char* get_full_dst(char *src, char *dst)
-{
+const char* get_full_dst(const char *src, const char *dst) {
     struct stat statbuf;
-    char *srcname = get_filename(src);
+    // const char *srcname = get_filename(src);
+	char *srcd = strdup(src);
+	const char *srcname = basename(srcd);
+	free(srcd);
     int result = stat(dst, &statbuf);
 	/* if destination does not exist, it's new filename */
-	if(result == -1) return dst;
-	printf("dst: %s\n", dst);
-	printf("stat result: %d\n", result);
+	if(result == -1) {
+		char *fulldst = (malloc(strlen(dst) + 1));
+		strcpy(fulldst, dst);
+        return fulldst;
+	}
     /* check if destination is directory */
-    if(S_ISDIR(statbuf.st_mode) != 0)
-    {
+    if(S_ISDIR(statbuf.st_mode) != 0) {
         /* construct full path and add trailing `/` when needed */
 		int add_slash = 0;
         int len = strlen(src) + strlen(dst) + 1;
-        if (dst[strlen(dst) - 1] != 47)
-        {   
+        if (dst[strlen(dst) - 1] != 47) {   
             add_slash = 1;
             ++len;
         }
@@ -565,9 +567,11 @@ char* get_full_dst(char *src, char *dst)
             strcat(fulldst, "/");
         strcat(fulldst, srcname);
         return fulldst;
-    }
-    else
-        return dst;
+    } else {
+		char *fulldst = (malloc(strlen(dst) + 1));
+		strcpy(fulldst, dst);
+        return fulldst;
+	}
 }
 
 static int _lua_move(lua_State *L) {
@@ -601,12 +605,10 @@ static int lua_move(lua_State *L) {
     const char *old = luaL_checkstring(L, 1);
     const char *new = luaL_checkstring(L, 2);
     
-	char *src = strdup(old);
-	char *dst = strdup(new);
-    char *fulldst = get_full_dst(src, dst);
+    const char *fulldst = get_full_dst(old, new);
     /* check if source exists */
-	if (file_exists(src) == -1) {
-        printf("Error: file %s does not exist.\n", src);
+	if (file_exists(old) == -1) {
+        printf("Error: file %s does not exist.\n", old);
         return 0;
 	}
     /* check if destination exists and if yes, remove it */
@@ -615,10 +617,9 @@ static int lua_move(lua_State *L) {
 		unlink(fulldst);
 	}
     /* now we can rename original file and we're done */
-    rename(src, fulldst);
-	free(fulldst);
-	free(src);
-
+    rename(old, fulldst);
+	//free(fulldst);
+	
     return 0;
 }
 
