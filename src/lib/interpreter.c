@@ -548,7 +548,7 @@ static int lua_move(lua_State *L) {
 	return 0;
 }
 
-static int lua_copy(lua_State *L) {
+static int _lua_copy(lua_State *L) {
 	const char *old = luaL_checkstring(L, 1);
 	const char *new = luaL_checkstring(L, 2);
 	/*
@@ -572,14 +572,13 @@ static int lua_copy(lua_State *L) {
 	return 0;
 }
 
-static int _lua_copy(lua_State *L) {
+static int lua_copy(lua_State *L) {
 	const char *old = luaL_checkstring(L, 1);
 	const char *new = luaL_checkstring(L, 2);
 
 	int f_old, f_new;
 	char buffer[32678];
 	ssize_t nread;
-	int saved_errno;
 
 	f_old = open(old, O_RDONLY);
 	if (f_old < 0) {
@@ -595,9 +594,9 @@ static int _lua_copy(lua_State *L) {
 
 	while(nread = read(f_old, buffer, sizeof buffer), nread > 0) {
 		char *out_ptr = buffer;
-		ssize_t nwritten;
 
 		do {
+			ssize_t nwritten;
 			nwritten = write(f_new, out_ptr, nread);
 			if (nwritten >= 0) {
 				nread -= nwritten;
@@ -606,8 +605,20 @@ static int _lua_copy(lua_State *L) {
 				lua_pushfstring(L, "Problem while copying");
 				return lua_error(L);
 			}
-		}
+		} while (nread > 0);
 	}
+
+	if (nread == 0) {
+		if (close(f_new) < 0) {
+			lua_pushfstring(L, "Cannot close file %s", new);
+			return lua_error(L);
+		}
+		close(f_old);
+		return 0;
+	}
+
+	/* NOTE: Can we get here? */
+	return 0;
 }
 
 static const char *stat2str(const struct stat *buf) {
