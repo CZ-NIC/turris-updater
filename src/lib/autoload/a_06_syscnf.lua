@@ -17,6 +17,7 @@ You should have received a copy of the GNU General Public License
 along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
+local os = os
 local utils = require "utils"
 local DIE = DIE
 
@@ -27,10 +28,26 @@ module "syscnf"
 -- Functions that we want to access from outside of this module
 -- luacheck: globals set_root_dir set_target
 
-local status_file_suffix = "/usr/lib/opkg/status"
-local info_dir_suffix = "/usr/lib/opkg/info/"
-local pkg_temp_dir_suffix = "/usr/share/updater/unpacked"
-local dir_opkg_collided_suffix = "/usr/share/updater/collided"
+local status_file_suffix = "usr/lib/opkg/status"
+local info_dir_suffix = "usr/lib/opkg/info/"
+local pkg_temp_dir_suffix = "usr/share/updater/unpacked"
+local dir_opkg_collided_suffix = "usr/share/updater/collided"
+
+--[[
+Canonizes path to absolute path. It does no change in case path is already an
+absolute but it if not then it prepends current working directory. There is also
+special handling in case path starts with tilde (~) in that case that character is
+replaced with content of HOME environment variable.
+]]
+local function path2abspath(path)
+	if path:match("^/") then
+		return path
+	elseif path:match("^~/") then
+		return os.getenv('HOME') .. "/" .. path
+	else
+		return getcwd() .. "/" .. path
+	end
+end
 
 --[[
 Set all the configurable directories to be inside the provided dir
@@ -38,11 +55,14 @@ Effectively sets that the whole system is mounted under some
 prefix.
 ]]
 function set_root_dir(dir)
+	if dir == nil or dir == "" then
+		dir = "/"
+	else
+		dir = path2abspath(dir) .. "/"
+	end
+
 	-- A root directory
-	root_dir = dir or "/"
-
-	dir = dir or ""
-
+	root_dir = dir
 	-- The file with status of installed packages
 	status_file = dir .. status_file_suffix
 	-- The directory where unpacked control files of the packages live
