@@ -19,6 +19,7 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 
 local utils = require "utils"
 local DIE = DIE
+local stdlib = require "posix.stdlib"
 
 module "syscnf"
 
@@ -27,10 +28,10 @@ module "syscnf"
 -- Functions that we want to access from outside of this module
 -- luacheck: globals set_root_dir set_target
 
-local status_file_suffix = "/usr/lib/opkg/status"
-local info_dir_suffix = "/usr/lib/opkg/info/"
-local pkg_temp_dir_suffix = "/usr/share/updater/unpacked"
-local dir_opkg_collided_suffix = "/usr/share/updater/collided"
+local status_file_suffix = "usr/lib/opkg/status"
+local info_dir_suffix = "usr/lib/opkg/info/"
+local pkg_temp_dir_suffix = "usr/share/updater/unpacked"
+local dir_opkg_collided_suffix = "usr/share/updater/collided"
 
 --[[
 Set all the configurable directories to be inside the provided dir
@@ -38,11 +39,14 @@ Effectively sets that the whole system is mounted under some
 prefix.
 ]]
 function set_root_dir(dir)
+	if dir then
+		dir = stdlib.realpath(dir) .. "/"
+	else
+		dir = "/"
+	end
+
 	-- A root directory
-	root_dir = dir or "/"
-
-	dir = dir or ""
-
+	root_dir = dir
 	-- The file with status of installed packages
 	status_file = dir .. status_file_suffix
 	-- The directory where unpacked control files of the packages live

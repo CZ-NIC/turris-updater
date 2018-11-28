@@ -23,6 +23,7 @@ UPD_SYS_TESTS := \
 	list-dir \
 	force-downgrade \
 	conflicts \
+	postinst \
 	reboot-recover-update
 
 .PHONY: test-sys valgrind-sys check
