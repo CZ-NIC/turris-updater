@@ -287,7 +287,7 @@ local function perform_internal(operations, journal_status, run_state)
 	local ok, err = pcall(function ()
 		-- Make sure the temporary directory for unpacked packages exist
 		local created = ""
-		for segment in (syscnf.pkg_temp_dir .. "/"):gmatch("([^/]*)/") do
+		for segment in syscnf.pkg_temp_dir:gmatch("([^/]*)/") do
 			created = created .. segment .. "/"
 			backend.dir_ensure(created)
 		end

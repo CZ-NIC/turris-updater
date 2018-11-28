@@ -936,7 +936,7 @@ end
 function pkg_config_info(f, configs)
 	-- Make sure there are no // in there, which would confuse the directory cleaning code
 	f = f:gsub("/+", "/")
-	local path = syscnf.root_dir .. f
+	local path = syscnf.root_dir .. f:gsub("^/+", "")
 	local hash = configs[f]
 	return path, hash and config_modified(path, hash)
 end
@@ -1013,6 +1013,7 @@ function script_run(pkg_name, script_name, ...)
 			s_ecode = ecode
 			s_stderr = stderr
 		end, function ()
+			-- If root is / then variable is empty otherwise absolute path is used
 			local dir = syscnf.root_dir:gsub('^/+$', '')
 			setenv("PKG_ROOT", dir)
 			setenv("IPKG_INSTROOT", dir)
@@ -1182,7 +1183,7 @@ function run_state_cache:init()
 	assert(not self.status)
 	-- TODO: Make it configurable? OpenWRT hardcodes this into the binary, but we may want to be usable on non-OpenWRT systems as well.
 	local ok, err = pcall(function()
-		self.lfile = locks.acquire(syscnf.root_dir .. "/var/lock/opkg.lock")
+		self.lfile = locks.acquire(syscnf.root_dir .. "var/lock/opkg.lock")
 		self.status = status_parse()
 		self.initialized = true
 	end)
