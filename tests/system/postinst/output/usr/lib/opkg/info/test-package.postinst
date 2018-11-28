@@ -1,0 +1,4 @@
+#!/bin/sh
+# We should have have root in our root and IPKG_INSTROOT should contain path to it
+[ -f "${IPKG_INSTROOT}usr/lib/opkg/status" ] || exit 1
+echo "Postinst file" > "${IPKG_INSTROOT}/postinst.txt"
