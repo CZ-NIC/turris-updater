@@ -571,16 +571,45 @@ static int lua_copy(lua_State *L) {
 	}
 	return 0;
 }
-/*
-static int lua_copynew(lua_State *L) {
+
+static int _lua_copy(lua_State *L) {
 	const char *old = luaL_checkstring(L, 1);
 	const char *new = luaL_checkstring(L, 2);
-	char buffer[32768];
-	char *src = strdup(old);
-	char *dst = strdup(new);
 
+	int f_old, f_new;
+	char buffer[32678];
+	ssize_t nread;
+	int saved_errno;
+
+	f_old = open(old, O_RDONLY);
+	if (f_old < 0) {
+		lua_pushfstring(L, "Cannot openfile %s", old);
+		return lua_error(L);
+	}
+
+	f_new = open(new, O_WRONLY | O_CREAT | O_EXCL, 0666);
+	if (f_new < 0) {
+		lua_pushfstring(L, "Cannot openfile %s",new);
+		return lua_error(L);
+	}
+
+	while(nread = read(f_old, buffer, sizeof buffer), nread > 0) {
+		char *out_ptr = buffer;
+		ssize_t nwritten;
+
+		do {
+			nwritten = write(f_new, out_ptr, nread);
+			if (nwritten >= 0) {
+				nread -= nwritten;
+				out_ptr += nwritten;
+			} else if (errno != EINTR) {
+				lua_pushfstring(L, "Problem while copying");
+				return lua_error(L);
+			}
+		}
+	}
 }
-*/
+
 static const char *stat2str(const struct stat *buf) {
 	switch (buf->st_mode & S_IFMT) {
 		case S_IFSOCK:
