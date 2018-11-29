@@ -547,37 +547,16 @@ static int lua_move(lua_State *L) {
 	return 0;
 }
 
-static int _lua_copy(lua_State *L) {
-	const char *old = luaL_checkstring(L, 1);
-	const char *new = luaL_checkstring(L, 2);
-	/*
-	 * NOTE:
-	 * This is blatant copy of `lua_move`, therefore same structures are used
-	 * named `mv_*` instead of `cp_*` that would make more sense.
-	 * Both functions will be replaced once we start using Lua Posix library
-	 * so it's just a temporary solution.
-	 */
-	struct events *events = extract_registry(L, "events");
-	ASSERT(events);
-	struct mv_result_data mv_result_data = { .err = NULL };
-	printf("\n****************************\nlua_copy called, it wants its file >%s< back.\n", old);
-	struct wait_id id = run_util(events, mv_result, NULL, &mv_result_data, 0, NULL, -1, -1, "cp", "-f", old, new, (const char *)NULL);
-	events_wait(events, 1, &id);
-	if (mv_result_data.status) {
-		lua_pushfstring(L, "Failed to copy '%s' to '%s': %s (ecode %d)", old, new, mv_result_data.err, mv_result_data.status);
-		free(mv_result_data.err);
-		return lua_error(L);
-	}
-	return 0;
-}
-
 static int lua_copy(lua_State *L) {
 	const char *old = luaL_checkstring(L, 1);
 	const char *new = luaL_checkstring(L, 2);
 
+	struct stat sb;
+	stat(old, &sb);
+
 	int f_old, f_new;
 	char buffer[32678];
-	ssize_t nread;
+	int nread;
 
 	f_old = open(old, O_RDONLY);
 	if (f_old < 0) {
@@ -585,7 +564,7 @@ static int lua_copy(lua_State *L) {
 		return lua_error(L);
 	}
 
-	f_new = open(new, O_WRONLY | O_CREAT | O_EXCL, 0666);
+	f_new = open(new, O_WRONLY | O_CREAT | O_EXCL, sb.st_mode);
 	if (f_new < 0) {
 		lua_pushfstring(L, "Cannot openfile %s",new);
 		return lua_error(L);
@@ -595,8 +574,7 @@ static int lua_copy(lua_State *L) {
 		char *out_ptr = buffer;
 
 		do {
-			ssize_t nwritten;
-			nwritten = write(f_new, out_ptr, nread);
+			int nwritten = write(f_new, out_ptr, nread);
 			if (nwritten >= 0) {
 				nread -= nwritten;
 				out_ptr += nwritten;

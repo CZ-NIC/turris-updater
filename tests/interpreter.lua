@@ -78,6 +78,12 @@ function test_fsutils()
 	f:close()
 	-- The file exists
 	assert_table_equal({["x"] = "r"}, ls(dir .. "/d2"))
+	-- Copy file
+	local f = io.open(dir .. "/d2/x", "w")
+	f:write("test")
+	f:close()
+	copy(dir .. "/d2/x", dir .. "/d2/y")
+	assert_table_equal({["x"] = "r", ["y"] = "r"}, ls(dir .. "/d2"))
 	-- A directory on another file system than tmp (likely)
 	local ldir = mkdtemp(getcwd())
 	table.insert(tmp_dirs, ldir)
