@@ -526,51 +526,33 @@ static int file_exists(const char *file) {
 	return lstat(file, &sb);
 }
 
-/*
- * return filename from path
- */
-const char* get_filename(const char *path) {
-    char *pos;
-    pos = strrchr(path, 47); /* 47 = `/` */
-    if (pos == NULL)
-        return path;
-    else
-        return pos + 1;
-}
-
-const char* get_full_dst(const char *src, const char *dst) {
-    struct stat statbuf;
-    // const char *srcname = get_filename(src);
-	char *srcd = strdup(src);
-	const char *srcname = basename(srcd);
-	free(srcd);
-    int result = stat(dst, &statbuf);
+char* get_full_dst(const char *src, const char *dst) {
+	const char *srcname = basename(src);
+	struct stat statbuf;
+	int result = stat(dst, &statbuf);
 	/* if destination does not exist, it's new filename */
-	if(result == -1) {
-		char *fulldst = (malloc(strlen(dst) + 1));
-		strcpy(fulldst, dst);
-        return fulldst;
-	}
-    /* check if destination is directory */
-    if(S_ISDIR(statbuf.st_mode) != 0) {
-        /* construct full path and add trailing `/` when needed */
+	if(result == -1)
+		return strdup(dst);
+	/* check if destination is directory */
+	if(S_ISDIR(statbuf.st_mode) != 0) {
+		/* construct full path and add trailing `/` when needed */
 		int add_slash = 0;
-        int len = strlen(src) + strlen(dst) + 1;
-        if (dst[strlen(dst) - 1] != 47) {   
-            add_slash = 1;
-            ++len;
-        }
+		int len = strlen(src) + strlen(dst) + 1;
+		if (dst[strlen(dst) - 1] != '/') {   
+			add_slash = 1;
+			++len;
+		}
 		/* TODO: check for errors here */
-        char *fulldst = malloc(len);
-        strcpy(fulldst, dst);
-        if (add_slash == 1) 
-            strcat(fulldst, "/");
-        strcat(fulldst, srcname);
-        return fulldst;
-    } else {
+		char *fulldst = malloc(len);
+		strcpy(fulldst, dst);
+		if (add_slash == 1) 
+			strcat(fulldst, "/");
+		strcat(fulldst, srcname);
+		return fulldst;
+	} else {
 		char *fulldst = (malloc(strlen(dst) + 1));
 		strcpy(fulldst, dst);
-        return fulldst;
+		return fulldst;
 	}
 }
 
@@ -618,7 +600,7 @@ static int lua_move(lua_State *L) {
 	}
     /* now we can rename original file and we're done */
     rename(old, fulldst);
-	//free(fulldst);
+	free(fulldst);
 	
     return 0;
 }
