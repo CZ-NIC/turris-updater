@@ -523,7 +523,6 @@ static void mv_result(struct wait_id id __attribute__((unused)), void *data, int
 static int lua_move(lua_State *L) {
 	const char *old = luaL_checkstring(L, 1);
 	const char *new = luaL_checkstring(L, 2);
-	printf("\n****************************\nlua_move called, it wants its file >%s< back.\n", old);
 	/*
 	 * TODO:
 	 * We need to support cross-device move. But that one is a hell
