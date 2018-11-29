@@ -546,11 +546,8 @@ const char* get_full_dst(const char *src, const char *dst) {
 	free(srcd);
     int result = stat(dst, &statbuf);
 	/* if destination does not exist, it's new filename */
-	if(result == -1) {
-		char *fulldst = (malloc(strlen(dst) + 1));
-		strcpy(fulldst, dst);
-        return fulldst;
-	}
+	if(result == -1)
+		return dst;
     /* check if destination is directory */
     if(S_ISDIR(statbuf.st_mode) != 0) {
         /* construct full path and add trailing `/` when needed */
