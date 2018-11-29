@@ -24,6 +24,7 @@ tags
 .tags
 .ycm_*.py
 .ycm_*.pyc
+compile_commands.json
 # Test stuff
 tests/check-compiled
 tests/luacheck-compiled
