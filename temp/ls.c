@@ -43,7 +43,7 @@ TODO: DIR_FUNC() needs to be called twice - befor entering and after leaving
 				if(dirname[strlen(dirname) - 1] != '/')
 					strcat(fullpath, "/");
 				strcat(fullpath, namelist[n]->d_name);
-				if(stat(fullpath, &sb) == 0) {
+				if(lstat(fullpath, &sb) == 0) {
 					/* check file type */
 					switch (sb.st_mode & S_IFMT) {
 						case S_IFDIR:
@@ -70,15 +70,25 @@ TODO: DIR_FUNC() needs to be called twice - befor entering and after leaving
 	return(0);
 }
 
+int dir_depth = 0;
+const char *dir_prefix = "--------------------"; /* max allowed depth is 20 dirs, enough for testing */
+char prefix[20];
+
 int print_file(const char *name) {
-	printf("F:%s\n", name);
+	printf("F:%s:%s\n", prefix, name);
 	return 0;
 }
 
 /* NOTE: TYPE is 0 on enter and 1 on leave */
 int print_dir(const char *name, int type) {
 	if (type == 0) {
-		printf("D:%s/\n", name);
+		dir_depth += 1;
+		strncpy(prefix, dir_prefix, dir_depth);
+		printf("D:%s:%s/\n", prefix, name);
+	} else {
+		dir_depth -= 1;
+		strncpy(prefix, dir_prefix, dir_depth);
+		prefix[dir_depth] = 0;
 	}
 	return 0;
 }
