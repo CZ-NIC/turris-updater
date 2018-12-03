@@ -3,58 +3,64 @@
 #include <string.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <errno.h>
 
-void test_func(int x) {
-	printf("*** - %d\n", x);
-}
 
-void caller(void(*p_func)(int)) {
-	(*p_func)(42);
-}
-
-int listdir(char *dirname) {
+int foreach_file(const char *dirname, int (*file_func)(const char *), int (*dir_func)(const char *, int)) {
+/*int foreach_file(const char *dirname) {*/
 /*
 
 FIXME: It needs to check if <directory> exists, otherwise it crashes!
 
-FIXME: There is segfault with lot of dir entries.
+TODO: Handle links 
+	- links to files are copied as files
+	- links to dirs are copied as links
 
-FIXME: do not add trailing "/" if already present.
+TODO: DIR_FUNC() needs to be called twice - befor entering and after leaving
 
 */
 
-/*
-	printf("dir to read: %s\n", dirname);
-*/
-
-	struct dirent **namelist;
-	int n;
+	/*printf("dir to read: %s\n", dirname);*/
 
 	struct stat sb;
-
+	struct dirent **namelist;
+	int n;
 	n = scandir(dirname, &namelist, NULL, alphasort);
 	if (n < 0)
 		perror("scandir");
 	else {
 		while(n--) {
 			/* Ignore "." and ".." */
-			if(!strcmp(namelist[n]->d_name, ".") && !strcmp(namelist[n]->d_name, "..")) {
-
+			if(
+				(strcmp(namelist[n]->d_name, ".") != 0) 
+			&&	(strcmp(namelist[n]->d_name, "..")!= 0)
+			) {
+				/* construct full pathname */
 				int len = strlen(dirname) + strlen(namelist[n]->d_name) + 2; /* 2: slash + zerochar */
 				char *fullpath = malloc(len); 
 				strcpy(fullpath, dirname);
 				/* when needed, append trailing "/" */
-				if (dirname[strlen(dirname) - 1] != '/')
+				if(dirname[strlen(dirname) - 1] != '/')
 					strcat(fullpath, "/");
 				strcat(fullpath, namelist[n]->d_name);
-				stat(fullpath, &sb);			
-
-				if(S_ISDIR(sb.st_mode)) {
-					printf("%s/\n", fullpath);
-					listdir(fullpath);
+				if(stat(fullpath, &sb) == 0) {
+					/* check file type */
+					switch (sb.st_mode & S_IFMT) {
+						case S_IFDIR:
+							dir_func(fullpath, 0);
+							foreach_file(fullpath, file_func, dir_func);
+							dir_func(fullpath, 1);
+							break;
+						case S_IFREG:
+							file_func(fullpath);
+							break;
+					}
 				} else {
-					printf("%s - %ld\n", fullpath, sb.st_size);
+					/* file doesn't exist, most probably */
+					printf("some problem\n");
 				}
+				
+				/* cleanup */
 				free(fullpath);
 			}
 			free(namelist[n]);
@@ -64,24 +70,23 @@ FIXME: do not add trailing "/" if already present.
 	return(0);
 }
 
-
-
-int g(int n, int (*func)(int)) {
-/* caller */
-	return func(n);
-}
-int f(int n) {
-/* callee */
-	return n*2;
+int print_file(const char *name) {
+	printf("F:%s\n", name);
+	return 0;
 }
 
-
+/* NOTE: TYPE is 0 on enter and 1 on leave */
+int print_dir(const char *name, int type) {
+	if (type == 0) {
+		printf("D:%s/\n", name);
+	}
+	return 0;
+}
 
 int main(int argc, char **argv) {
 	char *dirname = argv[1];
-	listdir(dirname);
 	printf("-------------\n");
-	printf("%d\n", g(21, f));
+	foreach_file(dirname, print_file, print_dir);
 	printf("-------------\n");
 	return(0);
 }
