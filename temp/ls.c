@@ -159,6 +159,71 @@ int rm(const char *name) {
 
 /* --- END OF REMOVE FILE/DIR --- */
 
+/* --- COPY FILE/DIR --- */
+
+/*
+
+NOTE: 
+
+CP takes two args, `old` and `new`, but we can pass only one (old) to tree funcs.
+So CP stores `new` somewhere (`dst` or something like that).
+If we are copying just one file, it's easy, `new` is same as `dst`.
+When we are coyping dir, we need to make `new` from `dst` and `old`.
+There's a code for it in MV implementation
+
+*/
+
+
+static int cp_file(const char *old, const char *new) {
+
+	struct stat sb;
+	stat(old, &sb);
+
+	int f_old, f_new;
+	char buffer[32678];
+	int nread;
+
+	f_old = open(old, O_RDONLY);
+	if (f_old < 0) {
+		lua_pushfstring(L, "Cannot openfile %s", old);
+		return lua_error(L);
+	}
+
+	f_new = open(new, O_WRONLY | O_CREAT | O_EXCL, sb.st_mode);
+	if (f_new < 0) {
+		lua_pushfstring(L, "Cannot openfile %s",new);
+		return lua_error(L);
+	}
+
+	while(nread = read(f_old, buffer, sizeof buffer), nread > 0) {
+		char *out_ptr = buffer;
+
+		do {
+			int nwritten = write(f_new, out_ptr, nread);
+			if (nwritten >= 0) {
+				nread -= nwritten;
+				out_ptr += nwritten;
+			} else if (errno != EINTR) {
+				lua_pushfstring(L, "Problem while copying");
+				return lua_error(L);
+			}
+		} while (nread > 0);
+	}
+
+	if (nread == 0) {
+		if (close(f_new) < 0) {
+			lua_pushfstring(L, "Cannot close file %s", new);
+			return lua_error(L);
+		}
+		close(f_old);
+		return 0;
+	}
+
+	/* NOTE: Can we get here? */
+	return 0;
+}
+
+/* --- END OF COPY FILE/DIR --- */
 
 int main(int argc, char **argv) {
 	char *dirname = argv[1];
