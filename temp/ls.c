@@ -3,10 +3,12 @@
 #include <string.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <errno.h>
 
 struct tree_funcs {
 	int (*file_func)(const char *);
+	int (*link_func)(const char *);
 	int (*dir_func)(const char *, int);
 };
 
@@ -49,16 +51,14 @@ TODO: Handle links
 				/* get info about both file and it's target, if it's link */
 				lstat(fullpath, &linkinfo);
 				fret = stat(fullpath, &fileinfo);	
-				if(fret == -1) {
-					/* file does not exist */
-					printf("File %s does not exist.\n", fullpath);
-				} else if(S_ISREG(linkinfo.st_mode)) {
+				if(S_ISREG(linkinfo.st_mode)) {
 					/* regular file */
 					printf("File %s is regular file.\n", fullpath);
 					funcs.file_func(fullpath);
 				} else if(S_ISLNK(linkinfo.st_mode)) {
 					/* link to file */
 					printf("File %s is link to file.\n", fullpath);
+					funcs.link_func(fullpath);
 				} else if(S_ISDIR(linkinfo.st_mode)) {
 					/* directory */
 					printf("%s is directory.\n", fullpath);
@@ -72,6 +72,9 @@ TODO: Handle links
 					funcs.dir_func(fullpath, 0);
 					foreach_file(fullpath, funcs);
 					funcs.dir_func(fullpath, 1);
+				} else if(fret == -1) {
+					/* file does not exist */
+					printf("File %s does not exist.\n", fullpath);
 				}
 				
 				/* cleanup */
@@ -110,16 +113,59 @@ int print_dir(const char *name, int type) {
 
 struct tree_funcs print_tree = {
 	print_file,
+	print_file,
 	print_dir
 };
 
-/* --- end of tree --- */
+/* --- END OF PRINT TREE --- */
+
+/* --- REMOVE FILE/DIR --- */
+
+int rm_file(const char *name) {
+	if(unlink(name) == -1)
+		perror("unlink");
+	return 0;
+}
+int rm_link(const char *name) {
+	return 0;
+}
+int rm_dir(const char *name, int type) {
+	if (type == 1) { /* directory now should be empty, so we can delete it */
+		if (rmdir(name) == -1)
+			perror("rmdir");
+	}
+	return 0;
+}
+struct tree_funcs rm_tree = {
+	rm_file,
+	rm_file,
+	rm_dir
+};
+
+int rm(const char *name) {
+	struct stat info;
+	stat(name, &info);
+	/* TODO: Use rm_* funcs directly, so I don't have to implement error handling twice? */
+	if(S_ISDIR(info.st_mode)) {
+		/* directory - remove files recursively and then remove dir */
+		foreach_file(name, rm_tree);
+		rmdir(name); /* TODO: error handling */
+	} else {
+		/* file - remove file directly */
+		unlink(name); /* TODO: error handlink */
+	}
+	return 0;
+}
+
+/* --- END OF REMOVE FILE/DIR --- */
+
 
 int main(int argc, char **argv) {
 	char *dirname = argv[1];
 	printf("-------------\n");
 /*	foreach_file(dirname, print_file, print_dir);*/
 	foreach_file(dirname, print_tree);
+	rm(dirname);
 	printf("-------------\n");
 	return(0);
 }
