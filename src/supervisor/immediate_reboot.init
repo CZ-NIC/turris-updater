@@ -1,0 +1,34 @@
+#!/bin/sh /etc/rc.common
+
+# This script handles updater-ng immediate reboot recovery. After an immediate
+# reboot there is going to be a journal and we should continue execution from it
+# as soon as possible.
+
+START=85
+
+status() {
+	return 0
+}
+
+start() {
+	# Recover updater's journal if it exists
+	if [ -e "/usr/share/updater/journal" ]; then
+		# Note: supervisor runs pkgupdate that recovers run from journal and later
+		# checks for update. This update is required because there could have been
+		# replan planned after reboot and this ensures that we do replan as soon
+		# as possible.
+		updater-supervisor
+	fi
+}
+
+stop() {
+	:
+}
+
+restart() {
+	:
+}
+
+reload() {
+	:
+}
