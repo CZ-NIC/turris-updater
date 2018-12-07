@@ -486,7 +486,7 @@ START_TEST(cmd_args_parse_test) {
 	for (char **arg = c->args; *arg; arg ++)
 		count ++;
 	char **args = malloc((count + 1) * sizeof *args);
-	*args = "opkg-trans";
+	*args = "pkgupdate";
 	for (int i = 1; i < count; i ++)
 		args[i] = c->args[i - 1];
 	args[count] = NULL;

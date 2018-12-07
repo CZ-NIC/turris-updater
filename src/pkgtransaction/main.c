@@ -1,5 +1,5 @@
 /*
- * Copyright 2016, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+ * Copyright 2016-2018, CZ.NIC z.s.p.o. (http://www.nic.cz/)
  *
  * This file is part of the turris updater.
  *
@@ -42,12 +42,14 @@ static const enum cmd_op_type cmd_op_allows[] = {
 	COT_JOURNAL_ABORT, COT_JOURNAL_RESUME, COT_INSTALL, COT_REMOVE, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_REEXEC, COT_USIGN, COT_LAST };
 
 static void print_help() {
-	fputs("Usage: opkg-trans [OPTION]...\n", stderr);
+	fputs("Usage: pkgtransaction [OPTION]...\n", stderr);
+	fputs("Tool to create and apply updater-ng transactions on to the system.\n", stderr);
+	fputs("Note that this tool does only minimal verification and because of that it allows you to trash your system.\n", stderr);
 	cmd_args_help(cmd_op_allows);
 }
 
 static void print_version() {
-	fputs("opkg-trans ", stderr);
+	fputs("pkgtransaction ", stderr);
 	cmd_args_version();
 }
 
