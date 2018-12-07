@@ -66,7 +66,7 @@ def userlists(lang=None):
 
     with Uci() as uci:
         try:
-            lists = uci.get("updater", "pkglists", "lists")
+            lists = uci.get("updater", "turris", "pkglists")
         except (UciExceptionNotFound, KeyError):
             # If we fail to get that section then just ignore
             return result
@@ -96,5 +96,5 @@ def update_userlists(lists):
 
     # Set
     with Uci() as uci:
-        uci.set('updater', 'pkglists', 'pkglists')
-        uci.set('updater', 'pkglists', 'lists', tuple(lists))
+        uci.set('updater', 'turris', 'turris')
+        uci.set('updater', 'turris', 'pkglists', tuple(lists))
