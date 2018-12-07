@@ -49,7 +49,7 @@ find "$TMP_DIR" -type f -name .keep -exec rm {} \;
 # Launch it
 export COVERAGEDIR="$O/.lua_coverage"
 MODEL=" --model Turris --board unknown"
-[ "$1" != opkg-trans ] || MODEL="" # No model specification for backend tool opkg-trans
+[ "$1" != "pkgtransaction" ] || MODEL="" # No model specification for backend tool pkgtransaction
 eval $LAUNCHER "$O"/bin/"$1" $MODEL $(cat "$DEFINITION"/params)
 # Do we need to de-randomize the output somehow?
 if [ -f "$DEFINITION"/cleanup ] ; then

@@ -31,8 +31,8 @@ UPD_SYS_TESTS := \
 check: test-sys valgrind-sys
 
 # As secondary tool we use pkgupdate in reboot-recover test
-test-sys-opkg-trans-reboot-recover: $(O)/bin/pkgupdate
-valgrind-sys-opkg-trans-reboot-recover: $(O)/bin/pkgupdate
+test-sys-pkgtransaction-reboot-recover: $(O)/bin/pkgupdate
+valgrind-sys-pkgtransaction-reboot-recover: $(O)/bin/pkgupdate
 
 define DO_SYS_TEST
 
@@ -48,5 +48,5 @@ valgrind-sys-$(1)-$(2): $(O)/bin/$(1)
 
 endef
 
-$(eval $(foreach TEST,$(TRANS_SYS_TESTS),$(call DO_SYS_TEST,opkg-trans,$(TEST))))
+$(eval $(foreach TEST,$(TRANS_SYS_TESTS),$(call DO_SYS_TEST,pkgtransaction,$(TEST))))
 $(eval $(foreach TEST,$(UPD_SYS_TESTS),$(call DO_SYS_TEST,pkgupdate,$(TEST))))
