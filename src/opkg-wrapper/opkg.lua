@@ -4,17 +4,17 @@ This file is part of updater-ng-opkg. Don't edit it.
 
 -- Repositories configured in opkg configuration.
 -- We read only customfeeds.conf as that should be only file where user should add additional repositories to
-local custom_feed = io.open("/etc/opkg/customfeeds.conf")
+local custom_feed = io.open(root_dir .. "etc/opkg/customfeeds.conf")
 if custom_feed then
 	-- Prepare list of custom keys added to opkg
 	local pubkeys = {}
-	for f in pairs(ls('/etc/opkg/keys')) do
-		table.insert(pubkeys, "file:///etc/opkg/keys/" .. f)
+	for f in pairs(ls(root_dir .. "/etc/opkg/keys")) do
+		table.insert(pubkeys, "file://" .. root_dir .. "etc/opkg/keys/" .. f)
 	end
 	-- Read ignore expressions
 	local ignore_regs = {}
-	for f in pairs(ls('/etc/updater/opkg-ignore')) do
-		local ignore_f = io.open('/etc/updater/opkg-ignore/' .. f)
+	for f in pairs(ls(root_dir .. "etc/updater/opkg-ignore")) do
+		local ignore_f = io.open(root_dir .. "etc/updater/opkg-ignore/" .. f)
 		for line in ignore_f:lines() do
 			if not line:match('^#') then
 				ignore_regs[line] = true
@@ -46,5 +46,5 @@ if custom_feed then
 	end
 	custom_feed:close()
 else
-	ERROR("No /etc/opkg/customfeeds.conf file. No opkg feeds are included.")
+	ERROR("No " .. root_dir .. "etc/opkg/customfeeds.conf file. No opkg feeds are included.")
 end
