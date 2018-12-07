@@ -27,6 +27,7 @@ local reexec = reexec
 local state_dump = state_dump
 local log_event = log_event
 local utils = require "utils"
+local syscnf = require "syscnf"
 local sandbox = require "sandbox"
 local uri = require "uri"
 local postprocess = require "postprocess"
@@ -64,6 +65,9 @@ function required_pkgs(entrypoint)
 end
 
 function prepare(entrypoint)
+	if not entrypoint then
+		entrypoint = "file://" .. syscnf.root_dir .. "etc/updater/conf.lua"
+	end
 	local required = required_pkgs(entrypoint)
 	local run_state = backend.run_state()
 	local tasks = planner.filter_required(run_state.status, required, allow_replan)
