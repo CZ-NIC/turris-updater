@@ -30,25 +30,25 @@ from .const import USERLISTS_FILE
 from .exceptions import ExceptionUpdaterNoSuchList
 
 
-def userlists(lang=None):
-    """Returns dict of userlists.
+def pkglists(lang=None):
+    """Returns dict of pkglists.
     Argument lang is expected to be a string containing language code. This
     code is then used for gettext translations of titles and descriptions of
     messages.
 
-    Return userlists are in dictionary where key is name of userlist and value
-    is another dictionary with following content:
-    "enabled": This is boolean value containing info if userlist is enabled.
-    "hidden": This is boolean value specifying if userlist is user visible.
-    "title": This is title text describing userlist (human readable name). This
+    Return pkglists are in dictionary where key is name of pkglist and value is
+    another dictionary with following content:
+    "enabled": This is boolean value containing info if pkglist is enabled.
+    "hidden": This is boolean value specifying if pkglist is pkg visible.
+    "title": This is title text describing pkglist (human readable name). This
         field can be None if "hidden" field is set to True.
-    "message": This is human readable description of given userlist. This can
-        be None if "hidden" is set to True.
+    "message": This is human readable description of given pkglist. This can be
+        None if "hidden" is set to True.
     """
     result = dict()
 
     trans = gettext.translation(
-        'userlists',
+        'pkglists',
         languages=[lang] if lang is not None else None,
         fallback=True)
 
@@ -78,7 +78,7 @@ def userlists(lang=None):
     return result
 
 
-def update_userlists(lists):
+def update_pkglists(lists):
     """
     List is expected to be a array of strings (list ids) that should be
     enabled. Anything omitted will be disabled.
@@ -98,3 +98,13 @@ def update_userlists(lists):
     with Uci() as uci:
         uci.set('updater', 'turris', 'turris')
         uci.set('updater', 'turris', 'pkglists', tuple(lists))
+
+
+def userlists(lang=None):
+    """Backward compatibility API. Please use pkglists instead."""
+    return pkglists(lang)
+
+
+def update_userlists(lists):
+    """Backward compatibility API. Please use update_pkglists instead."""
+    update_pkglists(lists)

@@ -60,7 +60,7 @@ def __run_command(command):
 def register(command):
     """Add given command (format is expected to be same as if you call
     subprocess.run) to be executed when updater exits. Note that this hook is
-    executed no matter if updater passer or failed or even if it just requested
+    executed no matter if updater passed or failed or even if it just requested
     user's approval. In all of those cases when updater exits this hook is
     executed.
 
