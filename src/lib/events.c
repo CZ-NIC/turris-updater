@@ -832,7 +832,7 @@ struct wait_id download(struct events *events, download_callback_t callback, voi
 		.udata = data,
 		.curl_err = ""
 	};
-	const char user_agent[] = "Turris Updater/" UPDATER_VERSION;
+	const char user_agent[] = "Turris Updater/" PACKAGE_VERSION;
 	res->curl = curl_easy_init();
 	ASSERT_MSG(res->curl, "Curl download instance creation failed");
 #define CURL_SETOPT(OPT, VAL) ASSERT_CURL(curl_easy_setopt(res->curl, OPT, VAL))

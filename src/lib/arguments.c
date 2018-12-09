@@ -32,7 +32,7 @@
 #include <assert.h>
 #include <stdarg.h>
 
-const char *argp_program_bug_address = "<tech.support@turris.cz>";
+const char *argp_program_bug_address = PACKAGE_BUGREPORT;
 
 /* // Use this as template when ever we need option symbols. Reserved range is 260-300
 enum option_val {

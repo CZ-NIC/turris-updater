@@ -3,7 +3,7 @@
 #include "../lib/util.h"
 #include "../lib/logging.h"
 
-const char *argp_program_version = "pkgtransaction " UPDATER_VERSION;
+const char *argp_program_version = "pkgtransaction " PACKAGE_VERSION;
 static const char doc[] =
 	"Updater-ng backend tool. This tool can directly manipulate local system state.\n"
 	"THIS TOOL IS DANGEROUS! Don't use it unless you know what you are doing.";

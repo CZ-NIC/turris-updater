@@ -32,6 +32,20 @@
 #include "path_utils.h"
 #include "picosat.h"
 
+#include "lua/backend.lua.h"
+#include "lua/cleanup.lua.h"
+#include "lua/dumper.lua.h"
+#include "lua/logging.lua.h"
+#include "lua/planner.lua.h"
+#include "lua/postprocess.lua.h"
+#include "lua/requests.lua.h"
+#include "lua/sandbox.lua.h"
+#include "lua/stacktraceplus.lua.h"
+#include "lua/testing.lua.h"
+#include "lua/transaction.lua.h"
+#include "lua/updater.lua.h"
+#include "lua/utils.lua.h"
+
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
@@ -887,7 +901,7 @@ static int lua_system_reboot(lua_State *L) {
 }
 
 static int lua_get_updater_version(lua_State *L) {
-	lua_pushstring(L, UPDATER_VERSION);
+	lua_pushstring(L, PACKAGE_VERSION);
 	return 1;
 }
 
@@ -1134,16 +1148,29 @@ const char *interpreter_include(struct interpreter *interpreter, const char *cod
 }
 
 const char *interpreter_autoload(struct interpreter *interpreter) {
-	for (struct file_index_element *el = lautoload; el->name; el ++) {
-		const char *underscore = rindex(el->name, '_');
-		// Use the part after the last underscore as the name
-		const char *name = underscore ? underscore + 1 : el->name;
-		TRACE("Including module %s", name);
-		const char *err = interpreter_include(interpreter, (const char *) el->data, el->size, name);
-		if (err)
-			return err;
-	}
+#define LOAD(SCRIPT) do { \
+			TRACE("Including module %s", #SCRIPT); \
+			const char *err = interpreter_include(interpreter, (const char *) lua_##SCRIPT, lua_##SCRIPT##_len, #SCRIPT); \
+			if (err) \
+				return err; \
+		} while(false);
+
+	LOAD(stacktraceplus);
+	LOAD(utils);
+	LOAD(testing);
+	LOAD(logging);
+	LOAD(cleanup);
+	LOAD(dumper);
+	LOAD(backend);
+	LOAD(transaction);
+	LOAD(requests);
+	LOAD(sandbox);
+	LOAD(postprocess);
+	LOAD(planner);
+	LOAD(updater);
 	return NULL;
+
+#undef LOAD
 }
 
 static void lookup(lua_State *L, char **name, char **end) {
