@@ -28,7 +28,7 @@
 // Initial size of storage buffer
 #define BUFFER_INIT_SIZE 2048
 // User agent reported to server
-#define USER_AGENT "Turris Updater/" UPDATER_VERSION
+#define USER_AGENT "Turris Updater/" PACKAGE_VERSION
 
 #define ASSERT_CURL(X) ASSERT((X) == CURLE_OK)
 #define ASSERT_CURLM(X) ASSERT((X) == CURLM_OK)
