@@ -3,7 +3,7 @@
 #include "../lib/util.h"
 #include "../lib/logging.h"
 
-const char *argp_program_version = "pkgupdate " UPDATER_VERSION;
+const char *argp_program_version = "pkgupdate " PACKAGE_VERSION;
 static const char usage_doc[] = "[SCRIPT]";
 static const char doc[] = "Updater-ng core tool. This updates system to latest version and syncs it with configuration.";
 
