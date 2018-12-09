@@ -1,16 +1,10 @@
-# Directories with some compilation products
-/docs/
-/bin/
-/lib/
-/.deps/
-/.objs/
-/.gen/
-/.lua_coverage/
-/tests/openssl
-/.uriparser
 # The desired results
 *.html
 *.so
+*.o
+*.a
+*.la
+*.lo
 /src/pkgtransaction/pkgtransaction
 /src/pkgupdate/pkgupdate
 /src/migrator/pkgmigrate
@@ -21,12 +15,6 @@
 core
 vgcore.*
 massif.out.*
-# Development
-tags
-.tags
-.ycm_*.py
-.ycm_*.pyc
-compile_commands.json
 # Test stuff
 tests/check-compiled
 tests/luacheck-compiled
@@ -34,3 +22,48 @@ tests/arguments
 testdir
 # Gitlab pages
 pages
+
+## Autotools
+# http://www.gnu.org/software/automake
+Makefile.in
+/ar-lib
+/test-driver
+.deps
+.dirstamp
+# http://www.gnu.org/software/autoconf
+autom4te.cache
+/autoscan.log
+/autoscan-*.log
+/aclocal.m4
+/compile
+/config.guess
+/config.h.in
+/config.log
+/config.status
+/config.sub
+/configure
+/configure.scan
+/depcomp
+/install-sh
+/missing
+/stamp-h1
+# https://www.gnu.org/software/libtool/
+/ltmain.sh
+/libtool
+# http://www.gnu.org/software/texinfo
+/texinfo.tex
+# http://www.gnu.org/software/m4/
+m4/libtool.m4
+m4/ltoptions.m4
+m4/ltsugar.m4
+m4/ltversion.m4
+m4/lt~obsolete.m4
+# Generated Makefile
+Makefile
+
+## Development
+tags
+.tags
+.ycm_*.py
+.ycm_*.pyc
+compile_commands.json
