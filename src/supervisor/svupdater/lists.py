@@ -98,3 +98,13 @@ def update_userlists(lists):
     with Uci() as uci:
         uci.set('updater', 'pkglists', 'pkglists')
         uci.set('updater', 'pkglists', 'lists', tuple(lists))
+
+
+def pkglists(lang=None):
+    "4.x backport"
+    return userlists(lang)
+
+
+def update_pkglists(lists):
+    "4.x backport"
+    update_userlists(lists)
