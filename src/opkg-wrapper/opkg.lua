@@ -8,7 +8,7 @@ local custom_feed = io.open(root_dir .. "etc/opkg/customfeeds.conf")
 if custom_feed then
 	-- Prepare list of custom keys added to opkg
 	local pubkeys = {}
-	for f in pairs(ls(root_dir .. "/etc/opkg/keys")) do
+	for f in pairs(ls(root_dir .. "etc/opkg/keys")) do
 		table.insert(pubkeys, "file://" .. root_dir .. "etc/opkg/keys/" .. f)
 	end
 	-- Read ignore expressions
