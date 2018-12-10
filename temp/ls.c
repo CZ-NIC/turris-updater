@@ -2,15 +2,88 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <errno.h>
+#include <libgen.h>
+
+/* --- SUPPORT FUNCS --- */
+
+/*
+ * Return 0 if file exists, -1 otherwise
+ */
+
+static int file_exists(const char *file) {
+	struct stat sb;
+	return lstat(file, &sb);
+}
+
+/*
+ * Return filename from path
+ */
+
+const char* get_filename(const char *path) {
+    char *pos;
+    pos = strrchr(path, 47); /* 47 = `/` */
+    if (pos == NULL)
+        return path;
+    else
+        return pos + 1;
+}
+
+/*
+ * Make full path from src path and dst name
+ */
+
+const char* get_full_dst(const char *src, const char *dst) {
+    struct stat statbuf;
+    // const char *srcname = get_filename(src);
+	char *srcd = strdup(src);
+	const char *srcname = basename(srcd);
+	free(srcd);
+    int result = stat(dst, &statbuf);
+	/* if destination does not exist, it's new filename */
+	if(result == -1) {
+		char *fulldst = (malloc(strlen(dst) + 1));
+		strcpy(fulldst, dst);
+        return fulldst;
+	}
+    /* check if destination is directory */
+    if(S_ISDIR(statbuf.st_mode) != 0) {
+        /* construct full path and add trailing `/` when needed */
+		int add_slash = 0;
+        int len = strlen(src) + strlen(dst) + 1;
+        if (dst[strlen(dst) - 1] != 47) {   
+            add_slash = 1;
+            ++len;
+        }
+		/* TODO: check for errors here */
+        char *fulldst = malloc(len);
+        strcpy(fulldst, dst);
+        if (add_slash == 1) 
+            strcat(fulldst, "/");
+        strcat(fulldst, srcname);
+        return fulldst;
+    } else {
+		char *fulldst = (malloc(strlen(dst) + 1));
+		strcpy(fulldst, dst);
+        return fulldst;
+	}
+}
+
+/* ------ */
+
+/* --- MAIN FUNC --- */
 
 struct tree_funcs {
 	int (*file_func)(const char *);
 	int (*link_func)(const char *);
 	int (*dir_func)(const char *, int);
 };
+
+int ff_success;
 
 int foreach_file(const char *dirname, struct tree_funcs funcs) {
 /*
@@ -23,13 +96,15 @@ TODO: Handle links
 
 	/*printf("dir to read: %s\n", dirname);*/
 
+	ff_success = 0;
+
 	struct stat fileinfo;
 	struct stat linkinfo;
 	struct dirent **namelist;
 	int n, fret;
 
 	n = scandir(dirname, &namelist, NULL, alphasort);
-/*	printf("n:%d\n",n);**/
+	printf("n:%d\n",n);
 	if (n < 0) {
 		printf("***PROBLEM with %s***\n", dirname);
 		perror("scandir");
@@ -87,8 +162,9 @@ TODO: Handle links
 	return(0);
 }
 
-/* --- PRINT TREE --- */
+/* ------ */
 
+/* --- PRINT TREE --- */
 
 int dir_depth = 0;
 const char *dir_prefix = "--------------------"; /* max allowed depth is 20 dirs, enough for testing */
@@ -117,7 +193,7 @@ struct tree_funcs print_tree = {
 	print_dir
 };
 
-/* --- END OF PRINT TREE --- */
+/* ------ */
 
 /* --- REMOVE FILE/DIR --- */
 
@@ -157,7 +233,7 @@ int rm(const char *name) {
 	return 0;
 }
 
-/* --- END OF REMOVE FILE/DIR --- */
+/* ------ */
 
 /* --- COPY FILE/DIR --- */
 
@@ -173,47 +249,38 @@ There's a code for it in MV implementation
 
 */
 
-
-static int cp_file(const char *old, const char *new) {
-
+int do_cp_file(const char *old, const char *new) {
+	int nread, f_old, f_new;
+	char buffer[32678];
 	struct stat sb;
 	stat(old, &sb);
 
-	int f_old, f_new;
-	char buffer[32678];
-	int nread;
-
 	f_old = open(old, O_RDONLY);
 	if (f_old < 0) {
-		lua_pushfstring(L, "Cannot openfile %s", old);
-		return lua_error(L);
+		printf("Cannot openfile %s", old);
 	}
 
 	f_new = open(new, O_WRONLY | O_CREAT | O_EXCL, sb.st_mode);
 	if (f_new < 0) {
-		lua_pushfstring(L, "Cannot openfile %s",new);
-		return lua_error(L);
+		printf("Cannot openfile %s",new);
 	}
 
 	while(nread = read(f_old, buffer, sizeof buffer), nread > 0) {
 		char *out_ptr = buffer;
-
 		do {
 			int nwritten = write(f_new, out_ptr, nread);
 			if (nwritten >= 0) {
 				nread -= nwritten;
 				out_ptr += nwritten;
 			} else if (errno != EINTR) {
-				lua_pushfstring(L, "Problem while copying");
-				return lua_error(L);
+				printf("Problem while copying");
 			}
 		} while (nread > 0);
 	}
 
 	if (nread == 0) {
 		if (close(f_new) < 0) {
-			lua_pushfstring(L, "Cannot close file %s", new);
-			return lua_error(L);
+			printf("Cannot close file %s", new);
 		}
 		close(f_old);
 		return 0;
@@ -223,14 +290,114 @@ static int cp_file(const char *old, const char *new) {
 	return 0;
 }
 
+int cp_file(const char *name) {
+	return 0;
+}
+int cp_dir(const char *name, int type) {
+	if(type == 0) {
+		/* When entering directory, check if it exists and create one, when necessary */
+	}
+	return 0;
+}
+
+struct tree_funcs cp_tree = {
+	cp_file,
+	cp_file,
+	cp_dir
+};
+
+char dst_path[256];
+
+int cp(const char *old, const char *new) {
+	/* store destination path for later use */
+	return 0;
+}
+
 /* --- END OF COPY FILE/DIR --- */
+
+/* --- MOVE FILE/DIR --- */
+
+static int move(const char *old, const char *new) {
+    
+    const char *fulldst = get_full_dst(old, new);
+    /* check if source exists */
+	if (file_exists(old) == -1) {
+        printf("Error: file %s does not exist.\n", old);
+        return 0;
+	}
+    /* check if destination exists and if yes, remove it */
+	if (file_exists(fulldst) != -1) {
+		/* NOTE: can something bad happen here? */
+		unlink(fulldst);
+	}
+    /* now we can rename original file and we're done */
+    rename(old, fulldst);
+	//free(fulldst);
+	
+    return 0;
+}
+
+/* ------ */
+
+/* --- FIND FILE --- */
+
+char *find_name;
+char *found_name;
+
+int find_file(const char *name) {
+	char *file_to_find = malloc(256);
+	strcpy(file_to_find, name);
+	const char *file = basename(file_to_find);
+
+	printf("compare:<%s>with<%s>\n", file, find_name);
+	if (strcmp(file, find_name) == 0) {
+		printf("\n***\nFOUND FILE!!!\n***\n");
+		strcpy(found_name, name);
+	}
+
+	return 0;
+}
+int find_dir(const char *name, int type) {
+	
+	printf("<find_dir>\n");
+
+	return 0;
+}
+struct tree_funcs find_tree = {
+	find_file,
+	find_file,
+	find_dir
+};
+
+const char* find(const char *where, const char *what) {
+
+	printf("Find file <%s> in <%s> dir.\n", what, where);
+
+	found_name[0] = 0;
+	strcpy(find_name, what);
+
+	foreach_file(where, find_tree);
+	/* TODO: look for directory also */
+	return found_name;
+}
+
+/* ------ */
 
 int main(int argc, char **argv) {
 	char *dirname = argv[1];
+
 	printf("-------------\n");
-/*	foreach_file(dirname, print_file, print_dir);*/
+	printf("Test for <print_tree>\n");
 	foreach_file(dirname, print_tree);
-	rm(dirname);
+
+	printf("-------------\n");
+	printf("Test for <find>\n");
+	find("./", "file_to_find");
+/*	const char *ffile = find("./", "file_to_find");
+	printf("Found: <%s>\n", ffile);
+*/
+
+	/*rm(dirname);*/
 	printf("-------------\n");
 	return(0);
 }
