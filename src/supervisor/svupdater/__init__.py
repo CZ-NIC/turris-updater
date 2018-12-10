@@ -22,12 +22,10 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-from .const import OPKG_LOCK, PING_TIMEOUT, PKGUPDATE_TIMEOUT
-from .const import PKGUPDATE_TIMEOUT_KILL
+from . import autorun, const
 from .utils import check_exclusive_lock as _check_exclusive_lock
 from .utils import daemonize as _daemonize
 from ._pidlock import pid_locked as _pid_locked
-from .config import Config
 from .exceptions import ExceptionUpdaterDisabled
 from ._supervisor import run as _run
 from .prerun import wait_for_network as _wait_for_network
@@ -37,7 +35,7 @@ def opkg_lock():
     """Returns True if opkg lock is taken. It can be taken by any other
     process. It doesn't have to be updater.
     """
-    return _check_exclusive_lock(OPKG_LOCK, False)
+    return _check_exclusive_lock(const.OPKG_LOCK, False)
 
 
 def updater_supervised():
@@ -48,8 +46,8 @@ def updater_supervised():
     return _pid_locked()
 
 
-def run(wait_for_network=False, ensure_run=False, timeout=PKGUPDATE_TIMEOUT,
-        timeout_kill=PKGUPDATE_TIMEOUT_KILL, hooklist=None):
+def run(wait_for_network=False, ensure_run=False, timeout=const.PKGUPDATE_TIMEOUT,
+        timeout_kill=const.PKGUPDATE_TIMEOUT_KILL, hooklist=None):
     """Run updater.
     This call will spawn daemon process and returns. But be aware that at first
     it checks if some other supervisor is not running and it takes file lock
@@ -60,17 +58,16 @@ def run(wait_for_network=False, ensure_run=False, timeout=PKGUPDATE_TIMEOUT,
     exits.
     You can pass hooks (single line shell scripts) to be run after updater.
     """
-    with Config() as cnf:
-        if cnf.disable():
-            raise ExceptionUpdaterDisabled(
-                "Can't run. Updater is configured to be disabled.")
+    if not autorun.enabled():
+        raise ExceptionUpdaterDisabled(
+            "Can't run. Updater is configured to be disabled.")
     # Fork to daemon
     if _daemonize():
         return
     # Wait for network if configured
     if wait_for_network:
         if type(wait_for_network == bool):
-            wait_for_network = PING_TIMEOUT
+            wait_for_network = const.PING_TIMEOUT
         _wait_for_network(wait_for_network)
     # And run updater
     _run(

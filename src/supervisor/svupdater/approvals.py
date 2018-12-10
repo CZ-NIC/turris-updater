@@ -24,11 +24,14 @@
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import os
 import time
-from .config import Config
-from .const import APPROVALS_ASK_FILE, APPROVALS_STAT_FILE
+from uci import Uci, UciExceptionNotFound
+from . import const, autorun, notify
 from .utils import report
 from .exceptions import ExceptionUpdaterApproveInvalid
-from . import notify
+
+# TODO do we want to have list of packages that are auto approved?
+# This would be beneficial for packages such as base-files that are updated
+# very often but do not change at all.
 
 
 def current():
@@ -63,22 +66,21 @@ def current():
             update. Note that this is forced immediate reboot.
     """
     # Both files have to exists otherwise it is invalid approval request
-    with Config() as cnf:
-        if not os.path.isfile(APPROVALS_ASK_FILE) or \
-                not os.path.isfile(APPROVALS_STAT_FILE) or \
-                not cnf.approvals_need():
-            return None
+    if not os.path.isfile(const.APPROVALS_ASK_FILE) or \
+            not os.path.isfile(const.APPROVALS_STAT_FILE) or \
+            not autorun.approvals():
+        return None
 
     result = dict()
     result['reboot'] = False
 
-    with open(APPROVALS_STAT_FILE, 'r') as file:
+    with open(const.APPROVALS_STAT_FILE, 'r') as file:
         cols = file.readline().split(' ')
         result['hash'] = cols[0].strip()
         result['status'] = cols[1].strip()
         result['time'] = int(cols[2].strip())
 
-    with open(APPROVALS_ASK_FILE, 'r') as file:
+    with open(const.APPROVALS_ASK_FILE, 'r') as file:
         # First line contains hash. We have has from stat file so just compare
         if file.readline().strip() != result['hash']:
             return None  # Invalid request
@@ -104,16 +106,15 @@ def current():
 def _set_stat(status, hsh, allowed):
     "Set given status to APPROVALS_STAT_FILE if hsh matches current hash"
     # Both files have to exists otherwise it is invalid approval request
-    with Config() as cnf:
-        if not os.path.isfile(APPROVALS_ASK_FILE) or \
-                not os.path.isfile(APPROVALS_STAT_FILE) or \
-                not cnf.approvals_need():
-            return
+    if not os.path.isfile(const.APPROVALS_ASK_FILE) or \
+            not os.path.isfile(const.APPROVALS_STAT_FILE) or \
+            not autorun.approvals():
+        return
 
     # TODO locks (we should lock stat file before doing this)
     # Read current stat
     cols = list()
-    with open(APPROVALS_STAT_FILE, 'r') as file:
+    with open(const.APPROVALS_STAT_FILE, 'r') as file:
         cols.extend(file.readline().split(' '))
 
     if hsh is not None and cols[0].strip() != hsh:
@@ -125,7 +126,7 @@ def _set_stat(status, hsh, allowed):
 
     # Write new stat
     cols[1] = status
-    with open(APPROVALS_STAT_FILE, 'w') as file:
+    with open(const.APPROVALS_STAT_FILE, 'w') as file:
         file.write(' '.join(cols))
 
 
@@ -150,27 +151,24 @@ def _approved():
     """This returns hash of approved plan. If there is no approved plan then it
     returns None.
     """
-    with Config() as cnf:
-        if not os.path.isfile(APPROVALS_ASK_FILE) or \
-                not os.path.isfile(APPROVALS_STAT_FILE) or \
-                not cnf.approvals_need():
-            return None
+    if not os.path.isfile(const.APPROVALS_ASK_FILE) or \
+            not os.path.isfile(const.APPROVALS_STAT_FILE) or \
+            not autorun.approvals():
+        return None
 
-        with open(APPROVALS_STAT_FILE, 'r') as file:
-            cols = file.readline().split(' ')
-            auto_grant = cnf.approvals_auto_grant_seconds()
-            if cols[1].strip() == 'granted' or \
-                    (auto_grant is not None and
-                     int(cols[2]) < (time.time() - auto_grant)):
-                return cols[0]
-            return None
+    with open(const.APPROVALS_STAT_FILE, 'r') as file:
+        cols = file.readline().split(' ')
+        auto_grant_time = autorun.auto_approve_time()
+        if cols[1].strip() == 'granted' or (auto_grant_time is not None and int(cols[2]) < (time.time() - (auto_grant_time * 3600))):
+            return cols[0]
+        return None
 
 
 def _gen_new_stat(new_hash):
     "Generate new stat file and send notification."
     report('Generating new approval request')
     # Write to stat file
-    with open(APPROVALS_STAT_FILE, 'w') as file:
+    with open(const.APPROVALS_STAT_FILE, 'w') as file:
         file.write(' '.join((new_hash, 'asked', str(int(time.time())))))
     # Send notification
     notify.approval()
@@ -183,25 +181,23 @@ def _update_stat():
     When new plan is presented then it also sends notification to user about
     it.
     """
-    with Config() as cnf:
-        if not os.path.isfile(APPROVALS_ASK_FILE) or \
-                not cnf.approvals_need():
-            # Drop any existing stat file
-            if os.path.isfile(APPROVALS_STAT_FILE):
-                os.remove(APPROVALS_STAT_FILE)
-            return
+    if not os.path.isfile(const.APPROVALS_ASK_FILE) or not autorun.approvals():
+        # Drop any existing stat file
+        if os.path.isfile(const.APPROVALS_STAT_FILE):
+            os.remove(const.APPROVALS_STAT_FILE)
+        return
 
     new_hash = ''
-    with open(APPROVALS_ASK_FILE, 'r') as file:
+    with open(const.APPROVALS_ASK_FILE, 'r') as file:
         new_hash = file.readline().strip()
 
-    if not os.path.isfile(APPROVALS_STAT_FILE):
+    if not os.path.isfile(const.APPROVALS_STAT_FILE):
         # No previous stat file so just generate it
         _gen_new_stat(new_hash)
         return
 
     # For existing stat file compare hashes and if they differ then generate
-    with open(APPROVALS_STAT_FILE, 'r') as file:
+    with open(const.APPROVALS_STAT_FILE, 'r') as file:
         cols = file.readline().split(' ')
         if cols[0].strip() != new_hash:
             _gen_new_stat(new_hash)
