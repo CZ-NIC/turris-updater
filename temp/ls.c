@@ -20,6 +20,12 @@ static int file_exists(const char *file) {
 	return lstat(file, &sb);
 }
 
+static int is_dir(const char *file) {
+	struct stat sb;
+	stat(file, &sb);
+    return S_ISDIR(sb.st_mode);
+}
+
 /*
  * Return filename from path
  */
@@ -327,16 +333,20 @@ int cp(const char *old, const char *new) {
 
 /* --- MOVE FILE/DIR --- */
 
-static int move(const char *old, const char *new) {
-    
+int mv_force;
+
+static int mv_file(const char *old, const char *new) {
     const char *fulldst = get_full_dst(old, new);
     /* check if source exists */
 	if (file_exists(old) == -1) {
         printf("Error: file %s does not exist.\n", old);
         return 0;
 	}
-    /* check if destination exists and if yes, remove it */
+    /* check if destination exists and if yes, remove it, or return -1, when not in force mode */
+	printf("file exists? %d, force? %d\n", file_exists(fulldst), mv_force);
 	if (file_exists(fulldst) != -1) {
+		if(mv_force == 0)
+			return -1;
 		/* NOTE: can something bad happen here? */
 		unlink(fulldst);
 	}
@@ -344,7 +354,34 @@ static int move(const char *old, const char *new) {
     rename(old, fulldst);
 	//free(fulldst);
 	
+	/* TODO: check if file is really moved and if not, use copy+delete */
+
     return 0;
+}
+
+int mv(const char *src, const char *dst, int force) {
+	printf("This is move from <%s> to <%s>\n", src, dst);
+	printf("%d\n", is_dir(src));
+
+	int retval = 0;
+	mv_force = force;
+/*
+ * Check if src is dir
+ *	- if not, move the file, we're done
+ *	- if yes, ?
+ * *	- if not, move the file, we're done
+ *	- if yes, ?
+ */
+	if(is_dir(src)) {
+		printf("TODO\n");
+	} else {
+		retval = mv_file(src, dst);
+	}
+
+
+	/*foreach_file(path);*/
+
+	return retval;
 }
 
 /* ------ */
@@ -406,8 +443,29 @@ int main(int argc, char **argv) {
 	const char *affile = find("./", "non_existing_file");
 	printf("Found: %s, %ld\n", affile, strlen(affile));
 
-	/*rm(dirname);*/
+	int retval = 0;
+
 	printf("-------------\n");
+	printf("Test for <move>\n");
+	printf("Move file\n");
+	retval = mv("dir/file1", "dir/newfile1", 0);
+	printf("ret:%d\n", retval);
+	printf("Move file over existing file without force\n");
+	retval = mv("dir/file2", "dir/newfile1", 0);
+	printf("ret:%d\n", retval);
+	printf("Move file over existing file with force\n");
+	retval = mv("dir/file2", "dir/newfile1", 1);
+	printf("ret:%d\n", retval);
+	printf("Move dir\n");
+	mv("dir", "newdir", 0);
+
+
+/*
+	rm(dirname);
+	printf("-------------\n");
+*/
+
+
 	return(0);
 }
 
