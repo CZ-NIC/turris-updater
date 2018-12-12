@@ -79,6 +79,20 @@ const char* get_full_dst(const char *src, const char *dst) {
 	}
 }
 
+const char* make_path(const char *dir, const char *file) {
+	/* TODO: check for trailing '/' */
+	int dirlen = strlen(dir);
+	int length = dirlen + strlen(file) + 2;
+	char *path = malloc(length);
+	strcpy(path, dir);
+	if(path[dirlen - 1] != '/') {
+		strcat(path, "/");
+	}
+	strcat(path, file);
+	path[length - 1] = '\0';
+	return path;
+}
+
 /* ------ */
 
 /* --- MAIN FUNC --- */
@@ -333,6 +347,14 @@ int cp(const char *old, const char *new) {
 
 /* --- MOVE FILE/DIR --- */
 
+/*
+
+Move - when destination is directory, move source to that directory
+
+
+ */
+
+
 int mv_force;
 
 static int mv_file(const char *old, const char *new) {
@@ -447,8 +469,12 @@ int main(int argc, char **argv) {
 
 	printf("-------------\n");
 	printf("Test for <move>\n");
-	printf("Move file\n");
+	printf("Move file to file\n");
 	retval = mv("dir/file1", "dir/newfile1", 0);
+	printf("ret:%d\n", retval);
+	mv("dir/newfile1", "dir/file1", 0); /* move back for later use */
+	printf("Move file to dir\n");
+	retval = mv("dir/file1", "dir/subdir1", 0);
 	printf("ret:%d\n", retval);
 	printf("Move file over existing file without force\n");
 	retval = mv("dir/file2", "dir/newfile1", 0);
@@ -465,6 +491,8 @@ int main(int argc, char **argv) {
 	printf("-------------\n");
 */
 
+	printf("make_path: <%s>\n..\n", make_path("dir", "file"));
+	printf("make_path: <%s>\n..\n", make_path("dir/", "file"));
 
 	return(0);
 }
