@@ -79,7 +79,7 @@ const char* get_full_dst(const char *src, const char *dst) {
 	}
 }
 
-const char* make_path(const char *dir, const char *file) {
+char* make_path(const char *dir, const char *file) {
 	/* TODO: check for trailing '/' */
 	int dirlen = strlen(dir);
 	int length = dirlen + strlen(file) + 2;
@@ -394,6 +394,17 @@ int mv(const char *src, const char *dst, int force) {
  * *	- if not, move the file, we're done
  *	- if yes, ?
  */
+	char *real_dst;
+	char *real_src = malloc(strlen(src) + 1);
+	strcpy(real_src, src);
+
+	if(is_dir(dst)) {
+		real_dst = make_path(dst, basename(real_src));
+	} else {
+		real_dst = malloc(strlen(dst) + 1);
+		strcpy(real_dst, dst);
+	}
+
 	if(is_dir(src)) {
 		printf("TODO\n");
 	} else {
