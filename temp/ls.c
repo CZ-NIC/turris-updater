@@ -345,7 +345,8 @@ char *find_name;
 char *found_name;
 
 int find_file(const char *name) {
-	char *file_to_find = malloc(256);
+	char *file_to_find = alloca(256);
+	char *found_name = alloca(256);
 	strcpy(file_to_find, name);
 	const char *file = basename(file_to_find);
 
@@ -370,14 +371,12 @@ struct tree_funcs find_tree = {
 };
 
 const char* find(const char *where, const char *what) {
-
 	printf("Find file <%s> in <%s> dir.\n", what, where);
 
-	found_name[0] = 0;
+	find_name = alloca(256);
 	strcpy(find_name, what);
-
 	foreach_file(where, find_tree);
-	/* TODO: look for directory also */
+	/* TODO: look for directory also? */
 	return found_name;
 }
 
