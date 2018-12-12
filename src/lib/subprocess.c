@@ -37,7 +37,7 @@ void subproc_kill_t(int timeout) {
 }
 
 static void run_child(const char *cmd, const char *args[], subproc_callback callback, void *data, int p_out[2], int p_err[2]) {
-	// Close unneded FDs
+	// Close unneded FDs and replace stdout and stderr
 	ASSERT(close(0) != -1);
 	ASSERT(close(p_out[0]) != -1);
 	ASSERT(dup2(p_out[1], 1) != -1 && close(p_out[1]) != -1);
@@ -46,6 +46,9 @@ static void run_child(const char *cmd, const char *args[], subproc_callback call
 	// Callback
 	if (callback)
 		callback(data);
+	fflush(stdout);
+	fflush(stderr);
+	// Note: We have to flush standard output because for some reason it looses content on exec
 	// Exec
 	size_t arg_c = 2; // cmd and NULL terminator
 	for (const char **p = args; *p; p++)
