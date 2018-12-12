@@ -98,13 +98,13 @@ int subproclo(int timeout, FILE *fd[2], const char *cmd, const char *args[]) {
 
 int subprocloc(int timeout, FILE *fd[2], subproc_callback callback, void *data, const char *cmd, const char *args[]) {
 	struct log_buffer log;
-	log_buffer_init(&log, LL_TRACE);
+	log_buffer_init(&log, LL_DBG);
 	if (log.f) {
 		fprintf(log.f, "Running subprocess: %s", cmd);
 		for (const char **p = args; *p; p++)
 			fprintf(log.f, " %s", *p);
 		fclose(log.f);
-		TRACE("%s", log.char_buffer);
+		DBG("%s", log.char_buffer);
 		free(log.char_buffer);
 	}
 	// Prepare pipes for stdout and stderr
@@ -152,9 +152,11 @@ int subprocloc(int timeout, FILE *fd[2], subproc_callback callback, void *data, 
 			break; // Both feeds are dead so break this loop
 		if (timeout >= 0 && 1000*(time(NULL) - t_start) >= timeout) {
 			if (term_sent) { // Send SIGKILL
+				DBG("Killing process on timeout: %s", cmd);
 				ASSERT(kill(pid, SIGKILL) != -1);
 				break;
 			} else { // Send SIGTERM and extend timeout
+				DBG("Terminating process on timeout: %s", cmd);
 				ASSERT(kill(pid, SIGTERM) != -1);
 				timeout += kill_timeout;
 				term_sent = true;
