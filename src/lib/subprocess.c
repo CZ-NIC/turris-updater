@@ -220,7 +220,7 @@ int lsubproclc(enum log_subproc_type type, const char *message, char **output, i
 	log_subproc_open(&lsp, type, message);
 	FILE *fds[] = {lsp.out, lsp.err};
 	int ec = subprocloc(timeout, fds, callback, data, cmd, args);
-	log_subproc_close(&lsp, ec, output);
+	log_subproc_close(&lsp, output);
 	return ec;
 }
 
@@ -233,6 +233,6 @@ int lvsubprocvc(enum log_subproc_type type, const char *message, char **output, 
 	log_subproc_open(&lsp, type, message);
 	FILE *fds[] = {lsp.out, lsp.err};
 	int ec = vsubprocvoc(timeout, fds, callback, data, cmd, args);
-	log_subproc_close(&lsp, ec, output);
+	log_subproc_close(&lsp, output);
 	return ec;
 }

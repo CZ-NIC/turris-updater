@@ -186,7 +186,7 @@ void log_subproc_open(struct log_subproc *lsp, enum log_subproc_type type, const
 	lsp->buffer.f = open_memstream(&lsp->buffer.buf, &lsp->buffer.size);
 
 	cookie_io_functions_t fncs = {
-		 // LS_FAIL.read = NULL,
+		.read = NULL,
 		.write = c_log_subproc_write,
 		.seek = NULL,
 		.close = c_log_subproc_close
@@ -206,7 +206,7 @@ void log_subproc_open(struct log_subproc *lsp, enum log_subproc_type type, const
 	INFO("%s", message);
 }
 
-void log_subproc_close(struct log_subproc *lsp, int exit_code, char **output) {
+void log_subproc_close(struct log_subproc *lsp, char **output) {
 	fclose(lsp->out);
 	fclose(lsp->err);
 	fclose(lsp->buffer.f);

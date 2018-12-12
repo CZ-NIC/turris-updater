@@ -123,6 +123,6 @@ struct log_subproc {
 };
 
 void log_subproc_open(struct log_subproc *ls, enum log_subproc_type type, const char *message) __attribute__((nonnull));
-void log_subproc_close(struct log_subproc *ls, int exit_code, char **output) __attribute__((nonnull(1)));
+void log_subproc_close(struct log_subproc *ls, char **output) __attribute__((nonnull(1)));
 
 #endif
