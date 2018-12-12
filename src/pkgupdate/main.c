@@ -23,6 +23,7 @@
 #include "../lib/logging.h"
 #include "../lib/arguments.h"
 #include "../lib/journal.h"
+#include "../lib/subprocess.h"
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -30,6 +31,16 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+
+void exec_script(const char *file, const char *message, const char *root_dir) {
+	const char *path = aprintf("%s%s", root_dir, file);
+	if (!access(path, X_OK)) {
+		setenv("ROOT_DIR", root_dir, true);
+		const char *args[] = {NULL};
+		lsubprocl(LST_HOOK, message, NULL, -1, path, args);
+	} else
+		DBG("Ignoring script '%s': %s", path, strerror(errno));
+}
 
 static bool results_interpret(struct interpreter *interpreter, size_t result_count) {
 	bool result = true;
@@ -58,9 +69,9 @@ static void print_version() {
 	cmd_args_version();
 }
 
-const char *hook_preupdate = "/etc/updater/hook_preupdate";
-const char *hook_postupdate = "/etc/updater/hook_postupdate";
-const char *hook_reboot_delayed = "/etc/updater/hook_reboot_required";
+const char *script_preupdate = "/etc/updater/preupdate";
+const char *script_postupdate = "/etc/updater/postupdate";
+const char *script_reboot_delayed = "/etc/updater/reboot_required";
 
 static bool approved(struct interpreter *interpreter, const char *approval_file, const char **approvals, size_t approval_count) {
 	if (!approval_file)
@@ -277,9 +288,7 @@ int main(int argc, char *argv[]) {
 		GOTO_CLEANUP;
 	if (!replan) {
 		update_state(LS_PREUPD);
-		const char *hook_path = aprintf("%s%s", root_dir, hook_preupdate);
-		setenv("ROOT_DIR", root_dir, true);
-		exec_hook(hook_path, "Executing preupdate hook");
+		exec_script(script_preupdate, "Executing preupdate hook", root_dir);
 	}
 	if (task_log) {
 		FILE *log = fopen(task_log, "a");
@@ -303,10 +312,8 @@ int main(int argc, char *argv[]) {
 	ASSERT_MSG(!err, "%s", err);
 	bool reboot_delayed;
 	ASSERT(interpreter_collect_results(interpreter, "bb", &reboot_delayed, &reboot_finished) == -1);
-	if (reboot_delayed) {
-		const char *hook_path = aprintf("%s%s", root_dir, hook_reboot_delayed);
-		exec_hook(hook_path, "Executing reboot_required hook");
-	}
+	if (reboot_delayed)
+		exec_script(script_reboot_delayed, "Executing reboot_required hook", root_dir);
 	err = interpreter_call(interpreter, "updater.cleanup", NULL, "bb", reboot_finished);
 	ASSERT_MSG(!err, "%s", err);
 	if (task_log) {
@@ -319,9 +326,7 @@ int main(int argc, char *argv[]) {
 	}
 REPLAN_CLEANUP:
 	update_state(LS_POSTUPD);
-	const char *hook_path = aprintf("%s%s", root_dir, hook_postupdate);
-	setenv("SUCCESS", trans_ok ? "true" : "false", true); // ROOT_DIR is already set
-	exec_hook(hook_path, "Executing postupdate hook");
+	exec_script(script_postupdate, "Executing postupdate hook", root_dir);
 CLEANUP:
 	free(approvals);
 	interpreter_destroy(interpreter);

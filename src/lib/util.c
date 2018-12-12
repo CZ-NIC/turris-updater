@@ -21,7 +21,6 @@
 
 #include "util.h"
 #include "logging.h"
-#include "subprocess.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -44,27 +43,6 @@ bool dump2file (const char *file, const char *text) {
 static int exec_dir_filter(const struct dirent *de) {
 	// ignore system paths and accept only files
 	return strcmp(de->d_name, ".") && strcmp(de->d_name, "..") && de->d_type == DT_REG;
-}
-
-void exec_hook(const char *dir, const char *message) {
-	struct dirent **namelist;
-	int count = scandir(dir, &namelist, exec_dir_filter, alphasort);
-	if (count == -1) {
-		ERROR("Can't open directory: %s: %s", dir, strerror(errno));
-		return;
-	}
-	for (int i = 0; i < count; i++) {
-		char *fpath = aprintf("%s/%s", dir, namelist[i]->d_name);
-		char *msg = aprintf("%s: %s", message, namelist[i]->d_name);
-		// TODO do we want to have some timeout here?
-		if (!access(fpath, X_OK)) {
-			const char *args[] = {NULL};
-			lsubprocl(LST_HOOK, msg, NULL, -1, fpath, args);
-		} else
-			DBG("File not executed, not executable: %s", namelist[i]->d_name);
-		free(namelist[i]);
-	}
-	free(namelist);
 }
 
 static bool cleanup_registered = false;
