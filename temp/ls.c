@@ -85,18 +85,10 @@ struct tree_funcs {
 
 int ff_success;
 
-int foreach_file(const char *dirname, struct tree_funcs funcs) {
-/*
+int foreach_file_inner(const char *dirname, struct tree_funcs funcs) {
 
-TODO: Handle links 
-	- links to files are copied as files
-	- links to dirs are copied as links
-
-*/
-
-	/*printf("dir to read: %s\n", dirname);*/
-
-	ff_success = 0;
+	if (ff_success == 1)
+		return 0;
 
 	struct stat fileinfo;
 	struct stat linkinfo;
@@ -138,14 +130,14 @@ TODO: Handle links
 					/* directory */
 					printf("%s is directory.\n", fullpath);
 					funcs.dir_func(fullpath, 0);
-					foreach_file(fullpath, funcs);
+					foreach_file_inner(fullpath, funcs);
 					funcs.dir_func(fullpath, 1);
 				} else if(S_ISDIR(fileinfo.st_mode)) {
 					/* link to directory */
 					printf("%s is link to directory.\n", fullpath);
 					/* NOTE: Should we treat link to dir differently? */
 					funcs.dir_func(fullpath, 0);
-					foreach_file(fullpath, funcs);
+					foreach_file_inner(fullpath, funcs);
 					funcs.dir_func(fullpath, 1);
 				} else if(fret == -1) {
 					/* file does not exist */
@@ -154,12 +146,30 @@ TODO: Handle links
 				
 				/* cleanup */
 				free(fullpath);
+				if (ff_success == 1)
+					break;
 			}
 			free(namelist[n]);
 		}
 		free(namelist);
 	}
 	return(0);
+}
+
+int foreach_file(const char *dirname, struct tree_funcs funcs) {
+/*
+
+TODO: Handle links 
+	- links to files are copied as files
+	- links to dirs are copied as links
+
+*/
+
+	/*printf("dir to read: %s\n", dirname);*/
+
+	ff_success = 0;
+	foreach_file_inner(dirname, funcs);
+	return 0;
 }
 
 /* ------ */
@@ -345,22 +355,18 @@ char *find_name;
 char *found_name;
 
 int find_file(const char *name) {
-	char *file_to_find = alloca(256);
-	char *found_name = alloca(256);
+	char *file_to_find = malloc(256);
 	strcpy(file_to_find, name);
 	const char *file = basename(file_to_find);
-
-	printf("compare:<%s>with<%s>\n", file, find_name);
 	if (strcmp(file, find_name) == 0) {
-		printf("\n***\nFOUND FILE!!!\n***\n");
 		strcpy(found_name, name);
+		ff_success = 1; /* report success to foreach_file */
 	}
-
 	return 0;
 }
 int find_dir(const char *name, int type) {
 	
-	printf("<find_dir>\n");
+	printf("<find_dir> %s\n", name);
 
 	return 0;
 }
@@ -373,6 +379,8 @@ struct tree_funcs find_tree = {
 const char* find(const char *where, const char *what) {
 	printf("Find file <%s> in <%s> dir.\n", what, where);
 
+	found_name = malloc(256);
+	found_name[0] = '\0';
 	find_name = alloca(256);
 	strcpy(find_name, what);
 	foreach_file(where, find_tree);
@@ -391,10 +399,12 @@ int main(int argc, char **argv) {
 
 	printf("-------------\n");
 	printf("Test for <find>\n");
-	find("./", "file_to_find");
-/*	const char *ffile = find("./", "file_to_find");
-	printf("Found: <%s>\n", ffile);
-*/
+/*	find("./", "file_to_find");*/
+	const char *ffile = find("./", "file_to_find");
+	printf("Found: %s, %ld\n", ffile, strlen(ffile));
+
+	const char *affile = find("./", "non_existing_file");
+	printf("Found: %s, %ld\n", affile, strlen(affile));
 
 	/*rm(dirname);*/
 	printf("-------------\n");
