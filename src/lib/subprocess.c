@@ -139,9 +139,9 @@ int subprocloc(int timeout, FILE *fd[2], subproc_callback callback, void *data, 
 		int dead = 0;
 		for (int i = 0; i < 2; i++) {
 			if (pfds[i].revents & POLLIN) {
-				char *buff[64];
+				char *buff[BUFSIZ];
 				ssize_t loaded;
-				while ((loaded = read(pfds[i].fd, buff, 64)) > 0)
+				while ((loaded = read(pfds[i].fd, buff, BUFSIZ)) > 0)
 					fwrite(buff, sizeof(char), loaded, fd[i]);
 			}
 			if (pfds[i].revents & POLLHUP)
