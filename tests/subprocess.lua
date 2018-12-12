@@ -51,16 +51,9 @@ end
 function test_callback()
 	subprocess_kill_timeout(0)
 
-	local ok, out = subprocess(LST_HOOK, "Test: env", 1000, function () io.stderr:write("Hello callback\n") end, "true")
+	local ok, out = subprocess(LST_HOOK, "Test: env", 1000, function () print("Hello callback") end, "true")
 	assert_equal(0, ok)
 	assert_equal("Hello callback\n", out)
-	--[[
-	We are testing here with stderr for a reason. There seems to be some problem
-	with lua's stdout and dup. No lua stdout works after dup2 on f.d. 1 on some
-	testing platforms. We are not planning to print messages from lua from
-	subprocess on daily base so let's not care.
-	]]
-
 	local ok, out = subprocess(LST_HOOK, "Test: env", 1000, function () setenv("TESTENV", "Hello env") end, "sh", "-c", "echo $TESTENV")
 	assert_equal(0, ok)
 	assert_equal("Hello env\n", out)
