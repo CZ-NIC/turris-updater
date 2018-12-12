@@ -112,10 +112,10 @@ START_TEST(callback) {
 	struct buffs *bfs = buffs_init();
 
 	// Without data
-	ck_assert_int_eq(0, subprocloc(1000, bfs->fds, callback_test, NULL, NULL, NULL));
+	ck_assert_int_eq(0, subprocvoc(1000, bfs->fds, callback_test, NULL, "true", NULL));
 	buffs_assert(bfs, "hello", "");
 	// With data
-	ck_assert_int_eq(0, subprocvoc(1000, bfs->fds, callback_test, "Hello again", NULL, NULL));
+	ck_assert_int_eq(0, subprocvoc(1000, bfs->fds, callback_test, "Hello again", "true", NULL));
 	buffs_assert(bfs, "Hello again", "");
 
 	buffs_free(bfs);

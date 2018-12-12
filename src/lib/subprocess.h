@@ -46,22 +46,22 @@ Value can also be NULL and in that case we unset given environment variable.
 Note that these calls are blocking ones.
 Returned status field from wait call. See manual for wait on how to decode it.
 */
-int subprocv(int timeout, const char *command, ...); // (char *) NULL
-int subprocvo(int timeout, FILE *fd[2], const char *command, ...); // (char *) NULL
-int subprocvoc(int timeout, FILE *fd[2], subproc_callback callback, void *data, const char *command, ...); // (char *) NULL
-int subprocl(int timeout, const char *command, const char *args[]);
-int subproclo(int timeout, FILE *fd[2], const char *command, const char *args[]);
-int subprocloc(int timeout, FILE *fd[2], subproc_callback callback, void *data, const char *command, const char *args[]);
-int vsubprocv(int timeout, const char *command, va_list args);
-int vsubprocvo(int timeout, FILE *fd[2], const char *command, va_list args);
-int vsubprocvoc(int timeout, FILE *fd[2], subproc_callback callback, void *data, const char *command, va_list args);
+int subprocv(int timeout, const char *command, ...) __attribute__((nonnull(2))); // (char *) NULL
+int subprocvo(int timeout, FILE *fd[2], const char *command, ...) __attribute__((nonnull(2,3))); // (char *) NULL
+int subprocvoc(int timeout, FILE *fd[2], subproc_callback callback, void *data, const char *command, ...) __attribute__((nonnull(2,5))); // (char *) NULL
+int subprocl(int timeout, const char *command, const char *args[]) __attribute__((nonnull(2,3)));
+int subproclo(int timeout, FILE *fd[2], const char *command, const char *args[]) __attribute__((nonnull(2,3,4)));
+int subprocloc(int timeout, FILE *fd[2], subproc_callback callback, void *data, const char *command, const char *args[]) __attribute__((nonnull(2,5,6)));
+int vsubprocv(int timeout, const char *command, va_list args) __attribute__((nonnull(2)));
+int vsubprocvo(int timeout, FILE *fd[2], const char *command, va_list args) __attribute__((nonnull(2,3)));
+int vsubprocvoc(int timeout, FILE *fd[2], subproc_callback callback, void *data, const char *command, va_list args) __attribute__((nonnull(2,5)));
 
 // Following functions integrate log_subproc with subproc to enable logging of subprocess output.
-int lsubprocv(enum log_subproc_type type, const char *message, char **output, int timeout, const char *command, ...);
-int lsubprocvc(enum log_subproc_type type, const char *message, char **output, int timeout, subproc_callback callback, void *data, const char *command, ...);
-int lsubprocl(enum log_subproc_type type, const char *message, char **output, int timeout, const char *command, const char *args[]);
-int lsubproclc(enum log_subproc_type type, const char *message, char **output, int timeout, subproc_callback callback, void *data, const char *command, const char *args[]);
-int lvsubprocv(enum log_subproc_type type, const char *message, char **output, int timeout, const char *command, va_list args);
-int lvsubprocvc(enum log_subproc_type type, const char *message, char **output, int timeout, subproc_callback callback, void *data, const char *command, va_list args);
+int lsubprocv(enum log_subproc_type type, const char *message, char **output, int timeout, const char *command, ...) __attribute__((nonnull(2,5)));
+int lsubprocvc(enum log_subproc_type type, const char *message, char **output, int timeout, subproc_callback callback, void *data, const char *command, ...) __attribute__((nonnull(2,7)));
+int lsubprocl(enum log_subproc_type type, const char *message, char **output, int timeout, const char *command, const char *args[]) __attribute__((nonnull(2,5,6)));
+int lsubproclc(enum log_subproc_type type, const char *message, char **output, int timeout, subproc_callback callback, void *data, const char *command, const char *args[]) __attribute__((nonnull(2,7,8)));
+int lvsubprocv(enum log_subproc_type type, const char *message, char **output, int timeout, const char *command, va_list args) __attribute__((nonnull(2,5)));
+int lvsubprocvc(enum log_subproc_type type, const char *message, char **output, int timeout, subproc_callback callback, void *data, const char *command, va_list args) __attribute__((nonnull(2,7)));
 
 #endif

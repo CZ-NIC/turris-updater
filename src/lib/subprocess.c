@@ -47,20 +47,17 @@ static void run_child(const char *cmd, const char *args[], subproc_callback call
 	if (callback)
 		callback(data);
 	// Exec
-	if (cmd) {
-		size_t arg_c = 2; // cmd and NULL terminator
-		for (const char **p = args; *p; p++)
-			 arg_c++;
-		char *argv[arg_c];
-		size_t i = 1;
-		for (const char **p = args; *p; p++)
-			argv[i++] = strdup(*p);
-		argv[i] = NULL;
-		argv[0] = strdup(cmd);
-		execvp(cmd, argv);
-		DIE("Failed to exec %s: %s", cmd, strerror(errno));
-	} else
-		exit(0); // We just exit child
+	size_t arg_c = 2; // cmd and NULL terminator
+	for (const char **p = args; *p; p++)
+		 arg_c++;
+	char *argv[arg_c];
+	size_t i = 1;
+	for (const char **p = args; *p; p++)
+		argv[i++] = strdup(*p);
+	argv[i] = NULL;
+	argv[0] = strdup(cmd);
+	execvp(cmd, argv);
+	DIE("Failed to exec %s: %s", cmd, strerror(errno));
 }
 
 int subprocv(int timeout, const char *cmd, ...) {
