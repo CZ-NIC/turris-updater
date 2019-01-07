@@ -23,6 +23,7 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+import io
 import os
 from copy import copy
 import glob
@@ -125,7 +126,7 @@ def repo_index_parse(repo):
     packages = os.path.join(REPO_PATH, repo, 'Packages.gz')
     if not os.path.isfile(packages):
         return dict()  # Just a template for new repository
-    with gzip.open(packages) as file:
+    with gzip.open(packages, 'rt') as file:
         content = file.readlines()
     blocks = split_index(content)
     pkgs = dict()
@@ -157,7 +158,7 @@ def repo_index_write(repo, index):
         repo_rm(repo)
         return
     ordered = ("Package", "Version", "MD5Sum", "SHA256sum", "Filename")
-    with gzip.open(packages, 'wb') as file:
+    with gzip.open(packages, 'wt') as file:
         for _, versions in index.items():
             for version in versions:
                 ctl = versions[version]
@@ -183,7 +184,7 @@ def repo_init(repo):
         return  # Repository seems to be already there
     if not os.path.isdir(repo_path):
         os.makedirs(repo_path)
-    with gzip.open(repo_pkgs, 'wb') as file:
+    with gzip.open(repo_pkgs, 'wt') as file:
         file.write('\n')
     gen_updater_config()
 
@@ -231,10 +232,8 @@ def pkg_ctl(file):
         print("File " + file + " is not valid tar archive.")
         return
     with tarfile.open(file) as tar:
-        tarctl = tar.getmember('./control.tar.gz')
-        with tarfile.open(fileobj=tar.extractfile(tarctl)) as ctar:
-            tarctlf = ctar.getmember('./control')
-            content = ctar.extractfile(tarctlf).readlines()
+        with tarfile.open(fileobj=tar.extractfile('./control.tar.gz')) as ctar:
+            content = io.TextIOWrapper(ctar.extractfile('./control')).readlines()
     # TODO handle missing files in tar and such
     return parse_control(content)
 
@@ -254,7 +253,7 @@ def add_pkg(repo, index, file):
     version = ctl['Version']
     newf = name + '_' + version + '.ipk'
     ctl['Filename'] = newf
-    with open(file) as ffile:
+    with open(file, 'rb') as ffile:
         data = ffile.read()
     ctl['MD5Sum'] = hashlib.md5(data).hexdigest()
     ctl['SHA256sum'] = hashlib.sha256(data).hexdigest()
@@ -404,7 +403,7 @@ def cmd_check(args):
                     consistent = False
                     continue
                 # Check hashes
-                with open(file) as ffile:
+                with open(file, 'rb') as ffile:
                     data = ffile.read()
                 md5sum = hashlib.md5(data).hexdigest()
                 sha256sum = hashlib.sha256(data).hexdigest()
