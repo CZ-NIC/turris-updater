@@ -10,6 +10,7 @@ C_TESTS := \
 	events \
 	util \
 	syscnf \
+	multiwrite \
 	subprocess \
 	download \
 	interpreter
