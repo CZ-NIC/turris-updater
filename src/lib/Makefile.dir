@@ -30,6 +30,7 @@ libupdater_MODULES := \
 	locks \
 	picosat \
 	util \
+	multiwrite \
 	logging
 ifdef COV
 libupdater_MODULES += lcoverage.embed
