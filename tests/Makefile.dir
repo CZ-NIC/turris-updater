@@ -9,6 +9,7 @@ C_TESTS := \
 	arguments \
 	events \
 	util \
+	multiwrite \
 	subprocess \
 	download \
 	interpreter
