@@ -70,6 +70,7 @@ START_TEST(mwrite_lorem) {
 			ck_assert(getline(&line, &len, f) != -1);
 			ck_assert_str_eq(lorem_ipsum[y+i], line);
 		}
+		free(line);
 		fclose(f);
 		unlink(files[i]);
 	}

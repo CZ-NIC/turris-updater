@@ -80,6 +80,7 @@ bool mwrite_close(struct mwrite *mw) {
 		if (res)
 			return false;
 	}
+	free(mw->fds);
 	mwrite_init(mw);
 	return true;
 }
