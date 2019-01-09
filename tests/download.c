@@ -31,7 +31,7 @@
 
 START_TEST(downloader_empty) {
 	struct downloader *d = downloader_new(1);
-	ck_assert(downloader_run(d) == NULL);
+	ck_assert_ptr_null(downloader_run(d));
 	downloader_free(d);
 }
 END_TEST
@@ -39,13 +39,13 @@ END_TEST
 // Test simple download from http with redirect to https and Let's encrypt certificate
 START_TEST(simple_download) {
 	struct downloader *d = downloader_new(1);
-	ck_assert(downloader_run(d) == NULL);
+	ck_assert_ptr_null(downloader_run(d));
 	struct download_opts opts;
 	download_opts_def(&opts);
 
 	struct download_i *inst = download_data(d, HTTP_SMALL, &opts);
 
-	ck_assert(downloader_run(d) == NULL);
+	ck_assert_ptr_null(downloader_run(d));
 
 	ck_assert_uint_eq(SMALL_SIZE, inst->out.buff->size);
 	ck_assert_str_eq(SMALL_CONTENT, (char *)inst->out.buff->data);
@@ -57,7 +57,7 @@ END_TEST
 // Test download to file. Otherwise it's same test as in case of simple_download.
 START_TEST(file_download) {
 	struct downloader *d = downloader_new(1);
-	ck_assert(downloader_run(d) == NULL);
+	ck_assert_ptr_null(downloader_run(d));
 	struct download_opts opts;
 	download_opts_def(&opts);
 
@@ -66,9 +66,9 @@ START_TEST(file_download) {
 		tmpdir = "/tmp";
 	char *file = aprintf("%s/updater-download.txt", tmpdir);
 
-	download_file(d, HTTP_SMALL, file, &opts);
+	ck_assert_ptr_nonnull(download_file(d, HTTP_SMALL, file, &opts));
 
-	ck_assert(downloader_run(d) == NULL);
+	ck_assert_ptr_null(downloader_run(d));
 
 	char *str = readfile(file);
 	ck_assert(str);
@@ -82,12 +82,63 @@ START_TEST(file_download) {
 }
 END_TEST
 
+// Test download to temporally file. We download different data to different
+// files to test that having same template we end up with two different files.
+START_TEST(temp_file_download) {
+	struct downloader *d = downloader_new(2);
+	ck_assert_ptr_null(downloader_run(d));
+	struct download_opts opts;
+	download_opts_def(&opts);
+
+	char *tmpdir = getenv("TMPDIR");
+	if (!tmpdir)
+		tmpdir = "/tmp";
+	char *file1 = aprintf("%s/updater-download-temp-XXXXXX", tmpdir);
+	char *file2 = aprintf("%s/updater-download-temp-XXXXXX", tmpdir);
+
+	ck_assert_str_eq(file1, file2); // Templates are same
+
+	ck_assert_ptr_nonnull(download_temp_file(d, HTTP_SMALL, file1, &opts));
+	ck_assert_ptr_nonnull(download_temp_file(d, HTTP_BIG, file2, &opts));
+
+	printf("1: %s 2: %s\n", file1, file2);
+	ck_assert_str_ne(file1, file2); // Paths are not same
+
+	ck_assert_ptr_null(downloader_run(d));
+
+	char *str = readfile(file1);
+	ck_assert(str);
+	ck_assert_uint_eq(SMALL_SIZE, strlen(str));
+	ck_assert_str_eq(SMALL_CONTENT, str);
+	free(str);
+
+	const char *s_dir = getenv("S");
+	if (!s_dir)
+		s_dir = ".";
+	char *lorem_ipsum_file = aprintf("%s/tests/data/lorem_ipsum.txt", s_dir);
+	char *big_content = readfile(lorem_ipsum_file);
+	size_t big_size = strlen(big_content);
+	str = readfile(file2);
+	ck_assert(str);
+	ck_assert_uint_eq(big_size, strlen(str));
+	ck_assert_str_eq(big_content, str);
+	free(str);
+	free(big_content);
+
+	unlink(file1);
+	unlink(file2);
+
+	downloader_free(d);
+}
+END_TEST
+
+
 // Test that we can have multiple downloads and that all are downloaded
 // Half of them are small file and half of them are bigger ones
 // This test requires min. 20MB of memory.
 START_TEST(multiple_downloads) {
 	struct downloader *d = downloader_new(4);
-	ck_assert(downloader_run(d) == NULL);
+	ck_assert_ptr_null(downloader_run(d));
 	struct download_opts opts;
 	download_opts_def(&opts);
 
@@ -100,7 +151,7 @@ START_TEST(multiple_downloads) {
 			insts[i] = download_data(d, HTTP_BIG, &opts);
 	}
 
-	ck_assert(downloader_run(d) == NULL);
+	ck_assert_ptr_null(downloader_run(d));
 
 	const char *s_dir = getenv("S");
 	if (!s_dir)
@@ -127,7 +178,7 @@ END_TEST
 // Test failure if we access non-existent url
 START_TEST(invalid) {
 	struct downloader *d = downloader_new(1);
-	ck_assert(downloader_run(d) == NULL);
+	ck_assert_ptr_null(downloader_run(d));
 	struct download_opts opts;
 	download_opts_def(&opts);
 
@@ -142,7 +193,7 @@ END_TEST
 // Test that even if one of download fail that all other will be downloaded
 START_TEST(invalid_continue) {
 	struct downloader *d = downloader_new(4);
-	ck_assert(downloader_run(d) == NULL);
+	ck_assert_ptr_null(downloader_run(d));
 	struct download_opts opts;
 	download_opts_def(&opts);
 
@@ -153,7 +204,7 @@ START_TEST(invalid_continue) {
 	struct download_i *fail_inst = download_data(d, HTTP_URL "/invalid", &opts);
 
 	ck_assert_ptr_eq(downloader_run(d), fail_inst);
-	ck_assert(downloader_run(d) == NULL);
+	ck_assert_ptr_null(downloader_run(d));
 
 	for (size_t i = 0; i < cnt; i++) {
 		ck_assert_uint_eq(SMALL_SIZE, insts[i]->out.buff->size);
@@ -167,7 +218,7 @@ END_TEST
 // Test certification pinning
 START_TEST(cert_pinning) {
 	struct downloader *d = downloader_new(1);
-	ck_assert(downloader_run(d) == NULL);
+	ck_assert_ptr_null(downloader_run(d));
 	struct download_opts opts;
 	download_opts_def(&opts);
 
@@ -179,7 +230,7 @@ START_TEST(cert_pinning) {
 
 	struct download_i *inst = download_data(d, HTTP_SMALL, &opts);
 
-	ck_assert(downloader_run(d) == NULL);
+	ck_assert_ptr_null(downloader_run(d));
 
 	ck_assert_uint_eq(SMALL_SIZE, inst->out.buff->size);
 	ck_assert_str_eq(SMALL_CONTENT, (char *)inst->out.buff->data);
@@ -191,7 +242,7 @@ END_TEST
 // Test failure if we try invalid certificate
 START_TEST(cert_invalid) {
 	struct downloader *d = downloader_new(1);
-	ck_assert(downloader_run(d) == NULL);
+	ck_assert_ptr_null(downloader_run(d));
 	struct download_opts opts;
 	download_opts_def(&opts);
 
@@ -219,6 +270,7 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(down, simple_download);
 	tcase_add_test(down, multiple_downloads);
 	tcase_add_test(down, file_download);
+	tcase_add_test(down, temp_file_download);
 	tcase_add_test(down, invalid);
 	tcase_add_test(down, invalid_continue);
 	tcase_add_test(down, cert_pinning);
