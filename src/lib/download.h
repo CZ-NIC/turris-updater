@@ -110,7 +110,19 @@ void download_opts_def(struct download_opts *opts) __attribute__((nonnull));
 // Returns download instance
 struct download_i *download_file(struct downloader *downloader, const char *url,
 		const char *output_path, const struct download_opts *opts)
-		__attribute__((nonnull(1, 2, 3, 4)));
+	__attribute__((nonnull(1, 2, 3, 4)));
+
+// Register given URL to be downloaded to temporally file. Output file path is
+// generated using mkstemp function.
+// url: URL data are downloaded from
+// output_template: Template for path where data are going to be stored (written
+//   to). Passed string has to end with XXXXXX and is modified to contain used
+//   path.
+// opts: Download options
+// Returns download instance
+struct download_i *download_temp_file(struct downloader *downloader,
+		const char *url, char *output_template, const struct download_opts *opts)
+	__attribute__((nonnull(1, 2, 3, 4)));
 
 // Register given URL to be downloaded to internal buffer.
 // url: URL data are downloaded from
