@@ -360,3 +360,15 @@ void download_i_free(struct download_i *inst) {
 	}
 	free(inst);
 }
+
+void download_i_collect_data(struct download_i *inst, uint8_t **data, size_t *size) {
+	if (inst->out_t == DOWN_OUT_T_BUFFER) {
+		*data = inst->out.buff->data;
+		*size = inst->out.buff->size;
+		inst->out.buff->data = NULL;
+	} else {
+		*data = NULL;
+		*size = 0;
+	}
+	download_i_free(inst);
+}
