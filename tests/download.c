@@ -333,6 +333,27 @@ START_TEST(cert_invalid) {
 }
 END_TEST
 
+// Test that we are able to overtake buffer
+START_TEST(collect_data) {
+	struct downloader *d = downloader_new(1);
+	ck_assert_ptr_null(downloader_run(d));
+	struct download_opts opts;
+	download_opts_def(&opts);
+
+	struct download_i *inst = download_data(d, HTTP_SMALL, &opts);
+
+	ck_assert_ptr_null(downloader_run(d));
+
+	uint8_t *data;
+	size_t size;
+	download_i_collect_data(inst, &data, &size);
+	ck_assert_uint_eq(SMALL_SIZE, size);
+	ck_assert_str_eq(SMALL_CONTENT, (char *)data);
+
+	downloader_free(d);
+}
+END_TEST
+
 
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Download");
@@ -348,6 +369,7 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(down, invalid_continue);
 	tcase_add_test(down, cert_pinning);
 	tcase_add_test(down, cert_invalid);
+	tcase_add_test(down, collect_data);
 	suite_add_tcase(result, down);
 	return result;
 }
