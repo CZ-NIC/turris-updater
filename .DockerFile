@@ -1,4 +1,4 @@
-FROM debian:stable
+FROM debian:unstable
 
 ENV HOME=/root
 
