@@ -57,7 +57,9 @@ void system_reboot(bool stick);
 size_t printf_len(const char *msg, ...) __attribute__((format(printf, 1, 2)));
 // Like sprintf, but returs the string. Expects there's enough space.
 char *printf_into(char *dst, const char *msg, ...) __attribute__((format(printf, 2, 3)));
-// Like printf, but allocates the data on the stack with alloca and returns. It uses the arguments multiple times, so beware of side effects.
+// Like printf, but allocates the data and returns. It uses the arguments multiple times, so beware of side effects.
+// Difference between mprint and aprint is what ever malloc or alloca is used respectively.
+#define mprintf(...) printf_into(malloc(printf_len(__VA_ARGS__)), __VA_ARGS__)
 #define aprintf(...) printf_into(alloca(printf_len(__VA_ARGS__)), __VA_ARGS__)
 
 // GCC 7+ reports fall troughs but previous versions doesn't understand attribute
