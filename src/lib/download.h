@@ -106,7 +106,7 @@ void download_opts_def(struct download_opts *opts) __attribute__((nonnull));
 // Register given URL to be downloaded to file.
 // url: URL data are downloaded from
 // output_path: Path where data are going to be stored (written to)
-// opts: Download options
+// opts: Download options (does not have to exist during instance existence)
 // Returns download instance
 struct download_i *download_file(struct downloader *downloader, const char *url,
 		const char *output_path, const struct download_opts *opts)
@@ -117,8 +117,8 @@ struct download_i *download_file(struct downloader *downloader, const char *url,
 // url: URL data are downloaded from
 // output_template: Template for path where data are going to be stored (written
 //   to). Passed string has to end with XXXXXX and is modified to contain used
-//   path.
-// opts: Download options
+//   path. This string should be freed only after download instance is freed.
+// opts: Download options (does not have to exist during instance existence)
 // Returns download instance
 struct download_i *download_temp_file(struct downloader *downloader,
 		const char *url, char *output_template, const struct download_opts *opts)
@@ -126,12 +126,19 @@ struct download_i *download_temp_file(struct downloader *downloader,
 
 // Register given URL to be downloaded to internal buffer.
 // url: URL data are downloaded from
-// opts: Download options
+// opts: Download options (does not have to exist during instance existence)
 // Returns download instance
 struct download_i *download_data(struct downloader *downloader, const char *url,
 		const struct download_opts *opts) __attribute__((nonnull(1, 2, 3)));
 
 // Free download instance
 void download_i_free(struct download_i*) __attribute__((nonnull));
+
+// This is same as download_i_free but where download_i_free just frees downloaded
+// buffer, this passes it to caller. Instance is freed the same way as in case of
+// download_i_free but data buffer has to be freed later by caller.
+// In other words this overtakes allocated buffer and frees rest of instance.
+// This can be called only on instance that was created by download_data.
+void download_i_collect_data(struct download_i*, uint8_t **data, size_t *size);
 
 #endif
