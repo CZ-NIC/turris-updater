@@ -237,30 +237,10 @@ static size_t download_write_callback(char *ptr, size_t size, size_t nmemb, void
 	return rsize;
 }
 
-static struct download_i *new_instance(struct downloader *downloader,
-		const char *url, const char *output_path, const struct download_opts *opts,
-		enum download_output_type type) {
+static struct download_i *init_instance(struct download_i *inst,
+		struct downloader *downloader, const char *url,
+		const struct download_opts *opts, enum download_output_type type) {
 	// TODO TRACE configured options
-	struct download_i *inst = malloc(sizeof *inst);
-	switch (type) {
-		case DOWN_OUT_T_FILE:
-			inst->out.file = malloc(sizeof *inst->out.file);
-			// Note: For some reason umask seems to be sometime changed. So we set here our own explicitly.
-			inst->out.file->fd = open(output_path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
-			if (inst->out.file->fd == -1) {
-				ERROR("(%s) Opening output file \"%s\" failed: %s", url, output_path, strerror(errno));
-				free(inst->out.file);
-				free(inst);
-				return NULL;
-			}
-			inst->out.file->fpath = strdup(output_path);
-			break;
-		case DOWN_OUT_T_BUFFER:
-			inst->out.buff = malloc(sizeof *inst->out.buff);
-			inst->out.buff->size = 0;
-			inst->out.buff->data = NULL;
-			break;
-	}
 	inst->done = false;
 	inst->success = false;
 	inst->retries = opts->retries;
@@ -308,14 +288,48 @@ static struct download_i *new_instance(struct downloader *downloader,
 
 struct download_i *download_file(struct downloader *downloader, const char *url,
 		const char *output_path, const struct download_opts *opts) {
+	struct download_i *inst = malloc(sizeof *inst);
+	inst->out.file = malloc(sizeof *inst->out.file);
+	// Note: For some reason umask seems to be sometime changed. So we set here our own explicitly.
+	inst->out.file->fd = open(output_path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+	if (inst->out.file->fd == -1) {
+		ERROR("(%s) Opening output file \"%s\" failed: %s", url, output_path, strerror(errno));
+		free(inst->out.file);
+		free(inst);
+		return NULL;
+	}
+	inst->out.file->fpath = strdup(output_path);
 	TRACE("Downloder: url %s to file %s", url, output_path);
-	return new_instance(downloader, url, output_path, opts, DOWN_OUT_T_FILE);
+	return init_instance(inst, downloader, url, opts, DOWN_OUT_T_FILE);
+}
+
+struct download_i *download_temp_file(struct downloader *downloader,
+		const char *url, char *output_template,
+		const struct download_opts *opts) {
+	struct download_i *inst = malloc(sizeof *inst);
+	inst->out.file = malloc(sizeof *inst->out.file);
+	inst->out.file->fd = mkstemp(output_template);
+	// Note: For some reason umask seems to be sometime changed. So we set here our own explicitly.
+	// TODO S_IRUSR S_IWUSR
+	if (inst->out.file->fd == -1) {
+		ERROR("(%s) Opening temporally output file \"%s\" failed: %s", url, output_template, strerror(errno));
+		free(inst->out.file);
+		free(inst);
+		return NULL;
+	}
+	inst->out.file->fpath = strdup(output_template);
+	TRACE("Downloder: url %s to temporally file %s", url, output_template);
+	return init_instance(inst, downloader, url, opts, DOWN_OUT_T_FILE);
 }
 
 struct download_i *download_data(struct downloader *downloader, const char *url,
 		const struct download_opts *opts) {
-	TRACE("Downloder: url %s", url);
-	return new_instance(downloader, url, NULL, opts, DOWN_OUT_T_BUFFER);
+	struct download_i *inst = malloc(sizeof *inst);
+	inst->out.buff = malloc(sizeof *inst->out.buff);
+	inst->out.buff->size = 0;
+	inst->out.buff->data = NULL;
+	TRACE("Downloder: url %s to buffer", url);
+	return init_instance(inst, downloader, url, opts, DOWN_OUT_T_BUFFER);
 }
 
 void download_i_free(struct download_i *inst) {
