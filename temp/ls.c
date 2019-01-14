@@ -48,44 +48,6 @@ const char* get_filename(const char *path) {
  * Make full path from src path and dst name
  */
 
-const char* old_get_full_dst(const char *src, const char *dst) {
-    struct stat statbuf;
-	char *fulldst;
-    // const char *srcname = get_filename(src);
-	char *srcd = strdup(src);
-	const char *srcname = basename(srcd);
-    int result = stat(dst, &statbuf);
-	/* if destination does not exist, it's new filename */
-	if(result == -1) {
-		char *fulldst = (malloc(strlen(dst) + 1));
-		strcpy(fulldst, dst);
-        return fulldst;
-	}
-    /* check if destination is directory */
-    if(S_ISDIR(statbuf.st_mode) != 0) {
-        /* construct full path and add trailing `/` when needed */
-		int add_slash = 0;
-        int len = strlen(src) + strlen(dst) + 1;
-        if (dst[strlen(dst) - 1] != 47) {   
-            add_slash = 1;
-            ++len;
-        }
-		/* TODO: check for errors here */
-        fulldst = malloc(len);
-        strcpy(fulldst, dst);
-        if (add_slash == 1) 
-            strcat(fulldst, "/");
-        strcat(fulldst, srcname);
-		free(srcd);
-        return fulldst;
-    } else {
-		fulldst = (malloc(strlen(dst) + 1));
-		strcpy(fulldst, dst);
-		free(srcd);
-        return fulldst;
-	}
-}
-
 int get_full_dst(const char *src, const char *dst, char *fulldst) {
     struct stat statbuf;
 	char *srcd = strdup(src);
@@ -572,7 +534,7 @@ int main(int argc, char **argv) {
 
 	int test_tree = 0;
 	int test_find = 0;
-	int test_mv = 0;
+	int test_mv = 1;
 	int test_cp = 0;
 	int test_rm = 0;
 
