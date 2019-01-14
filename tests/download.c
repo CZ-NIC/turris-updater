@@ -1,5 +1,5 @@
 /*
- * Copyright 2018, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+ * Copyright 2018-2019, CZ.NIC z.s.p.o. (http://www.nic.cz/)
  *
  * This file is part of the turris updater.
  *
@@ -21,13 +21,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "../src/lib/download.h"
-#include "../src/lib/util.h"
-
-#define HTTP_URL "http://applications-test.turris.cz"
-#define HTTP_SMALL ( HTTP_URL "/li.txt" )
-#define HTTP_BIG ( HTTP_URL "/lorem_ipsum.txt" )
-#define SMALL_CONTENT "lorem ipsum\n"
-#define SMALL_SIZE 12
+#include "test_data.h"
 
 START_TEST(downloader_empty) {
 	struct downloader *d = downloader_new(1);
@@ -43,12 +37,12 @@ START_TEST(simple_download) {
 	struct download_opts opts;
 	download_opts_def(&opts);
 
-	struct download_i *inst = download_data(d, HTTP_SMALL, &opts);
+	struct download_i *inst = download_data(d, HTTP_LOREM_IPSUM_SHORT, &opts);
 
 	ck_assert_ptr_null(downloader_run(d));
 
-	ck_assert_uint_eq(SMALL_SIZE, inst->out.buff->size);
-	ck_assert_str_eq(SMALL_CONTENT, (char *)inst->out.buff->data);
+	ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, inst->out.buff->size);
+	ck_assert_str_eq(LOREM_IPSUM_SHORT, (char *)inst->out.buff->data);
 
 	downloader_free(d);
 }
@@ -61,19 +55,16 @@ START_TEST(file_download) {
 	struct download_opts opts;
 	download_opts_def(&opts);
 
-	char *tmpdir = getenv("TMPDIR");
-	if (!tmpdir)
-		tmpdir = "/tmp";
-	char *file = aprintf("%s/updater-download.txt", tmpdir);
+	char *file = aprintf("%s/updater-download.txt", get_tmpdir());
 
-	ck_assert_ptr_nonnull(download_file(d, HTTP_SMALL, file, &opts));
+	ck_assert_ptr_nonnull(download_file(d, HTTP_LOREM_IPSUM_SHORT, file, &opts));
 
 	ck_assert_ptr_null(downloader_run(d));
 
 	char *str = readfile(file);
 	ck_assert(str);
-	ck_assert_uint_eq(SMALL_SIZE, strlen(str));
-	ck_assert_str_eq(SMALL_CONTENT, str);
+	ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, strlen(str));
+	ck_assert_str_eq(LOREM_IPSUM_SHORT, str);
 	free(str);
 
 	unlink(file);
@@ -90,32 +81,26 @@ START_TEST(temp_file_download) {
 	struct download_opts opts;
 	download_opts_def(&opts);
 
-	char *tmpdir = getenv("TMPDIR");
-	if (!tmpdir)
-		tmpdir = "/tmp";
+	const char *tmpdir = get_tmpdir();
 	char *file1 = aprintf("%s/updater-download-temp-XXXXXX", tmpdir);
 	char *file2 = aprintf("%s/updater-download-temp-XXXXXX", tmpdir);
 
 	ck_assert_str_eq(file1, file2); // Templates are same
 
-	ck_assert_ptr_nonnull(download_temp_file(d, HTTP_SMALL, file1, &opts));
-	ck_assert_ptr_nonnull(download_temp_file(d, HTTP_BIG, file2, &opts));
+	ck_assert_ptr_nonnull(download_temp_file(d, HTTP_LOREM_IPSUM_SHORT, file1, &opts));
+	ck_assert_ptr_nonnull(download_temp_file(d, HTTP_LOREM_IPSUM, file2, &opts));
 
-	printf("1: %s 2: %s\n", file1, file2);
 	ck_assert_str_ne(file1, file2); // Paths are not same
 
 	ck_assert_ptr_null(downloader_run(d));
 
 	char *str = readfile(file1);
 	ck_assert(str);
-	ck_assert_uint_eq(SMALL_SIZE, strlen(str));
-	ck_assert_str_eq(SMALL_CONTENT, str);
+	ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, strlen(str));
+	ck_assert_str_eq(LOREM_IPSUM_SHORT, str);
 	free(str);
 
-	const char *s_dir = getenv("S");
-	if (!s_dir)
-		s_dir = ".";
-	char *lorem_ipsum_file = aprintf("%s/tests/data/lorem_ipsum.txt", s_dir);
+	char *lorem_ipsum_file = FILE_LOREM_IPSUM;
 	char *big_content = readfile(lorem_ipsum_file);
 	size_t big_size = strlen(big_content);
 	str = readfile(file2);
@@ -146,24 +131,21 @@ START_TEST(multiple_downloads) {
 	struct download_i *insts[cnt];
 	for (size_t i = 0; i < cnt; i++) {
 		if (i % 2)
-			insts[i] = download_data(d, HTTP_SMALL, &opts);
+			insts[i] = download_data(d, HTTP_LOREM_IPSUM_SHORT, &opts);
 		else
-			insts[i] = download_data(d, HTTP_BIG, &opts);
+			insts[i] = download_data(d, HTTP_LOREM_IPSUM, &opts);
 	}
 
 	ck_assert_ptr_null(downloader_run(d));
 
-	const char *s_dir = getenv("S");
-	if (!s_dir)
-		s_dir = ".";
-	char *lorem_ipsum_file = aprintf("%s/tests/data/lorem_ipsum.txt", s_dir);
+	char *lorem_ipsum_file = FILE_LOREM_IPSUM;
 	char *big_content = readfile(lorem_ipsum_file);
 	size_t big_size = strlen(big_content);
 
 	for (size_t i = 0; i < cnt; i++) {
 		if (i % 2) {
-			ck_assert_uint_eq(SMALL_SIZE, insts[i]->out.buff->size);
-			ck_assert_str_eq(SMALL_CONTENT, (char *)insts[i]->out.buff->data);
+			ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, insts[i]->out.buff->size);
+			ck_assert_str_eq(LOREM_IPSUM_SHORT, (char *)insts[i]->out.buff->data);
 		} else {
 			ck_assert_uint_eq(big_size, insts[i]->out.buff->size);
 			ck_assert_str_eq(big_content, (char *)insts[i]->out.buff->data);
@@ -182,7 +164,7 @@ START_TEST(invalid) {
 	struct download_opts opts;
 	download_opts_def(&opts);
 
-	struct download_i *inst = download_data(d, HTTP_URL "/invalid", &opts);
+	struct download_i *inst = download_data(d, HTTP_APPLICATION_TEST "/invalid", &opts);
 
 	ck_assert_ptr_eq(downloader_run(d), inst);
 
@@ -200,15 +182,15 @@ START_TEST(invalid_continue) {
 	const size_t cnt = 3;
 	struct download_i *insts[cnt];
 	for (size_t i = 0; i < cnt; i++)
-		insts[i] = download_data(d, HTTP_SMALL, &opts);
-	struct download_i *fail_inst = download_data(d, HTTP_URL "/invalid", &opts);
+		insts[i] = download_data(d, HTTP_LOREM_IPSUM_SHORT, &opts);
+	struct download_i *fail_inst = download_data(d, HTTP_APPLICATION_TEST "/invalid", &opts);
 
 	ck_assert_ptr_eq(downloader_run(d), fail_inst);
 	ck_assert_ptr_null(downloader_run(d));
 
 	for (size_t i = 0; i < cnt; i++) {
-		ck_assert_uint_eq(SMALL_SIZE, insts[i]->out.buff->size);
-		ck_assert_str_eq(SMALL_CONTENT, (char *)insts[i]->out.buff->data);
+		ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, insts[i]->out.buff->size);
+		ck_assert_str_eq(LOREM_IPSUM_SHORT, (char *)insts[i]->out.buff->data);
 	}
 
 	downloader_free(d);
@@ -222,18 +204,15 @@ START_TEST(cert_pinning) {
 	struct download_opts opts;
 	download_opts_def(&opts);
 
-	const char *s_dir = getenv("S");
-	if (!s_dir)
-		s_dir = ".";
-	opts.cacert_file = aprintf("%s/tests/data/lets_encrypt_roots.pem", s_dir);
+	opts.cacert_file = FILE_LETS_ENCRYPT_ROOTS;
 	opts.capath = "/dev/null";
 
-	struct download_i *inst = download_data(d, HTTP_SMALL, &opts);
+	struct download_i *inst = download_data(d, HTTP_LOREM_IPSUM_SHORT, &opts);
 
 	ck_assert_ptr_null(downloader_run(d));
 
-	ck_assert_uint_eq(SMALL_SIZE, inst->out.buff->size);
-	ck_assert_str_eq(SMALL_CONTENT, (char *)inst->out.buff->data);
+	ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, inst->out.buff->size);
+	ck_assert_str_eq(LOREM_IPSUM_SHORT, (char *)inst->out.buff->data);
 
 	downloader_free(d);
 }
@@ -247,13 +226,10 @@ START_TEST(cert_invalid) {
 	download_opts_def(&opts);
 
 
-	const char *s_dir = getenv("S");
-	if (!s_dir)
-		s_dir = ".";
-	opts.cacert_file = aprintf("%s/tests/data/opentrust_ca_g1.pem", s_dir);
+	opts.cacert_file = FILE_OPENTRUST_CA_G1;
 	opts.capath = "/dev/null";
 
-	struct download_i *inst = download_data(d, HTTP_SMALL, &opts);
+	struct download_i *inst = download_data(d, HTTP_LOREM_IPSUM_SHORT, &opts);
 
 	ck_assert_ptr_eq(downloader_run(d), inst);
 
@@ -268,16 +244,17 @@ START_TEST(collect_data) {
 	struct download_opts opts;
 	download_opts_def(&opts);
 
-	struct download_i *inst = download_data(d, HTTP_SMALL, &opts);
+	struct download_i *inst = download_data(d, HTTP_LOREM_IPSUM_SHORT, &opts);
 
 	ck_assert_ptr_null(downloader_run(d));
 
 	uint8_t *data;
 	size_t size;
 	download_i_collect_data(inst, &data, &size);
-	ck_assert_uint_eq(SMALL_SIZE, size);
-	ck_assert_str_eq(SMALL_CONTENT, (char *)data);
+	ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, size);
+	ck_assert_str_eq(LOREM_IPSUM_SHORT, (char *)data);
 
+	free(data);
 	downloader_free(d);
 }
 END_TEST
