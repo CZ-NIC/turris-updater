@@ -105,7 +105,9 @@ def changes():
 
     if text_en and text_cs:
         if subprocess.call(['create_notification', '-s', 'update',
-                            text_cs, text_en]) != 0:
+                            text_cs.encode(sys.getdefaultencoding()),
+                            text_en.encode(sys.getdefaultencoding())
+                            ]) != 0:
             report('Notification creation failed.')
 
     os.remove(PKGUPDATE_LOG)

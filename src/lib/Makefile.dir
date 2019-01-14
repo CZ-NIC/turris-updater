@@ -24,10 +24,12 @@ libupdater_MODULES := \
 	lautoload.embed \
 	embed_types \
 	events \
+	subprocess \
 	journal \
 	locks \
 	picosat \
-	util
+	util \
+	logging
 ifdef COV
 libupdater_MODULES += lcoverage.embed
 endif

@@ -20,6 +20,7 @@
 #include "../lib/events.h"
 #include "../lib/interpreter.h"
 #include "../lib/util.h"
+#include "../lib/logging.h"
 #include "../lib/arguments.h"
 #include "../lib/journal.h"
 
@@ -122,7 +123,7 @@ int main(int argc, char *argv[]) {
 	// Parse the arguments
 	struct cmd_op *ops = cmd_args_parse(argc, argv, cmd_op_allows);
 	struct cmd_op *op = ops;
-	const char *top_level_config = "file:///etc/updater/conf.lua";
+	const char *top_level_config = NULL;
 	const char *root_dir = NULL;
 	const char *target_model = NULL;
 	const char *target_board = NULL;
@@ -213,7 +214,7 @@ int main(int argc, char *argv[]) {
 	enum cmd_op_type exit_type = op->type;
 	free(ops);
 
-	state_dump("startup");
+	update_state(LS_INIT);
 	struct events *events = events_new();
 	// Prepare the interpreter and load it with the embedded lua scripts
 	struct interpreter *interpreter = interpreter_create(events);
@@ -275,10 +276,10 @@ int main(int argc, char *argv[]) {
 		// Otherwise user approves on terminal in previous code block.
 		GOTO_CLEANUP;
 	if (!replan) {
-		INFO("Executing preupdate hooks...");
+		update_state(LS_PREUPD);
 		const char *hook_path = aprintf("%s%s", root_dir, hook_preupdate);
 		setenv("ROOT_DIR", root_dir, true);
-		exec_dir(events, hook_path);
+		exec_hook(hook_path, "Executing preupdate hook");
 	}
 	if (task_log) {
 		FILE *log = fopen(task_log, "a");
@@ -303,9 +304,8 @@ int main(int argc, char *argv[]) {
 	bool reboot_delayed;
 	ASSERT(interpreter_collect_results(interpreter, "bb", &reboot_delayed, &reboot_finished) == -1);
 	if (reboot_delayed) {
-		INFO("Executing reboot_required hooks...");
 		const char *hook_path = aprintf("%s%s", root_dir, hook_reboot_delayed);
-		exec_dir(events, hook_path);
+		exec_hook(hook_path, "Executing reboot_required hook");
 	}
 	err = interpreter_call(interpreter, "updater.cleanup", NULL, "bb", reboot_finished);
 	ASSERT_MSG(!err, "%s", err);
@@ -318,10 +318,10 @@ int main(int argc, char *argv[]) {
 			WARN("Could not store task log end %s: %s", task_log, strerror(errno));
 	}
 REPLAN_CLEANUP:
-	INFO("Executing postupdate hooks...");
+	update_state(LS_POSTUPD);
 	const char *hook_path = aprintf("%s%s", root_dir, hook_postupdate);
 	setenv("SUCCESS", trans_ok ? "true" : "false", true); // ROOT_DIR is already set
-	exec_dir(events, hook_path);
+	exec_hook(hook_path, "Executing postupdate hook");
 CLEANUP:
 	free(approvals);
 	interpreter_destroy(interpreter);
@@ -331,10 +331,10 @@ CLEANUP:
 		system_reboot(false);
 	if (exit_type == COT_EXIT) {
 		if (trans_ok) {
-			state_dump("done");
+			update_state(LS_EXIT);
 			return 0;
 		} else {
-			state_dump("error");
+			update_state(LS_FAIL);
 			return 2;
 		}
 	} else

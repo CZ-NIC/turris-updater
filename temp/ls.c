@@ -15,15 +15,20 @@
  * Return 0 if file exists, -1 otherwise
  */
 
-static int file_exists(const char *file) {
+int file_exists(const char *file) {
 	struct stat sb;
 	return lstat(file, &sb);
 }
 
-static int is_dir(const char *file) {
+int is_dir(const char *file) {
 	struct stat sb;
-	stat(file, &sb);
-    return S_ISDIR(sb.st_mode);
+	int ret = stat(file, &sb);
+	if(ret == 0) {
+		int dir = S_ISDIR(sb.st_mode);
+		return dir;
+	} else {
+		return -1;
+	}
 }
 
 /*
@@ -32,7 +37,7 @@ static int is_dir(const char *file) {
 
 const char* get_filename(const char *path) {
     char *pos;
-    pos = strrchr(path, 47); /* 47 = `/` */
+    pos = strrchr(path, '/');
     if (pos == NULL)
         return path;
     else
@@ -43,12 +48,12 @@ const char* get_filename(const char *path) {
  * Make full path from src path and dst name
  */
 
-const char* get_full_dst(const char *src, const char *dst) {
+const char* old_get_full_dst(const char *src, const char *dst) {
     struct stat statbuf;
+	char *fulldst;
     // const char *srcname = get_filename(src);
 	char *srcd = strdup(src);
 	const char *srcname = basename(srcd);
-	free(srcd);
     int result = stat(dst, &statbuf);
 	/* if destination does not exist, it's new filename */
 	if(result == -1) {
@@ -66,31 +71,77 @@ const char* get_full_dst(const char *src, const char *dst) {
             ++len;
         }
 		/* TODO: check for errors here */
-        char *fulldst = malloc(len);
+        fulldst = malloc(len);
         strcpy(fulldst, dst);
         if (add_slash == 1) 
             strcat(fulldst, "/");
         strcat(fulldst, srcname);
+		free(srcd);
         return fulldst;
     } else {
-		char *fulldst = (malloc(strlen(dst) + 1));
+		fulldst = (malloc(strlen(dst) + 1));
 		strcpy(fulldst, dst);
+		free(srcd);
         return fulldst;
 	}
 }
 
-char* make_path(const char *dir, const char *file) {
-	/* TODO: check for trailing '/' */
-	int dirlen = strlen(dir);
-	int length = dirlen + strlen(file) + 2;
-	char *path = malloc(length);
-	strcpy(path, dir);
-	if(path[dirlen - 1] != '/') {
-		strcat(path, "/");
+int get_full_dst(const char *src, const char *dst, char *fulldst) {
+    struct stat statbuf;
+	char *srcd = strdup(src);
+	const char *srcname = basename(srcd);
+    int result = stat(dst, &statbuf);
+	/* if destination does not exist, it's new filename */
+	if(result == -1) {
+		strcpy(fulldst, dst);
+		free(srcd);
+        return 0;
 	}
-	strcat(path, file);
-	path[length - 1] = '\0';
-	return path;
+    /* check if destination is directory */
+    if(S_ISDIR(statbuf.st_mode) != 0) {
+        /* construct full path and add trailing `/` when needed */
+		int add_slash = 0;
+        int len = strlen(src) + strlen(dst) + 1;
+        if (dst[strlen(dst) - 1] != '/') {
+            add_slash = 1;
+            ++len;
+        }
+		/* TODO: check for errors here */
+        strcpy(fulldst, dst);
+        if (add_slash == 1) 
+            strcat(fulldst, "/");
+        strcat(fulldst, srcname);
+		free(srcd);
+        return 0;
+    } else {
+		fulldst = (malloc(strlen(dst) + 1));
+		strcpy(fulldst, dst);
+		free(srcd);
+        return 0;
+	}
+}
+
+int path_length(const char *dir, const char *file) {
+	int dirlen = strlen(dir);
+	int length = strlen(dir) + strlen(file) + 1;
+	if (dir[dirlen - 1] != '/') {
+		length += 1;
+	}
+	return length;
+}
+
+int make_path(const char *dir, const char *file, char *path) {
+    /* TODO: check for trailing '/' */
+    strcpy(path, dir);
+    int dirlen = strlen(dir);
+    int length = path_length(dir, file);
+    if(path[dirlen - 1] != '/') {
+        strcat(path, "/");
+    }   
+    strcat(path, file);
+    path[length - 1] = '\0';
+    printf("path: %s\n", path);
+    return 0;
 }
 
 /* ------ */
@@ -119,7 +170,6 @@ int foreach_file_inner(const char *dirname, struct tree_funcs funcs) {
 	printf("n:%d\n",n);
 	if (n < 0) {
 		printf("***PROBLEM with %s***\n", dirname);
-		perror("scandir");
 	} else {
 		while(n--) {
 			/* Ignore "." and ".." */
@@ -348,17 +398,15 @@ int cp(const char *old, const char *new) {
 /* --- MOVE FILE/DIR --- */
 
 /*
-
-Move - when destination is directory, move source to that directory
-
-
+ * Move - when destination is directory, move source to that directory
  */
 
 
 int mv_force;
 
 static int mv_file(const char *old, const char *new) {
-    const char *fulldst = get_full_dst(old, new);
+	char fulldst[100];
+    get_full_dst(old, new, fulldst);
     /* check if source exists */
 	if (file_exists(old) == -1) {
         printf("Error: file %s does not exist.\n", old);
@@ -381,9 +429,10 @@ static int mv_file(const char *old, const char *new) {
     return 0;
 }
 
-int mv(const char *src, const char *dst, int force) {
+int old_mv(const char *src, const char *dst, int force) {
 	printf("This is move from <%s> to <%s>\n", src, dst);
-	printf("%d\n", is_dir(src));
+	int src_dir = is_dir(src);
+	printf("%d\n", src_dir);
 
 	int retval = 0;
 	mv_force = force;
@@ -395,22 +444,68 @@ int mv(const char *src, const char *dst, int force) {
  *	- if yes, ?
  */
 	char *real_dst;
-	char *real_src = malloc(strlen(src) + 1);
+	char *real_src = alloca(strlen(src) + 1);
 	strcpy(real_src, src);
-
-	if(is_dir(dst)) {
-		real_dst = make_path(dst, basename(real_src));
+	
+	int dst_dir = is_dir(dst);
+	if(dst_dir) {
+		int tmp_len = path_length(dst, basename(real_src));
+		char tmp[tmp_len];
+		make_path(dst, basename(real_src), tmp);
+		real_dst = malloc(strlen(tmp) + 1);
+		strcpy(real_dst, tmp);
 	} else {
 		real_dst = malloc(strlen(dst) + 1);
 		strcpy(real_dst, dst);
 	}
 
-	if(is_dir(src)) {
+	if(src_dir) {
 		printf("TODO\n");
 	} else {
-		retval = mv_file(src, dst);
+		retval = mv_file(src, real_dst);
 	}
 
+
+	/*foreach_file(path);*/
+
+	return retval;
+}
+
+int mv(const char *src, const char *dst, int force) {
+	printf("This is move from <%s> to <%s>\n", src, dst);
+	int src_dir = is_dir(src);
+	printf("%d\n", src_dir);
+
+	int retval = 0;
+	mv_force = force;
+/*
+ * Check if src is dir
+ *	- if not, move the file, we're done
+ *	- if yes, ?
+ * *	- if not, move the file, we're done
+ *	- if yes, ?
+ */
+	char *real_src = alloca(strlen(src) + 1);
+	strcpy(real_src, src);
+	
+	int dst_dir = is_dir(dst);
+
+	int str_len = path_length(dst, basename(real_src));
+	char real_dst[str_len];
+
+	if(dst_dir) {
+		make_path(dst, basename(real_src), real_dst);
+	} else {
+		strcpy(real_dst, dst);
+	}
+
+	if(src_dir) {
+		printf("TODO\n");
+	} else {
+		retval = mv_file(src, real_dst);
+	}
+
+//	free(real_dst);
 
 	/*foreach_file(path);*/
 
@@ -425,10 +520,12 @@ char *find_name;
 char *found_name;
 
 int find_file(const char *name) {
-	char *file_to_find = malloc(256);
+	char *file_to_find = alloca(256);
 	strcpy(file_to_find, name);
 	const char *file = basename(file_to_find);
+	printf("******** Compare <%s> with <%s>\n", file, find_name);
 	if (strcmp(file, find_name) == 0) {
+		printf("******Copy <%s> to <%s>*****\n", name, found_name);
 		strcpy(found_name, name);
 		ff_success = 1; /* report success to foreach_file */
 	}
@@ -447,14 +544,22 @@ struct tree_funcs find_tree = {
 };
 
 const char* find(const char *where, const char *what) {
-	printf("Find file <%s> in <%s> dir.\n", what, where);
+	printf("******** Find file <%s> in <%s> dir.\n", what, where);
+
+/*	char *fname;*/
 
 	found_name = malloc(256);
 	found_name[0] = '\0';
-	find_name = alloca(256);
+	find_name = malloc(256);
 	strcpy(find_name, what);
 	foreach_file(where, find_tree);
 	/* TODO: look for directory also? */
+	printf("**************found_name length=%ld\n", strlen(found_name));
+/*
+	fname = malloc(strlen(found_name + 1));
+	strcpy(fname, found_name);
+	free(found_name);
+*/
 	return found_name;
 }
 
@@ -462,49 +567,80 @@ const char* find(const char *where, const char *what) {
 
 int main(int argc, char **argv) {
 	char *dirname = argv[1];
-
-	printf("-------------\n");
-	printf("Test for <print_tree>\n");
-	foreach_file(dirname, print_tree);
-
-	printf("-------------\n");
-	printf("Test for <find>\n");
-/*	find("./", "file_to_find");*/
-	const char *ffile = find("./", "file_to_find");
-	printf("Found: %s, %ld\n", ffile, strlen(ffile));
-
-	const char *affile = find("./", "non_existing_file");
-	printf("Found: %s, %ld\n", affile, strlen(affile));
-
 	int retval = 0;
+/* TODO: check for args */
 
-	printf("-------------\n");
-	printf("Test for <move>\n");
-	printf("Move file to file\n");
-	retval = mv("dir/file1", "dir/newfile1", 0);
-	printf("ret:%d\n", retval);
-	mv("dir/newfile1", "dir/file1", 0); /* move back for later use */
-	printf("Move file to dir\n");
-	retval = mv("dir/file1", "dir/subdir1", 0);
-	printf("ret:%d\n", retval);
-	printf("Move file over existing file without force\n");
-	retval = mv("dir/file2", "dir/newfile1", 0);
-	printf("ret:%d\n", retval);
-	printf("Move file over existing file with force\n");
-	retval = mv("dir/file2", "dir/newfile1", 1);
-	printf("ret:%d\n", retval);
-	printf("Move dir\n");
-	mv("dir", "newdir", 0);
+	int test_tree = 0;
+	int test_find = 0;
+	int test_mv = 0;
+	int test_cp = 0;
+	int test_rm = 0;
 
+/*** basic tests */
+
+	printf("path length: %d\n", path_length("dir", "file"));
+	printf("path length: %d\n", path_length("dir/", "file"));
+
+	int str_len = path_length("dir", "file");
+	char path[str_len];
+	make_path("dir", "file", path);
+	printf("--==%s\n", path);
+
+	const char *src_file = "dir/file1";
+	const char *dst_file = "dir/subdir1";
+	int len = strlen(src_file) + strlen(dst_file) + 1; /* this is probably too much, but whatever */
+	char full_dst_file[len];
+	get_full_dst(src_file, dst_file, full_dst_file);
+	printf("-x->%s\n", full_dst_file);
+
+
+
+
+/*** test: print_tree */
+	if (test_tree == 1){
+		printf("-------------\n");
+		printf("Test for <print_tree>\n");
+		foreach_file(dirname, print_tree);
+	}
+
+/*** test: find */
+	if (test_find == 1){
+		printf("-------------\n");
+		printf("Test for <find>\n");
+	/*	find("./", "file_to_find");*/
+		const char *ffile = find("./", "file_to_find");
+		printf("Found: %s, %ld\n", ffile, strlen(ffile));
+		const char *affile = find("./", "non_existing_file");
+		printf("Found: %s, %ld\n", affile, strlen(affile));
+		free(find_name);
+		free(found_name);
+	}
+
+/** test: move */
+	if (test_mv == 1){
+		printf("-------------\n");
+		printf("Test for <move>\n");
+		printf("Move file to file\n");
+		retval = mv("dir/file1", "dir/newfile1", 0);
+		printf("ret:%d\n", retval);
+		mv("dir/newfile1", "dir/file1", 0); /* move back for later use */
+		printf("Move file to dir\n");
+		retval = mv("dir/file1", "dir/subdir1", 0);
+		printf("ret:%d\n", retval);
+		printf("Move file over existing file without force\n");
+		retval = mv("dir/file2", "dir/newfile1", 0);
+		printf("ret:%d\n", retval);
+		printf("Move file over existing file with force\n");
+		retval = mv("dir/file2", "dir/newfile1", 1);
+		printf("ret:%d\n", retval);
+		printf("Move dir\n");
+		mv("dir", "newdir", 0);
+	}
 
 /*
 	rm(dirname);
 	printf("-------------\n");
 */
-
-	printf("make_path: <%s>\n..\n", make_path("dir", "file"));
-	printf("make_path: <%s>\n..\n", make_path("dir/", "file"));
-
 	return(0);
 }
 

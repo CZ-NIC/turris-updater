@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2017, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+ * Copyright 2016-2018, CZ.NIC z.s.p.o. (http://www.nic.cz/)
  *
  * This file is part of the turris updater.
  *
@@ -19,6 +19,7 @@
 
 #include "journal.h"
 #include "util.h"
+#include "logging.h"
 #include "inject.h"
 
 #include <lua.h>
@@ -138,10 +139,12 @@ static bool journal_open(lua_State *L, int flags) {
 		switch (errno) {
 			case EEXIST:
 				luaL_error(L, "Unfinished journal exists");
+				FALLTROUGH;
 			case ENOENT:
 				if (!(flags & O_CREAT))
 					return false;
 				// Otherwise ‒ fall through to the default section
+				FALLTROUGH;
 			default:
 				luaL_error(L, "Error opening journal: %s", strerror(errno));
 		}

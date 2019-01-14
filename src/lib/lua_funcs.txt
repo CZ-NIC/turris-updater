@@ -30,8 +30,23 @@ TRACE(msg, msg, ...)::
 DIE(msg, msg, ...)::
   In addition to outputting the message on the ``DIE`` level, it also
   terminates the application with error exit code.
-state_dump(msg)::
-  Dump the given message into `/tmp/update-state/state`.
+update_state(state)::
+  Dump the message for given state into `/tmp/update-state/state`.
+  Allowed states are as follow:
+  - `LS_INIT`: Initial state (`initialize`)
+  - `LS_CONF`: Running configuration scripts (`configuration`)
+  - `LS_PLAN`: Generating plan (`planning`)
+  - `LS_DOWN`: Downloading needed packages (`downloading`)
+  - `LS_PREUPD`: Running updater's preupdate hooks (`preupdate-hooks`)
+  - `LS_UNPACK`: Unpacking downloaded packages (`unpacking`)
+  - `LS_CHECK`: Checking for files collisions and more (`checking`)
+  - `LS_INST`: Running preinst scripts and merging files to filesystem (`install`)
+  - `LS_POST`: Running postinst scripts (`post-install`)
+  - `LS_REM`: Removing leftover files (`removals`)
+  - `LS_CLEANUP`: Cleaning up control files (`cleanup`)
+  - `LS_POSTUPD`: Running updater's postupdate hooks (`postupdate-hooks`)
+  - `LS_EXIT`: Updater exit (`exit`)
+  - `LS_FAIL`: Detected failure, exiting. (`failure`)
 
 Cleanup
 -------
@@ -70,6 +85,42 @@ cleanup_unregister_handle(index)::
   This function unregisters existing cleanup for Lua. It expect index identifying
   this cleanup in global table of cleanup functions. It reverse function or
   `cleanup_register_handle`.
+
+Subprocesses
+------------
+
+Family of functions `subproc*` defined in `subprocess.h` are exported to lua
+in form of functions `subprocess`.
+
+Function `subprocess` is defined as follows:
+`subprocess(type, message, timeout, callback, command ...)`
+
+* `type` is identification used to specify what type of subprocess it's. Allowed
+  predefined constants are as follows:
+  - `LST_PKG_SCRIPT` Any script provided by package (pre/post inst/rm)
+  - `LST_HOOK` Hook script executed on some updater state
+
+* `message` is string describing what this subprocess is to user. It's human
+  readable description of executed command.
+
+* `timeout` is time in seconds after which subprocess will be automatically
+  killed.
+
+* `callback` is optional function that would be called in subprocess just before
+  It executes given command. If you don't want to specify it then you can pass nil
+  Or you can just drop it out (in that case command is expeted on this argument
+  Place). This functions should has no arguments and shouldn't return anything.
+
+* `command` is any arbitrary number of string arguments that are passed as command
+  and its additional arguments.
+
+This function returns exit code of executed subprocess as first argument. And
+output of this process as second argument. (Output includes both stdout and
+stderr).
+
+Note::
+  There is some problem with printing from lua to stdout in callback on some
+  platforms.
 
 Asynchronous events
 -------------------

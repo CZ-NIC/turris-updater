@@ -19,6 +19,7 @@
 
 #include "../src/lib/interpreter.h"
 #include "../src/lib/util.h"
+#include "../src/lib/logging.h"
 #include "../src/lib/events.h"
 
 #include <string.h>

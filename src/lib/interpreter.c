@@ -19,7 +19,9 @@
 
 #include "interpreter.h"
 #include "util.h"
+#include "logging.h"
 #include "events.h"
+#include "subprocess.h"
 #include "journal.h"
 #include "locks.h"
 #include "arguments.h"
@@ -41,6 +43,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <stdio.h>
+#include <string.h>
 #include <openssl/sha.h>
 #include <openssl/md5.h>
 
@@ -149,9 +152,9 @@ static int lua_log(lua_State *L) {
 	return 0;
 }
 
-static int lua_state_dump(lua_State *L) {
-	const char *state = luaL_checkstring(L, 1);
-	state_dump(state);
+static int lua_update_state(lua_State *L) {
+	enum log_state state = luaL_checkint(L, 1);
+	update_state(state);
 	return 0;
 }
 
@@ -449,6 +452,65 @@ static int lua_cleanup_register_handle(lua_State *L) {
 static int lua_cleanup_unregister_handle(lua_State *L) {
 	struct lua_cleanup_data *data = (struct lua_cleanup_data*)luaL_checkudata(L, 1, CLEANUP_DATA_META);
 	ASSERT(cleanup_unregister_data(lua_cleanup_func, data)); // Lua should never request nonexistent handle from us
+	return 0;
+}
+
+struct subprocess_callback_data {
+	lua_State *L;
+	char *callback;
+};
+
+static void subprocess_callback(void *vdata) {
+	struct subprocess_callback_data *dt = (struct subprocess_callback_data*)vdata;
+	if (!dt->callback)
+		return;
+	lua_State *L = dt->L;
+
+	// This may be called from C code with a dirty stack
+	luaL_checkstack(L, 4, "Not enough stack space to call subprocess callback");
+	int handler = push_err_handler(L);
+	extract_registry_value(L, dt->callback);
+
+	int result = lua_pcall(L, 0, 0, handler);
+	ASSERT_MSG(!result, "%s", interpreter_error_result(L));
+}
+
+static int lua_subprocess(lua_State *L) {
+	enum log_subproc_type type = (enum log_subproc_type)luaL_checkinteger(L, 1);
+	// TODO verify type?
+	const char *message = luaL_checkstring(L, 2);
+	int timeout = luaL_checkinteger(L, 3);
+	struct subprocess_callback_data callback_data = {
+		.L = L,
+		.callback = NULL
+	}; // This can be on stack as we won't return while using this
+	int cmd_index = 4;
+	if (lua_isfunction(L, 4)) {
+		callback_data.callback = register_value(L, 4);
+		cmd_index++;
+	}
+	const char *command = luaL_checkstring(L, cmd_index);
+	const char *args[lua_gettop(L) - cmd_index - 1];
+	for (int i = cmd_index + 1; i <= lua_gettop(L); i++) {
+		args[i - cmd_index - 1] = luaL_checkstring(L, i);
+	}
+	args[lua_gettop(L) - cmd_index] = NULL;
+
+	char *output;
+	int ec = lsubproclc(type, message, &output, timeout, subprocess_callback, &callback_data, command, args);
+
+	// Free callback data callback name
+	if (callback_data.callback)
+		free(callback_data.callback);
+
+	lua_pushinteger(L, ec);
+	lua_pushstring(L, output);
+	free(output);
+	return 2;
+}
+
+static int lua_subprocess_kill_timeout(lua_State *L) {
+	subproc_kill_t(luaL_checkinteger(L, 1));
 	return 0;
 }
 
@@ -908,7 +970,7 @@ struct injected_func {
 static const struct injected_func injected_funcs[] = {
 	{ lua_log, "log" },
 	{ lua_state_log_enabled, "state_log_enabled" },
-	{ lua_state_dump, "state_dump" },
+	{ lua_update_state, "update_state" },
 	{ lua_cleanup_register_handle, "cleanup_register_handle" },
 	{ lua_cleanup_unregister_handle, "cleanup_unregister_handle" },
 	{ lua_run_command, "run_command" },
@@ -920,6 +982,8 @@ static const struct injected_func injected_funcs[] = {
 	 * manage the dynamically allocated memory correctly and there doesn't
 	 * seem to be a need for them at this moment.
 	 */
+	{ lua_subprocess, "subprocess" },
+	{ lua_subprocess_kill_timeout, "subprocess_kill_timeout" },
 	{ lua_mkdtemp, "mkdtemp" },
 	{ lua_chdir, "chdir" },
 	{ lua_getcwd, "getcwd" },
@@ -939,6 +1003,29 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_system_reboot, "system_reboot" },
 	{ lua_get_updater_version, "get_updater_version" }
 };
+
+struct {
+	int cnst;
+	const char *name;
+} injected_const[] = {
+	{ LS_INIT, "LS_INIT"},
+	{ LS_CONF, "LS_CONF"},
+	{ LS_PLAN, "LS_PLAN"},
+	{ LS_DOWN, "LS_DOWN"},
+	{ LS_PREUPD, "LS_PREUPD"},
+	{ LS_UNPACK, "LS_UNPACK"},
+	{ LS_CHECK, "LS_CHECK"},
+	{ LS_INST, "LS_INST"},
+	{ LS_POST, "LS_POST"},
+	{ LS_REM, "LS_REM"},
+	{ LS_CLEANUP, "LS_CLEANUP"},
+	{ LS_POSTUPD, "LS_POSTUPD"},
+	{ LS_EXIT, "LS_EXIT"},
+	{ LS_FAIL, "LS_FAIL"},
+	{ LST_PKG_SCRIPT, "LST_PKG_SCRIPT"},
+	{ LST_HOOK, "LST_HOOK"},
+};
+// Various enum values that we want to inject
 
 #ifdef COVERAGE
 // From the embed file. Coverage lua code.
@@ -999,6 +1086,12 @@ struct interpreter *interpreter_create(struct events *events) {
 		TRACE("Injecting function no %zu %s/%p", i, injected_funcs[i].name, injected_funcs[i].name);
 		lua_pushcfunction(L, injected_funcs[i].func);
 		lua_setglobal(L, injected_funcs[i].name);
+	}
+	// Inject some constant/variables
+	for (size_t i = 0; i < sizeof injected_const / sizeof *injected_const; i ++) {
+		TRACE("Injecting constant no %zu %s/%d", i, injected_const[i].name, injected_const[i].cnst);
+		lua_pushinteger(L, injected_const[i].cnst);
+		lua_setglobal(L, injected_const[i].name);
 	}
 	// Some binary embedded modules
 	journal_mod_init(L);

@@ -72,4 +72,5 @@ def update_languages(langs):
 
     # Set
     with Uci() as uci:
+        uci.set('updater', 'l10n', 'l10n')
         uci.set('updater', 'l10n', 'langs', tuple(langs))

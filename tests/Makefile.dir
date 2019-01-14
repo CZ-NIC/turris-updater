@@ -9,11 +9,13 @@ C_TESTS := \
 	arguments \
 	events \
 	util \
+	subprocess \
 	interpreter
 
 LUA_TESTS := \
 	backend \
 	events \
+	subprocess \
 	interpreter \
 	journal \
 	planner \
