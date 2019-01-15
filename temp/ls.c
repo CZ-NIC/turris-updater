@@ -118,7 +118,67 @@ struct tree_funcs {
 
 int ff_success;
 
-int foreach_file_inner(const char *dirname, struct tree_funcs funcs) {
+int foreach_file_inner (const char * dir_name, struct tree_funcs funcs) {
+
+	if (ff_success == 1)
+		return 0;
+
+    DIR * d;
+    d = opendir(dir_name);
+    if (! d) {
+        fprintf (stderr, "Cannot open directory '%s': %s\n",
+                 dir_name, strerror (errno));
+        exit (EXIT_FAILURE);
+    }
+    while (1) {
+        struct dirent *entry;
+        const char *d_name;
+        entry = readdir (d);
+        if (! entry) {
+            break;
+        }
+        d_name = entry->d_name;
+        /* Print the name of the file and directory. */
+		printf ("%s/%s\n", dir_name, d_name);
+
+		if (strcmp (d_name, "..") != 0 && strcmp (d_name, ".") != 0) {
+			int path_length;
+			char path[PATH_MAX];
+
+			path_length = snprintf (path, PATH_MAX,
+									"%s/%s", dir_name, d_name);
+			printf ("%s\n", path);
+			if (path_length >= PATH_MAX) {
+				fprintf (stderr, "Path length has got too long.\n");
+				exit (EXIT_FAILURE);
+			}
+			if (entry->d_type & DT_DIR) {
+				/* Directory */
+				funcs.dir_func(path, 0);
+				foreach_file_inner(path, funcs);
+				funcs.dir_func(path, 1);
+			} else if (entry->d_type & DT_LNK) {
+				/* Link to file */
+				printf("File %s is link file.\n", path);
+				funcs.file_func(path);
+			} else if (entry->d_type & DT_REG) {
+				/* Regular file */
+				printf("File %s is regular file.\n", path);
+				funcs.file_func(path);
+			} else {
+				/* Anything else */
+			}
+		}
+    }
+    /* After going through all the entries, close the directory. */
+    if (closedir (d)) {
+        fprintf (stderr, "Could not close '%s': %s\n",
+                 dir_name, strerror (errno));
+        exit (EXIT_FAILURE);
+    }
+}
+
+int old_foreach_file_inner(const char *dirname, struct tree_funcs funcs) {
 
 	if (ff_success == 1)
 		return 0;
@@ -203,6 +263,9 @@ TODO: Handle links
 	foreach_file_inner(dirname, funcs);
 	return 0;
 }
+
+
+
 
 /* ------ */
 
@@ -478,8 +541,8 @@ int mv(const char *src, const char *dst, int force) {
 
 /* --- FIND FILE --- */
 
-char *find_name;
-char *found_name;
+char find_name[256];
+char found_name[256];
 
 int find_file(const char *name) {
 	char *file_to_find = alloca(256);
@@ -505,23 +568,13 @@ struct tree_funcs find_tree = {
 	find_dir
 };
 
-const char* find(const char *where, const char *what) {
+const char* find(const char *where, const char *what, char *found_name) {
 	printf("******** Find file <%s> in <%s> dir.\n", what, where);
-
-/*	char *fname;*/
-
-	found_name = malloc(256);
-	found_name[0] = '\0';
-	find_name = malloc(256);
+	found_name[0] = 0;
 	strcpy(find_name, what);
 	foreach_file(where, find_tree);
 	/* TODO: look for directory also? */
 	printf("**************found_name length=%ld\n", strlen(found_name));
-/*
-	fname = malloc(strlen(found_name + 1));
-	strcpy(fname, found_name);
-	free(found_name);
-*/
 	return found_name;
 }
 
@@ -532,31 +585,30 @@ int main(int argc, char **argv) {
 	int retval = 0;
 /* TODO: check for args */
 
+	int test_basic = 0;
 	int test_tree = 0;
-	int test_find = 0;
-	int test_mv = 1;
+	int test_find = 1;
+	int test_mv = 0;
 	int test_cp = 0;
 	int test_rm = 0;
 
 /*** basic tests */
+	if (test_basic == 1) {
+		printf("path length: %d\n", path_length("dir", "file"));
+		printf("path length: %d\n", path_length("dir/", "file"));
 
-	printf("path length: %d\n", path_length("dir", "file"));
-	printf("path length: %d\n", path_length("dir/", "file"));
+		int str_len = path_length("dir", "file");
+		char path[str_len];
+		make_path("dir", "file", path);
+		printf("--==%s\n", path);
 
-	int str_len = path_length("dir", "file");
-	char path[str_len];
-	make_path("dir", "file", path);
-	printf("--==%s\n", path);
-
-	const char *src_file = "dir/file1";
-	const char *dst_file = "dir/subdir1";
-	int len = strlen(src_file) + strlen(dst_file) + 1; /* this is probably too much, but whatever */
-	char full_dst_file[len];
-	get_full_dst(src_file, dst_file, full_dst_file);
-	printf("-x->%s\n", full_dst_file);
-
-
-
+		const char *src_file = "dir/file1";
+		const char *dst_file = "dir/subdir1";
+		int len = strlen(src_file) + strlen(dst_file) + 1; /* this is probably too much, but whatever */
+		char full_dst_file[len];
+		get_full_dst(src_file, dst_file, full_dst_file);
+		printf("-x->%s\n", full_dst_file);
+	}
 
 /*** test: print_tree */
 	if (test_tree == 1){
@@ -567,16 +619,27 @@ int main(int argc, char **argv) {
 
 /*** test: find */
 	if (test_find == 1){
-		printf("-------------\n");
 		printf("Test for <find>\n");
-	/*	find("./", "file_to_find");*/
-		const char *ffile = find("./", "file_to_find");
+/* NOTE: leak happens when file is found
+ * and does not when file isn't found
+ */
+
+
+		printf("-------------------------------------------------------\n");
+		const char *ffile = find("./", "file_to_find", found_name);
 		printf("Found: %s, %ld\n", ffile, strlen(ffile));
-		const char *affile = find("./", "non_existing_file");
+
+
+/*
+		printf("-------------------------------------------------------\n");
+		const char *affile = find("./", "non_existing_file", found_name);
 		printf("Found: %s, %ld\n", affile, strlen(affile));
-		free(find_name);
-		free(found_name);
+*/
+
 	}
+
+
+
 
 /** test: move */
 	if (test_mv == 1){
