@@ -44,6 +44,19 @@ const char* get_filename(const char *path) {
     else
         return pos + 1;
 }
+/*
+ * Construct path from SRC where first dir is replaced by DST
+ */
+
+int get_dst_path(const char *src, const char *dst, char *path){
+	char src_name[strlen(src) + 1];
+	strcpy(src_name, src);
+	char *rel_path;
+	rel_path = memchr(src_name, '/', strlen(src_name));
+	strcpy(path, dst);
+	strcat(path, rel_path);
+	return 0;
+}
 
 /*
  * Make full path from src path and dst name
@@ -369,6 +382,8 @@ There's a code for it in MV implementation
 
 */
 
+char cp_dst_path[PATH_MAX];
+
 int do_cp_file(const char *old, const char *new) {
 	int nread, f_old, f_new;
 	char buffer[32678];
@@ -411,9 +426,12 @@ int do_cp_file(const char *old, const char *new) {
 }
 
 int cp_file(const char *name) {
+	printf("### COPY file <%s> to <%s>\n", name, cp_dst_path);
+	do_cp_file(name, cp_dst_path);
 	return 0;
 }
 int cp_dir(const char *name, int type) {
+	printf("### COPY directory <%s>\n", name);
 	if(type == 0) {
 		/* When entering directory, check if it exists and create one, when necessary */
 	}
@@ -426,11 +444,39 @@ struct tree_funcs cp_tree = {
 	cp_dir
 };
 
-char dst_path[256];
 
-int cp(const char *old, const char *new) {
-	/* store destination path for later use */
-	return 0;
+int cp(const char *src, const char *dst) {
+/* we would expect that it's `cp -r` */
+	int retval = 0;
+
+	char *real_src = alloca(strlen(src) + 1);
+	strcpy(real_src, src);
+
+	int str_len = path_length(dst, basename(real_src));
+	char real_dst[str_len];
+
+	int dst_dir = is_dir(dst);
+	if(dst_dir) {
+		/* DST is directory, modify path */
+		make_path(dst, basename(real_src), real_dst);
+	} else {
+		/* DST is not directory (file or not exists) */
+		strcpy(real_dst, dst);
+	}
+
+	int src_dir = is_dir(src);
+	if(src_dir) {
+		/* SRC is directory, deep copy */
+		strcpy(cp_dst_path, dst);
+		if (file_exists(dst) == -1)
+			mkdir(dst, 0777); /* TODO: set same mode as src */
+		foreach_file(src, cp_tree);
+	} else {
+		/* SRC is file, shallow copy */
+		strcpy(cp_dst_path, real_dst);
+		retval = cp_file(src);
+	}
+	return retval;
 }
 
 /* --- END OF COPY FILE/DIR --- */
@@ -446,45 +492,11 @@ int cp(const char *old, const char *new) {
  * FILE - rename, then check if it was successful and if not, copy&remove
  */
 
-char mv_src_path[PATH_MAX];
-char mv_dst_path[PATH_MAX];
-
-int do_mv_file(const char *old, const char *new) {
-	char fulldst[4096];
-    get_full_dst(old, new, fulldst);
-    /* check if source exists */
-	if (file_exists(old) == -1) {
-        printf("Error: file %s does not exist.\n", old);
-        return 0;
-	}
-    /* check if destination exists and if yes, remove it, or return -1, when not in force mode */
-	printf("file exists? %d\n", file_exists(fulldst));
-	if (file_exists(fulldst) != -1) {
-		/* NOTE: can something bad happen here? */
-		unlink(fulldst);
-	}
-    /* now we can rename original file and we're done */
-    rename(old, fulldst);
-	//free(fulldst);
-	
-	/* TODO: check if file is really moved and if not, use copy+delete */
-
-    return 0;
-}
-
-int get_mv_path(const char *src, const char *dst, char *path){
-	char src_name[strlen(src) + 1];
-	strcpy(src_name, src);
-	char *rel_path;
-	rel_path = memchr(src_name, '/', strlen(src_name));
-	strcpy(path, dst);
-	strcat(path, rel_path);
-	return 0;
-}
+char mv_dst_path[PATH_MAX]; /* NOTE: probably it would be enough to use one path for both CP and MV */
 
 int mv_file(const char *name) {
 	char dst_path[PATH_MAX];
-	get_mv_path(name, mv_dst_path, dst_path);
+	get_dst_path(name, mv_dst_path, dst_path);
 
 	printf("$$$ Moving file <%s> to <%s>\n", name, dst_path);
 
@@ -494,12 +506,13 @@ int mv_file(const char *name) {
 	}
     /* now we can rename original file and we're done */
     rename(name, dst_path);
+	/* TODO: check for success and fall back to cp&rm when needed */
 	return 0;
 }
 
 int mv_dir(const char *name, int type) {
 	char dst_path[PATH_MAX];
-	get_mv_path(name, mv_dst_path, dst_path);
+	get_dst_path(name, mv_dst_path, dst_path);
 
 	printf("$$$ Moving directory <%s>\n", name);
 	if (type == 0) {
@@ -522,10 +535,7 @@ struct tree_funcs mv_tree = {
 
 int mv(const char *src, const char *dst) {
 	int retval = 0;
-
-	printf("This is move from <%s> to <%s>\n", src, dst);
 	int src_dir = is_dir(src);
-	printf("is src dir? %d\n", src_dir);
 /*
  * Check if src is dir
  *	- if not, move the file, we're done
@@ -535,13 +545,11 @@ int mv(const char *src, const char *dst) {
  */
 	char *real_src = alloca(strlen(src) + 1);
 	strcpy(real_src, src);
-	
-	int dst_dir = is_dir(dst);
-	printf("is dst dir? %d\n", dst_dir);
 
 	int str_len = path_length(dst, basename(real_src));
 	char real_dst[str_len];
 
+	int dst_dir = is_dir(dst);
 	if(dst_dir) {
 		make_path(dst, basename(real_src), real_dst);
 	} else {
@@ -549,16 +557,14 @@ int mv(const char *src, const char *dst) {
 	}
 
 	if(src_dir) {
-		/*retval = mv_dir(src, 0);*/
 		strcpy(mv_dst_path, dst);
-		printf("DST <%s> is dir - %d\n", dst, file_exists(dst));
 		if (file_exists(dst) == -1)
 			mkdir(dst, 0777); /* TODO: set same mode as src */
 		foreach_file(src, mv_tree);
-		printf("Everything should be moved by now and <%s> can be deleted", src);
 		rmdir(src);
 	} else {
-		retval = do_mv_file(src, real_dst);
+		strcpy(mv_dst_path, real_dst);
+		retval = mv_file(src);
 	}
 	return retval;
 }
@@ -614,8 +620,8 @@ int main(int argc, char **argv) {
 	int test_basic = 0;
 	int test_tree = 0;
 	int test_find = 0;
-	int test_mv = 1;
-	int test_cp = 0;
+	int test_mv = 0;
+	int test_cp = 1;
 	int test_rm = 0;
 
 /*** basic tests */
@@ -655,6 +661,17 @@ int main(int argc, char **argv) {
 		printf("Found: %s, %ld\n", affile, strlen(affile));
 	}
 
+/*** test: copy */
+	if (test_cp == 1){
+		printf("-------------\n");
+		printf("Test for <copy>\n");
+		printf("Copy file to file\n");
+		cp("dir/file1", "dir/cpfile1");
+		printf("Copy file to dir\n");
+		cp("dir/file1", "dir/subdir1");
+	}
+
+
 /*** test: move */
 	if (test_mv == 1){
 		printf("-------------\n");
@@ -670,7 +687,7 @@ int main(int argc, char **argv) {
 		retval = mv("dir/file2", "dir/newfile1");
 		printf("ret:%d\n", retval);
 		printf("\n\nMove dir\n");
-		mv("dir", "newdir");
+		mv("dir", "mvdir");
 	}
 
 /*** test: remove */
