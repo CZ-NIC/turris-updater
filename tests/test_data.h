@@ -40,6 +40,8 @@ const char *get_sdir();
 
 // Certificates
 #define FILE_LETS_ENCRYPT_ROOTS aprintf("%s/tests/data/lets_encrypt_roots.pem", get_sdir())
+#define URI_FILE_LETS_ENCRYPT_ROOTS aprintf("file://%s/tests/data/lets_encrypt_roots.pem", get_sdir())
 #define FILE_OPENTRUST_CA_G1 aprintf("%s/tests/data/opentrust_ca_g1.pem", get_sdir())
+#define URI_FILE_OPENTRUST_CA_G1 aprintf("file://%s/tests/data/opentrust_ca_g1.pem", get_sdir())
 
 #endif

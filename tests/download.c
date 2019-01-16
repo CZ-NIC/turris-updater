@@ -225,7 +225,6 @@ START_TEST(cert_invalid) {
 	struct download_opts opts;
 	download_opts_def(&opts);
 
-
 	opts.cacert_file = FILE_OPENTRUST_CA_G1;
 	opts.capath = "/dev/null";
 

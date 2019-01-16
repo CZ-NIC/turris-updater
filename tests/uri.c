@@ -256,6 +256,57 @@ START_TEST(uri_to_temp_file_https) {
 }
 END_TEST
 
+void download_and_verify_lorem_ipsum_short(struct uri *uri) {
+	struct downloader *down = downloader_new(1);
+	ck_assert(uri_downloader_register(uri, down));
+	ck_assert_ptr_null(downloader_run(down));
+	ck_assert(uri_finish(uri));
+	downloader_free(down);
+
+	uint8_t *data;
+	size_t size;
+	ck_assert(uri_take_buffer(uri, &data, &size));
+	uri_free(uri);
+
+	ck_assert_int_eq(LOREM_IPSUM_SHORT_SIZE, size);
+	ck_assert_str_eq(LOREM_IPSUM_SHORT, (char*)data);
+	free(data);
+}
+
+void download_and_fail(struct uri *uri) {
+	struct downloader *down = downloader_new(1);
+	ck_assert(uri_downloader_register(uri, down));
+	ck_assert_ptr_nonnull(uri->download_instance);
+	ck_assert_ptr_eq(uri->download_instance, downloader_run(down));
+	downloader_free(down);
+	uri_free(uri);
+}
+
+START_TEST(uri_cert_pinning_correct) {
+	struct uri *uri = uri_to_buffer(HTTPS_LOREM_IPSUM_SHORT, NULL);
+	ck_assert_ptr_nonnull(uri);
+	ck_assert(uri_add_ca(uri, URI_FILE_LETS_ENCRYPT_ROOTS));
+	download_and_verify_lorem_ipsum_short(uri);
+}
+END_TEST
+
+START_TEST(uri_cert_pinning_incorrect) {
+	struct uri *uri = uri_to_buffer(HTTPS_LOREM_IPSUM_SHORT, NULL);
+	ck_assert_ptr_nonnull(uri);
+	ck_assert(uri_add_ca(uri, URI_FILE_OPENTRUST_CA_G1));
+	download_and_fail(uri);
+}
+END_TEST
+
+START_TEST(uri_cert_no_ca_verify) {
+	struct uri *uri = uri_to_buffer(HTTPS_LOREM_IPSUM_SHORT, NULL);
+	ck_assert_ptr_nonnull(uri);
+	ck_assert(uri_add_ca(uri, URI_FILE_OPENTRUST_CA_G1)); // Intentionally use invalid one
+	ck_assert(uri_set_ssl_verify(uri, false));
+	download_and_verify_lorem_ipsum_short(uri);
+}
+END_TEST
+
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Uri");
 	TCase *uri = tcase_create("uri");
@@ -272,6 +323,9 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(uri, uri_to_file_https);
 	tcase_add_test(uri, uri_to_temp_file_file);
 	tcase_add_test(uri, uri_to_temp_file_https);
+	tcase_add_test(uri, uri_cert_pinning_correct);
+	tcase_add_test(uri, uri_cert_pinning_incorrect);
+	tcase_add_test(uri, uri_cert_no_ca_verify);
 	suite_add_tcase(result, uri);
 	return result;
 }

@@ -68,8 +68,8 @@ struct uri {
 	char *uri; // Uri string in canonical format
 
 	// Signature verification
-	struct uri *sig_uri; // signature URI
 	char *sig_uri_file; // path to output file for signature
+	struct uri *sig_uri; // signature URI
 	// HTTPS options
 	bool ssl_verify; // If SSL should be verified
 	bool ocsp; // If OCSP should be used for ceritification validity check
@@ -189,6 +189,10 @@ bool uri_set_pubkey(struct uri *uri, const char *pubkey_uri) __attribute__((nonn
 //   for signature retrieval derived by appending .sig to uri it self. If public
 //   key verification is enabled and this function was not called then it is
 //   automatically called when URI is registered to downloader or being finished.
+// Note that uri created internally to receive this signature has same
+// configuration as original uri but all subsequent configuration changes are not
+// propagated to internally created uri. This means that you should call this a
+// last command of all.
 // This option is not inherited!
 bool uri_set_sig(struct uri *uri, const char *sig_uri) __attribute__((nonnull(1)));
 
