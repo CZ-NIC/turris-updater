@@ -296,6 +296,16 @@ char *uri_path(const struct uri *uri) {
 	return path;
 }
 
+bool downloader_register_signature(struct uri *uri, struct downloader *downloader) {
+	if (!uri->pubkey)
+		return true;
+	if (!uri->sig_uri)
+		uri_set_sig(uri, NULL);
+	if (!list_pubkey_collect(uri->pubkey))
+		return false;
+	return uri_downloader_register(uri->sig_uri, downloader);
+}
+
 bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
 	if (uri_is_local(uri)) {
 		// TODO error
@@ -330,6 +340,12 @@ bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
 		case URI_OUT_T_BUFFER:
 			uri->download_instance = download_data(downloader, uri->uri, &opts);
 			break;
+	}
+	if (!downloader_register_signature(uri, downloader)) {
+		download_i_free(uri->download_instance);
+		uri->download_instance = NULL;
+		// TODO error
+		return false;
 	}
 	return (bool)uri->download_instance;
 }
@@ -371,7 +387,6 @@ static bool uri_finish_file(struct uri *uri) {
 	}
 	close(fdin);
 	fclose(fout);
-	uri->finished = true;
 	return true;
 }
 
@@ -388,9 +403,13 @@ bool uri_finish(struct uri *uri) {
 	if (uri_is_local(uri)) {
 		switch (uri->scheme) {
 			case URI_S_FILE:
-				return uri_finish_file(uri);
+				if (!uri_finish_file(uri))
+					return false;
+				break;
 			case URI_S_DATA:
-				return uri_finish_data(uri);
+				if (!uri_finish_data(uri))
+					return false;
+				break;
 			default:
 				// TODO error
 				return false;
@@ -415,9 +434,27 @@ bool uri_finish(struct uri *uri) {
 				break;
 		}
 		uri->download_instance = NULL;
-		uri->finished = true;
-		return true;
 	}
+	uri->finished = true;
+	if (uri->pubkey) {
+		if (!uri_finish(uri->sig_uri)) {
+			// TODO error
+			return false;
+		}
+		uri_free(uri->sig_uri);
+		uri->sig_uri = NULL;
+		if (!list_pubkey_collect(uri->pubkey)) {
+			// TODO error
+			return false;
+		}
+		struct uri_local_list *key = uri->pubkey;
+		do {
+			// TODO call usign to verify
+			key = key->next;
+		} while(key);
+		return false;
+	}
+	return true;
 }
 
 bool uri_take_buffer(struct uri *uri, uint8_t **buffer, size_t *len) {

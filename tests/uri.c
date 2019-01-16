@@ -307,6 +307,8 @@ START_TEST(uri_cert_no_ca_verify) {
 }
 END_TEST
 
+// TODO test usign signature verification
+
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Uri");
 	TCase *uri = tcase_create("uri");

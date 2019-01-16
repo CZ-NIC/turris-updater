@@ -67,16 +67,15 @@ struct uri {
 	bool finished;
 	char *uri; // Uri string in canonical format
 
-	// Signature verification
-	char *sig_uri_file; // path to output file for signature
-	struct uri *sig_uri; // signature URI
 	// HTTPS options
 	bool ssl_verify; // If SSL should be verified
 	bool ocsp; // If OCSP should be used for ceritification validity check
 	struct uri_local_list *ca; // List of all configured CAs
 	struct uri_local_list *crl; // List of all configured CRLs
-	// HTTP,HTTPS options
+	// Signature verification
 	struct uri_local_list *pubkey; // URIs to public keys used for verification
+	char *sig_uri_file; // path to output file for signature
+	struct uri *sig_uri; // signature URI
 
 	struct download_i *download_instance;
 	enum uri_output_type output_type;
