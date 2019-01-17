@@ -180,7 +180,7 @@ bool uri_set_ocsp(struct uri *uri, bool enabled) __attribute__((nonnull(1)));
 // pubkey_uri: local URI to public key used to verify sigature. You can pass NULL
 //   to drop all added URIs and that way to disable signature verification.
 //This setting is inherited.
-bool uri_set_pubkey(struct uri *uri, const char *pubkey_uri) __attribute__((nonnull(1)));
+bool uri_add_pubkey(struct uri *uri, const char *pubkey_uri) __attribute__((nonnull(1)));
 // Set URI to signature to be used.
 // uri: URI object signature URI to be set to
 // sig_uri: string URI to signature. This signature is received with same

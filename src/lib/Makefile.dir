@@ -27,6 +27,7 @@ libupdater_MODULES := \
 	subprocess \
 	download \
 	uri \
+	uri_lua \
 	journal \
 	locks \
 	picosat \

@@ -380,7 +380,7 @@ static bool uri_finish_file(struct uri *uri) {
 	char buf[BUFSIZ];
 	ssize_t rd;
 	while ((rd = read(fdin, buf, BUFSIZ)) > 0) {
-		if (fwrite(buf, sizeof(char), rd, fout) != rd) {
+		if (fwrite(buf, sizeof(char), rd, fout) != (size_t)rd) {
 			// TODO set error
 			return false;
 		}
@@ -487,7 +487,7 @@ bool uri_set_ssl_verify(struct uri *uri, bool verify) {
 // Generate temporally file from all subsequent certificates (and CRLs)
 static bool list_ca_crl_collect(struct uri_local_list *list) {
 	if (!list || list->path)
-		return; // not set or already collected to file so all is done
+		return true; // not set or already collected to file so all is done
 
 	unsigned refs = 0;
 	struct mwrite mw;

@@ -44,7 +44,7 @@ local utils = require "utils"
 local TRACE = TRACE
 local sha256 = sha256
 
-module "uri"
+module "uri_old"
 
 -- luacheck: globals wait signature_check parse new  system_cas no_crl usign_exec_set
 
