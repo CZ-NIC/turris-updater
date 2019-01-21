@@ -22,8 +22,13 @@ local uri = require "uri"
 local utils = require "utils"
 local os = os
 
-local dir = (os.getenv("S") .. "/") or ''
+local dir = os.getenv("S") or "."
 local tmpdir = os.getenv("TMPDIR") or "/tmp"
+
+local lorem_ipsum = "lorem ipsum\n"
+local https_lorem_ipsum = "https://applications-test.turris.cz/li.txt"
+local ca_lets_encrypts = "file://" .. dir .. "/tests/data/lets_encrypt_roots.pem"
+local ca_opentrust_g1 = "file://" .. dir .. "/tests/data/opentrust_ca_g1.pem"
 
 module("uri-tests", package.seeall, lunit.testcase)
 
@@ -75,4 +80,33 @@ function test_path()
 	local master = uri.new()
 	local u = master:to_buffer("file:///dev/null")
 	assert_equal("/dev/null", u:path())
+end
+
+function test_https()
+	local master = uri.new()
+	local u = master:to_buffer(https_lorem_ipsum)
+	master:download()
+	local dt = u:finish()
+	assert_equal(lorem_ipsum, dt)
+end
+
+function test_cert_pinning_correct()
+	local master = uri.new()
+	local u = master:to_buffer(https_lorem_ipsum)
+	u:add_ca(ca_lets_encrypts)
+	master:download()
+	local dt = u:finish()
+	assert_equal(lorem_ipsum, dt)
+end
+
+-- TODO incorrect pinnging (when we have error handling)
+
+function test_cert_no_verify()
+	local master = uri.new()
+	local u = master:to_buffer(https_lorem_ipsum)
+	u:set_ssl_verify(false)
+	u:add_ca(ca_opentrust_g1)
+	master:download()
+	local dt = u:finish()
+	assert_equal(lorem_ipsum, dt)
 end
