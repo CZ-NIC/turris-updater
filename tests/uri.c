@@ -60,6 +60,10 @@ START_TEST(uri_parse) {
 	// Parent of different type is ignored
 	test_uri_parse("http:./test", "file:///dev/null", "http:test");
 	test_uri_parse("http:./test", "/dev/null", "http:test");
+	// Data is not touched at all
+	test_uri_parse("data:,test", NULL, "data:,test");
+	test_uri_parse("data:,test", "file:///dev/null", "data:,test");
+	test_uri_parse("data:,test", "data:,second", "data:,test");
 }
 END_TEST
 
@@ -89,7 +93,6 @@ START_TEST(uri_scheme) {
 	test_uri_scheme("/dev/null", URI_S_FILE);
 	test_uri_scheme("null", URI_S_FILE);
 	test_uri_scheme("data:xxxx", URI_S_DATA);
-	test_uri_scheme("ftp:xxxx", URI_S_UNKNOWN);
 }
 END_TEST
 
@@ -100,14 +103,15 @@ static void test_uri_local(const char *uri, bool local) {
 	uri_free(uri_obj);
 }
 
+// TODO test invalid uri too
+
 START_TEST(uri_local) {
 	test_uri_local("file:///dev/null", true);
 	test_uri_local("/dev/null", true);
 	test_uri_local("null", true);
-	test_uri_local("data:xxxx", true);
+	test_uri_local("data:,xxxx", true);
 	test_uri_local("http://test", false);
 	test_uri_local("https://test", false);
-	test_uri_local("ftp://test", false);
 }
 END_TEST
 
@@ -118,6 +122,28 @@ START_TEST(uri_unix_path) {
 	ck_assert_str_eq("/dev/null", path);
 	free(path);
 	uri_free(uri_obj);
+}
+END_TEST
+
+static void buffer_data_valid(const char *data_uri, const char *data) {
+	struct uri *uri = uri_to_buffer(data_uri, NULL);
+	ck_assert_ptr_nonnull(uri);
+	ck_assert(uri_finish(uri));
+
+	uint8_t *buf;
+	size_t size;
+	ck_assert(uri_take_buffer(uri, &buf, &size));
+	uri_free(uri);
+
+	ck_assert_int_eq(strlen(data), size);
+	ck_assert_str_eq((char*)data, (char*)buf);
+	free(buf);
+}
+
+START_TEST(uri_to_buffer_data) {
+	buffer_data_valid("data:,HelloWorld!", "HelloWorld!");
+	buffer_data_valid("data:charset=utf8,Hello", "Hello");
+	// TODO test base64
 }
 END_TEST
 
@@ -136,8 +162,6 @@ START_TEST(uri_to_buffer_file) {
 	free(data);
 }
 END_TEST
-
-// TODO uri_to_buffer_data
 
 START_TEST(uri_to_buffer_http) {
 	struct uri *uri = uri_to_buffer(HTTP_LOREM_IPSUM_SHORT, NULL);
@@ -318,6 +342,7 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(uri, uri_scheme);
 	tcase_add_test(uri, uri_local);
 	tcase_add_test(uri, uri_unix_path);
+	tcase_add_test(uri, uri_to_buffer_data);
 	tcase_add_test(uri, uri_to_buffer_file);
 	tcase_add_test(uri, uri_to_buffer_http);
 	tcase_add_test(uri, uri_to_buffer_https);

@@ -137,7 +137,8 @@ static bool canonize_uri(const char *uri_str, const struct uri *parent, struct u
 	bool success = true;
 	UriUriA urip;
 	// Parse passed uri
-	if (uriParseSingleUriA(&urip, uri_str, NULL) != URI_SUCCESS) {
+	const char *error_char; // TODO
+	if (uriParseSingleUriA(&urip, uri_str, &error_char) != URI_SUCCESS) {
 		// TODO report error
 		uriFreeUriMembersA(&urip);
 		return false;
@@ -157,6 +158,11 @@ static bool canonize_uri(const char *uri_str, const struct uri *parent, struct u
 		uri->scheme = parent->scheme;
 	else // No parent and no scheme we consider to be Unix path
 		uri->scheme = URI_S_FILE;
+	if (uri->scheme == URI_S_UNKNOWN) {
+		// TODO error that this scheme is unknown
+		uriFreeUriMembersA(&urip);
+		return NULL;
+	}
 	// For URI it self we consider as a parent only those with same scheme
 	const char *uri_parent = NULL;
 	bool free_parent = false;
@@ -381,6 +387,8 @@ static bool uri_finish_file(struct uri *uri) {
 	ssize_t rd;
 	while ((rd = read(fdin, buf, BUFSIZ)) > 0) {
 		if (fwrite(buf, sizeof(char), rd, fout) != (size_t)rd) {
+			close(fdin);
+			fclose(fout);
 			// TODO set error
 			return false;
 		}
@@ -390,9 +398,32 @@ static bool uri_finish_file(struct uri *uri) {
 	return true;
 }
 
+static const char *data_param_base64 = "base64";
+
 static bool uri_finish_data(struct uri *uri) {
-	// TODO parse data on our own (decode from base64)
-	return false; // TODO not implemented so false
+	char *start = uri->uri + 5;
+	// Parameters
+	bool is_base64 = false;
+	char *next;
+	while ((next = strchr(start, ','))) {
+		if (!strncmp(data_param_base64, start, strlen(data_param_base64)))
+			is_base64 = true;
+		// We ignore any unsupported arguments just for compatibility
+		start = next + 1;
+	}
+
+	FILE *fout = uri_finish_out_f(uri);
+	if (is_base64) {
+		// TODO
+		fclose(fout);
+		return false;
+	} else if (fputs(start, fout) <= 0) {
+		fclose(fout);
+		// TODO error
+		return false;
+	}
+	fclose(fout);
+	return true;
 }
 
 bool uri_finish(struct uri *uri) {
