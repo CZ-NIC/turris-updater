@@ -196,7 +196,7 @@ has been run).
 
 The package has no methods, it's just a stupid structure.
 ]]
-function package(result, content, pkg, extra)
+function package(content, pkg, extra)
 	-- Minimal typo verification. Further verification is done when actually using the package.
 	extra = allowed_extras_check_type(allowed_package_extras, "package", extra or {})
 	extra_check_verification("package", extra)
@@ -231,6 +231,7 @@ function package(result, content, pkg, extra)
 			extra_check_table("package", name, value, {"deps", "validation", "installation"})
 		end
 	end
+	local result = {}
 	utils.table_merge(result, extra)
 	result.name = pkg
 	result.tp = "package"
@@ -241,6 +242,7 @@ function package(result, content, pkg, extra)
 		-- We start downloading right away
 		utils.private(result).content_uri = uri(content, extra.content, extra)
 	end
+	return result
 end
 
 --[[
@@ -253,9 +255,7 @@ function package_wrap(context, pkg)
 		-- It is already a package object
 		return pkg
 	else
-		local result = {}
-		package(result, context, pkg)
-		return result
+		return package(context, pkg)
 	end
 end
 
@@ -286,7 +286,7 @@ all the configuration scripts are run, parsed and used as a source of
 packages. Then it shall mutate into a parsed repository object, but
 until then, it is just a stupid data structure without any methods.
 ]]
-function repository(result, context, name, repo_uri, extra)
+function repository(context, name, repo_uri, extra)
 	-- Catch possible typos
 	extra = allowed_extras_check_type(allowed_repository_extras, 'repository', extra or {})
 	extra_check_verification("repository", extra)
@@ -301,6 +301,7 @@ function repository(result, context, name, repo_uri, extra)
 			extra_check_table("repository", name, value, {"missing", "integrity", "syntax"})
 		end
 	end
+	local result = {}
 	utils.table_merge(result, extra)
 	result.repo_uri = repo_uri
 	utils.private(result).context = context
@@ -337,6 +338,7 @@ function repository(result, context, name, repo_uri, extra)
 	result.tp = "repository"
 	known_repositories[name] = result
 	table.insert(known_repositories_all, result)
+	return result
 end
 
 -- Either return the repo, if it is one already, or look it up. Nil if it doesn't exist.
@@ -397,7 +399,7 @@ local function content_request(context, cmd, allowed, ...)
 	submit({})
 end
 
-function install(_, context, ...)
+function install(context, ...)
 	return content_request(context, "install", allowed_install_extras, ...)
 end
 
@@ -405,7 +407,7 @@ local allowed_uninstall_extras = {
 	["priority"] = utils.arr2set({"number"})
 }
 
-function uninstall(_, context, ...)
+function uninstall(context, ...)
 	return content_request(context, "uninstall", allowed_uninstall_extras, ...)
 end
 
@@ -433,7 +435,7 @@ to their appropriate variables.
 
 Originally filler contained name of script.
 ]]
-function script(result, context, filler, script_uri, extra)
+function script(context, filler, script_uri, extra)
 	if (not extra and not script_uri) or type(script_uri) == "table" then
 		extra = script_uri
 		script_uri = filler
@@ -446,6 +448,7 @@ function script(result, context, filler, script_uri, extra)
 			extra_check_table("script", script_uri, value, {"missing", "integrity"})
 		end
 	end
+	local result = {}
 	local u = uri(context, script_uri, extra)
 	local ok, content = u:get()
 	if not ok then
@@ -454,7 +457,7 @@ function script(result, context, filler, script_uri, extra)
 			result.tp = "script"
 			result.name = script_uri
 			result.ignored = true
-			return
+			return result
 		end
 		-- If couldn't get the script, propagate the error
 		error(content)
@@ -481,6 +484,7 @@ function script(result, context, filler, script_uri, extra)
 	-- Return a dummy handle, just as a formality
 	result.tp = "script"
 	result.uri = script_uri
+	return result
 end
 
 return _M

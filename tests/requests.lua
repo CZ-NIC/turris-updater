@@ -43,12 +43,12 @@ local function run_sandbox_fun(func_code, level)
 end
 
 function test_package()
-	local p1 = run_sandbox_fun "Package 'pkg_name'"
+	local p1 = run_sandbox_fun("Package('pkg_name')")
 	assert_table_equal({
 		tp = "package",
 		name = "pkg_name"
 	}, p1)
-	local p2 = run_sandbox_fun "Package 'pkg_name' {replan = true, reboot = 'delayed', priority = 42}"
+	local p2 = run_sandbox_fun("Package('pkg_name', {replan = true, reboot = 'delayed', priority = 42})")
 	assert_table_equal({
 		tp = "package",
 		name = "pkg_name",
@@ -61,7 +61,7 @@ end
 
 function test_repository()
 	requests.repo_serial = 1
-	local r1 = run_sandbox_fun "Repository 'test-repo' 'http://example.org/repo'"
+	local r1 = run_sandbox_fun("Repository('test-repo', 'http://example.org/repo')")
 	assert_table_equal({
 		tp = "repository",
 		name = "test-repo",
@@ -73,7 +73,7 @@ function test_repository()
 	assert_table_equal({
 		index_uri = {[""] = {u = "http://example.org/repo/Packages.gz"}}
 	}, utils.private(r1))
-	local r2 = run_sandbox_fun "Repository 'test-repo-2' 'http://example.org/repo-2' {subdirs = {'a', 'b'}, priority = 60}"
+	local r2 = run_sandbox_fun("Repository('test-repo-2', 'http://example.org/repo-2', {subdirs = {'a', 'b'}, priority = 60})")
 	assert_table_equal({
 		tp = "repository",
 		name = "test-repo-2",
@@ -86,7 +86,7 @@ function test_repository()
 	assert_table_equal({
 		index_uri = {["/a"] = {u = "http://example.org/repo-2/a/Packages.gz"}, ["/b"] = {u = "http://example.org/repo-2/b/Packages.gz"}}
 	}, utils.private(r2))
-	local r3 = run_sandbox_fun "Repository 'test-repo-other' 'http://example.org/repo-other' {index = 'https://example.org/repo-other/Packages.gz'}"
+	local r3 = run_sandbox_fun("Repository('test-repo-other', 'http://example.org/repo-other', {index = 'https://example.org/repo-other/Packages.gz'})")
 	assert_table_equal({
 		tp = "repository",
 		name = "test-repo-other",
@@ -113,9 +113,9 @@ end
 
 function test_install_uninstall()
 	local result = sandbox.run_sandboxed([[
-		Install "pkg1" "pkg2" {priority = 45} "pkg3" {priority = 14} "pkg4" "pkg5"
-		Uninstall "pkg6" {priority = 75} "pkg7"
-		Install "pkg8"
+		Install("pkg1", "pkg2", {priority = 45}, "pkg3", {priority = 14}, "pkg4", "pkg5")
+		Uninstall("pkg6", {priority = 75}, "pkg7")
+		Install("pkg8")
 	]], "test_install_uninstall_chunk", "Restricted")
 	local function req(num, mode, prio)
 		return {
