@@ -1,3 +1,0 @@
-testpkg = Package("test1", { content = "file://%ROOT_DIR%/test.ipk" })
-
-Install("test1")
