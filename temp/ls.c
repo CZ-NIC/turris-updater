@@ -430,14 +430,23 @@ int do_cp_file(const char *old, const char *new) {
 }
 
 int cp_file(const char *name) {
-	printf("### COPY file <%s> to <%s>\n", name, cp_dst_path);
-	do_cp_file(name, cp_dst_path);
+	char dst_path[PATH_MAX];
+	get_dst_path(name, cp_dst_path, dst_path);
+	printf("### COPY file <%s> to <%s>\n", name, dst_path);
+	do_cp_file(name, dst_path);
 	return 0;
 }
 int cp_dir(const char *name, int type) {
-	printf("### COPY directory <%s>\n", name);
+	char dst_path[PATH_MAX];
+	get_dst_path(name, cp_dst_path, dst_path);
+
+	printf("### COPY directory <%s> to <%s>\n", name, dst_path);
 	if(type == 0) {
 		/* When entering directory, check if it exists and create one, when necessary */
+		if (file_exists(dst_path) == -1) {
+			printf("Dir <%s> doesn't exist, creating.\n", dst_path);
+			mkdir(dst_path, 0777); /* TODO: set same mode as src */
+		}
 	}
 	return 0;
 }
@@ -669,12 +678,14 @@ int main(int argc, char **argv) {
 	if (test_cp == 1){
 		printf("-------------\n");
 		printf("Test for <copy>\n");
-		printf("Copy file to file\n");
+		printf("!!! Copy file to file\n");
 		cp("dir/file1", "dir/cpfile1");
-		printf("Copy file to dir\n");
+		printf("!!! Copy file to dir\n");
 		cp("dir/file1", "dir/subdir1");
-		printf("Copy file over existing file\n");
+		printf("!!! Copy file over existing file\n");
 		cp("dir/file2", "dir/cpfile1");
+		printf("!!! Copy directory\n");
+		cp("dir", "cpdir");
 	}
 
 
