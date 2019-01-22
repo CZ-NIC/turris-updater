@@ -30,7 +30,11 @@
 
 
 thread_local enum uri_error uri_errno = 0;
-thread_local static int uriparser_errno;
+thread_local enum uri_error uri_sub_errno = 0;
+thread_local struct uri *uri_sub_err_uri = NULL;
+
+#define URI_ERROR_MESSAGE_LEN 1024
+thread_local static char uri_error_message[URI_ERROR_MESSAGE_LEN];
 
 
 static const char *schemes_table[] = {
@@ -38,6 +42,7 @@ static const char *schemes_table[] = {
 	[URI_S_HTTPS] = "https",
 	[URI_S_FILE] = "file",
 	[URI_S_DATA] = "data",
+	[URI_S_UNKNOWN] = "?"
 };
 
 
@@ -87,14 +92,10 @@ static char *default_file_parent() {
 		uri_errno = URI_E_GETCWD;
 		return NULL;
 	}
-	char *uri = malloc(8 + 3*strlen(cwd) + 1); // source: https://uriparser.github.io/doc/api/latest/index.html
-	uriparser_errno = uriUnixFilenameToUriStringA(cwd, uri);
+	char *uri = malloc(8 + 3*strlen(cwd) + 1); // source: https://uriparser.github.io/doc/api/latest/index.html [+1 (/)]
+	ASSERT_MSG(uriUnixFilenameToUriStringA(cwd, uri) == URI_SUCCESS,
+			"CWD uri conversion failed of: %s", cwd);
 	free(cwd);
-	if (uriparser_errno != URI_SUCCESS) {
-		uri_errno = URI_E_CWD2URI;
-		free(uri);
-		return NULL;
-	}
 	size_t len = strlen(uri);
 	uri[len] = '/'; // Note: It is directory a trailing slash is required
 	uri[len + 1] = '\0';
@@ -112,34 +113,16 @@ static char *default_file_parent() {
  * representation and always run parser again.
  */
 
-static bool uri_apply_parent(UriUriA *uri, const char *parent) {
-	UriUriA parent_urip;
-	if (uriParseSingleUriA(&parent_urip, parent, NULL) != URI_SUCCESS) {
-		uriFreeUriMembersA(&parent_urip);
-		// TODO report error
-		return false;
-	}
-	UriUriA abs_urip;
-	if (uriAddBaseUriA(&abs_urip, uri, &parent_urip) != URI_SUCCESS) {
-		uriFreeUriMembersA(&parent_urip);
-		uriFreeUriMembersA(&abs_urip);
-		// TODO report error
-		return false;
-	}
-	uriFreeUriMembersA(&parent_urip);
-	uriFreeUriMembersA(uri);
-	*uri = abs_urip;
-	return true;
-}
-
 // This function sets scheme and uri variable in newly created uri object
 static bool canonize_uri(const char *uri_str, const struct uri *parent, struct uri *uri) {
-	bool success = true;
+	int urierr;
 	UriUriA urip;
-	// Parse passed uri
-	const char *error_char; // TODO
-	if (uriParseSingleUriA(&urip, uri_str, &error_char) != URI_SUCCESS) {
-		// TODO report error
+	// Parse uri
+	// TODO we can get invalid character but how should we report it or save it?
+	// (but currently ignoring it is not that big of a problem)
+	if ((urierr = uriParseSingleUriA(&urip, uri_str, NULL)) != URI_SUCCESS) {
+		ASSERT_MSG(urierr == URI_ERROR_SYNTAX, "Unexpected uriparser error: %d", urierr);
+		uri_errno = URI_E_INVALID_URI;
 		uriFreeUriMembersA(&urip);
 		return false;
 	}
@@ -159,9 +142,9 @@ static bool canonize_uri(const char *uri_str, const struct uri *parent, struct u
 	else // No parent and no scheme we consider to be Unix path
 		uri->scheme = URI_S_FILE;
 	if (uri->scheme == URI_S_UNKNOWN) {
-		// TODO error that this scheme is unknown
+		uri_errno = URI_E_UNKNOWN_SCHEME;
 		uriFreeUriMembersA(&urip);
-		return NULL;
+		return false;
 	}
 	// For URI it self we consider as a parent only those with same scheme
 	const char *uri_parent = NULL;
@@ -172,46 +155,40 @@ static bool canonize_uri(const char *uri_str, const struct uri *parent, struct u
 		uri_parent = default_file_parent();
 		free_parent = true;
 	}
-	if (uri_parent)
-		if (!uri_apply_parent(&urip, uri_parent))
-			goto handle_error;
-	// Normalize URI
-	if (uriNormalizeSyntaxA(&urip) != URI_SUCCESS) {
-		// TODO report error
-		goto handle_error;
+	if (uri_parent) {
+		UriUriA parent_urip;
+		// Should always be parsable because either it is cwd or was already parsed once
+		ASSERT_MSG(uriParseSingleUriA(&parent_urip, uri_parent, NULL) == URI_SUCCESS,
+				"Unable to parse parent URI: %s", uri_parent);
+		UriUriA abs_urip;
+		urierr = uriAddBaseUriA(&abs_urip, &urip, &parent_urip);
+		// It should always be absolute
+		ASSERT_MSG(urierr != URI_ERROR_ADDBASE_REL_BASE, "Parent URI is non-absolute: %s", uri_parent);
+		ASSERT(urierr == URI_SUCCESS);
+		uriFreeUriMembersA(&parent_urip);
+		uriFreeUriMembersA(&urip);
+		urip = abs_urip;
 	}
+	// Normalize URI
+	ASSERT(uriNormalizeSyntaxA(&urip) == URI_SUCCESS); // No error with exception to memory ones seems to be possible here
 	// Convert back to string
 	int charsreq;
-	if (uriToStringCharsRequiredA(&urip, &charsreq) != URI_SUCCESS) {
-		// TODO report error
-		goto handle_error;
-	}
+	ASSERT(uriToStringCharsRequiredA(&urip, &charsreq) == URI_SUCCESS);
 	charsreq++;
 	uri->uri = malloc(charsreq * sizeof *uri->uri);
-	if (uriToStringA(uri->uri, &urip, charsreq, NULL) != URI_SUCCESS) {
-		// TODO report error
-		free(uri->uri);
-		uri->uri = NULL;
-		goto handle_error;
-	}
+	ASSERT(uriToStringA(uri->uri, &urip, charsreq, NULL) == URI_SUCCESS);
 
-	goto cleanup;
-handle_error:
-	success = false;
-
-cleanup:
+	// Cleanup
 	uriFreeUriMembersA(&urip);
 	if (uri_parent && free_parent)
 		free((char*)uri_parent);
-
-	return success;
+	return true;
 }
 
 static struct uri *uri_new(const char *uri_str, const struct uri *parent) {
 	struct uri *ret = malloc(sizeof *ret);
 	ret->finished = false;
 	if (!canonize_uri(uri_str, parent, ret)) {
-		// TODO error
 		free(ret);
 		return NULL;
 	}
@@ -293,12 +270,11 @@ bool uri_is_local(const struct uri *uri) {
 }
 
 char *uri_path(const struct uri *uri) {
-	char *path = malloc(strlen(uri->uri) + 1); // source: https://uriparser.github.io/doc/api/latest/index.html
-	if (uriUriStringToUnixFilenameA(uri->uri, path) != URI_SUCCESS) {
-		// TODO report error
-		free(path);
-		return NULL;
-	}
+	ASSERT_MSG(uri->scheme == URI_S_FILE,
+			"Called uri_path on URI of scheme: %s", uri_scheme_string(uri->scheme));
+	char *path = malloc(strlen(uri->uri) - 6); // source: https://uriparser.github.io/doc/api/latest/index.html
+	ASSERT_MSG(uriUriStringToUnixFilenameA(uri->uri, path) == URI_SUCCESS,
+			"URI to Unix path conversion failed for: %s", uri->uri);
 	return path;
 }
 
@@ -313,10 +289,8 @@ bool downloader_register_signature(struct uri *uri, struct downloader *downloade
 }
 
 bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
-	if (uri_is_local(uri)) {
-		// TODO error
-		return false;
-	}
+	if (uri_is_local(uri) || uri->download_instance || uri->finished)
+		return true; // Just ignore if it makes no sense to call this
 	struct download_opts opts;
 	download_opts_def(&opts);
 	opts.ssl_verify = uri->ssl_verify;
@@ -369,30 +343,32 @@ static FILE *uri_finish_out_f(struct uri *uri) {
 			f = open_memstream((char**)&uri->output_info.buf.data, &uri->output_info.buf.size);
 			break;
 	}
-	// TODO check for error
+	if (f == NULL)
+		uri_errno = URI_E_OUTPUT_OPEN_FAIL;
 	return f;
 }
 
 static bool uri_finish_file(struct uri *uri) {
 	char *srcpath = uri_path(uri);
 	int fdin = open(srcpath, O_RDONLY);
+	free(srcpath);
 	if (fdin == -1) {
-		// TODO error
+		uri_errno = URI_E_FILE_INPUT_ERROR;
 		return false;
 	}
-	free(srcpath);
 	FILE *fout = uri_finish_out_f(uri);
+	if (fout == NULL)
+		return false;
 
 	char buf[BUFSIZ];
 	ssize_t rd;
-	while ((rd = read(fdin, buf, BUFSIZ)) > 0) {
+	while ((rd = read(fdin, buf, BUFSIZ)) > 0)
 		if (fwrite(buf, sizeof(char), rd, fout) != (size_t)rd) {
 			close(fdin);
 			fclose(fout);
-			// TODO set error
+			uri_errno = URI_E_OUTPUT_WRITE_FAIL;
 			return false;
 		}
-	}
 	close(fdin);
 	fclose(fout);
 	return true;
@@ -413,13 +389,15 @@ static bool uri_finish_data(struct uri *uri) {
 	}
 
 	FILE *fout = uri_finish_out_f(uri);
+	if (fout == NULL)
+		return false;
 	if (is_base64) {
-		// TODO
+		DIE("base64 not implemented"); // TODO
 		fclose(fout);
 		return false;
 	} else if (fputs(start, fout) <= 0) {
 		fclose(fout);
-		// TODO error
+		uri_errno = URI_E_OUTPUT_WRITE_FAIL;
 		return false;
 	}
 	fclose(fout);
@@ -427,10 +405,8 @@ static bool uri_finish_data(struct uri *uri) {
 }
 
 bool uri_finish(struct uri *uri) {
-	if (uri->finished) {
-		// TODO error
-		return false;
-	}
+	if (uri->finished)
+		return true; // Ignore if this is alredy finished
 	if (uri_is_local(uri)) {
 		switch (uri->scheme) {
 			case URI_S_FILE:
@@ -442,16 +418,13 @@ bool uri_finish(struct uri *uri) {
 					return false;
 				break;
 			default:
-				// TODO error
-				return false;
+				DIE("Trying to finish URI that seems to be local but has unsupported scheme: %s",
+						uri_scheme_string(uri->scheme));
 		}
 	} else {
-		if (uri->download_instance) {
-			if (!uri->download_instance->done || !uri->download_instance->success)
-				// TODO error (either not completed or failed download)
-				return false;
-		} else {
-			// TODO error you have to register downloader first
+		ASSERT_MSG(uri->download_instance, "uri_downloader_register has to be called before uri_finish");
+		if (!uri->download_instance->done || !uri->download_instance->success) {
+			uri_errno = uri->download_instance->done ? URI_E_UNFINISHED_DOWNLOAD : URI_E_DOWNLOAD_FAILED;
 			return false;
 		}
 		switch (uri->output_type) {
@@ -469,13 +442,15 @@ bool uri_finish(struct uri *uri) {
 	uri->finished = true;
 	if (uri->pubkey) {
 		if (!uri_finish(uri->sig_uri)) {
-			// TODO error
+			uri_sub_errno = uri_errno;
+			uri_sub_err_uri = uri->sig_uri;
+			uri_errno = URI_E_SIG_FAIL;
 			return false;
 		}
 		uri_free(uri->sig_uri);
 		uri->sig_uri = NULL;
 		if (!list_pubkey_collect(uri->pubkey)) {
-			// TODO error
+			uri_errno = URI_E_PUBKEY_FAIL;
 			return false;
 		}
 		struct uri_local_list *key = uri->pubkey;
@@ -488,29 +463,37 @@ bool uri_finish(struct uri *uri) {
 	return true;
 }
 
-bool uri_take_buffer(struct uri *uri, uint8_t **buffer, size_t *len) {
-	if (uri->output_type != URI_OUT_T_BUFFER)
-		// TODO error
-		return false;
-	if (!uri->finished)
-		// TODO error
-		return false;
+void uri_take_buffer(struct uri *uri, uint8_t **buffer, size_t *len) {
+	ASSERT_MSG(uri->output_type == URI_OUT_T_BUFFER,
+			"URI is not of buffer output type: %s", uri->uri);
+	ASSERT_MSG(uri->finished, "URI has to be finished before requesting buffers: %s", uri->uri);
 	*buffer = uri->output_info.buf.data;
 	*len = uri->output_info.buf.size;
 	uri->output_info.buf.data = NULL;
 	uri->output_info.buf.size = 0;
-	return true;
 }
 
-char *uri_error_msg(struct uri *uri) {
-	// TODO
-	return NULL;
+const char *uri_error_msg(enum uri_error err) {
+	// TODO fill error message string
+	return uri_error_message;
 }
 
-// TODO we should not allow configuration change after downloader is registered
-// and uri is finished
+const char *uri_download_error(struct uri *uri) {
+	ASSERT_MSG(uri->download_instance, "uri_download_error can be called only on URIs with registered downloader.");
+	ASSERT_MSG(uri->download_instance->done, "uri_download_error can be called only after downloader_run.");
+	ASSERT_MSG(!uri->download_instance->success, "uri_download_error can be called only on failed URIs.");
+	return uri->download_instance->error;
+}
+
+const char *uri_scheme_string(enum uri_scheme scheme) {
+	return schemes_table[scheme];
+}
+
+#define CONFIG_GUARD ASSERT_MSG(!uri->download_instance && !uri->finished, \
+		"(%s) URI configuration can't be changed after uri_register_downloader and uri_finish", uri->uri)
 
 bool uri_set_ssl_verify(struct uri *uri, bool verify) {
+	CONFIG_GUARD;
 	uri->ssl_verify = verify;
 	return true;
 }
@@ -531,7 +514,8 @@ static bool list_ca_crl_collect(struct uri_local_list *list) {
 				refs = list->ref_count;
 			}
 			if (!uri_finish(list->uri)) {
-				// TODO error
+				uri_sub_errno = uri_errno;
+				uri_sub_err_uri = list->uri;
 				return false;
 			}
 			uint8_t *buf;
@@ -588,14 +572,17 @@ static bool list_ca_crl_add(struct uri *uri, const char *str_uri, struct uri_loc
 }
 
 bool uri_add_ca(struct uri *uri, const char *ca_uri) {
+	CONFIG_GUARD;
 	return list_ca_crl_add(uri, ca_uri, &uri->ca);
 }
 
 bool uri_add_crl(struct uri *uri, const char *crl_uri) {
+	CONFIG_GUARD;
 	return list_ca_crl_add(uri, crl_uri, &uri->crl);
 }
 
 bool uri_set_ocsp(struct uri *uri, bool enabled) {
+	CONFIG_GUARD;
 	uri->ocsp = enabled;
 	return true;
 }
@@ -604,7 +591,8 @@ bool uri_set_ocsp(struct uri *uri, bool enabled) {
 static bool list_pubkey_collect(struct uri_local_list *list) {
 	while (list && list->uri) {
 		if (uri_finish(list->uri)) {
-			// TODO error
+			uri_sub_errno = uri_errno;
+			uri_sub_err_uri = list->uri;
 			return false;
 		}
 		list->uri = NULL;
@@ -624,6 +612,7 @@ static void list_pubkey_free(struct uri_local_list *list) {
 }
 
 bool uri_add_pubkey(struct uri *uri, const char *pubkey_uri) {
+	CONFIG_GUARD;
 	if (!pubkey_uri){
 		list_dealloc(uri->pubkey);
 		uri->pubkey = NULL;
@@ -632,8 +621,14 @@ bool uri_add_pubkey(struct uri *uri, const char *pubkey_uri) {
 	// TODO if uri is already of type FILE then reuse posix path and don't download
 	char *file_path = strdup(TMP_TEMPLATE_PUBKEY_FILE);
 	struct uri *nuri = uri_to_temp_file(pubkey_uri, file_path, uri);
+	if (!nuri) {
+		uri_sub_errno = uri_errno;
+		uri_sub_err_uri = NULL;
+		return false;
+	}
 	if (!uri_is_local(nuri)) {
-		uri_errno = URI_E_NONLOCAL;
+		uri_sub_errno = URI_E_NONLOCAL;
+		uri_sub_err_uri = NULL;
 		uri_free(nuri);
 		free(file_path);
 		return false;
@@ -645,6 +640,7 @@ bool uri_add_pubkey(struct uri *uri, const char *pubkey_uri) {
 }
 
 bool uri_set_sig(struct uri *uri, const char *sig_uri) {
+	CONFIG_GUARD;
 	if (uri->sig_uri) // Free any previous uri
 		uri_free(uri->sig_uri);
 

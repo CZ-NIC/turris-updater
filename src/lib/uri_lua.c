@@ -30,19 +30,30 @@
 #define DEFAULT_PARALLEL_DOWNLOAD 3
 
 #define URI_MASTER_META "updater_uri_master_meta"
+#define URI_MASTER_REGISTRY "libupdater_uri_master"
 #define URI_META "updater_uri_meta"
 
 struct uri_lua;
 
 struct uri_master {
 	struct downloader *downloader;
+	unsigned rid;
 };
 
 static int lua_uri_master_new(lua_State *L) {
 	struct uri_master *urim = lua_newuserdata(L, sizeof *urim);
+	static unsigned rid_seq = 0; // TODO: no rollover expected
+	urim->rid = rid_seq++;
 	urim->downloader = downloader_new(DEFAULT_PARALLEL_DOWNLOAD);
 	luaL_getmetatable(L, URI_MASTER_META);
 	lua_setmetatable(L, -2);
+
+	lua_getfield(L, LUA_REGISTRYINDEX, URI_MASTER_REGISTRY);
+	lua_pushinteger(L, urim->rid);
+	lua_newtable(L);
+	lua_settable(L, -3);
+	lua_pop(L, 1);
+
 	TRACE("Allocated new URI master");
 	return 1;
 }
@@ -56,12 +67,26 @@ struct uri_lua {
 	char *fpath; // used only when outputing to file
 };
 
+// Pushes registry table for given uri master
+static void lua_uri_master_registry(lua_State *L, struct uri_master *urim) {
+	lua_getfield(L, LUA_REGISTRYINDEX, URI_MASTER_REGISTRY);
+	lua_pushinteger(L, urim->rid);
+	lua_gettable(L, -2);
+	lua_replace(L, -2);
+}
+
 static void lua_new_uri_tail(lua_State *L, struct uri_master *urim, struct uri_lua *uri) {
-	if (!uri_is_local(uri->uri))
-		uri_downloader_register(uri->uri, urim->downloader);
 	// Set meta
 	luaL_getmetatable(L, URI_META);
 	lua_setmetatable(L, -2);
+	// Add this URI to registry (but only if we have to download them)
+	if (!uri_is_local(uri->uri)) {
+		lua_uri_master_registry(L, urim);
+		lua_pushvalue(L, -2);
+		lua_pushboolean(L, true);
+		lua_settable(L, -3);
+		lua_pop(L, 1);
+	}
 }
 
 static int lua_uri_master_to_file(lua_State *L) {
@@ -112,14 +137,41 @@ static int lua_uri_master_to_buffer(lua_State *L) {
 
 static int lua_uri_master_download(lua_State *L) {
 	struct uri_master *urim = luaL_checkudata(L, 1, URI_MASTER_META);
-	downloader_run(urim->downloader);
-	// TODO handle possible error
+	lua_uri_master_registry(L, urim);
+	lua_pushnil(L);
+	while (lua_next(L, -2) != 0) {
+		lua_pop(L, 1); // pop value (just boolean true)
+		struct uri_lua *uri = luaL_checkudata(L, -1, URI_META);
+		uri_downloader_register(uri->uri, urim->downloader); // Multiple calls have no effect
+	}
+
+	struct download_i *inst = downloader_run(urim->downloader);
+	if (inst) {
+		lua_pushnil(L);
+		while (lua_next(L, -2) != 0) {
+			lua_pop(L, 1);
+			struct uri_lua *uri = luaL_checkudata(L, -1, URI_META);
+			if (uri->uri->download_instance == inst)
+				return 1; // Just return this URI object
+		}
+		DIE("Failed instance has no URI object. This should not happen.");
+	}
+
+	// Push empty table so we drop reference to all completed uris
+	lua_getfield(L, LUA_REGISTRYINDEX, URI_MASTER_REGISTRY);
+	lua_pushinteger(L, urim->rid);
+	lua_newtable(L);
+	lua_settable(L, -3);
 	return 0;
 }
 
 static int lua_uri_master_gc(lua_State *L) {
 	struct uri_master *urim = luaL_checkudata(L, 1, URI_MASTER_META);
 	TRACE("Freeing URI master");
+	lua_getfield(L, LUA_REGISTRYINDEX, URI_MASTER_REGISTRY);
+	lua_pushinteger(L, urim->rid);
+	lua_pushnil(L);
+	lua_settable(L, -3);
 	downloader_free(urim->downloader);
 	return 0;
 }
@@ -253,6 +305,8 @@ void uri_mod_init(lua_State *L) {
 	inject_module(L, "uri");
 	inject_metatable_self_index(L, URI_MASTER_META);
 	inject_func_n(L, URI_MASTER_META, uri_master_meta, sizeof uri_master_meta / sizeof *uri_master_meta);
+	lua_newtable(L);
+	lua_setfield(L, LUA_REGISTRYINDEX, URI_MASTER_REGISTRY);
 	inject_metatable_self_index(L, URI_META);
 	inject_func_n(L, URI_META, uri_meta, sizeof uri_meta / sizeof *uri_meta);
 }

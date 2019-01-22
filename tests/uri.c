@@ -132,7 +132,7 @@ static void buffer_data_valid(const char *data_uri, const char *data) {
 
 	uint8_t *buf;
 	size_t size;
-	ck_assert(uri_take_buffer(uri, &buf, &size));
+	uri_take_buffer(uri, &buf, &size);
 	uri_free(uri);
 
 	ck_assert_int_eq(strlen(data), size);
@@ -154,7 +154,7 @@ START_TEST(uri_to_buffer_file) {
 
 	uint8_t *data;
 	size_t size;
-	ck_assert(uri_take_buffer(uri, &data, &size));
+	uri_take_buffer(uri, &data, &size);
 	uri_free(uri);
 
 	ck_assert_int_eq(LOREM_IPSUM_SHORT_SIZE, size);
@@ -167,7 +167,6 @@ START_TEST(uri_to_buffer_http) {
 	struct uri *uri = uri_to_buffer(HTTP_LOREM_IPSUM_SHORT, NULL);
 	ck_assert_ptr_nonnull(uri);
 
-	ck_assert(!uri_finish(uri));
 	struct downloader *down = downloader_new(1);
 	ck_assert(uri_downloader_register(uri, down));
 	ck_assert_ptr_null(downloader_run(down));
@@ -176,7 +175,7 @@ START_TEST(uri_to_buffer_http) {
 
 	uint8_t *data;
 	size_t size;
-	ck_assert(uri_take_buffer(uri, &data, &size));
+	uri_take_buffer(uri, &data, &size);
 	uri_free(uri);
 
 	ck_assert_int_eq(LOREM_IPSUM_SHORT_SIZE, size);
@@ -189,7 +188,6 @@ START_TEST(uri_to_buffer_https) {
 	struct uri *uri = uri_to_buffer(HTTPS_LOREM_IPSUM_SHORT, NULL);
 	ck_assert_ptr_nonnull(uri);
 
-	ck_assert(!uri_finish(uri));
 	struct downloader *down = downloader_new(1);
 	ck_assert(uri_downloader_register(uri, down));
 	ck_assert_ptr_null(downloader_run(down));
@@ -198,7 +196,7 @@ START_TEST(uri_to_buffer_https) {
 
 	uint8_t *data;
 	size_t size;
-	ck_assert(uri_take_buffer(uri, &data, &size));
+	uri_take_buffer(uri, &data, &size);
 	uri_free(uri);
 
 	ck_assert_int_eq(LOREM_IPSUM_SHORT_SIZE, size);
@@ -226,7 +224,6 @@ START_TEST(uri_to_file_https) {
 	struct uri *uri = uri_to_file(HTTPS_LOREM_IPSUM_SHORT, outf, NULL);
 	ck_assert_ptr_nonnull(uri);
 
-	ck_assert(!uri_finish(uri));
 	struct downloader *down = downloader_new(1);
 	ck_assert(uri_downloader_register(uri, down));
 	ck_assert_ptr_null(downloader_run(down));
@@ -263,7 +260,6 @@ START_TEST(uri_to_temp_file_https) {
 	struct uri *uri = uri_to_temp_file(HTTPS_LOREM_IPSUM_SHORT, outf, NULL);
 	ck_assert_ptr_nonnull(uri);
 
-	ck_assert(!uri_finish(uri));
 	struct downloader *down = downloader_new(1);
 	ck_assert_str_eq(TEMP_OUT_FILE, outf);
 	ck_assert(uri_downloader_register(uri, down));
@@ -289,7 +285,7 @@ void download_and_verify_lorem_ipsum_short(struct uri *uri) {
 
 	uint8_t *data;
 	size_t size;
-	ck_assert(uri_take_buffer(uri, &data, &size));
+	uri_take_buffer(uri, &data, &size);
 	uri_free(uri);
 
 	ck_assert_int_eq(LOREM_IPSUM_SHORT_SIZE, size);
