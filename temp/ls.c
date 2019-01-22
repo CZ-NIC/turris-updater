@@ -392,12 +392,15 @@ int do_cp_file(const char *old, const char *new) {
 
 	f_old = open(old, O_RDONLY);
 	if (f_old < 0) {
-		printf("Cannot openfile %s", old);
+		printf("Cannot open source file %s\n", old);
 	}
 
 	f_new = open(new, O_WRONLY | O_CREAT | O_EXCL, sb.st_mode);
 	if (f_new < 0) {
-		printf("Cannot openfile %s",new);
+		/* File alrerady exists, delete it and create again */
+		int rn = unlink(new);
+		f_new = open(new, O_WRONLY | O_CREAT | O_EXCL, sb.st_mode);
+		/* TODO: Check if it was fine this time */
 	}
 
 	while(nread = read(f_old, buffer, sizeof buffer), nread > 0) {
@@ -408,7 +411,8 @@ int do_cp_file(const char *old, const char *new) {
 				nread -= nwritten;
 				out_ptr += nwritten;
 			} else if (errno != EINTR) {
-				printf("Problem while copying");
+				printf("Problem while copying file %s->%s\n", old, new);
+				return -1;
 			}
 		} while (nread > 0);
 	}
@@ -669,6 +673,8 @@ int main(int argc, char **argv) {
 		cp("dir/file1", "dir/cpfile1");
 		printf("Copy file to dir\n");
 		cp("dir/file1", "dir/subdir1");
+		printf("Copy file over existing file\n");
+		cp("dir/file2", "dir/cpfile1");
 	}
 
 
