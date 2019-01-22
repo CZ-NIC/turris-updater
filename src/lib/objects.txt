@@ -79,7 +79,7 @@ pkg-list::
   intermediate product during repository processing.
 script::
   Return value of the `Script` command. This is mostly a dummy handle,
-  since morphers require to have a return value.
+  because there is not much to return.
 dep-and, dep-or, dep-not::
   Dependency composition objects. They contain the field `sub`, which
   is a table of sub-dependencies.
