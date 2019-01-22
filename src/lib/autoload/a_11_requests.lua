@@ -38,7 +38,7 @@ local WARN = WARN
 
 module "requests"
 
--- luacheck: globals known_packages package_wrap known_repositories known_repositories_all repo_serial repository repository_get content_requests install uninstall script known_content_packages package
+-- luacheck: globals known_packages package_wrap known_repositories known_repositories_all repo_serial repository repository_get content_requests install uninstall script package
 
 -- Verifications fields are same for script, repository and package. Lets define them here once and then just append.
 local allowed_extras_verification = {
@@ -178,14 +178,6 @@ We just store them in an array for future processing.
 known_packages = {}
 
 --[[
-We store here packages with content extra field. These must be
-downloaded and parsed before they are aggregated. But they are
-also added to known_packages, this is just list of packages needing
-special treatment.
-]]
-known_content_packages = {}
-
---[[
 This package is just a promise of a real package in the future. It holds the
 name and possibly some additional info for the package. Once we go through
 the requests (Install and Uninstall), we gather all package objects with the
@@ -196,7 +188,7 @@ has been run).
 
 The package has no methods, it's just a stupid structure.
 ]]
-function package(content, pkg, extra)
+function package(_, pkg, extra)
 	-- Minimal typo verification. Further verification is done when actually using the package.
 	extra = allowed_extras_check_type(allowed_package_extras, "package", extra or {})
 	extra_check_verification("package", extra)
@@ -236,12 +228,6 @@ function package(content, pkg, extra)
 	result.name = pkg
 	result.tp = "package"
 	table.insert(known_packages, result)
-	if extra.content then -- if content is specified, it requires special treatment before aggregation
-		WARN("Content field of Package command is obsoleted! You can use local repository instead.")
-		table.insert(known_content_packages, result)
-		-- We start downloading right away
-		utils.private(result).content_uri = uri(content, extra.content, extra)
-	end
 	return result
 end
 

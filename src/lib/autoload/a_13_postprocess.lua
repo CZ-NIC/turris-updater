@@ -30,7 +30,6 @@ local table = table
 local string = string
 local events_wait = events_wait
 local run_util = run_util
-local mkdtemp = mkdtemp
 local DBG = DBG
 local WARN = WARN
 local ERROR = ERROR
@@ -41,7 +40,7 @@ local uri = require "uri"
 
 module "postprocess"
 
--- luacheck: globals get_repos deps_canon conflicts_canon available_packages pkg_aggregate run get_content_pkgs sort_candidates
+-- luacheck: globals get_repos deps_canon conflicts_canon available_packages pkg_aggregate run sort_candidates
 
 function get_repos()
 	DBG("Getting repos")
@@ -143,57 +142,6 @@ function get_repos()
 		return multi
 	else
 		return nil
-	end
-end
-
---[[
-We have to download and unpack packages with extra field content, because
-we don't know their version without seeing their values from field such as
-version.
-]]
-function get_content_pkgs()
-	local uris = {}
-	local errors = {}
-
-	for _, pkg in pairs(requests.known_content_packages) do
-		local content_uri = utils.private(pkg).content_uri
-		table.insert(uris, content_uri)
-		local function downloaded(ok, data)
-			if ok then
-				local tmpdir = mkdtemp()
-				local pkg_dir = backend.pkg_unpack(data, tmpdir)
-				local _, _, _, control = backend.pkg_examine(pkg_dir)
-				-- Remove unpacked package. Because we might run no far than planning.
-				-- If it is going to be installed, it will be unpacked again.
-				utils.cleanup_dirs({pkg_dir, tmpdir})
-				if pkg.name ~= control.Package then
-					if utils.arr2set(pkg.ignore or {})["content"] then
-						ERROR("Package content specified for package " .. pkg.name .. ", but it contains package " .. control.Package .. ". Ignoring as requested.")
-					else
-						table.insert(errors, utils.exception("corruption", "Package content specified for package " .. pkg.name .. ", but it contains package " .. control.Package))
-					end
-					return
-				end
-				pkg.candidate = control
-				pkg.candidate.data = data
-				pkg.candidate.pkg = pkg
-			else
-				if utils.arr2set(pkg.ignore or {})["content"] then
-					WARN("Can't get content for package " .. pkg.name .. ", " .. data.reason .. ". Ignoring as requested.")
-				else
-					table.insert(errors, utils.exception("unreachable", "Can't get content for package " .. pkg.name .. ": " .. data.reason))
-				end
-			end
-		end
-		content_uri:cback(downloaded)
-	end
-	-- Download and extract all content
-	uri.wait(unpack(uris))
-	-- Check if we encountered some errors
-	if next(errors) then
-		local multi = utils.exception('multiple', "Multiple exceptions (" .. #errors .. ")")
-		multi.errors = errors
-		error(multi)
 	end
 end
 
@@ -523,7 +471,6 @@ function run()
 	if repo_errors then
 		WARN("Not all repositories are available")
 	end
-	get_content_pkgs()
 	pkg_aggregate()
 end
 
