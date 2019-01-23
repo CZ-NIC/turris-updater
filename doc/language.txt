@@ -147,8 +147,8 @@ pubkey;;
   An URI or table of URIs with trusted public signature keys. These are not
   verified (therefore it is recommended to come from a already verified source ‒
   like `data:` or `file://` URI). If it is not specified (`nil`), it is inherited
-  from the verification of the script running the command. If empty table or
-  `false` is specified then no signature checking is done. Default value is `{}`.
+  from the verification of the script running the command. If empty table is
+  specified then no signature checking is done. Default value is `{}`.
 sig;;
   URI where the signature of the resource lives. This one is not verified. If it
   is set to `nil`, it is constructed by adding `.sig` to the end of the verified
