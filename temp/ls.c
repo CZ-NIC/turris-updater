@@ -21,7 +21,7 @@ int file_exists(const char *file) {
 int is_dir(const char *file) {
 	struct stat sb;
 	int ret = stat(file, &sb);
-	if(ret == 0) {
+	if (ret == 0) {
 		int dir = S_ISDIR(sb.st_mode);
 		return dir;
 	} else {
@@ -32,7 +32,6 @@ int is_dir(const char *file) {
 /*
  * Return filename from path
  */
-
 const char* get_filename(const char *path) {
     char *pos;
     pos = strrchr(path, '/');
@@ -41,10 +40,10 @@ const char* get_filename(const char *path) {
     else
         return pos + 1;
 }
+
 /*
  * Construct path from SRC where first dir is replaced by DST
  */
-
 int get_dst_path(const char *src, const char *dst, char *path){
 	char src_name[strlen(src) + 1];
 	strcpy(src_name, src);
@@ -58,7 +57,6 @@ int get_dst_path(const char *src, const char *dst, char *path){
 /*
  * Make full path from src path and dst name
  */
-
 int get_full_dst(const char *src, const char *dst, char *fulldst) {
 	printf("i==GFD:%s->%s\n", src, dst);
     struct stat statbuf;
@@ -66,14 +64,14 @@ int get_full_dst(const char *src, const char *dst, char *fulldst) {
 	const char *srcname = basename(srcd);
     int result = stat(dst, &statbuf);
 	/* if destination does not exist, it's new filename */
-	if(result == -1) {
+	if (result == -1) {
 		strcpy(fulldst, dst);
 		printf("GFD: DEST does not exist, it's a new file - %s\n", fulldst);
 		free(srcd);
         return 0;
 	}
     /* check if destination is directory */
-    if(S_ISDIR(statbuf.st_mode) != 0) {
+    if (S_ISDIR(statbuf.st_mode) != 0) {
         /* construct full path and add trailing `/` when needed */
 		int add_slash = 0;
         int len = strlen(src) + strlen(dst) + 1;
@@ -95,14 +93,6 @@ int get_full_dst(const char *src, const char *dst, char *fulldst) {
 	}
 }
 
-/*
- *	Will take <src> and replace first directory in path with <dst>
- */
-
-int make_mv_dst(const char *src, const char *dst, char *fulldst) {
-}
-
-
 int path_length(const char *dir, const char *file) {
 	int dirlen = strlen(dir);
 	int length = strlen(dir) + strlen(file) + 1;
@@ -117,7 +107,7 @@ int make_path(const char *dir, const char *file, char *path) {
     strcpy(path, dir);
     int dirlen = strlen(dir);
     int length = path_length(dir, file);
-    if(path[dirlen - 1] != '/') {
+    if (path[dirlen - 1] != '/') {
         strcat(path, "/");
     }   
     strcat(path, file);
@@ -139,10 +129,8 @@ struct tree_funcs {
 int ff_success;
 
 int foreach_file_inner (const char * dir_name, struct tree_funcs funcs) {
-
 	if (ff_success == 1)
 		return 0;
-
     DIR * d;
     d = opendir(dir_name);
     if (! d) {
@@ -158,8 +146,6 @@ int foreach_file_inner (const char * dir_name, struct tree_funcs funcs) {
             break;
         }
         d_name = entry->d_name;
-        /* Print the name of the file and directory. */
-
 		if (strcmp (d_name, "..") != 0 && strcmp (d_name, ".") != 0) {
 			int path_length;
 			char path[PATH_MAX];
@@ -169,9 +155,6 @@ int foreach_file_inner (const char * dir_name, struct tree_funcs funcs) {
 			} else {
 				path_length = snprintf (path, PATH_MAX, "%s/%s", dir_name, d_name);
 			}
-/*
-			printf ("%s\n", path);
-*/
 			if (path_length >= PATH_MAX) {
 				fprintf (stderr, "Path length has got too long.\n");
 				exit (EXIT_FAILURE);
@@ -183,11 +166,9 @@ int foreach_file_inner (const char * dir_name, struct tree_funcs funcs) {
 				funcs.dir_func(path, 1);
 			} else if (entry->d_type & DT_LNK) {
 				/* Link to file */
-/*				printf("File %s is link file.\n", path);*/
 				funcs.file_func(path);
 			} else if (entry->d_type & DT_REG) {
 				/* Regular file */
-/*				printf("File %s is regular file.\n", path);*/
 				funcs.file_func(path);
 			} else {
 				/* Anything else */
@@ -210,9 +191,6 @@ TODO: Handle links
 	- links to dirs are copied as links
 
 */
-
-	/*printf("dir to read: %s\n", dirname);*/
-
 	ff_success = 0;
 	foreach_file_inner(dirname, funcs);
 	return 0;
@@ -258,7 +236,7 @@ int tree(const char *name) {
 /* --- REMOVE FILE/DIR --- */
 
 int rm_file(const char *name) {
-	if(unlink(name) == -1)
+	if (unlink(name) == -1)
 		perror("unlink");
 	return 0;
 }
@@ -283,11 +261,11 @@ int rm(const char *name) {
 	struct stat info;
 	stat(name, &info);
 	/* TODO: Use rm_* funcs directly, so I don't have to implement error handling twice? */
-	if(!file_exists(name)) {
+	if (!file_exists(name)) {
 		printf("rm: Cannot remove '%s': No such file or directory\n", name);
 		return -1;
 	}
-	if(S_ISDIR(info.st_mode)) {
+	if (S_ISDIR(info.st_mode)) {
 		/* directory - remove files recursively and then remove dir */
 		foreach_file(name, rm_tree);
 		rmdir(name); /* TODO: error handling */
@@ -309,13 +287,11 @@ int do_cp_file(const char *src, const char *dst) {
 	char buffer[32678];
 	struct stat sb;
 	stat(src, &sb);
-
 	/* Open source for reading */
 	f_src = open(src, O_RDONLY);
 	if (f_src < 0) {
 		printf("Cannot open source file %s\n", src);
 	}
-
 	/* Delete destination if it exists */
 	if (file_exists(dst))
 		unlink(dst);
@@ -324,7 +300,6 @@ int do_cp_file(const char *src, const char *dst) {
 	if (f_dst < 0) {
 		printf("Problem with creating destination file <%s>\n", dst);
 	}
-
 	while(nread = read(f_src, buffer, sizeof buffer), nread > 0) {
 		char *out_ptr = buffer;
 		do {
@@ -338,7 +313,6 @@ int do_cp_file(const char *src, const char *dst) {
 			}
 		} while (nread > 0);
 	}
-
 	if (nread == 0) {
 		if (close(f_dst) < 0) {
 			printf("Cannot close file %s", dst);
@@ -346,7 +320,6 @@ int do_cp_file(const char *src, const char *dst) {
 		close(f_src);
 		return 0;
 	}
-
 	/* NOTE: Can we get here? */
 	return 0;
 }
@@ -362,9 +335,8 @@ int cp_file(const char *name) {
 int cp_dir(const char *name, int type) {
 	char dst_path[PATH_MAX];
 	get_dst_path(name, file_dst_path, dst_path);
-
 	printf("### COPY directory <%s> to <%s>\n", name, dst_path);
-	if(type == 0) {
+	if (type == 0) {
 		/* When entering directory, check if it exists and create one, when necessary */
 		if (!file_exists(dst_path)) {
 			printf("Dir <%s> doesn't exist, creating.\n", dst_path);
@@ -391,9 +363,7 @@ struct tree_funcs cp_tree = {
 int mv_file(const char *name) {
 	char dst_path[PATH_MAX];
 	get_dst_path(name, file_dst_path, dst_path);
-
 	printf("$$$ Moving file <%s> to <%s>\n", name, dst_path);
-
 	if (file_exists(dst_path)) {
 		/* NOTE: can something bad happen here? */
 		unlink(dst_path);
@@ -407,7 +377,6 @@ int mv_file(const char *name) {
 int mv_dir(const char *name, int type) {
 	char dst_path[PATH_MAX];
 	get_dst_path(name, file_dst_path, dst_path);
-
 	printf("$$$ Moving directory <%s>\n", name);
 	if (type == 0) {
 		/* before entering directory, create DST dir */
@@ -431,36 +400,31 @@ int cpmv(const char *src, const char *dst, int type) {
 /* TYPE: 0: cp, 1: mv */
 /* we would expect that it's always recursive */
 	int retval = 0;
-
 	char *real_src = alloca(strlen(src) + 1);
 	strcpy(real_src, src);
-
-	if(!file_exists(real_src)) {
+	if (!file_exists(real_src)) {
 		char *fn_name = (type) ? "mv" : "cp";
 		char *act_name = (type) ? "move" : "copy";
 		printf("%s: cannot %s '%s': No such file or directory\n", fn_name, act_name, real_src);
 		return -1;
 	}
-
 	int str_len = path_length(dst, basename(real_src));
 	char real_dst[str_len];
-
 	int dst_dir = is_dir(dst);
-	if(dst_dir) {
+	if (dst_dir) {
 		/* DST is directory, modify path */
 		make_path(dst, basename(real_src), real_dst);
 	} else {
 		/* DST is not directory (file or not exists) */
 		strcpy(real_dst, dst);
 	}
-
 	int src_dir = is_dir(real_src);
-	if(src_dir) {
+	if (src_dir) {
 		/* SRC is directory, deep copy */
 		strcpy(file_dst_path, real_dst);
-		if(!file_exists(real_dst))
+		if (!file_exists(real_dst))
 			mkdir(real_dst, 0777); /* TODO: set same mode as src */
-		if(type) {
+		if (type) {
 			foreach_file(real_src, mv_tree);
 			rmdir(src);
 		} else {
@@ -469,7 +433,7 @@ int cpmv(const char *src, const char *dst, int type) {
 	} else {
 		/* SRC is file, shallow copy */
 		strcpy(file_dst_path, real_dst);
-		if(type) {
+		if (type) {
 			retval = mv_file(real_src);
 		} else {
 			retval = cp_file(real_src);
@@ -540,13 +504,6 @@ int main(int argc, char **argv) {
 	int test_cp = 1;
 	int test_mv = 1;
 	int test_rm = 1;
-
-/* 
- *
- * TODO: check also for cp/mv/rm non-existing files
- *
- */
-
 
 /*** basic tests */
 	if (test_basic == 1) {
