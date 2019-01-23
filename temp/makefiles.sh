@@ -1,5 +1,7 @@
 rm -rf dir
 rm -rf newdir
+rm -rf cpdir
+rm -rf mvdir
 mkdir dir
 mkdir dir/subdir1
 touch dir/file1

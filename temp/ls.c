@@ -205,76 +205,6 @@ int foreach_file_inner (const char * dir_name, struct tree_funcs funcs) {
     }
 }
 
-int old_foreach_file_inner(const char *dirname, struct tree_funcs funcs) {
-
-	if (ff_success == 1)
-		return 0;
-
-	struct stat fileinfo;
-	struct stat linkinfo;
-	struct dirent **namelist;
-	int n, fret;
-
-	n = scandir(dirname, &namelist, NULL, alphasort);
-	printf("n:%d\n",n);
-	if (n < 0) {
-		printf("***PROBLEM with %s***\n", dirname);
-	} else {
-		while(n--) {
-			/* Ignore "." and ".." */
-			if(
-				(strcmp(namelist[n]->d_name, ".") != 0) 
-			&&	(strcmp(namelist[n]->d_name, "..")!= 0)
-			) {
-				/* construct full pathname */
-				int len = strlen(dirname) + strlen(namelist[n]->d_name) + 2; /* 2: slash + zerochar */
-				char *fullpath = malloc(len); 
-				strcpy(fullpath, dirname);
-				/* when needed, append trailing "/" */
-				if(dirname[strlen(dirname) - 1] != '/')
-					strcat(fullpath, "/");
-				strcat(fullpath, namelist[n]->d_name);
-				/* get info about both file and it's target, if it's link */
-				lstat(fullpath, &linkinfo);
-				fret = stat(fullpath, &fileinfo);	
-				if(S_ISREG(linkinfo.st_mode)) {
-					/* regular file */
-					printf("File %s is regular file.\n", fullpath);
-					funcs.file_func(fullpath);
-				} else if(S_ISLNK(linkinfo.st_mode)) {
-					/* link to file */
-					printf("File %s is link to file.\n", fullpath);
-					funcs.link_func(fullpath);
-				} else if(S_ISDIR(linkinfo.st_mode)) {
-					/* directory */
-					printf("%s is directory.\n", fullpath);
-					funcs.dir_func(fullpath, 0);
-					foreach_file_inner(fullpath, funcs);
-					funcs.dir_func(fullpath, 1);
-				} else if(S_ISDIR(fileinfo.st_mode)) {
-					/* link to directory */
-					printf("%s is link to directory.\n", fullpath);
-					/* NOTE: Should we treat link to dir differently? */
-					funcs.dir_func(fullpath, 0);
-					foreach_file_inner(fullpath, funcs);
-					funcs.dir_func(fullpath, 1);
-				} else if(fret == -1) {
-					/* file does not exist */
-					printf("File %s does not exist.\n", fullpath);
-				}
-				
-				/* cleanup */
-				free(fullpath);
-				if (ff_success == 1)
-					break;
-			}
-			free(namelist[n]);
-		}
-		free(namelist);
-	}
-	return(0);
-}
-
 int foreach_file(const char *dirname, struct tree_funcs funcs) {
 /*
 
@@ -384,44 +314,46 @@ There's a code for it in MV implementation
 
 char cp_dst_path[PATH_MAX];
 
-int do_cp_file(const char *old, const char *new) {
-	int nread, f_old, f_new;
+int do_cp_file(const char *src, const char *dst) {
+	int nread, f_src, f_dst;
 	char buffer[32678];
 	struct stat sb;
-	stat(old, &sb);
+	stat(src, &sb);
 
-	f_old = open(old, O_RDONLY);
-	if (f_old < 0) {
-		printf("Cannot open source file %s\n", old);
+	/* Open source for reading */
+	f_src = open(src, O_RDONLY);
+	if (f_src < 0) {
+		printf("Cannot open source file %s\n", src);
 	}
 
-	f_new = open(new, O_WRONLY | O_CREAT | O_EXCL, sb.st_mode);
-	if (f_new < 0) {
-		/* File alrerady exists, delete it and create again */
-		int rn = unlink(new);
-		f_new = open(new, O_WRONLY | O_CREAT | O_EXCL, sb.st_mode);
-		/* TODO: Check if it was fine this time */
+	/* Delete destination if it exists */
+	if (file_exists(dst) != -1)
+		unlink(dst);
+	/* Create destination for writing */
+	f_dst = open(dst, O_WRONLY | O_CREAT | O_EXCL, sb.st_mode);
+	if (f_dst < 0) {
+		printf("Problem with creating destination file <%s>\n", dst);
 	}
 
-	while(nread = read(f_old, buffer, sizeof buffer), nread > 0) {
+	while(nread = read(f_src, buffer, sizeof buffer), nread > 0) {
 		char *out_ptr = buffer;
 		do {
-			int nwritten = write(f_new, out_ptr, nread);
+			int nwritten = write(f_dst, out_ptr, nread);
 			if (nwritten >= 0) {
 				nread -= nwritten;
 				out_ptr += nwritten;
 			} else if (errno != EINTR) {
-				printf("Problem while copying file %s->%s\n", old, new);
+				printf("Problem while copying file %s->%s\n", src, dst);
 				return -1;
 			}
 		} while (nread > 0);
 	}
 
 	if (nread == 0) {
-		if (close(f_new) < 0) {
-			printf("Cannot close file %s", new);
+		if (close(f_dst) < 0) {
+			printf("Cannot close file %s", dst);
 		}
-		close(f_old);
+		close(f_src);
 		return 0;
 	}
 
@@ -685,6 +617,8 @@ int main(int argc, char **argv) {
 		printf("!!! Copy file over existing file\n");
 		cp("dir/file2", "dir/cpfile1");
 		printf("!!! Copy directory\n");
+		cp("dir", "cpdir");
+		printf("!!! copy directory to existing directory\n");
 		cp("dir", "cpdir");
 	}
 
