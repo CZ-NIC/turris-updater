@@ -57,7 +57,7 @@ LUA_AUTOLOAD := $(filter-out 01_stacktraceplus 07_dumper,$(patsubst a_%.lua,%,$(
 define DO_C_TEST
 
 BINARIES_NOTARGET += tests/ctest-$(1)
-ctest-$(1)_MODULES += $(1) ctest
+ctest-$(1)_MODULES += $(1) ctest test_data
 ctest-$(1)_SYSTEM_LIBS += m rt
 ctest-$(1)_PKG_CONFIGS += check
 ctest-$(1)_LOCAL_LIBS += updater
