@@ -36,7 +36,6 @@ thread_local struct uri *uri_sub_err_uri = NULL;
 #define URI_ERROR_MESSAGE_LEN 1024
 thread_local static char uri_error_message[URI_ERROR_MESSAGE_LEN];
 
-
 static const char *schemes_table[] = {
 	[URI_S_HTTP] = "http",
 	[URI_S_HTTPS] = "https",
@@ -295,9 +294,10 @@ bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
 	download_opts_def(&opts);
 	opts.ssl_verify = uri->ssl_verify;
 	opts.ocsp = uri->ocsp;
+	// TODO use instead of files: https://curl.haxx.se/libcurl/c/cacertinmem.html
 	if (uri->ca) {
 		if (!list_ca_crl_collect(uri->ca)) {
-			// TODO error
+			uri_errno = URI_E_CA_FAIL;
 			return false;
 		}
 		opts.cacert_file = uri->ca->path;
@@ -305,7 +305,7 @@ bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
 	}
 	if (uri->crl) {
 		if (!list_ca_crl_collect(uri->crl)) {
-			// TODO error
+			uri_errno = URI_E_CRL_FAIL;
 			return false;
 		}
 		opts.crl_file = uri->crl->path;
@@ -410,6 +410,56 @@ static bool uri_finish_data(struct uri *uri) {
 	return true;
 }
 
+static bool uri_verify_signature(struct uri *uri) {
+	if (!uri_finish(uri->sig_uri)) {
+		uri_sub_errno = uri_errno;
+		uri_sub_err_uri = uri->sig_uri;
+		uri_errno = URI_E_SIG_FAIL;
+		return false;
+	}
+	uri_free(uri->sig_uri);
+	uri->sig_uri = NULL;
+	if (!list_pubkey_collect(uri->pubkey)) {
+		uri_errno = URI_E_PUBKEY_FAIL;
+		return false;
+	}
+
+	char *fcontent;
+	switch (uri->output_type) {
+		case URI_OUT_T_FILE:
+		case URI_OUT_T_TEMP_FILE:
+			fcontent = uri->output_info.fpath; // reuse output path
+			break;
+		case URI_OUT_T_BUFFER:
+			fcontent = writetempfile(uri->output_info.data, uri->output_info.size);
+			break;
+		default:
+			DIE("Unsupported output type in uri_verify_signature. This should not happen.");
+	}
+	bool verified = false;
+	struct uri_local_list *key = uri->pubkey;
+	do {
+		// TODO it should be possible to use libbsd or libasignify instead of this!
+		if(lsubprocv(LST_USIGN, "", NULL, 30000, "usign", "-V", "-p", key->path,
+				"-x", uri->sig_uri_file, "-m", fcontent) == 0) {
+			verified = true;
+			break;
+		}
+		key = key->next;
+	} while(key);
+	switch (uri->output_type) {
+		case URI_OUT_T_FILE:
+		case URI_OUT_T_TEMP_FILE:
+			// Nothing to do (path reused)
+			break;
+		case URI_OUT_T_BUFFER:
+			unlink(fcontent);
+			free(fcontent);
+			break;
+	}
+	return verified;
+}
+
 bool uri_finish(struct uri *uri) {
 	if (uri->finished)
 		return true; // Ignore if this is alredy finished
@@ -446,26 +496,8 @@ bool uri_finish(struct uri *uri) {
 		uri->download_instance = NULL;
 	}
 	uri->finished = true;
-	if (uri->pubkey) {
-		if (!uri_finish(uri->sig_uri)) {
-			uri_sub_errno = uri_errno;
-			uri_sub_err_uri = uri->sig_uri;
-			uri_errno = URI_E_SIG_FAIL;
-			return false;
-		}
-		uri_free(uri->sig_uri);
-		uri->sig_uri = NULL;
-		if (!list_pubkey_collect(uri->pubkey)) {
-			uri_errno = URI_E_PUBKEY_FAIL;
-			return false;
-		}
-		struct uri_local_list *key = uri->pubkey;
-		do {
-			// TODO call usign to verify
-			key = key->next;
-		} while(key);
-		return false;
-	}
+	if (uri->pubkey)
+		return uri_verify_signature(uri);
 	return true;
 }
 
@@ -509,6 +541,7 @@ static bool list_ca_crl_collect(struct uri_local_list *list) {
 	if (!list || list->path)
 		return true; // not set or already collected to file so all is done
 
+	bool success = true;
 	unsigned refs = 0;
 	struct mwrite mw;
 	mwrite_init(&mw);
@@ -516,18 +549,29 @@ static bool list_ca_crl_collect(struct uri_local_list *list) {
 		if (list->uri) {
 			if (list->ref_count > refs) {
 				list->path = strdup(TMP_TEMPLATE_CA_CRL_FILE);
-				mwrite_mkstemp(&mw, list->path, 0); // TODO handle error
+				if (!mwrite_mkstemp(&mw, list->path, 0)) {
+					uri_sub_errno = URI_E_OUTPUT_OPEN_FAIL;
+					uri_sub_err_uri = NULL;
+					success = false;
+					break;
+				}
 				refs = list->ref_count;
 			}
 			if (!uri_finish(list->uri)) {
 				uri_sub_errno = uri_errno;
 				uri_sub_err_uri = list->uri;
-				return false;
+				success = false;
+				break;
 			}
 			uint8_t *buf;
 			size_t buf_size;
 			uri_take_buffer(list->uri, &buf, &buf_size);
-			mwrite_write(&mw, buf, buf_size); // TODO handler error
+			if (mwrite_write(&mw, buf, buf_size) != MWRITE_R_OK) {
+				uri_sub_errno = URI_E_OUTPUT_WRITE_FAIL;
+				uri_sub_err_uri = NULL;
+				success = false;
+				break;
+			}
 			uri_free(list->uri);
 			list->uri = NULL;
 		} else {
@@ -536,14 +580,23 @@ static bool list_ca_crl_collect(struct uri_local_list *list) {
 			char *buf[BUFSIZ];
 			ssize_t cnt;
 			while((cnt = read(fd, buf, BUFSIZ)) > 0)
-				mwrite_write(&mw, buf, cnt); // TODO handle error
+				if (mwrite_write(&mw, buf, cnt) != MWRITE_R_OK) {
+					uri_sub_errno = URI_E_OUTPUT_WRITE_FAIL;
+					uri_sub_err_uri = NULL;
+					success = false;
+					break;
+				}
 			close(fd);
 			break;
 		}
 		list = list->next;
 	} while (list);
-	mwrite_close(&mw); // TODO handle error
-	return true;
+
+	if (!mwrite_close(&mw)) {
+		uri_sub_errno = URI_E_OUTPUT_WRITE_FAIL;
+		uri_sub_err_uri = NULL;
+	}
+	return success;
 }
 
 // deallocation handler for CA and CRL list
@@ -624,7 +677,6 @@ bool uri_add_pubkey(struct uri *uri, const char *pubkey_uri) {
 		uri->pubkey = NULL;
 		return true;
 	}
-	// TODO if uri is already of type FILE then reuse posix path and don't download
 	char *file_path = strdup(TMP_TEMPLATE_PUBKEY_FILE);
 	struct uri *nuri = uri_to_temp_file(pubkey_uri, file_path, uri);
 	if (!nuri) {
