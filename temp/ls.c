@@ -30,6 +30,19 @@ int is_dir(const char *file) {
 }
 
 /*
+ * Make directory with same attributes as 'src'
+ */
+int mkdir_from(const char *name, const char *src) {
+/*	int mode = 0777;*/
+	struct stat sb;
+	stat(src, &sb);
+	int mode = sb.st_mode;
+	printf("Src mode is %o\n", sb.st_mode);
+	mkdir(name, mode);
+	return 0;
+}
+
+/*
  * Return filename from path
  */
 const char* get_filename(const char *path) {
@@ -340,7 +353,7 @@ int cp_dir(const char *name, int type) {
 		/* When entering directory, check if it exists and create one, when necessary */
 		if (!file_exists(dst_path)) {
 			printf("Dir <%s> doesn't exist, creating.\n", dst_path);
-			mkdir(dst_path, 0777); /* TODO: set same mode as src */
+			mkdir_from(dst_path, name); /* TODO: set same mode as src */
 		}
 	}
 	return 0;
@@ -381,7 +394,7 @@ int mv_dir(const char *name, int type) {
 	if (type == 0) {
 		/* before entering directory, create DST dir */
 		printf("before entering <%s>, DST is <%s>\n", name, file_dst_path);
-		mkdir(dst_path, 0777); /* TODO: set attrs properly, add checks */
+		mkdir_from(dst_path, name); /* TODO: set attrs properly, add checks */
 	} else {
 		/* after leaving directory, remove SRC dir */
 		printf("after leaving, <%s> can be deleted\n", name);
@@ -423,7 +436,7 @@ int cpmv(const char *src, const char *dst, int type) {
 		/* SRC is directory, deep copy */
 		strcpy(file_dst_path, real_dst);
 		if (!file_exists(real_dst))
-			mkdir(real_dst, 0777); /* TODO: set same mode as src */
+			mkdir_from(real_dst, real_src); /* TODO: set same mode as src */
 		if (type) {
 			foreach_file(real_src, mv_tree);
 			rmdir(src);
