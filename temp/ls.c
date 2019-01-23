@@ -300,21 +300,9 @@ int rm(const char *name) {
 
 /* ------ */
 
-/* --- COPY FILE/DIR --- */
+/* --- COPY/MOVE FILE/DIR --- */
 
-/*
-
-NOTE: 
-
-CP takes two args, `old` and `new`, but we can pass only one (old) to tree funcs.
-So CP stores `new` somewhere (`dst` or something like that).
-If we are copying just one file, it's easy, `new` is same as `dst`.
-When we are coyping dir, we need to make `new` from `dst` and `old`.
-There's a code for it in MV implementation
-
-*/
-
-char cp_dst_path[PATH_MAX];
+char file_dst_path[PATH_MAX];
 
 int do_cp_file(const char *src, const char *dst) {
 	int nread, f_src, f_dst;
@@ -365,7 +353,7 @@ int do_cp_file(const char *src, const char *dst) {
 
 int cp_file(const char *name) {
 	char dst_path[PATH_MAX];
-	get_dst_path(name, cp_dst_path, dst_path);
+	get_dst_path(name, file_dst_path, dst_path);
 	printf("### COPY file <%s> to <%s>\n", name, dst_path);
 	do_cp_file(name, dst_path);
 	return 0;
@@ -373,7 +361,7 @@ int cp_file(const char *name) {
 
 int cp_dir(const char *name, int type) {
 	char dst_path[PATH_MAX];
-	get_dst_path(name, cp_dst_path, dst_path);
+	get_dst_path(name, file_dst_path, dst_path);
 
 	printf("### COPY directory <%s> to <%s>\n", name, dst_path);
 	if(type == 0) {
@@ -391,50 +379,6 @@ struct tree_funcs cp_tree = {
 	cp_file,
 	cp_dir
 };
-
-int cp(const char *src, const char *dst) {
-/* we would expect that it's `cp -r` */
-	int retval = 0;
-
-	char *real_src = alloca(strlen(src) + 1);
-	strcpy(real_src, src);
-
-	if(!file_exists(real_src)) {
-		printf("cp: cannot copy '%s': No such file or directory\n", real_src);
-		return -1;
-	}
-
-	int str_len = path_length(dst, basename(real_src));
-	char real_dst[str_len];
-
-	int dst_dir = is_dir(dst);
-	if(dst_dir) {
-		/* DST is directory, modify path */
-		make_path(dst, basename(real_src), real_dst);
-	} else {
-		/* DST is not directory (file or not exists) */
-		strcpy(real_dst, dst);
-	}
-
-	int src_dir = is_dir(src);
-	if(src_dir) {
-		/* SRC is directory, deep copy */
-		strcpy(cp_dst_path, real_dst);
-		if (!file_exists(real_dst))
-			mkdir(real_dst, 0777); /* TODO: set same mode as src */
-		foreach_file(src, cp_tree);
-	} else {
-		/* SRC is file, shallow copy */
-		strcpy(cp_dst_path, real_dst);
-		retval = cp_file(src);
-	}
-	return retval;
-}
-
-/* --- END OF COPY FILE/DIR --- */
-
-/* --- MOVE FILE/DIR --- */
-
 /*
  * Move - when destination is directory, move source to that directory
  *
@@ -444,11 +388,9 @@ int cp(const char *src, const char *dst) {
  * FILE - rename, then check if it was successful and if not, copy&remove
  */
 
-char mv_dst_path[PATH_MAX]; /* NOTE: probably it would be enough to use one path for both CP and MV */
-
 int mv_file(const char *name) {
 	char dst_path[PATH_MAX];
-	get_dst_path(name, mv_dst_path, dst_path);
+	get_dst_path(name, file_dst_path, dst_path);
 
 	printf("$$$ Moving file <%s> to <%s>\n", name, dst_path);
 
@@ -464,12 +406,12 @@ int mv_file(const char *name) {
 
 int mv_dir(const char *name, int type) {
 	char dst_path[PATH_MAX];
-	get_dst_path(name, mv_dst_path, dst_path);
+	get_dst_path(name, file_dst_path, dst_path);
 
 	printf("$$$ Moving directory <%s>\n", name);
 	if (type == 0) {
 		/* before entering directory, create DST dir */
-		printf("before entering <%s>, DST is <%s>\n", name, mv_dst_path);
+		printf("before entering <%s>, DST is <%s>\n", name, file_dst_path);
 		mkdir(dst_path, 0777); /* TODO: set attrs properly, add checks */
 	} else {
 		/* after leaving directory, remove SRC dir */
@@ -485,40 +427,63 @@ struct tree_funcs mv_tree = {
 	mv_dir
 };
 
-int mv(const char *src, const char *dst) {
+int cpmv(const char *src, const char *dst, int type) {
+/* TYPE: 0: cp, 1: mv */
+/* we would expect that it's always recursive */
 	int retval = 0;
-	int src_dir = is_dir(src);
-/*
- * Check if src is dir
- *	- if not, move the file, we're done
- *	- if yes, ?
- * *	- if not, move the file, we're done
- *	- if yes, ?
- */
+
 	char *real_src = alloca(strlen(src) + 1);
 	strcpy(real_src, src);
+
+	if(!file_exists(real_src)) {
+		char *fn_name = (type) ? "mv" : "cp";
+		char *act_name = (type) ? "move" : "copy";
+		printf("%s: cannot %s '%s': No such file or directory\n", fn_name, act_name, real_src);
+		return -1;
+	}
 
 	int str_len = path_length(dst, basename(real_src));
 	char real_dst[str_len];
 
 	int dst_dir = is_dir(dst);
 	if(dst_dir) {
+		/* DST is directory, modify path */
 		make_path(dst, basename(real_src), real_dst);
 	} else {
+		/* DST is not directory (file or not exists) */
 		strcpy(real_dst, dst);
 	}
 
+	int src_dir = is_dir(real_src);
 	if(src_dir) {
-		strcpy(mv_dst_path, dst);
-		if (!file_exists(dst))
-			mkdir(dst, 0777); /* TODO: set same mode as src */
-		foreach_file(src, mv_tree);
-		rmdir(src);
+		/* SRC is directory, deep copy */
+		strcpy(file_dst_path, real_dst);
+		if(!file_exists(real_dst))
+			mkdir(real_dst, 0777); /* TODO: set same mode as src */
+		if(type) {
+			foreach_file(real_src, mv_tree);
+			rmdir(src);
+		} else {
+			foreach_file(real_src, cp_tree);
+		}
 	} else {
-		strcpy(mv_dst_path, real_dst);
-		retval = mv_file(src);
+		/* SRC is file, shallow copy */
+		strcpy(file_dst_path, real_dst);
+		if(type) {
+			retval = mv_file(real_src);
+		} else {
+			retval = cp_file(real_src);
+		}
 	}
 	return retval;
+}
+
+int cp(const char *src, const char *dst) {
+	return cpmv(src, dst, 0);
+}
+
+int mv(const char *src, const char *dst) {
+	return cpmv(src, dst, 1);
 }
 
 /* ------ */
@@ -636,6 +601,16 @@ int main(int argc, char **argv) {
 		cp("dir", "cpdir");
 	}
 
+/*** test: remove */
+	if (test_rm == 1){
+		printf("-------------\n");
+		printf("Test for <remove>\n");
+		const char *dir_to_rm = "rmdir";
+		printf("First we will copy 'dir' to 'rmdir', so we don't mess up our main directory.");
+		cp("dir", dir_to_rm);
+		printf("Remove <%s>\n", dir_to_rm);
+		rm(dir_to_rm);
+	}
 
 /*** test: move */
 	if (test_mv == 1){
@@ -656,16 +631,6 @@ int main(int argc, char **argv) {
 		printf("---move test ended---\n");
 	}
 
-/*** test: remove */
-	if (test_rm == 1){
-		printf("-------------\n");
-		printf("Test for <remove>\n");
-		const char *dir_to_rm = "rmdir";
-		printf("Remove <%s>\n", dir_to_rm);
-		cp("dir", dir_to_rm);
-		rm(dir_to_rm);
-
-	}
 	return(0);
 }
 
