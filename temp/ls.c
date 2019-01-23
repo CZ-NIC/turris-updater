@@ -218,9 +218,6 @@ TODO: Handle links
 	return 0;
 }
 
-
-
-
 /* ------ */
 
 /* --- PRINT TREE --- */
@@ -252,6 +249,10 @@ struct tree_funcs print_tree = {
 	print_dir
 };
 
+int tree(const char *name) {
+	foreach_file(name, print_tree);
+}
+
 /* ------ */
 
 /* --- REMOVE FILE/DIR --- */
@@ -282,6 +283,10 @@ int rm(const char *name) {
 	struct stat info;
 	stat(name, &info);
 	/* TODO: Use rm_* funcs directly, so I don't have to implement error handling twice? */
+	if(!file_exists(name)) {
+		printf("rm: Cannot remove '%s': No such file or directory\n", name);
+		return -1;
+	}
 	if(S_ISDIR(info.st_mode)) {
 		/* directory - remove files recursively and then remove dir */
 		foreach_file(name, rm_tree);
@@ -393,6 +398,11 @@ int cp(const char *src, const char *dst) {
 
 	char *real_src = alloca(strlen(src) + 1);
 	strcpy(real_src, src);
+
+	if(!file_exists(real_src)) {
+		printf("cp: cannot copy '%s': No such file or directory\n", real_src);
+		return -1;
+	}
 
 	int str_len = path_length(dst, basename(real_src));
 	char real_dst[str_len];
@@ -559,12 +569,19 @@ int main(int argc, char **argv) {
 	int retval = 0;
 /* TODO: check for args */
 
-	int test_basic = 0;
-	int test_tree = 0;
-	int test_find = 0;
-	int test_mv = 0;
+	int test_basic = 1;
+	int test_tree = 1;
+	int test_find = 1;
 	int test_cp = 1;
-	int test_rm = 0;
+	int test_mv = 1;
+	int test_rm = 1;
+
+/* 
+ *
+ * TODO: check also for cp/mv/rm non-existing files
+ *
+ */
+
 
 /*** basic tests */
 	if (test_basic == 1) {
@@ -588,7 +605,7 @@ int main(int argc, char **argv) {
 	if (test_tree == 1){
 		printf("x--------------------x\n");
 		printf("Test for <print_tree>\n");
-		foreach_file(dirname, print_tree);
+		tree(dirname);
 	}
 
 /*** test: find */
@@ -636,14 +653,18 @@ int main(int argc, char **argv) {
 		printf("ret:%d\n", retval);
 		printf("\n\nMove dir\n");
 		mv("dir", "mvdir");
+		printf("---move test ended---\n");
 	}
 
 /*** test: remove */
 	if (test_rm == 1){
 		printf("-------------\n");
 		printf("Test for <remove>\n");
-		printf("Remove <%s>\n", dirname);
-		rm(dirname);
+		const char *dir_to_rm = "rmdir";
+		printf("Remove <%s>\n", dir_to_rm);
+		cp("dir", dir_to_rm);
+		rm(dir_to_rm);
+
 	}
 	return(0);
 }
