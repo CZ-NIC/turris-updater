@@ -33,6 +33,10 @@ bool dump2file (const char *file, const char *text) __attribute__((nonnull,nonnu
 // Read content of whole file and return it as string
 // Returned memory has to be freed by used.
 char *readfile(const char *file) __attribute__((nonnull));
+// Write buffer to temporally file
+// This function returns path to file. It is your responsibility to both free
+// returned memory and to unlink created file. On error NULL is returned.
+char *writetempfile(char *buf, size_t len) __attribute__((nonnull));
 
 // Executes all executable files in given directory
 void exec_hook(const char *dir, const char *message) __attribute__((nonnull));

@@ -58,6 +58,18 @@ char *readfile(const char *file) {
 	return ret;
 }
 
+char *writetempfile(char *buf, size_t len) {
+	char *fpath = strdup("/tmp/updater-temp-XXXXXX");
+	FILE *f = fdopen(mkstemp(fpath), "w");
+	if (!f) {
+		ERROR("Opening temporally file failed: %s", strerror(errno));
+		free(fpath);
+		return NULL;
+	}
+	ASSERT_MSG(fwrite(buf, 1, len, f) == len, "Not all data were written to temporally file.");
+	return fpath;
+}
+
 static int exec_dir_filter(const struct dirent *de) {
 	// ignore system paths and accept only files
 	return strcmp(de->d_name, ".") && strcmp(de->d_name, "..") && de->d_type == DT_REG;
