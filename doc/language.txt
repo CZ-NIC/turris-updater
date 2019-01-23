@@ -20,7 +20,7 @@ and sometimes desirable.
 Security levels
 ---------------
 
-There are different security levels of the scripts used.  The security
+There are different security levels of the scripts used. The security
 level may further limit the set of commands and the abilities of given
 commands. This is to ensure the server may never send malicious
 commands covertly (it still can send version of package that contains
@@ -37,12 +37,10 @@ Full::
   (including compiled `.so` modules). This is what the internals of the
   updater would be built in.
 Local::
-  It is possible to reference local files and directories as further
-  configuration scripts. It is possible to read UCI configuration and
-  execute arbitrary shell commands.
+  It is possible to read UCI configuration and execute arbitrary
+  shell commands.
 Remote::
-  The functions may reference only other remote resources, not local
-  ones. Reading UCI config is not possible.
+  Reading UCI config is not possible.
 Restricted::
   It is possible to further restrict the entities referenced to a
   string match (eg. ensure that it comes from a given server). Access

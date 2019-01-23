@@ -33,9 +33,20 @@ bool dump2file (const char *file, const char *text) __attribute__((nonnull,nonnu
 // Read content of whole file and return it as string
 // Returned memory has to be freed by used.
 char *readfile(const char *file) __attribute__((nonnull));
+// Write buffer to temporally file
+// This function returns path to file. It is your responsibility to both free
+// returned memory and to unlink created file. On error NULL is returned.
+char *writetempfile(char *buf, size_t len) __attribute__((nonnull));
 
 // Executes all executable files in given directory
 void exec_hook(const char *dir, const char *message) __attribute__((nonnull));
+
+// Decode given string as a base64 encoded data
+// This function allocates buffer of appropriate size to buf argument and sets
+// size of that buffer to len.
+// It returns zero if decoding process was successful or index-1 of problematic
+// character.
+unsigned base64_decode(const char *data, uint8_t **buf, size_t *len) __attribute__((nonnull));
 
 // Using these functions you can register/unregister cleanup function. Note that
 // they are called in reverse order of insertion. This is implemented using atexit

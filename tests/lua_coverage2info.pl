@@ -39,12 +39,11 @@ my %module2path = (
 	syscnf => "autoload/a_06_syscnf.lua",
 	backend => "autoload/a_08_backend.lua",
 	transaction => "autoload/a_09_transaction.lua",
-	uri => "autoload/a_10_uri.lua",
-	requests => "autoload/a_11_requests.lua",
-	sandbox => "autoload/a_12_sandbox.lua",
-	postprocess => "autoload/a_13_postprocess.lua",
-	planner => "autoload/a_14_planner.lua",
-	updater => "autoload/a_15_updater.lua",
+	requests => "autoload/a_10_requests.lua",
+	sandbox => "autoload/a_11_sandbox.lua",
+	postprocess => "autoload/a_12_postprocess.lua",
+	planner => "autoload/a_13_planner.lua",
+	updater => "autoload/a_14_updater.lua",
 );
 foreach my $module (keys %module2path) {
 	$module2path{$module} = abs_path($source . '/src/lib/' . $module2path{$module});

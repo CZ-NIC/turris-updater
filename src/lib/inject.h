@@ -37,5 +37,7 @@ void inject_str_const(lua_State *L, const char *module, const char *name, const 
 void inject_int_const(lua_State *L, const char *module, const char *name, const int value) __attribute__((nonnull));
 // Make the table on top of the stack a module. Drop the table from the stack.
 void inject_module(lua_State *L, const char *module) __attribute__((nonnull));
+// Create new metatable on top of stack that is self indexing (__index is a table it self)
+void inject_metatable_self_index(lua_State *L, const char *meta) __attribute__((nonnull));
 
 #endif
