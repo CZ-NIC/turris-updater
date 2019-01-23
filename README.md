@@ -7,7 +7,7 @@ configuration scripts.
 Dependencies
 ------------
 Binary dependencies:
-* C compiler (gcc preferred)
+* C compiler (gcc preferred) with C11 support
 * Lua 5.1
 * libcurl
 * libevent2

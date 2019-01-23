@@ -417,16 +417,6 @@ local allowed_script_extras = {
 utils.table_merge(allowed_script_extras, allowed_extras_verification)
 
 --[[
-We want to insert these options into the new context, if they exist.
-]]
-local script_insert_options = {
-	pubkey = true,
-	ca = true,
-	crl = true,
-	ocsp = true
-}
-
---[[
 Note that we have filler field just for backward compatibility so when we have
 just one argument or two arguments where second one is table we move all arguments
 to their appropriate variables.
@@ -446,8 +436,8 @@ function script(result, context, filler, script_uri, extra)
 			extra_check_table("script", script_uri, value, {"missing", "integrity"})
 		end
 	end
-	local u = uri(context, script_uri, extra)
-	local ok, content = u:get()
+	local content, u = utils.uri_content(script_uri, context.paret_script_uri, extra)
+	local ok = false -- TODO error handling for uri_content
 	if not ok then
 		if utils.arr2set(extra.ignore or {})["missing"] then
 			WARN("Script " .. script_uri .. " not found, but ignoring its absence as requested")
@@ -465,12 +455,10 @@ function script(result, context, filler, script_uri, extra)
 		error(utils.exception("access violation", "Attempt to raise security level from " .. tostring(context.sec_level) .. " to " .. extra.security))
 	end
 	-- Insert the data related to validation, so scripts inside can reuse the info
-	local merge = {}
-	for name in pairs(script_insert_options) do
-		if extra[name] ~= nil then
-			merge[name] = utils.clone(extra[name])
-		end
-	end
+	local merge = {
+		-- Note: this uri does not contain any data (it was finished) so we use it only as paret for meta data
+		["parent_script_uri"] = u
+	}
 	local err = sandbox.run_sandboxed(content, script_uri, extra.security, context, merge)
 	if err and err.tp == 'error' then
 		if not err.origin then

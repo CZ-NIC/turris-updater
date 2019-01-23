@@ -12,6 +12,7 @@ C_TESTS := \
 	multiwrite \
 	subprocess \
 	download \
+	uri \
 	interpreter
 
 LUA_TESTS := \
