@@ -11,13 +11,11 @@
 
 /* --- SUPPORT FUNCS --- */
 
-/*
- * Return 0 if file exists, -1 otherwise
- */
+/* NOTE: These internal functions return 1 for success, 0 for failure */
 
 int file_exists(const char *file) {
 	struct stat sb;
-	return lstat(file, &sb);
+	return 1 + lstat(file, &sb);
 }
 
 int is_dir(const char *file) {
@@ -25,7 +23,6 @@ int is_dir(const char *file) {
 	int ret = stat(file, &sb);
 	if(ret == 0) {
 		int dir = S_ISDIR(sb.st_mode);
-		printf("%s exists - %d\n", file, dir);
 		return dir;
 	} else {
 		return 0;
@@ -327,7 +324,7 @@ int do_cp_file(const char *src, const char *dst) {
 	}
 
 	/* Delete destination if it exists */
-	if (file_exists(dst) != -1)
+	if (file_exists(dst))
 		unlink(dst);
 	/* Create destination for writing */
 	f_dst = open(dst, O_WRONLY | O_CREAT | O_EXCL, sb.st_mode);
@@ -376,7 +373,7 @@ int cp_dir(const char *name, int type) {
 	printf("### COPY directory <%s> to <%s>\n", name, dst_path);
 	if(type == 0) {
 		/* When entering directory, check if it exists and create one, when necessary */
-		if (file_exists(dst_path) == -1) {
+		if (!file_exists(dst_path)) {
 			printf("Dir <%s> doesn't exist, creating.\n", dst_path);
 			mkdir(dst_path, 0777); /* TODO: set same mode as src */
 		}
@@ -413,7 +410,7 @@ int cp(const char *src, const char *dst) {
 	if(src_dir) {
 		/* SRC is directory, deep copy */
 		strcpy(cp_dst_path, real_dst);
-		if (file_exists(real_dst) == -1)
+		if (!file_exists(real_dst))
 			mkdir(real_dst, 0777); /* TODO: set same mode as src */
 		foreach_file(src, cp_tree);
 	} else {
@@ -445,7 +442,7 @@ int mv_file(const char *name) {
 
 	printf("$$$ Moving file <%s> to <%s>\n", name, dst_path);
 
-	if (file_exists(dst_path) != -1) {
+	if (file_exists(dst_path)) {
 		/* NOTE: can something bad happen here? */
 		unlink(dst_path);
 	}
@@ -503,7 +500,7 @@ int mv(const char *src, const char *dst) {
 
 	if(src_dir) {
 		strcpy(mv_dst_path, dst);
-		if (file_exists(dst) == -1)
+		if (!file_exists(dst))
 			mkdir(dst, 0777); /* TODO: set same mode as src */
 		foreach_file(src, mv_tree);
 		rmdir(src);
