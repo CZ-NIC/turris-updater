@@ -345,9 +345,14 @@ function uri_config(uriobj, config)
 		uriobj:set_ocsp(config.ocsp)
 	end
 	if config.pubkey ~= nil then
-		-- TODO when support is added to uri
+		uriobj:add_pubkey(nil)
+		for pubkey in pairs(config.pubkey) do
+			uriobj:add_pubkey(pubkey)
+		end
 	end
-	-- TODO set sig when supported
+	if config.sig ~= nil then
+		uriobj:set_sig(config.sig)
+	end
 end
 
 -- Get content of given URI
