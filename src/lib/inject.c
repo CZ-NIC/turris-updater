@@ -55,3 +55,9 @@ void inject_module(lua_State *L, const char *module) {
 	// Drop the _M, package, loaded
 	lua_pop(L, 3);
 }
+
+void inject_metatable_self_index(lua_State *L, const char *meta) {
+	ASSERT(luaL_newmetatable(L, meta) == 1);
+	lua_pushvalue(L, -1);
+	lua_setfield(L, -2, "__index");
+}

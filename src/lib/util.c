@@ -84,6 +84,18 @@ void exec_hook(const char *dir, const char *message) {
 	free(namelist);
 }
 
+static bool base64_is_valid_char(const char c) {
+	return \
+		(c >= '0' && c <= '9') || \
+		(c >= 'A' && c <= 'Z') || \
+		(c >= 'a' && c <= 'z') || \
+		(c == '+' || c == '/' || c == '=');
+}
+
+unsigned base64_decode(const char *data, uint8_t **buf, size_t *len) {
+
+}
+
 static bool cleanup_registered = false;
 static struct {
 	size_t size, allocated;
