@@ -321,10 +321,16 @@ bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
 			uri->download_instance = download_data(downloader, uri->uri, &opts);
 			break;
 	}
+	if (!uri->download_instance) {
+		// Only reason why this would fail at the moment is if file open fails
+		uri_errno = URI_E_OUTPUT_OPEN_FAIL;
+		return false;
+	}
 	if (!downloader_register_signature(uri, downloader)) {
 		download_i_free(uri->download_instance);
 		uri->download_instance = NULL;
-		// TODO error
+		uri_sub_errno = uri_errno;
+		uri_errno = URI_E_SIG_FAIL;
 		return false;
 	}
 	return (bool)uri->download_instance;
