@@ -368,6 +368,7 @@ int cp_file(const char *name) {
 	do_cp_file(name, dst_path);
 	return 0;
 }
+
 int cp_dir(const char *name, int type) {
 	char dst_path[PATH_MAX];
 	get_dst_path(name, cp_dst_path, dst_path);
@@ -388,7 +389,6 @@ struct tree_funcs cp_tree = {
 	cp_file,
 	cp_dir
 };
-
 
 int cp(const char *src, const char *dst) {
 /* we would expect that it's `cp -r` */
@@ -412,9 +412,9 @@ int cp(const char *src, const char *dst) {
 	int src_dir = is_dir(src);
 	if(src_dir) {
 		/* SRC is directory, deep copy */
-		strcpy(cp_dst_path, dst);
-		if (file_exists(dst) == -1)
-			mkdir(dst, 0777); /* TODO: set same mode as src */
+		strcpy(cp_dst_path, real_dst);
+		if (file_exists(real_dst) == -1)
+			mkdir(real_dst, 0777); /* TODO: set same mode as src */
 		foreach_file(src, cp_tree);
 	} else {
 		/* SRC is file, shallow copy */
