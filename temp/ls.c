@@ -418,10 +418,14 @@ int cpmv(const char *src, const char *dst, int move) {
 	char *fn_name = (move) ? "mv" : "cp";
 	char *act_name = (move) ? "move" : "copy";
 	char *real_src = alloca(strlen(src) + 1);
+	char dst_top[strlen(src) + 1];
+	memset(dst_top, '\0', sizeof(dst_top));
+	strncpy(dst_top, dst, strlen(src));
 /* FIXME: This needs to check not if 'src' and 'dst' are same, but if 'src' is same as start of 'dst'
  * for eaxmple 'src' -> 'src/subdir' is problem also
  */
-	if (!strcmp(src, dst)) {
+	printf("===compare '%s' with '%s'\n", src, dst_top);
+	if (!strcmp(src, dst_top)) {
 		if (is_dir(src)) {
 			/* FIXME: This error message can sometime say 'dir//dir', but that's not such big problem */
 			printf("%s: cannot %s a directory '%s' into itself, '%s/%s'\n",
@@ -596,7 +600,7 @@ int main(int argc, char **argv) {
 	if (test_cp == 1){
 /* TODO: What about copying dir over itself */
 		printf("-------------\n");
-		printf("\n\n\Test for <copy>\n");
+		printf("\n\nTest for <copy>\n");
 		printf("!!! Copy file to file\n");
 		cp("dir/file1", "dir/cpfile1");
 		printf("!!! Copy file to dir\n");
@@ -630,21 +634,23 @@ int main(int argc, char **argv) {
 	if (test_mv == 1){
 		printf("-------------\n");
 		printf("\n\nTest for <move>\n");
-		printf("Move file to file\n");
+		printf("!!! Move file to file\n");
 		retval = mv("dir/file1", "dir/newfile1");
 		mv("dir/newfile1", "dir/file1"); /* move back for later use */
-		printf("Move file to dir\n");
+		printf("!!! Move file to dir\n");
 		retval = mv("dir/file1", "dir/subdir1");
 		printf("Move file over existing file\n");
 		retval = mv("dir/file2", "dir/newfile1");
 		printf("!!! Move file over itself\n");
 		mv("file", "file");
-		printf("Move directory\n");
+		printf("!!! Move directory\n");
 		mv("dir", "mvdir");
 		cp("mvdir", "dir"); /* copy back for later use */
 		printf("!!! move directory to existing directory\n");
 		mv("dir", "mvdir");
-		cp("mvdir", "mvdir/dir");  copy back for later use 
+		printf("!!! copy back\n");
+
+		cp("mvdir", "mvdir/dir");
 /*
 		printf("!!! move directory over existing file [ERROR]\n");
 		mv("dir", "file");
