@@ -13,6 +13,7 @@
 
 /* NOTE: These internal functions return 1 for success, 0 for failure */
 
+/* TODO: change to path_exists */
 int file_exists(const char *file) {
 	struct stat sb;
 	return 1 + lstat(file, &sb);
@@ -61,8 +62,10 @@ int get_dst_path(const char *src, const char *dst, char *path){
 	strcpy(src_name, src);
 	char *rel_path;
 	rel_path = memchr(src_name, '/', strlen(src_name));
+	printf("***GET_DST_PATH: rel_path: %s\n", rel_path);
 	strcpy(path, dst);
 	strcat(path, rel_path);
+	printf("path: %s, rel_path: %s\n", path, rel_path);
 	return 0;
 }
 
@@ -337,15 +340,10 @@ int do_cp_file(const char *src, const char *dst) {
 }
 
 int cp_file(const char *name) {
-/* FIXME: get_dst_path should be used ONLY when copying INTO directory
- * 			not when copying single file
- *			but how to achieve it..?
- */
-
 	char dst_path[PATH_MAX];
 	get_dst_path(name, file_dst_path, dst_path);
-	printf("### COPY file <%s> to <%s>\n", name, file_dst_path);
-	do_cp_file(name, file_dst_path);
+	printf("### COPY file <%s> to <%s>\n", name, dst_path);
+	do_cp_file(name, dst_path);
 	return 0;
 }
 
@@ -417,11 +415,11 @@ int cpmv(const char *src, const char *dst, int move) {
 /* MOVE: 0: cp, 1: mv */
 /* we would expect that it's always recursive */
 	int retval = 0;
+	char *fn_name = (move) ? "mv" : "cp";
+	char *act_name = (move) ? "move" : "copy";
 	char *real_src = alloca(strlen(src) + 1);
 	strcpy(real_src, src);
 	if (!file_exists(real_src)) {
-		char *fn_name = (move) ? "mv" : "cp";
-		char *act_name = (move) ? "move" : "copy";
 		printf("%s: cannot %s '%s': No such file or directory\n", fn_name, act_name, real_src);
 		return -1;
 	}
@@ -434,68 +432,59 @@ int cpmv(const char *src, const char *dst, int move) {
  *			src is dir , dst is dir		-> copy into, deep
  *			src is dir , dst not exist	-> make dst dir, copy into
  */
-	int deep;
-	deep = is_dir(real_src);
 
-	if (is_dir(dst)) {
-		make_path(dst, basename(real_src), real_dst);
-		if (is_dir(real_src)) {
-			strcpy(file_dst_path, real_dst);
-			if (!file_exists(real_dst))
-				mkdir_from(real_dst, real_src); /* TODO: set same mode as src */
-			if (move) {
-				foreach_file(real_src, mv_tree);
-				rmdir(src);
+	if (is_dir(real_src)) {
+		/* Copy/move directory */
+		if (file_exists(dst)) {
+			if (is_dir(dst)) {
+				/* copy directory into existing directory */
+				make_path(dst, basename(real_src), real_dst);
+				mkdir_from(real_dst, real_src);
 			} else {
-				foreach_file(real_src, cp_tree);
+				/* copy directory over existing file -> error */
+				printf("%s: cannot overwrite non-directory '%s' with directory '%s'\n",
+						fn_name, dst, real_src);
+				return -1;
 			}
 		} else {
-			/* SRC is file, shallow copy/move */
-			strcpy(file_dst_path, real_dst);
-			if (move) {
-				retval = mv_file(real_src);
-			} else {
-				retval = do_cp_file(real_src, file_dst_path);
-			}
+			/* copy directory into new directory */
+			strcpy(real_dst, dst);
+			printf("Created directory: %s\n", real_dst);
+			mkdir_from(real_dst, real_src);
 		}
-	} else {
-
-	}
-
-
-
-/*----*/
-
-	if (is_dir(dst)) {
-		/* DST is directory, modify path */
-		printf("dst is dir\n");
-		make_path(dst, basename(real_src), real_dst);
-	} else {
-		printf("dst '%s' is not dir\n", dst);
-		/* DST is not directory (file or not exists) */
-		strcpy(real_dst, dst);
-	}
-	int src_dir = is_dir(real_src);
-	if (src_dir) {
-		/* SRC is directory, deep copy/move */
+		/* Do actual copying/moving */
 		strcpy(file_dst_path, real_dst);
-		if (!file_exists(real_dst))
-			mkdir_from(real_dst, real_src); /* TODO: set same mode as src */
+		printf("\n\nBefore actual copy:\nfile_dst_path:  %s\n", file_dst_path);
 		if (move) {
 			foreach_file(real_src, mv_tree);
-			rmdir(src);
+			rmdir(real_src);
 		} else {
 			foreach_file(real_src, cp_tree);
 		}
 	} else {
-		/* SRC is file, shallow copy/move */
+		/* Copy/move file */
+		if (file_exists(dst)) {
+			if (is_dir(dst)) {
+				/* copy file into existing directory */
+				make_path(dst, basename(real_src), real_dst);
+			} else {
+				/* copy file over existing file */
+				strcpy(real_dst, dst);
+			}
+		} else {
+			/* copy file to new file */
+			strcpy(real_dst, dst);
+		}
+		/* Do actual copying/moving */
 		strcpy(file_dst_path, real_dst);
 		if (move) {
 			retval = mv_file(real_src);
 		} else {
+			printf("Copy '%s' to '%s'\n", real_src, file_dst_path);
 			retval = do_cp_file(real_src, file_dst_path);
 		}
 	}
+
 	return retval;
 }
 
@@ -552,12 +541,12 @@ int main(int argc, char **argv) {
 	int retval = 0;
 /* TODO: check for args */
 
-	int test_basic = 1;
-	int test_tree = 1;
-	int test_find = 1;
+	int test_basic = 0;
+	int test_tree = 0;
+	int test_find = 0;
 	int test_cp = 1;
-	int test_mv = 1;
-	int test_rm = 1;
+	int test_mv = 0;
+	int test_rm = 0;
 
 /*** basic tests */
 	if (test_basic == 1) {
@@ -598,6 +587,7 @@ int main(int argc, char **argv) {
 
 /*** test: copy */
 	if (test_cp == 1){
+/* TODO: What about copying dir over itself */
 		printf("-------------\n");
 		printf("Test for <copy>\n");
 		printf("!!! Copy file to file\n");
@@ -610,6 +600,8 @@ int main(int argc, char **argv) {
 		cp("dir", "cpdir");
 		printf("!!! copy directory to existing directory\n");
 		cp("dir", "cpdir");
+		printf("!!! copy directory over existing file\n");
+		cp("dir", "file");
 	}
 
 /*** test: remove */
