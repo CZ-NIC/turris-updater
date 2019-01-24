@@ -4,3 +4,6 @@
 [submodule "tests/lunit-launch/lunit"]
 	path = tests/lunit-launch/lunit
 	url = http://repo.or.cz/lunit.git
+[submodule "tests/usign"]
+	path = tests/usign
+	url = git://git.openwrt.org/project/usign.git
