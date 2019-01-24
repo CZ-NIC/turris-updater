@@ -418,21 +418,28 @@ int cpmv(const char *src, const char *dst, int move) {
 	char *fn_name = (move) ? "mv" : "cp";
 	char *act_name = (move) ? "move" : "copy";
 	char *real_src = alloca(strlen(src) + 1);
+/* FIXME: This needs to check not if 'src' and 'dst' are same, but if 'src' is same as start of 'dst'
+ * for eaxmple 'src' -> 'src/subdir' is problem also
+ */
+	if (!strcmp(src, dst)) {
+		if (is_dir(src)) {
+			/* FIXME: This error message can sometime say 'dir//dir', but that's not such big problem */
+			printf("%s: cannot %s a directory '%s' into itself, '%s/%s'\n",
+					fn_name, act_name, src, src, dst);
+		} else {
+			printf("%s: '%s' and '%s' are the same file\n",
+					fn_name, src, dst);
+		}
+		return -1;
+	}
 	strcpy(real_src, src);
 	if (!file_exists(real_src)) {
-		printf("%s: cannot %s '%s': No such file or directory\n", fn_name, act_name, real_src);
+		printf("%s: cannot %s '%s': No such file or directory\n",
+				fn_name, act_name, real_src);
 		return -1;
 	}
 	int str_len = path_length(dst, basename(real_src));
 	char real_dst[str_len];
-
-/* FIXME: 1. Check for source type: file/dir
- *			src is file, dst is dir		-> copy into, shallow
- * 			src is file, dst not exist	-> copy as	, shallow
- *			src is dir , dst is dir		-> copy into, deep
- *			src is dir , dst not exist	-> make dst dir, copy into
- */
-
 	if (is_dir(real_src)) {
 		/* Copy/move directory */
 		if (file_exists(dst)) {
@@ -454,7 +461,7 @@ int cpmv(const char *src, const char *dst, int move) {
 		}
 		/* Do actual copying/moving */
 		strcpy(file_dst_path, real_dst);
-		printf("\n\nBefore actual copy:\nfile_dst_path:  %s\n", file_dst_path);
+		printf("Before actual copy:\nfile_dst_path:  %s\n", file_dst_path);
 		if (move) {
 			foreach_file(real_src, mv_tree);
 			rmdir(real_src);
@@ -541,12 +548,12 @@ int main(int argc, char **argv) {
 	int retval = 0;
 /* TODO: check for args */
 
-	int test_basic = 0;
-	int test_tree = 0;
-	int test_find = 0;
+	int test_basic = 1;
+	int test_tree = 1;
+	int test_find = 1;
 	int test_cp = 1;
-	int test_mv = 0;
-	int test_rm = 0;
+	int test_mv = 1;
+	int test_rm = 1;
 
 /*** basic tests */
 	if (test_basic == 1) {
@@ -569,13 +576,13 @@ int main(int argc, char **argv) {
 /*** test: print_tree */
 	if (test_tree == 1){
 		printf("x--------------------x\n");
-		printf("Test for <print_tree>\n");
+		printf("\n\nTest for <print_tree>\n");
 		tree(dirname);
 	}
 
 /*** test: find */
 	if (test_find == 1){
-		printf("Test for <find>\n");
+		printf("\n\nTest for <find>\n");
 		printf("x-------------------------------------------------------x\n");
 		const char *ffile = find("./", "file_to_find", found_name);
 		printf("Found: %s, %ld\n", ffile, strlen(ffile));
@@ -589,27 +596,31 @@ int main(int argc, char **argv) {
 	if (test_cp == 1){
 /* TODO: What about copying dir over itself */
 		printf("-------------\n");
-		printf("Test for <copy>\n");
+		printf("\n\n\Test for <copy>\n");
 		printf("!!! Copy file to file\n");
 		cp("dir/file1", "dir/cpfile1");
 		printf("!!! Copy file to dir\n");
 		cp("dir/file1", "dir/subdir1");
 		printf("!!! Copy file over existing file\n");
 		cp("dir/file2", "dir/cpfile1");
+		printf("!!! Copy file over itself\n");
+		cp("file", "file");
 		printf("!!! Copy directory\n");
 		cp("dir", "cpdir");
 		printf("!!! copy directory to existing directory\n");
 		cp("dir", "cpdir");
-		printf("!!! copy directory over existing file\n");
+		printf("!!! copy directory over existing file [ERROR]\n");
 		cp("dir", "file");
+		printf("!!! copy directory over itself [ERROR]\n");
+		cp("dir", "dir");
 	}
 
 /*** test: remove */
 	if (test_rm == 1){
 		printf("-------------\n");
-		printf("Test for <remove>\n");
+		printf("\n\nTest for <remove>\n");
 		const char *dir_to_rm = "rmdir";
-		printf("First we will copy 'dir' to 'rmdir', so we don't mess up our main directory.");
+		printf("First we will copy 'dir' to 'rmdir', so we don't mess up our main directory.\n");
 		cp("dir", dir_to_rm);
 		printf("Remove <%s>\n", dir_to_rm);
 		rm(dir_to_rm);
@@ -618,20 +629,29 @@ int main(int argc, char **argv) {
 /*** test: move */
 	if (test_mv == 1){
 		printf("-------------\n");
-		printf("Test for <move>\n");
+		printf("\n\nTest for <move>\n");
 		printf("Move file to file\n");
 		retval = mv("dir/file1", "dir/newfile1");
-		printf("ret:%d\n", retval);
 		mv("dir/newfile1", "dir/file1"); /* move back for later use */
 		printf("Move file to dir\n");
 		retval = mv("dir/file1", "dir/subdir1");
-		printf("ret:%d\n", retval);
 		printf("Move file over existing file\n");
 		retval = mv("dir/file2", "dir/newfile1");
-		printf("ret:%d\n", retval);
-		printf("Move dir\n");
+		printf("!!! Move file over itself\n");
+		mv("file", "file");
+		printf("Move directory\n");
 		mv("dir", "mvdir");
+		cp("mvdir", "dir"); /* copy back for later use */
+		printf("!!! move directory to existing directory\n");
+		mv("dir", "mvdir");
+		cp("mvdir", "mvdir/dir");  copy back for later use 
+/*
+		printf("!!! move directory over existing file [ERROR]\n");
+		mv("dir", "file");
+		printf("!!! move directory over itself [ERROR]\n");
+		mv("dir", "dir");
 		printf("---move test ended---\n");
+*/
 	}
 
 	return(0);

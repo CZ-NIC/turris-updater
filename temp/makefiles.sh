@@ -4,6 +4,7 @@ rm -rf cpdir
 rm -rf mvdir
 rm file
 touch file
+echo test > file
 mkdir dir
 mkdir dir/subdir1
 touch dir/file1
