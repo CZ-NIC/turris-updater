@@ -304,7 +304,7 @@ static int lua_run_generic(lua_State *L, bool utils) {
 		return luaL_error(L, "The 3rd argument of run_command is a string input or nil");
 	int term_timeout = luaL_checkinteger(L, 4);
 	int kill_timeout = luaL_checkinteger(L, 5);
-	const char *command = luaL_checkstring(L, 6);
+	const char *cmd = luaL_checkstring(L, 6);
 	struct log_buffer log;
 	log_buffer_init(&log, LL_DBG);
 	// The rest of the args are args for the command ‒ get them into an array
@@ -319,9 +319,9 @@ static int lua_run_generic(lua_State *L, bool utils) {
 	if (log.f) {
 		fclose(log.f);
 		if (utils) {
-			DBG("Util command: %s %s", command, log.char_buffer);
+			DBG("Util command: %s %s", cmd, log.char_buffer);
 		} else
-			DBG("Command: %s %s", command, log.char_buffer);
+			DBG("Command: %s %s", cmd, log.char_buffer);
 		free(log.char_buffer);
 	}
 	// Data for the callbacks. It will get freed there.
@@ -337,9 +337,9 @@ static int lua_run_generic(lua_State *L, bool utils) {
 		input = lua_tolstring(L, 3, &input_size);
 	struct wait_id id;
 	if (utils)
-		id = run_util_a(events, command_terminated, command_postfork, data, input_size, input, term_timeout, kill_timeout, command, args);
+		id = run_util_a(events, command_terminated, command_postfork, data, input_size, input, term_timeout, kill_timeout, cmd, args);
 	else
-		id = run_command_a(events, command_terminated, command_postfork, data, input_size, input, term_timeout, kill_timeout, command, args);
+		id = run_command_a(events, command_terminated, command_postfork, data, input_size, input, term_timeout, kill_timeout, cmd, args);
 	push_wid(L, &id);
 	// Return 1 value ‒ the wait_id
 	return 1;
@@ -489,7 +489,7 @@ static int lua_subprocess(lua_State *L) {
 		callback_data.callback = register_value(L, 4);
 		cmd_index++;
 	}
-	const char *command = luaL_checkstring(L, cmd_index);
+	const char *cmd = luaL_checkstring(L, cmd_index);
 	const char *args[lua_gettop(L) - cmd_index - 1];
 	for (int i = cmd_index + 1; i <= lua_gettop(L); i++) {
 		args[i - cmd_index - 1] = luaL_checkstring(L, i);
@@ -497,7 +497,7 @@ static int lua_subprocess(lua_State *L) {
 	args[lua_gettop(L) - cmd_index] = NULL;
 
 	char *output;
-	int ec = lsubproclc(type, message, &output, timeout, subprocess_callback, &callback_data, command, args);
+	int ec = lsubproclc(type, message, &output, timeout, subprocess_callback, &callback_data, cmd, args);
 
 	// Free callback data callback name
 	if (callback_data.callback)

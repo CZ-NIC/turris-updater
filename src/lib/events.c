@@ -423,6 +423,7 @@ static void command_check_complete(struct watched_command *command) {
 }
 
 static void command_terminated_callback(struct wait_id id, void *data, pid_t pid, int status) {
+	// cppcheck-suppress shadowVar ;; (just ignore)
 	struct watched_command *command = data;
 	ASSERT(command->pid == pid);
 	ASSERT(memcmp(&command->child, &id, sizeof id) == 0);
@@ -449,6 +450,7 @@ static void command_event(struct bufferevent *buffer, short events __attribute__
 	 * Therefore, find which buffer it is, extract its content (if it
 	 * is output of the command) and close it.
 	 */
+	// cppcheck-suppress shadowVar ;; (just ignore)
 	struct watched_command *command = data;
 	struct bufferevent **buffer_var = NULL;
 	char **result = NULL;
@@ -474,6 +476,7 @@ static void command_event(struct bufferevent *buffer, short events __attribute__
 		ASSERT(*result_size == bufferevent_read(buffer, *result, *result_size));
 	}
 	bufferevent_free(buffer);
+	// cppcheck-suppress nullPointer ;; (Probably caused by else branch that results in to program termination so we always should have valid pointer)
 	*buffer_var = NULL;
 	if (result)
 		// Is this the last one?
@@ -482,6 +485,7 @@ static void command_event(struct bufferevent *buffer, short events __attribute__
 
 static void command_write(struct bufferevent *buffer, void *data) {
 	// Everything is written. Free the bufferevent & close the socket.
+	// cppcheck-suppress shadowVar ;; (just ignore)
 	struct watched_command *command = data;
 	ASSERT(command->input_buffer == buffer);
 	bufferevent_free(buffer);
@@ -513,6 +517,7 @@ static struct wait_id register_command(struct events *events, command_callback_t
 	nonblock(out_pipe[0]);
 	ASSERT_MSG(fcntl(err_pipe[0], F_SETFD, (long)FD_CLOEXEC) != -1, "Failed to set close on exec on commands stderr pipe: %s", strerror(errno));
 	nonblock(err_pipe[0]);
+	// cppcheck-suppress shadowVar ;; (just ignore)
 	struct watched_command *command = malloc(sizeof *command);
 	*command = (struct watched_command) {
 		.events = events,
@@ -963,6 +968,7 @@ void events_wait(struct events *events, size_t nid, struct wait_id *ids) {
 					break;
 				}
 				case WT_COMMAND: {
+					// cppcheck-suppress shadowVar ;; (just ignore)
 					struct watched_command *command = command_lookup(events, id.pointers.command, id.pid);
 					ASSERT(command);
 					enum command_kill_status ks;
