@@ -33,7 +33,6 @@ int is_dir(const char *file) {
  * Make directory with same attributes as 'src'
  */
 int mkdir_from(const char *name, const char *src) {
-/*	int mode = 0777;*/
 	struct stat sb;
 	stat(src, &sb);
 	int mode = sb.st_mode;
@@ -338,10 +337,15 @@ int do_cp_file(const char *src, const char *dst) {
 }
 
 int cp_file(const char *name) {
+/* FIXME: get_dst_path should be used ONLY when copying INTO directory
+ * 			not when copying single file
+ *			but how to achieve it..?
+ */
+
 	char dst_path[PATH_MAX];
 	get_dst_path(name, file_dst_path, dst_path);
-	printf("### COPY file <%s> to <%s>\n", name, dst_path);
-	do_cp_file(name, dst_path);
+	printf("### COPY file <%s> to <%s>\n", name, file_dst_path);
+	do_cp_file(name, file_dst_path);
 	return 0;
 }
 
@@ -409,47 +413,87 @@ struct tree_funcs mv_tree = {
 	mv_dir
 };
 
-int cpmv(const char *src, const char *dst, int type) {
-/* TYPE: 0: cp, 1: mv */
+int cpmv(const char *src, const char *dst, int move) {
+/* MOVE: 0: cp, 1: mv */
 /* we would expect that it's always recursive */
 	int retval = 0;
 	char *real_src = alloca(strlen(src) + 1);
 	strcpy(real_src, src);
 	if (!file_exists(real_src)) {
-		char *fn_name = (type) ? "mv" : "cp";
-		char *act_name = (type) ? "move" : "copy";
+		char *fn_name = (move) ? "mv" : "cp";
+		char *act_name = (move) ? "move" : "copy";
 		printf("%s: cannot %s '%s': No such file or directory\n", fn_name, act_name, real_src);
 		return -1;
 	}
 	int str_len = path_length(dst, basename(real_src));
 	char real_dst[str_len];
-	int dst_dir = is_dir(dst);
-	if (dst_dir) {
+
+/* FIXME: 1. Check for source type: file/dir
+ *			src is file, dst is dir		-> copy into, shallow
+ * 			src is file, dst not exist	-> copy as	, shallow
+ *			src is dir , dst is dir		-> copy into, deep
+ *			src is dir , dst not exist	-> make dst dir, copy into
+ */
+	int deep;
+	deep = is_dir(real_src);
+
+	if (is_dir(dst)) {
+		make_path(dst, basename(real_src), real_dst);
+		if (is_dir(real_src)) {
+			strcpy(file_dst_path, real_dst);
+			if (!file_exists(real_dst))
+				mkdir_from(real_dst, real_src); /* TODO: set same mode as src */
+			if (move) {
+				foreach_file(real_src, mv_tree);
+				rmdir(src);
+			} else {
+				foreach_file(real_src, cp_tree);
+			}
+		} else {
+			/* SRC is file, shallow copy/move */
+			strcpy(file_dst_path, real_dst);
+			if (move) {
+				retval = mv_file(real_src);
+			} else {
+				retval = do_cp_file(real_src, file_dst_path);
+			}
+		}
+	} else {
+
+	}
+
+
+
+/*----*/
+
+	if (is_dir(dst)) {
 		/* DST is directory, modify path */
+		printf("dst is dir\n");
 		make_path(dst, basename(real_src), real_dst);
 	} else {
+		printf("dst '%s' is not dir\n", dst);
 		/* DST is not directory (file or not exists) */
 		strcpy(real_dst, dst);
 	}
 	int src_dir = is_dir(real_src);
 	if (src_dir) {
-		/* SRC is directory, deep copy */
+		/* SRC is directory, deep copy/move */
 		strcpy(file_dst_path, real_dst);
 		if (!file_exists(real_dst))
 			mkdir_from(real_dst, real_src); /* TODO: set same mode as src */
-		if (type) {
+		if (move) {
 			foreach_file(real_src, mv_tree);
 			rmdir(src);
 		} else {
 			foreach_file(real_src, cp_tree);
 		}
 	} else {
-		/* SRC is file, shallow copy */
+		/* SRC is file, shallow copy/move */
 		strcpy(file_dst_path, real_dst);
-		if (type) {
+		if (move) {
 			retval = mv_file(real_src);
 		} else {
-			retval = cp_file(real_src);
+			retval = do_cp_file(real_src, file_dst_path);
 		}
 	}
 	return retval;
@@ -467,16 +511,14 @@ int mv(const char *src, const char *dst) {
 
 /* --- FIND FILE --- */
 
-char find_name[256];
-char found_name[256];
+char find_name[PATH_MAX];
+char found_name[PATH_MAX];
 
 int find_file(const char *name) {
-	char *file_to_find = alloca(256);
+	char *file_to_find = alloca(PATH_MAX);
 	strcpy(file_to_find, name);
 	const char *file = basename(file_to_find);
-	printf("******** Compare <%s> with <%s>\n", file, find_name);
-	if (strcmp(file, find_name) == 0) {
-		printf("******Copy <%s> to <%s>*****\n", name, found_name);
+	if (!strcmp(file, find_name)) {
 		strcpy(found_name, name);
 		ff_success = 1; /* report success to foreach_file */
 	}
@@ -495,12 +537,11 @@ struct tree_funcs find_tree = {
 };
 
 const char* find(const char *where, const char *what, char *found_name) {
-	printf("******** Find file <%s> in <%s> dir.\n", what, where);
 	found_name[0] = 0;
 	strcpy(find_name, what);
 	foreach_file(where, find_tree);
 	/* TODO: look for directory also? */
-	printf("**************found_name length=%ld\n", strlen(found_name));
+	printf("$$$found_name length=%ld\n", strlen(found_name));
 	return found_name;
 }
 
@@ -596,7 +637,7 @@ int main(int argc, char **argv) {
 		printf("Move file over existing file\n");
 		retval = mv("dir/file2", "dir/newfile1");
 		printf("ret:%d\n", retval);
-		printf("\n\nMove dir\n");
+		printf("Move dir\n");
 		mv("dir", "mvdir");
 		printf("---move test ended---\n");
 	}

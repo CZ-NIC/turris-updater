@@ -4,4 +4,4 @@ rm -rf dir
 ./makefiles.sh
 # ./rls dir
 # valgrind --log-file=valgrind.log --leak-check=full --track-origins=yes --show-reachable=yes ./rls dir
-valgrind --leak-check=full --track-origins=yes --show-reachable=yes ./rls dir
+valgrind -v --leak-check=full --track-origins=yes --show-reachable=yes ./rls dir
