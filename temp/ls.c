@@ -649,15 +649,12 @@ int main(int argc, char **argv) {
 		printf("!!! move directory to existing directory\n");
 		mv("dir", "mvdir");
 		printf("!!! copy back\n");
-
 		cp("mvdir", "mvdir/dir");
-/*
 		printf("!!! move directory over existing file [ERROR]\n");
 		mv("dir", "file");
 		printf("!!! move directory over itself [ERROR]\n");
 		mv("dir", "dir");
 		printf("---move test ended---\n");
-*/
 	}
 
 	return(0);
