@@ -384,8 +384,11 @@ int mv_file(const char *name) {
 		unlink(dst_path);
 	}
     /* now we can rename original file and we're done */
-    rename(name, dst_path);
-	/* TODO: check for success and fall back to cp&rm when needed */
+    if (!rename(name, dst_path)) {
+		/* Rename failed, so we need to copy&remove the file */
+		do_cp_file(name, dst_path);
+		unlink(name);	
+	}
 	return 0;
 }
 
