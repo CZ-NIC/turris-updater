@@ -159,7 +159,7 @@ def _approved():
     with open(const.APPROVALS_STAT_FILE, 'r') as file:
         cols = file.readline().split(' ')
         auto_grant_time = autorun.auto_approve_time()
-        if cols[1].strip() == 'granted' or (auto_grant_time is not None and int(cols[2]) < (time.time() - (auto_grant_time * 3600))):
+        if cols[1].strip() == 'granted' or (auto_grant_time > 0 and int(cols[2]) < (time.time() - (auto_grant_time * 3600))):
             return cols[0]
         return None
 

@@ -78,7 +78,7 @@ def auto_approve_time():
             value = int(uci.get("updater", "autorun", "auto_approve_time"))
             return value if value > 0 else None
         except UciExceptionNotFound:
-            return None
+            return 0
 
 
 def set_auto_approve_time(approve_time):
