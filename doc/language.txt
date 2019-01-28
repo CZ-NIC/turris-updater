@@ -537,43 +537,6 @@ relation as second argument (for example:
 `version_match(installed['pkg'].version, '>=1.0.0')`)
 It returns true if version matches given version relation, otherwise false.
 
-Run
-~~~
-
-  result = Run("command", "param", "param", "param", ..., { extra })
-
-This command is available only in `local` and `full` security levels.
-
-This runs an external command. The `command` and `param` specify what to
-run. The extra parameters are optional and may specify:
-
-stdin::
-  A string passed into the commands stdin. If not set, `/dev/null` is
-  redirected there.
-timeout::
-  A timeout in seconds. If it is reached and the command haven't
-  terminated yet, a SIGTERM is sent to the command. Nothing is sent if
-  not specified.
-timeout_kill::
-  This is the same as with timeout, but SIGTERM is sent.
-
-The `result` is a table with information about the command run. It
-contains:
-
-ecode::
-  The numeric exit code of the command.
-crashed::
-  If present, the command terminated with a signal. The signal is the
-  value associated with the key.
-stdout::
-  String containing the standard output of the command.
-stderr::
-  String containing the error output of the command.
-
-Note that the command is not run interactively ‒ there's no way to
-communicate with the command. It is started, runs with preset input
-and then the output is presented.
-
 Logging
 ~~~~~~~
 
