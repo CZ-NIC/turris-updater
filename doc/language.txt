@@ -228,12 +228,11 @@ Script
 
   script = Script("uri", { extra })
 
-This command runs another script. The name is the local part of the
-script name.
+This command runs another script.
 
 The uri provides the location of the script.
 
-The last parameter is a table with extra information. It allows
+The second parameter is a table with extra information. It allows
 fine-tuning the verification of URI and the way the script runs. The
 current extra parameters are following.
 
@@ -258,11 +257,9 @@ ca::
 crl::
   Options to verify the script integrity.
 
-Note that for backward compatibility we also support following format:
+Note that following format is now marked as obsolete and should not be used:
 
   script = Script("script-name", "uri", { extra })
-
-Although we are no longer validating script name and is no longer used anywhere.
 
 Repository
 ~~~~~~~~~~

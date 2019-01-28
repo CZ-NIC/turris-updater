@@ -425,6 +425,8 @@ function script(context, filler, script_uri, extra)
 	if (not extra and not script_uri) or type(script_uri) == "table" then
 		extra = script_uri
 		script_uri = filler
+	else
+		WARN("Syntax \"Script('script-name', 'uri', { extra })\" is deprecated and will be removed.")
 	end
 	DBG("Running script " .. script_uri)
 	extra = allowed_extras_check_type(allowed_script_extras, 'script', extra or {})
