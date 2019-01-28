@@ -1,3 +1,23 @@
+/*
+ * Copyright 2016, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+ *
+ * This file is part of the turris updater.
+ *
+ * Updater is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ * Updater is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,6 +28,10 @@
 #include <unistd.h>
 #include <errno.h>
 #include <libgen.h>
+
+
+
+#include "file-funcs.h"
 
 /* --- SUPPORT FUNCS --- */
 
@@ -135,14 +159,6 @@ int make_path(const char *dir, const char *file, char *path) {
 
 /* --- MAIN FUNC --- */
 
-struct tree_funcs {
-	int (*file_func)(const char *);
-	int (*link_func)(const char *);
-	int (*dir_func)(const char *, int);
-};
-
-int ff_success;
-
 int foreach_file_inner (const char * dir_name, struct tree_funcs funcs) {
 	if (ff_success == 1)
 		return 0;
@@ -211,12 +227,10 @@ TODO: Handle links
 	return 0;
 }
 
-/* ------ */
-
 /* --- PRINT TREE --- */
 
-int dir_depth = 0;
-const char *dir_prefix = "--------------------"; /* max allowed depth is 20 dirs, enough for testing */
+/* const char *dir_prefix = "--------------------"; */
+/* max allowed depth is 20 dirs, enough for testing */
 char prefix[20];
 
 int print_file(const char *name) {
@@ -236,17 +250,9 @@ int print_dir(const char *name, int type) {
 	return 0;
 }
 
-struct tree_funcs print_tree = {
-	print_file,
-	print_file,
-	print_dir
-};
-
 int tree(const char *name) {
 	foreach_file(name, print_tree);
 }
-
-/* ------ */
 
 /* --- REMOVE FILE/DIR --- */
 
@@ -266,11 +272,6 @@ int rm_dir(const char *name, int type) {
 	}
 	return 0;
 }
-struct tree_funcs rm_tree = {
-	rm_file,
-	rm_file,
-	rm_dir
-};
 
 int rm(const char *name) {
 	struct stat info;
@@ -291,11 +292,7 @@ int rm(const char *name) {
 	return 0;
 }
 
-/* ------ */
-
 /* --- COPY/MOVE FILE/DIR --- */
-
-char file_dst_path[PATH_MAX];
 
 int do_cp_file(const char *src, const char *dst) {
 	int nread, f_src, f_dst;
@@ -361,12 +358,6 @@ int cp_dir(const char *name, int type) {
 	return 0;
 }
 
-struct tree_funcs cp_tree = {
-	cp_file,
-	cp_file,
-	cp_dir
-};
-
 int mv_file(const char *name) {
 	char dst_path[PATH_MAX];
 	get_dst_path(name, file_dst_path, dst_path);
@@ -399,12 +390,6 @@ int mv_dir(const char *name, int type) {
 	}
 	return 0;
 }
-
-struct tree_funcs mv_tree = {
-	mv_file,
-	mv_file,
-	mv_dir
-};
 
 int cpmv(const char *src, const char *dst, int move) {
 /* MOVE: 0: cp, 1: mv */
@@ -520,23 +505,15 @@ int find_file(const char *name) {
 	return 0;
 }
 int find_dir(const char *name, int type) {
-	
-	printf("<find_dir> %s\n", name);
-
 	return 0;
 }
-struct tree_funcs find_tree = {
-	find_file,
-	find_file,
-	find_dir
-};
 
 const char* find(const char *where, const char *what, char *found_name) {
 	found_name[0] = 0;
 	strcpy(find_name, what);
 	foreach_file(where, find_tree);
 	/* TODO: look for directory also? */
-	printf("$$$found_name length=%ld\n", strlen(found_name));
+	/* printf("$$$found_name length=%ld\n", strlen(found_name)); */
 	return found_name;
 }
 
