@@ -6,7 +6,7 @@ Create new file in conf.d instead.
 -- Prepare variables specifying localization of system.
 l10n = {} -- table with selected localizations
 if uci then
-	l10n = uci.cursor():get("updater", "l10n", "langs")
+	l10n = uci.cursor(root_dir .. "/etc/config"):get("updater", "l10n", "langs")
 	if type(l10n) == "string" then
 		l10n = {l10n}
 	end
