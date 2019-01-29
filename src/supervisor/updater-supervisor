@@ -24,11 +24,11 @@
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import sys
 import argparse
+from svupdater import autorun
 from svupdater.prerun import random_sleep, wait_for_network
 from svupdater._supervisor import run
 from svupdater.const import PKGUPDATE_TIMEOUT, PKGUPDATE_TIMEOUT_KILL
 from svupdater.const import PING_TIMEOUT
-from svupdater.config import Config
 from svupdater.utils import daemonize
 
 # Script description as help text
@@ -85,10 +85,9 @@ def parse_arguments():
 
 def main():
     "Main function for updater-supervisor run as executable"
-    with Config() as cnf:
-        if cnf.disable():
-            print('Updater disabled.')
-            sys.exit(0)
+    if not autorun.enabled():
+        print('Updater autorun disabled.')
+        sys.exit(0)
 
     args = parse_arguments()
 
