@@ -33,13 +33,13 @@ import atexit
 import signal
 import errno
 from threading import Thread, Lock
+from . import autorun
 from . import approvals
 from . import notify
 from . import hook
 from .utils import setup_alarm, report
 from .const import PKGUPDATE_CMD, APPROVALS_ASK_FILE, PKGUPDATE_STATE
 from ._pidlock import PidLock
-from .config import Config
 
 
 class Supervisor:
@@ -72,12 +72,11 @@ class Supervisor:
                 raise
         # Prepare command to be run
         cmd = list(PKGUPDATE_CMD)
-        with Config() as cnf:
-            if cnf.approvals_need():
-                cmd.append('--ask-approval=' + APPROVALS_ASK_FILE)
-                approved = approvals._approved()
-                if approved is not None:
-                    cmd.append('--approve=' + approved)
+        if autorun.approvals():
+            cmd.append('--ask-approval=' + APPROVALS_ASK_FILE)
+            approved = approvals._approved()
+            if approved is not None:
+                cmd.append('--approve=' + approved)
         # Clear old dump files
         notify.clear_logs()
         # Open process
