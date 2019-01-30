@@ -103,7 +103,7 @@ def current():
     return result
 
 
-def _set_stat(status, hsh, allowed):
+def _set_stat(status, hsh):
     "Set given status to APPROVALS_STAT_FILE if hsh matches current hash"
     # Both files have to exists otherwise it is invalid approval request
     if not os.path.isfile(const.APPROVALS_ASK_FILE) or \
@@ -119,10 +119,6 @@ def _set_stat(status, hsh, allowed):
 
     if hsh is not None and cols[0].strip() != hsh:
         raise ExceptionUpdaterApproveInvalid("Not matching hash passed")
-    if cols[1].strip() not in allowed:
-        raise ExceptionUpdaterApproveInvalid(
-            "Switching from {} to {} is not allowed".format(
-                cols[1].strip(), status))
 
     # Write new stat
     cols[1] = status
@@ -135,7 +131,7 @@ def approve(hsh):
     current(). If it doesn't match then ExceptionUpdaterApproveInvalid is
     thrown. You can pass None to skip this check.
     """
-    _set_stat('granted', hsh, {"asked", "granted"})
+    _set_stat('granted', hsh)
 
 
 def deny(hsh):
@@ -144,7 +140,7 @@ def deny(hsh):
     from current(). If it doesn't match then ExceptionUpdaterApproveInvalid is
     thrown. You can pass None to skip this check.
     """
-    _set_stat('denied', hsh, {"asked", "denied"})
+    _set_stat('denied', hsh)
 
 
 def _approved():
