@@ -44,7 +44,7 @@ def set_enabled(enabled):
     """
     with Uci() as uci:
         uci.set('updater', 'override', 'override')
-        uci.set('updater', 'override', 'disable', int(not bool(enabled)))
+        uci.set('updater', 'override', 'disable', str(not bool(enabled)))
 
 
 def approvals():
@@ -65,7 +65,7 @@ def set_approvals(enabled):
     """
     with Uci() as uci:
         uci.set('updater', 'approvals', 'approvals')
-        uci.set('updater', 'approvals', 'need', int(bool(enabled)))
+        uci.set('updater', 'approvals', 'need', str(bool(enabled)))
 
 
 def auto_approve_time():
@@ -89,6 +89,6 @@ def set_auto_approve_time(approve_time):
     with Uci() as uci:
         if approve_time > 0:
             uci.set('updater', 'approvals', 'approvals')
-            uci.set('updater', 'approvals', 'auto_grant_seconds', int(approve_time) * 3600)
+            uci.set('updater', 'approvals', 'auto_grant_seconds', str(int(approve_time) * 3600))
         else:
             uci.delete('updater', 'autorun', 'auto_approve_time')
