@@ -26,7 +26,7 @@ import os
 import json
 import gettext
 from uci import Uci, UciExceptionNotFound
-from .const import USERLISTS_FILE
+from .const import PKGLISTS_FILE
 from .exceptions import ExceptionUpdaterNoSuchList
 
 
@@ -52,8 +52,8 @@ def pkglists(lang=None):
         languages=[lang] if lang is not None else None,
         fallback=True)
 
-    if os.path.isfile(USERLISTS_FILE):  # Just to be sure
-        with open(USERLISTS_FILE, 'r') as file:
+    if os.path.isfile(PKGLISTS_FILE):  # Just to be sure
+        with open(PKGLISTS_FILE, 'r') as file:
             ldul = json.load(file)
             for name, lst in ldul.items():
                 visible = lst['visible']
@@ -84,8 +84,8 @@ def update_pkglists(lists):
     enabled. Anything omitted will be disabled.
     """
     expected = set()
-    if os.path.isfile(USERLISTS_FILE):  # Just to be sure
-        with open(USERLISTS_FILE, 'r') as file:
+    if os.path.isfile(PKGLISTS_FILE):  # Just to be sure
+        with open(PKGLISTS_FILE, 'r') as file:
             ldul = json.load(file)
             for name in ldul:
                 expected.add(name)
