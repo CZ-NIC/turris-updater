@@ -22,7 +22,8 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-from uci import Uci, UciExceptionNotFound
+from uci import UciExceptionNotFound
+from euci import EUci
 
 def enabled():
     """Returns True if updater can be automatically started by various system
@@ -30,10 +31,10 @@ def enabled():
     other tools call to configuration aplication.
     Relevant uci configuration is: updater.autorun.enable
     """
-    with Uci() as uci:
+    with EUci() as uci:
         try:
             # TODO use EUci instead of this retype (as this is not perfect)
-            return not bool(int(uci.get("updater", "override", "disable")))
+            return not uci.get_boolean("updater", "override", "disable")
         except UciExceptionNotFound:
             return False  # No option means disabled
 
@@ -42,19 +43,19 @@ def set_enabled(enabled):
     """Set value that can be later received with enabled function.
     It sets uci configuration value: updater.autorun.enable
     """
-    with Uci() as uci:
+    with EUci() as uci:
         uci.set('updater', 'override', 'override')
-        uci.set('updater', 'override', 'disable', str(not bool(enabled)))
+        uci.set_boolean('updater', 'override', 'disable', not enabled)
 
 
 def approvals():
     """Returns True if updater approvals are enabled.
     Relevant uci configuration is: updater.autorun.approvals
     """
-    with Uci() as uci:
+    with EUci() as uci:
         try:
             # TODO use EUci instead of this retype (as this is not perfect)
-            return bool(int(uci.get("updater", "approvals", "need")))
+            return uci.get_boolean("updater", "approvals", "need")
         except UciExceptionNotFound:
             return False  # No option means disabled
 
@@ -63,9 +64,9 @@ def set_approvals(enabled):
     """Set value that can later be received by enabled function.
     This is relevant to uci config: updater.autorun.approvals
     """
-    with Uci() as uci:
+    with EUci() as uci:
         uci.set('updater', 'approvals', 'approvals')
-        uci.set('updater', 'approvals', 'need', str(bool(enabled)))
+        uci.set_boolean('updater', 'approvals', 'need', enabled)
 
 
 def auto_approve_time():
@@ -73,9 +74,9 @@ def auto_approve_time():
     approval time is configured then this function returns None.
     This is releavant to uci config: updater.autorun.auto_approve_time
     """
-    with Uci() as uci:
+    with EUci() as uci:
         try:
-            value = int(uci.get("updater", "approvals", "auto_grant_seconds"))
+            value = uci.get_integer("updater", "approvals", "auto_grant_seconds")
             return (value / 3600) if value > 0 else None
         except UciExceptionNotFound:
             return 0
@@ -86,9 +87,9 @@ def set_auto_approve_time(approve_time):
     or value that is less or equal to zero and in that case this feature is
     disabled and if approvals are enabled only manual approve can be granted.
     """
-    with Uci() as uci:
+    with EUci() as uci:
         if approve_time > 0:
             uci.set('updater', 'approvals', 'approvals')
-            uci.set('updater', 'approvals', 'auto_grant_seconds', str(int(approve_time) * 3600))
+            uci.set_integer('updater', 'approvals', 'auto_grant_seconds', approve_time * 3600)
         else:
             uci.delete('updater', 'autorun', 'auto_approve_time')

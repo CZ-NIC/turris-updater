@@ -24,7 +24,6 @@
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import os
 import time
-from uci import Uci, UciExceptionNotFound
 from . import const, autorun, notify
 from .utils import report
 from .exceptions import ExceptionUpdaterApproveInvalid
