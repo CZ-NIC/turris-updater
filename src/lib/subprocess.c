@@ -193,7 +193,6 @@ int vsubprocvoc(int timeout, FILE *fd[2], subproc_callback callback, void *data,
 	const char *argv[argc];
 	size_t i = 0;
 	while((argv[i++] = va_arg(args, const char *)) != NULL);
-	argv[argc - 1] = NULL;
 	return subprocloc(timeout, fd, callback, data, cmd, argv);
 }
 
@@ -227,7 +226,7 @@ int lsubproclc(enum log_subproc_type type, const char *message, char **output, i
 }
 
 int lvsubprocv(enum log_subproc_type type, const char *message, char **output, int timeout, const char *cmd, va_list args) {
-	return lsubprocvc(type, message, output, timeout, NULL, NULL, cmd, args);
+	return lvsubprocvc(type, message, output, timeout, NULL, NULL, cmd, args);
 }
 
 int lvsubprocvc(enum log_subproc_type type, const char *message, char **output, int timeout, subproc_callback callback, void *data, const char *cmd, va_list args) {
