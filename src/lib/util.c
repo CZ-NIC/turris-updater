@@ -67,6 +67,7 @@ char *writetempfile(char *buf, size_t len) {
 		return NULL;
 	}
 	ASSERT_MSG(fwrite(buf, 1, len, f) == len, "Not all data were written to temporally file.");
+	fclose(f);
 	return fpath;
 }
 

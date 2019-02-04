@@ -39,6 +39,7 @@ enum uri_error {
 	URI_E_CRL_FAIL, // Getting configured CRLs failed (see uri_sub_errno)
 	URI_E_PUBKEY_FAIL, // Getting configured PubKeys failed (see uri_sub_errno)
 	URI_E_SIG_FAIL, // Getting configured signature failed (see uri_sub_errno)
+	URI_E_VERIFY_FAIL, // Signature does not match any public key or content does not hold integrity
 	URI_E_NONLOCAL, // Configuration URI is not of local type (Used only in uri_sub_errno)
 };
 

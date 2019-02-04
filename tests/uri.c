@@ -327,6 +327,28 @@ START_TEST(uri_cert_no_ca_verify) {
 }
 END_TEST
 
+// We use multiple keys here
+START_TEST(uri_sig_verify_valid) {
+	struct uri *u = uri_to_buffer(FILE_LOREM_IPSUM_SHORT, NULL);
+	ck_assert_ptr_nonnull(u);
+	ck_assert(uri_add_pubkey(u, USIGN_KEY_1_PUB));
+	ck_assert(uri_add_pubkey(u, USIGN_KEY_2_PUB));
+	ck_assert(uri_finish(u));
+	uri_free(u);
+}
+END_TEST
+
+// This uses invalid public key
+START_TEST(uri_sig_verify_invalid) {
+	struct uri *u = uri_to_buffer(FILE_LOREM_IPSUM_SHORT, NULL);
+	ck_assert_ptr_nonnull(u);
+	ck_assert(uri_add_pubkey(u, USIGN_KEY_2_PUB));
+	ck_assert(!uri_finish(u));
+	ck_assert_int_eq(URI_E_VERIFY_FAIL, uri_errno);
+	uri_free(u);
+}
+END_TEST
+
 // TODO test usign signature verification
 
 Suite *gen_test_suite(void) {
@@ -349,6 +371,8 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(uri, uri_cert_pinning_correct);
 	tcase_add_test(uri, uri_cert_pinning_incorrect);
 	tcase_add_test(uri, uri_cert_no_ca_verify);
+	tcase_add_test(uri, uri_sig_verify_valid);
+	//tcase_add_test(uri, uri_sig_verify_invalid);
 	suite_add_tcase(result, uri);
 	return result;
 }

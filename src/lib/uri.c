@@ -18,6 +18,7 @@
  */
 #include "uri.h"
 #include "multiwrite.h"
+#include "subprocess.h"
 #include <stdlib.h>
 #include <fcntl.h>
 #include <string.h>
@@ -277,11 +278,21 @@ char *uri_path(const struct uri *uri) {
 	return path;
 }
 
+// Make sure that uri object for signature is initialized if we need it.
+static bool ensure_signature(struct uri *uri) {
+	if (!uri->pubkey || uri->sig_uri)
+		return true;
+	if (!uri_set_sig(uri, NULL)) {
+		uri_sub_errno = uri_errno;
+		uri_errno = URI_E_SIG_FAIL;
+		return false;
+	}
+	return true;
+}
+
 bool downloader_register_signature(struct uri *uri, struct downloader *downloader) {
 	if (!uri->pubkey)
 		return true;
-	if (!uri->sig_uri)
-		uri_set_sig(uri, NULL);
 	if (!list_pubkey_collect(uri->pubkey))
 		return false;
 	return uri_downloader_register(uri->sig_uri, downloader);
@@ -290,6 +301,8 @@ bool downloader_register_signature(struct uri *uri, struct downloader *downloade
 bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
 	if (uri_is_local(uri) || uri->download_instance || uri->finished)
 		return true; // Just ignore if it makes no sense to call this
+	if (!ensure_signature(uri))
+		return false;
 	struct download_opts opts;
 	download_opts_def(&opts);
 	opts.ssl_verify = uri->ssl_verify;
@@ -431,7 +444,7 @@ static bool uri_verify_signature(struct uri *uri) {
 			fcontent = uri->output_info.fpath; // reuse output path
 			break;
 		case URI_OUT_T_BUFFER:
-			fcontent = writetempfile(uri->output_info.data, uri->output_info.size);
+			fcontent = writetempfile((char*)uri->output_info.buf.data, uri->output_info.buf.size);
 			break;
 		default:
 			DIE("Unsupported output type in uri_verify_signature. This should not happen.");
@@ -440,8 +453,10 @@ static bool uri_verify_signature(struct uri *uri) {
 	struct uri_local_list *key = uri->pubkey;
 	do {
 		// TODO it should be possible to use libbsd or libasignify instead of this!
-		if(lsubprocv(LST_USIGN, "", NULL, 30000, "usign", "-V", "-p", key->path,
-				"-x", uri->sig_uri_file, "-m", fcontent) == 0) {
+		if(lsubprocv(LST_USIGN, "message here",
+				//aprintf("Verify %s (%s) against %s", uri->uri, uri->sig_uri_file, key->path),
+				NULL, 30000, "usign", "-V", "-p", key->path,
+				"-x", uri->sig_uri_file, "-m", fcontent, NULL) == 0) {
 			verified = true;
 			break;
 		}
@@ -457,6 +472,8 @@ static bool uri_verify_signature(struct uri *uri) {
 			free(fcontent);
 			break;
 	}
+	if (!verified)
+		uri_errno = URI_E_VERIFY_FAIL;
 	return verified;
 }
 
@@ -464,6 +481,8 @@ bool uri_finish(struct uri *uri) {
 	if (uri->finished)
 		return true; // Ignore if this is alredy finished
 	if (uri_is_local(uri)) {
+		if (!ensure_signature(uri))
+			return false;
 		switch (uri->scheme) {
 			case URI_S_FILE:
 				if (!uri_finish_file(uri))
@@ -706,5 +725,8 @@ bool uri_set_sig(struct uri *uri, const char *sig_uri) {
 		sig_uri = aprintf("%s.sig", uri->uri);
 	uri->sig_uri_file = strdup(TMP_TEMPLATE_SIGNATURE_FILE);
 	uri->sig_uri = uri_to_temp_file(sig_uri, uri->sig_uri_file, uri);
-	return (bool)uri->sig_uri;
+	if (!uri->sig_uri)
+		return false;
+	uri_add_pubkey(uri->sig_uri, NULL); // Reset public keys (verification is not possible)
+	return true;
 }
