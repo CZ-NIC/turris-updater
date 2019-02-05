@@ -26,6 +26,7 @@
 #include "locks.h"
 #include "arguments.h"
 #include "picosat.h"
+#include "file-funcs.h"
 
 #include <lua.h>
 #include <lualib.h>
@@ -46,6 +47,507 @@
 #include <string.h>
 #include <openssl/sha.h>
 #include <openssl/md5.h>
+
+
+/************************************************************************/
+
+int file_exists(const char *file) {
+	struct stat sb;
+	return 1 + lstat(file, &sb);
+}
+
+int is_dir(const char *file) {
+	struct stat sb;
+	int ret = stat(file, &sb);
+	if (ret == 0) {
+		int dir = S_ISDIR(sb.st_mode);
+		return dir;
+	} else {
+		return 0;
+	}
+}
+
+/*
+ * Make directory with same attributes as 'src'
+ */
+int mkdir_from(const char *name, const char *src) {
+	struct stat sb;
+	stat(src, &sb);
+	int mode = sb.st_mode;
+	printf("Src mode is %o\n", sb.st_mode);
+	mkdir(name, mode);
+	return 0;
+}
+
+/*
+ * Return filename from path
+ */
+const char* get_filename(const char *path) {
+    char *pos;
+    pos = strrchr(path, '/');
+    if (pos == NULL)
+        return path;
+    else
+        return pos + 1;
+}
+
+/*
+ * Construct path from SRC where first dir is replaced by DST
+ */
+int get_dst_path(const char *src, const char *dst, char *path){
+	char src_name[strlen(src) + 1];
+	strcpy(src_name, src);
+	char *rel_path;
+	rel_path = memchr(src_name, '/', strlen(src_name));
+/*	printf("***GET_DST_PATH: rel_path: %s\n", rel_path);*/
+	strcpy(path, dst);
+	strcat(path, rel_path);
+/*	printf("  path: %s\n  rel_path: %s\n", path, rel_path);*/
+	return 0;
+}
+
+/*
+ * Make full path from src path and dst name
+ */
+int get_full_dst(const char *src, const char *dst, char *fulldst) {
+	printf("i==GFD:%s->%s\n", src, dst);
+    struct stat statbuf;
+	char *srcd = strdup(src);
+	const char *srcname = basename(srcd);
+    int result = stat(dst, &statbuf);
+	/* if destination does not exist, it's new filename */
+	if (result == -1) {
+		strcpy(fulldst, dst);
+		printf("GFD: DEST does not exist, it's a new file - %s\n", fulldst);
+		free(srcd);
+        return 0;
+	}
+    /* check if destination is directory */
+    if (S_ISDIR(statbuf.st_mode) != 0) {
+        /* construct full path and add trailing `/` when needed */
+		int add_slash = 0;
+/*        int len = strlen(src) + strlen(dst) + 1;*/
+        if (dst[strlen(dst) - 1] != '/') {
+            add_slash = 1;
+/*            ++len;*/
+        }
+		/* TODO: check for errors here */
+        strcpy(fulldst, dst);
+        if (add_slash == 1) 
+            strcat(fulldst, "/");
+        strcat(fulldst, srcname);
+		free(srcd);
+        return 0;
+    } else {
+		strcpy(fulldst, dst);
+		free(srcd);
+        return 0;
+	}
+}
+
+int path_length(const char *dir, const char *file) {
+	int dirlen = strlen(dir);
+	int length = strlen(dir) + strlen(file) + 1;
+	if (dir[dirlen - 1] != '/') {
+		length += 1;
+	}
+	return length;
+}
+
+int make_path(const char *dir, const char *file, char *path) {
+    /* TODO: check for trailing '/' */
+    strcpy(path, dir);
+    int dirlen = strlen(dir);
+    int length = path_length(dir, file);
+    if (path[dirlen - 1] != '/') {
+        strcat(path, "/");
+    }   
+    strcat(path, file);
+    path[length - 1] = '\0';
+    printf("path: %s\n", path);
+    return 0;
+}
+
+/* ------ */
+
+/* --- MAIN FUNC --- */
+
+int foreach_file_inner (const char * dir_name, struct tree_funcs funcs) {
+	if (ff_success == 1)
+		return 0;
+    DIR * d;
+    d = opendir(dir_name);
+    if (! d) {
+        fprintf (stderr, "Cannot open directory '%s': %s\n",
+                 dir_name, strerror (errno));
+        exit (EXIT_FAILURE);
+    }
+    while (1) {
+        struct dirent *entry;
+        const char *d_name;
+        entry = readdir (d);
+        if (! entry) {
+            break;
+        }
+        d_name = entry->d_name;
+		if (strcmp (d_name, "..") != 0 && strcmp (d_name, ".") != 0) {
+			int path_length;
+			char path[PATH_MAX];
+			/* Construct new filename */
+			if (dir_name[strlen(dir_name) - 1] == '/') {
+				path_length = snprintf (path, PATH_MAX, "%s%s", dir_name, d_name);
+			} else {
+				path_length = snprintf (path, PATH_MAX, "%s/%s", dir_name, d_name);
+			}
+			if (path_length >= PATH_MAX) {
+				fprintf (stderr, "Path length has got too long.\n");
+				exit (EXIT_FAILURE);
+			}
+			if (entry->d_type & DT_DIR) {
+				/* Directory */
+				funcs.dir_func(path, 0);
+				foreach_file_inner(path, funcs);
+				funcs.dir_func(path, 1);
+			} else if (entry->d_type & DT_LNK) {
+				/* Link to file */
+				funcs.file_func(path);
+			} else if (entry->d_type & DT_REG) {
+				/* Regular file */
+				funcs.file_func(path);
+			} else {
+				/* Anything else */
+			}
+		}
+    }
+    /* After going through all the entries, close the directory. */
+    if (closedir (d)) {
+        fprintf (stderr, "Could not close '%s': %s\n",
+                 dir_name, strerror (errno));
+        exit (EXIT_FAILURE);
+    }
+}
+
+int foreach_file(const char *dirname, struct tree_funcs funcs) {
+/*
+
+TODO: Handle links 
+	- links to files are copied as files
+	- links to dirs are copied as links
+
+*/
+	ff_success = 0;
+	foreach_file_inner(dirname, funcs);
+	return 0;
+}
+
+/* --- PRINT TREE --- */
+
+/* const char *dir_prefix = "--------------------"; */
+/* max allowed depth is 20 dirs, enough for testing */
+char prefix[20];
+
+int print_file(const char *name) {
+	printf("F:%s:%s\n", prefix, name);
+	return 0;
+}
+int print_dir(const char *name, int type) {
+	if (type == 0) {
+		dir_depth += 1;
+		strncpy(prefix, dir_prefix, dir_depth);
+		printf("D:%s:%s/\n", prefix, name);
+	} else {
+		dir_depth -= 1;
+		strncpy(prefix, dir_prefix, dir_depth);
+		prefix[dir_depth] = 0;
+	}
+	return 0;
+}
+
+int tree(const char *name) {
+	foreach_file(name, print_tree);
+}
+
+/* --- REMOVE FILE/DIR --- */
+
+int rm_file(const char *name) {
+	if (unlink(name) == -1)
+		perror("unlink");
+	return 0;
+}
+int rm_link(const char *name) {
+	/* TODO */
+	return 0;
+}
+int rm_dir(const char *name, int type) {
+	if (type == 1) { /* directory should be empty now, so we can delete it */
+		if (rmdir(name) == -1)
+			perror("rmdir");
+	}
+	return 0;
+}
+
+int rm(const char *name) {
+	struct stat info;
+	stat(name, &info);
+	/* TODO: Use rm_* funcs directly, so I don't have to implement error handling twice? */
+	if (!file_exists(name)) {
+		printf("rm: Cannot remove '%s': No such file or directory\n", name);
+		return -1;
+	}
+	if (S_ISDIR(info.st_mode)) {
+		/* directory - remove files recursively and then remove dir */
+		foreach_file(name, rm_tree);
+		rmdir(name); /* TODO: error handling */
+	} else {
+		/* file - remove file directly */
+		unlink(name); /* TODO: error handlink */
+	}
+	return 0;
+}
+
+/* --- COPY/MOVE FILE/DIR --- */
+
+int do_cp_file(const char *src, const char *dst) {
+	int nread, f_src, f_dst;
+	char buffer[32678];
+	struct stat sb;
+	stat(src, &sb);
+	/* Open source for reading */
+	f_src = open(src, O_RDONLY);
+	if (f_src < 0) {
+		printf("Cannot open source file %s\n", src);
+		return -1;
+	}
+	/* Delete destination if it exists */
+	if (file_exists(dst))
+		unlink(dst);
+	/* Create destination for writing */
+	f_dst = open(dst, O_WRONLY | O_CREAT | O_EXCL, sb.st_mode);
+	if (f_dst < 0) {
+		printf("Problem with creating destination file <%s>\n", dst);
+	}
+	while(nread = read(f_src, buffer, sizeof buffer), nread > 0) {
+		char *out_ptr = buffer;
+		do {
+			int nwritten = write(f_dst, out_ptr, nread);
+			if (nwritten >= 0) {
+				nread -= nwritten;
+				out_ptr += nwritten;
+			} else if (errno != EINTR) {
+				printf("Problem while copying file %s->%s\n", src, dst);
+				return -1;
+			}
+		} while (nread > 0);
+	}
+	if (nread == 0) {
+		if (close(f_dst) < 0) {
+			printf("Cannot close file %s", dst);
+		}
+		close(f_src);
+		return 0;
+	}
+	/* NOTE: Can we get here? */
+	return 0;
+}
+
+int cp_file(const char *name) {
+	char dst_path[PATH_MAX];
+	get_dst_path(name, file_dst_path, dst_path);
+	printf("### COPY file <%s> to <%s>\n", name, dst_path);
+	do_cp_file(name, dst_path);
+	return 0;
+}
+
+int cp_dir(const char *name, int type) {
+	char dst_path[PATH_MAX];
+	get_dst_path(name, file_dst_path, dst_path);
+	printf("### COPY directory <%s> to <%s>\n", name, dst_path);
+	if (type == 0) {
+		/* When entering directory, check if it exists and create one, when necessary */
+		if (!file_exists(dst_path)) {
+			printf("Dir <%s> doesn't exist, creating.\n", dst_path);
+			mkdir_from(dst_path, name); /* TODO: set same mode as src */
+		}
+	}
+	return 0;
+}
+
+int mv_file(const char *name) {
+	char dst_path[PATH_MAX];
+/* NOTE:
+	`get_dst_path` is probably required only when moving multiple files
+	so maybe I need to introduce some switch to see if I'm moving one file,
+	or multiple files.
+	This needs more testing I guess.
+
+*/
+	/*get_dst_path(name, file_dst_path, dst_path);*/
+	strcpy(dst_path, file_dst_path);
+	printf("$$$mv_file$$$\nMoving file:<%s>\n<%s>\n", name, dst_path);
+	if (file_exists(dst_path)) { 
+		/* NOTE: can something bad happen here? */
+		unlink(dst_path);
+	}
+    /* now we can rename original file and we're done */
+    if (!rename(name, dst_path)) {
+		/* Rename failed, so we need to copy&remove the file */
+		do_cp_file(name, dst_path);
+		unlink(name);	
+	}
+	return 0;
+}
+
+int mv_dir(const char *name, int type) {
+	char dst_path[PATH_MAX];
+	get_dst_path(name, file_dst_path, dst_path);
+	printf("$$$ Moving directory <%s>\n", name);
+	if (type == 0) {
+		/* before entering directory, create DST dir */
+		printf("before entering <%s>, DST is <%s>\n", name, file_dst_path);
+		mkdir_from(dst_path, name); /* TODO: set attrs properly, add checks */
+	} else {
+		/* after leaving directory, remove SRC dir */
+		printf("after leaving, <%s> can be deleted\n", name);
+		rmdir(name); /* TODO: add checks */
+	}
+	return 0;
+}
+
+int cpmv(const char *src, const char *dst, int move) {
+//printf("\n@@@CPMV@@@\n");
+/* MOVE: 0: cp, 1: mv */
+/* we would expect that it's always recursive */
+	int retval = 0;
+	char *fn_name = (move) ? "mv" : "cp";
+	char *act_name = (move) ? "move" : "copy";
+	char *real_src = alloca(strlen(src) + 1);
+	char dst_top[strlen(src) + 1];
+	memset(dst_top, '\0', sizeof(dst_top));
+	strncpy(dst_top, dst, strlen(src));
+/* FIXME: This needs to check not if 'src' and 'dst' are same, but if 'src' is same as start of 'dst'
+ * for eaxmple 'src' -> 'src/subdir' is problem also
+ */
+/*	printf("===compare\n>'%s'\n<'%s'\n", src, dst_top);*/
+	if (!strcmp(src, dst_top)) {
+		if (is_dir(src)) {
+			/* FIXME: This error message can sometime say 'dir//dir', but that's not such big problem */
+			printf("%s: cannot %s a directory '%s' into itself, '%s/%s'\n",
+					fn_name, act_name, src, src, dst);
+		} else {
+			printf("%s: '%s' and '%s' are the same file\n",
+					fn_name, src, dst);
+		}
+		return -1;
+	}
+	strcpy(real_src, src);
+	printf("source exists?\n<%s>=<%d>\n---\n", real_src, file_exists(real_src));
+	if (!file_exists(real_src)) {
+		printf("%s: cannot %s '%s': No such file or directory\n",
+				fn_name, act_name, real_src);
+		return -1;
+	}
+	int str_len = path_length(dst, basename(real_src));
+	char real_dst[str_len];
+	if (is_dir(real_src)) {
+		/* Copy/move directory */
+		if (file_exists(dst)) {
+			if (is_dir(dst)) {
+				printf("copy dir into existing dir \n");
+				/* copy directory into existing directory */
+				make_path(dst, basename(real_src), real_dst);
+				mkdir_from(real_dst, real_src);
+			} else {
+				/* copy directory over existing file -> error */
+				printf("%s: cannot overwrite non-directory '%s' with directory '%s'\n",
+						fn_name, dst, real_src);
+				return -1;
+			}
+		} else {
+			printf("copy dir into new dir\n");
+			/* copy directory into new directory */
+			strcpy(real_dst, dst);
+			printf("Created directory: %s\n", real_dst);
+			mkdir_from(real_dst, real_src);
+		}
+		/* Do actual copying/moving */
+		strcpy(file_dst_path, real_dst);
+		printf("Before actual copy:\nfile_dst_path:  %s\n", file_dst_path);
+		if (move) {
+			foreach_file(real_src, mv_tree);
+			rmdir(real_src);
+		} else {
+			foreach_file(real_src, cp_tree);
+		}
+	} else {
+		/* Copy/move file */
+		if (file_exists(dst)) {
+			if (is_dir(dst)) {
+				printf("copy file into existing dir\n");
+				/* copy file into existing directory */
+				make_path(dst, basename(real_src), real_dst);
+			} else {
+				printf("copy file over existing file\n");
+				/* copy file over existing file */
+				strcpy(real_dst, dst);
+			}
+		} else {
+			printf("copy file to new file: %s\n", dst);
+			/* copy file to new file */
+			strcpy(real_dst, dst);
+		}
+		/* Do actual copying/moving */
+		printf("time for action\n");
+		strcpy(file_dst_path, real_dst);
+		if (move) {
+			retval = mv_file(real_src);
+		} else {
+			printf("Copy '%s' to '%s'\n", real_src, file_dst_path);
+			retval = do_cp_file(real_src, file_dst_path);
+		}
+	}
+
+	return retval;
+}
+
+int cp(const char *src, const char *dst) {
+	return cpmv(src, dst, 0);
+}
+
+int mv(const char *src, const char *dst) {
+	return cpmv(src, dst, 1);
+}
+
+/***********************************************************************/
+
+/* ------ */
+
+/* --- FIND FILE --- */
+
+char find_name[PATH_MAX];
+char found_name[PATH_MAX];
+
+int find_file(const char *name) {
+	char *file_to_find = alloca(PATH_MAX);
+	strcpy(file_to_find, name);
+	const char *file = basename(file_to_find);
+	if (!strcmp(file, find_name)) {
+		strcpy(found_name, name);
+		ff_success = 1; /* report success to foreach_file */
+	}
+	return 0;
+}
+int find_dir(const char *name, int type) {
+	return 0;
+}
+
+const char* find(const char *where, const char *what, char *found_name) {
+	found_name[0] = 0;
+	strcpy(find_name, what);
+	foreach_file(where, find_tree);
+	/* TODO: look for directory also? */
+	/* printf("$$$found_name length=%ld\n", strlen(found_name)); */
+	return found_name;
+}
 
 // The name used in lua registry to store stuff
 #define REGISTRY_NAME "libupdater"
@@ -583,59 +1085,6 @@ static void mv_result(struct wait_id id __attribute__((unused)), void *data, int
 		mv_result_data->err = strdup(err);
 }
 
-static int file_exists(const char *file) {
-	struct stat sb;
-	return lstat(file, &sb);
-}
-
-/*
- * return filename from path
- */
-const char* get_filename(const char *path) {
-    char *pos;
-    pos = strrchr(path, 47); /* 47 = `/` */
-    if (pos == NULL)
-        return path;
-    else
-        return pos + 1;
-}
-
-const char* get_full_dst(const char *src, const char *dst) {
-    struct stat statbuf;
-    // const char *srcname = get_filename(src);
-	char *srcd = strdup(src);
-	const char *srcname = basename(srcd);
-	free(srcd);
-    int result = stat(dst, &statbuf);
-	/* if destination does not exist, it's new filename */
-	if(result == -1) {
-		char *fulldst = (malloc(strlen(dst) + 1));
-		strcpy(fulldst, dst);
-        return fulldst;
-	}
-    /* check if destination is directory */
-    if(S_ISDIR(statbuf.st_mode) != 0) {
-        /* construct full path and add trailing `/` when needed */
-		int add_slash = 0;
-        int len = strlen(src) + strlen(dst) + 1;
-        if (dst[strlen(dst) - 1] != 47) {   
-            add_slash = 1;
-            ++len;
-        }
-		/* TODO: check for errors here */
-        char *fulldst = malloc(len);
-        strcpy(fulldst, dst);
-        if (add_slash == 1) 
-            strcat(fulldst, "/");
-        strcat(fulldst, srcname);
-        return fulldst;
-    } else {
-		char *fulldst = (malloc(strlen(dst) + 1));
-		strcpy(fulldst, dst);
-        return fulldst;
-	}
-}
-
 static int _lua_move(lua_State *L) {
 	const char *old = luaL_checkstring(L, 1);
 	const char *new = luaL_checkstring(L, 2);
@@ -653,6 +1102,7 @@ static int _lua_move(lua_State *L) {
 	struct events *events = extract_registry(L, "events");
 	ASSERT(events);
 	struct mv_result_data mv_result_data = { .err = NULL };
+	printf("$$$ Moving file:\n---<%s>\n+++<%s>\n", old, new);
 	struct wait_id id = run_util(events, mv_result, NULL, &mv_result_data, 0, NULL, -1, -1, "mv", "-f", old, new, (const char *)NULL);
 	events_wait(events, 1, &id);
 	if (mv_result_data.status) {
@@ -667,21 +1117,9 @@ static int lua_move(lua_State *L) {
     const char *old = luaL_checkstring(L, 1);
     const char *new = luaL_checkstring(L, 2);
     
-    const char *fulldst = get_full_dst(old, new);
-    /* check if source exists */
-	if (file_exists(old) == -1) {
-        printf("Error: file %s does not exist.\n", old);
-        return 0;
-	}
-    /* check if destination exists and if yes, remove it */
-	if (file_exists(fulldst) != -1) {
-		/* NOTE: can something bad happen here? */
-		unlink(fulldst);
-	}
-    /* now we can rename original file and we're done */
-    rename(old, fulldst);
-	//free(fulldst);
-	
+	printf("$$$ Moving file:\n---<%s>\n+++<%s>\n", old, new);
+	mv(old, new);	
+
     return 0;
 }
 
