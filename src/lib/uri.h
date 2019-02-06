@@ -75,11 +75,10 @@ enum uri_output_type {
 // This implements list of local URI handlers
 struct uri_local_list {
 	struct uri_local_list *next; // Link to (next) previous provided uri
-	struct uri *uri; // Uri object initialized by URI provided by user
-
 	unsigned ref_count; // Reference counter (counts number of usages in uri object)
+
+	struct uri *uri; // Uri object initialized by URI provided by user
 	char *path; // Used to store path to file
-	void (*free)(struct uri_local_list*); // Function called when this is deallocated
 };
 
 // URI representation
@@ -168,13 +167,13 @@ void uri_take_buffer(struct uri *uri, uint8_t **buffer, size_t *len) __attribute
 // Returns string with error message. It is valid until the next uri_error_msg call.
 const char *uri_error_msg(enum uri_error);
 
-// Returns name of scheme
-const char *uri_scheme_string(enum uri_scheme);
-
 // Returns pointer to error string for URI that reported URI_E_FAILED_DOWNLOAD
 // when uri_finish was called.
 // Returned string is valid until uri object is freed.
 const char *uri_download_error(struct uri *uri) __attribute((nonnull));
+
+// Returns name of scheme
+const char *uri_scheme_string(enum uri_scheme);
 
 // HTTPS configurations //
 // Set if SSL certification verification should be done

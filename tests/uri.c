@@ -349,8 +349,6 @@ START_TEST(uri_sig_verify_invalid) {
 }
 END_TEST
 
-// TODO test usign signature verification
-
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Uri");
 	TCase *uri = tcase_create("uri");
@@ -372,7 +370,7 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(uri, uri_cert_pinning_incorrect);
 	tcase_add_test(uri, uri_cert_no_ca_verify);
 	tcase_add_test(uri, uri_sig_verify_valid);
-	//tcase_add_test(uri, uri_sig_verify_invalid);
+	tcase_add_test(uri, uri_sig_verify_invalid);
 	suite_add_tcase(result, uri);
 	return result;
 }

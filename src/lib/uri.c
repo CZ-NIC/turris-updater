@@ -58,26 +58,24 @@ static void list_refup(struct uri_local_list *list) {
 }
 
 // Generic function to add item to list used by all following add functions
-static struct uri_local_list *list_add(struct uri_local_list *list, void (*free_func)(struct uri_local_list*)) {
+static struct uri_local_list *list_add(struct uri_local_list *list) {
 	list_refup(list);
 	struct uri_local_list *w = malloc(sizeof *w);
 	*w = (struct uri_local_list) {
 		.next = list,
 		.ref_count = 1,
-		.free = free_func,
 	};
 	return w;
 }
 
 // Decrease reference count and if this is last copy then free
-static void list_dealloc(struct uri_local_list *list) {
+static void list_dealloc(struct uri_local_list *list, void (*list_free)(struct uri_local_list*)) {
 	while (list) {
 		list->ref_count--;
 		struct uri_local_list *old = list;
 		list = list->next;
 		if (old->ref_count == 0) {
-			old->free(list);
-			free(old->uri);
+			list_free(old);
 			free(old);
 		}
 	}
@@ -235,15 +233,18 @@ struct uri *uri_to_buffer(const char *uri, const struct uri *parent) {
 	return ret;
 }
 
+static void list_ca_crl_free(struct uri_local_list *list);
+static void list_pubkey_free(struct uri_local_list *list);
+
 void uri_free(struct uri *uri) {
 	free(uri->uri);
 	if (uri->sig_uri)
 		uri_free(uri->sig_uri);
 	if (uri->sig_uri_file)
 		free(uri->sig_uri_file);
-	list_dealloc(uri->ca);
-	list_dealloc(uri->crl);
-	list_dealloc(uri->pubkey);
+	list_dealloc(uri->ca, list_ca_crl_free);
+	list_dealloc(uri->crl, list_ca_crl_free);
+	list_dealloc(uri->pubkey, list_pubkey_free);
 	switch (uri->output_type) {
 		case URI_OUT_T_FILE:
 			free(uri->output_info.fpath);
@@ -452,9 +453,8 @@ static bool uri_verify_signature(struct uri *uri) {
 	bool verified = false;
 	struct uri_local_list *key = uri->pubkey;
 	do {
-		// TODO it should be possible to use libbsd or libasignify instead of this!
-		if(lsubprocv(LST_USIGN, "message here",
-				//aprintf("Verify %s (%s) against %s", uri->uri, uri->sig_uri_file, key->path),
+		if(lsubprocv(LST_USIGN,
+				aprintf("Verify %s (%s) against %s", uri->uri, uri->sig_uri_file, key->path),
 				NULL, 30000, "usign", "-V", "-p", key->path,
 				"-x", uri->sig_uri_file, "-m", fcontent, NULL) == 0) {
 			verified = true;
@@ -620,8 +620,6 @@ static bool list_ca_crl_collect(struct uri_local_list *list) {
 
 // deallocation handler for CA and CRL list
 static void list_ca_crl_free(struct uri_local_list *list) {
-	if (!list)
-		return;
 	if (list->uri)
 		uri_free(list->uri);
 	if (list->path) {
@@ -631,9 +629,9 @@ static void list_ca_crl_free(struct uri_local_list *list) {
 }
 
 // Common add function for both CA and CRL
-static bool list_ca_crl_add(struct uri *uri, const char *str_uri, struct uri_local_list **list) {
+static bool list_ca_crl_add(const char *str_uri, struct uri_local_list **list) {
 	if (!str_uri){
-		list_dealloc(*list);
+		list_dealloc(*list, list_ca_crl_free);
 		*list = NULL;
 		return true;
 	}
@@ -643,7 +641,7 @@ static bool list_ca_crl_add(struct uri *uri, const char *str_uri, struct uri_loc
 		uri_free(nuri);
 		return false;
 	}
-	*list = list_add(*list, list_ca_crl_free);
+	*list = list_add(*list);
 	(*list)->uri = nuri;
 	(*list)->path = NULL;
 	return true;
@@ -651,12 +649,12 @@ static bool list_ca_crl_add(struct uri *uri, const char *str_uri, struct uri_loc
 
 bool uri_add_ca(struct uri *uri, const char *ca_uri) {
 	CONFIG_GUARD;
-	return list_ca_crl_add(uri, ca_uri, &uri->ca);
+	return list_ca_crl_add(ca_uri, &uri->ca);
 }
 
 bool uri_add_crl(struct uri *uri, const char *crl_uri) {
 	CONFIG_GUARD;
-	return list_ca_crl_add(uri, crl_uri, &uri->crl);
+	return list_ca_crl_add(crl_uri, &uri->crl);
 }
 
 bool uri_set_ocsp(struct uri *uri, bool enabled) {
@@ -692,15 +690,17 @@ static void list_pubkey_free(struct uri_local_list *list) {
 bool uri_add_pubkey(struct uri *uri, const char *pubkey_uri) {
 	CONFIG_GUARD;
 	if (!pubkey_uri){
-		list_dealloc(uri->pubkey);
+		list_dealloc(uri->pubkey, list_pubkey_free);
 		uri->pubkey = NULL;
 		return true;
 	}
+	// TODO reuse existing file
 	char *file_path = strdup(TMP_TEMPLATE_PUBKEY_FILE);
 	struct uri *nuri = uri_to_temp_file(pubkey_uri, file_path, NULL);
 	if (!nuri) {
 		uri_sub_errno = uri_errno;
 		uri_sub_err_uri = NULL;
+		free(file_path);
 		return false;
 	}
 	if (!uri_is_local(nuri)) {
@@ -710,7 +710,7 @@ bool uri_add_pubkey(struct uri *uri, const char *pubkey_uri) {
 		free(file_path);
 		return false;
 	}
-	uri->pubkey = list_add(uri->pubkey, list_pubkey_free);
+	uri->pubkey = list_add(uri->pubkey);
 	uri->pubkey->uri = nuri;
 	uri->pubkey->path = file_path;
 	return true;
