@@ -44,6 +44,15 @@ while [ "$#" -gt 0 ]; do
 			OPERATION="r"
 			break
 			;;
+		upgrade)
+			echo "You should not be using opkg upgrade as it is known to break stuff. You have been warned." >&2
+			echo "You should be using pkgupdate instead!" >&2
+			echo "If you know what you are doing then type YES and continue.." >&2
+			read -r iknow
+			[ "$iknow" = "YES" ] || exit
+			ARGS="$ARGS upgrade"
+			break
+			;;
 		*)
 			ARGS="$ARGS $1"
 			;;
