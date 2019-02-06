@@ -65,7 +65,7 @@ def set_approvals(enabled):
     This is relevant to uci config: updater.autorun.approvals
     """
     with EUci() as uci:
-        uci.set('updater', 'autorun', 'approvals')
+        uci.set('updater', 'autorun', 'autorun')
         uci.set_boolean('updater', 'autorun', 'approvals', enabled)
 
 
