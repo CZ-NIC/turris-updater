@@ -32,7 +32,6 @@ local pcall = pcall
 local assert = assert
 local pairs = pairs
 local unpack = unpack
-local io = io
 local table = table
 local backend = require "backend"
 local utils = require "utils"
@@ -61,10 +60,6 @@ module "transaction"
 -- Wrap the call to the maintainer script, and store any possible errors for later use
 local function script(errors_collected, name, suffix, ...)
 	local ok, stderr = backend.script_run(name, suffix, ...)
-	if stderr and stderr:len() > 0 then
-		io.stderr:write("Output from " .. name .. "." .. suffix .. ":\n")
-		io.stderr:write(stderr)
-	end
 	if not ok then
 		errors_collected[name] = errors_collected[name] or {}
 		errors_collected[name][suffix] = stderr
