@@ -1,4 +1,5 @@
 #!/bin/sh
+# This is script that updates alternatives links that were specified in packages.
 sed -n 's/^Alternatives://p' /usr/lib/opkg/info/*.control | \
 	tr , '\n' | \
 	sed 's/^\ \([^:]*\):\([^:]*\):/\2:\1:/' | \

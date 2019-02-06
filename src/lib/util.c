@@ -28,9 +28,12 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <dirent.h>
 #include <signal.h>
 #include <poll.h>
+
+#define HOOK_TIMEOUT 600000 // 10 minutes
 
 bool dump2file (const char *file, const char *text) {
 	FILE *f = fopen(file, "w");
@@ -41,30 +44,28 @@ bool dump2file (const char *file, const char *text) {
 	return true;
 }
 
-static int exec_dir_filter(const struct dirent *de) {
-	// ignore system paths and accept only files
-	return strcmp(de->d_name, ".") && strcmp(de->d_name, "..") && de->d_type == DT_REG;
+static void exec_hook_callback(void *data __attribute__((unused))) {
+	// TODO set environment variables
 }
 
-void exec_hook(const char *dir, const char *message) {
-	struct dirent **namelist;
-	int count = scandir(dir, &namelist, exec_dir_filter, alphasort);
-	if (count == -1) {
-		ERROR("Can't open directory: %s: %s", dir, strerror(errno));
-		return;
+void exec_hook(const char *path, const char *message) {
+#define ERR(MSG) do { ERROR("Hook not executed (%s): %s", path, MSG); return; } while(false)
+	struct stat st;
+	if (stat(path, &st)) {
+		if (errno == ENOENT) {
+			DBG("Hook missing and skipped: %s", path);
+			return;
+		}
+		ERR(aprintf("unable to stat: %s", strerror(errno)));
 	}
-	for (int i = 0; i < count; i++) {
-		char *fpath = aprintf("%s/%s", dir, namelist[i]->d_name);
-		char *msg = aprintf("%s: %s", message, namelist[i]->d_name);
-		// TODO do we want to have some timeout here?
-		if (!access(fpath, X_OK)) {
-			const char *args[] = {NULL};
-			lsubprocl(LST_HOOK, msg, NULL, -1, fpath, args);
-		} else
-			DBG("File not executed, not executable: %s", namelist[i]->d_name);
-		free(namelist[i]);
-	}
-	free(namelist);
+	if (!S_ISREG(st.st_mode))
+		ERR("not a regular file");
+	if (!(st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)))
+		ERR("not set as executable");
+#undef ERR
+	int ec = lsubprocvc(LST_HOOK, message, NULL, HOOK_TIMEOUT, exec_hook_callback, NULL, path, NULL);
+	if (ec)
+		ERROR("Hook execution failed (%d)", ec);
 }
 
 static bool cleanup_registered = false;

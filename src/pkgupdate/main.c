@@ -58,9 +58,9 @@ static void print_version() {
 	cmd_args_version();
 }
 
-const char *hook_preupdate = "/etc/updater/hook_preupdate";
-const char *hook_postupdate = "/etc/updater/hook_postupdate";
-const char *hook_reboot_delayed = "/etc/updater/hook_reboot_required";
+const char *hook_preupdate = "/etc/updater/preupdate";
+const char *hook_postupdate = "/etc/updater/postupdate";
+const char *hook_reboot_delayed = "/etc/updater/reboot_required";
 
 static bool approved(struct interpreter *interpreter, const char *approval_file, const char **approvals, size_t approval_count) {
 	if (!approval_file)
