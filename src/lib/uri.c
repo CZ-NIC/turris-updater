@@ -1,5 +1,5 @@
 /*
- * Copyright 2018, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+ * Copyright 2018-2019, CZ.NIC z.s.p.o. (http://www.nic.cz/)
  *
  * This file is part of the turris updater.
  *
@@ -637,7 +637,7 @@ static bool list_ca_crl_add(struct uri *uri, const char *str_uri, struct uri_loc
 		*list = NULL;
 		return true;
 	}
-	struct uri *nuri = uri_to_buffer(str_uri, uri);
+	struct uri *nuri = uri_to_buffer(str_uri, NULL);
 	if (!uri_is_local(nuri)) {
 		uri_errno = URI_E_NONLOCAL;
 		uri_free(nuri);
@@ -668,7 +668,7 @@ bool uri_set_ocsp(struct uri *uri, bool enabled) {
 // Generate temporally file from all subsequent public keys
 static bool list_pubkey_collect(struct uri_local_list *list) {
 	while (list && list->uri) {
-		if (uri_finish(list->uri)) {
+		if (!uri_finish(list->uri)) {
 			uri_sub_errno = uri_errno;
 			uri_sub_err_uri = list->uri;
 			return false;
@@ -697,7 +697,7 @@ bool uri_add_pubkey(struct uri *uri, const char *pubkey_uri) {
 		return true;
 	}
 	char *file_path = strdup(TMP_TEMPLATE_PUBKEY_FILE);
-	struct uri *nuri = uri_to_temp_file(pubkey_uri, file_path, uri);
+	struct uri *nuri = uri_to_temp_file(pubkey_uri, file_path, NULL);
 	if (!nuri) {
 		uri_sub_errno = uri_errno;
 		uri_sub_err_uri = NULL;
