@@ -59,7 +59,6 @@ static void list_refup(struct uri_local_list *list) {
 
 // Generic function to add item to list used by all following add functions
 static struct uri_local_list *list_add(struct uri_local_list *list) {
-	list_refup(list);
 	struct uri_local_list *w = malloc(sizeof *w);
 	*w = (struct uri_local_list) {
 		.next = list,
@@ -472,6 +471,8 @@ static bool uri_verify_signature(struct uri *uri) {
 			free(fcontent);
 			break;
 	}
+	free(uri->sig_uri_file);
+	uri->sig_uri_file = NULL;
 	if (!verified)
 		uri_errno = URI_E_VERIFY_FAIL;
 	return verified;
@@ -589,8 +590,10 @@ static bool list_ca_crl_collect(struct uri_local_list *list) {
 				uri_sub_errno = URI_E_OUTPUT_WRITE_FAIL;
 				uri_sub_err_uri = NULL;
 				success = false;
+				free(buf);
 				break;
 			}
+			free(buf);
 			uri_free(list->uri);
 			list->uri = NULL;
 		} else {
@@ -671,6 +674,7 @@ static bool list_pubkey_collect(struct uri_local_list *list) {
 			uri_sub_err_uri = list->uri;
 			return false;
 		}
+		uri_free(list->uri);
 		list->uri = NULL;
 		list = list->next;
 	}
@@ -689,12 +693,12 @@ static void list_pubkey_free(struct uri_local_list *list) {
 
 bool uri_add_pubkey(struct uri *uri, const char *pubkey_uri) {
 	CONFIG_GUARD;
-	if (!pubkey_uri){
+	if (!pubkey_uri) {
 		list_dealloc(uri->pubkey, list_pubkey_free);
 		uri->pubkey = NULL;
 		return true;
 	}
-	// TODO reuse existing file
+	// TODO we can reuse file path but can't automatically remove such file on cleanup
 	char *file_path = strdup(TMP_TEMPLATE_PUBKEY_FILE);
 	struct uri *nuri = uri_to_temp_file(pubkey_uri, file_path, NULL);
 	if (!nuri) {
