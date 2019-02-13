@@ -303,6 +303,7 @@ int do_cp_file(const char *src, const char *dst) {
 	f_src = open(src, O_RDONLY);
 	if (f_src < 0) {
 		printf("Cannot open source file %s\n", src);
+		return -1;
 	}
 	/* Delete destination if it exists */
 	if (file_exists(dst))
@@ -392,6 +393,7 @@ int mv_dir(const char *name, int type) {
 }
 
 int cpmv(const char *src, const char *dst, int move) {
+//printf("\n@@@CPMV@@@\n");
 /* MOVE: 0: cp, 1: mv */
 /* we would expect that it's always recursive */
 	int retval = 0;
@@ -417,6 +419,7 @@ int cpmv(const char *src, const char *dst, int move) {
 		return -1;
 	}
 	strcpy(real_src, src);
+//	printf("exists <%s> = <%d>\n", real_src, file_exists(real_src));
 	if (!file_exists(real_src)) {
 		printf("%s: cannot %s '%s': No such file or directory\n",
 				fn_name, act_name, real_src);
@@ -519,7 +522,7 @@ const char* find(const char *where, const char *what, char *found_name) {
 
 /* ------ */
 
-int main(int argc, char **argv) {
+int _main(int argc, char **argv) {
 	char *dirname = argv[1];
 	int retval = 0;
 /* TODO: check for args */

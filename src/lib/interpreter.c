@@ -384,15 +384,17 @@ int mv_file(const char *name) {
 	/*get_dst_path(name, file_dst_path, dst_path);*/
 	strcpy(dst_path, file_dst_path);
 	printf("$$$mv_file$$$\nMoving file:<%s>\n<%s>\n", name, dst_path);
-	if (file_exists(dst_path)) { 
-		/* NOTE: can something bad happen here? */
-		unlink(dst_path);
-	}
+	int src_exists = file_exists(name);
+	printf("Exists src? %d\n", src_exists);
     /* now we can rename original file and we're done */
-    if (!rename(name, dst_path)) {
+    if (rename(name, dst_path) != 0) {
+		printf("Moving failed\n");
 		/* Rename failed, so we need to copy&remove the file */
 		do_cp_file(name, dst_path);
 		unlink(name);	
+	} else {
+		int dst_exists = file_exists(dst_path);
+		printf("DST exists? %d\n", dst_exists);
 	}
 	return 0;
 }
