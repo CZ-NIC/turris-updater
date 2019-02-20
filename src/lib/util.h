@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <alloca.h>
+#include <unistd.h>
 
 // Writes given text to file. Be aware that no information about failure is given.
 bool dump2file (const char *file, const char *text) __attribute__((nonnull,nonnull));
@@ -33,6 +34,10 @@ bool dump2file (const char *file, const char *text) __attribute__((nonnull,nonnu
 // Read content of whole file and return it as string
 // Returned memory has to be freed by used.
 char *readfile(const char *file) __attribute__((nonnull));
+
+// Returns true if file exists and is accessible in given mode
+// Mode is bitwise OR of one or more of R_OK, W_OK, and X_OK.
+bool statfile(const char *file, int mode);
 
 // Executes all executable files in given directory
 void exec_hook(const char *dir, const char *message) __attribute__((nonnull));

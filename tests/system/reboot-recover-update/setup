@@ -5,7 +5,7 @@ export PATH=$ROOT_DIR/bin:$PATH
 ## This section is edited copy of part of ../run script
 cp -ar "$DEFINITION"/after-reboot "$TMP_DIR"/after-reboot
 # Launch pkgupdate. Should exit only with kill, so exit code should be 137
-eval $LAUNCHER "$O"/bin/pkgupdate --model Turris --board unknown file://$ROOT_DIR/config --batch -R "$ROOT_DIR" --task-log="$ROOT_DIR/task-log" || [ $? -eq 137 ]
+eval $LAUNCHER "$O"/bin/pkgupdate file://$ROOT_DIR/config --batch -R "$ROOT_DIR" --task-log="$ROOT_DIR/task-log" || [ $? -eq 137 ]
 # Do we need to de-randomize the output somehow?
 sed -i -e 's/^[^\t]*/0/' "$ROOT_DIR"/task-log
 # Check it did what it should have. For sanity sake we can't check journal content. Just check that it's there.
