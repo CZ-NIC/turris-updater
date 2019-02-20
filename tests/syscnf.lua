@@ -18,21 +18,29 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
 require 'lunit'
-local SC = require "syscnf"
+local sc = require "syscnf"
+
+local sdir = os.getenv("S") or "."
 
 module("syscnf-tests", package.seeall, lunit.testcase)
 
 function test_set_root_dir()
-	SC.set_root_dir("/dir/")
-	assert_equal("/dir/usr/lib/opkg/status", SC.status_file)
-	assert_equal("/dir/usr/lib/opkg/info/", SC.info_dir)
-	assert_equal("/dir/usr/share/updater/unpacked/", SC.pkg_unpacked_dir)
-	assert_equal("/dir/usr/share/updater/download/", SC.pkg_download_dir)
-	assert_equal("/dir/usr/share/updater/collided/", SC.dir_opkg_collided)
+	sc.set_root_dir("/dir/")
+	assert_equal("/dir/", sc.root_dir)
+	assert_equal("/dir/usr/lib/opkg/status", sc.status_file)
+	assert_equal("/dir/usr/lib/opkg/info/", sc.info_dir)
+	assert_equal("/dir/usr/share/updater/unpacked/", sc.pkg_unpacked_dir)
+	assert_equal("/dir/usr/share/updater/download/", sc.pkg_download_dir)
+	assert_equal("/dir/usr/share/updater/collided/", sc.opkg_collided_dir)
 end
 
-function test_set_target()
-	SC.set_target("Turris", "unknown")
-	assert_equal("Turris", SC.target_model)
-	assert_equal("unknown", SC.target_board)
+function test_os_release()
+	sc.set_root_dir(sdir .. "/tests/data/sysinfo_root/mox")
+	sc.system_detect()
+	local osr = sc.os_release()
+	assert_equal("TurrisOS", osr.NAME);
+	assert_equal("4.0-alpha2", osr.VERSION);
+	assert_equal("turrisos", osr.ID);
+	assert_equal("TurrisOS 4.0-alpha2", osr.PRETTY_NAME);
+	sc.set_root_dir()
 end
