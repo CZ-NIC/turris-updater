@@ -587,34 +587,6 @@ root_dir
 Root directory specified from command line or `/` if no such option
 was specified. Use this if you are accessing some files.
 
-serial
-~~~~~~
-
-The variable contains the serial number of the device. It may be `nil`
-in case it is not supported on the given device.
-
-architectures
-~~~~~~~~~~~~~
-
-Allowed package architectures (in a table).
-
-model
-~~~~~
-
-Content of `/tmp/sysinfo/model`. On non-OpenWRT systems it has to be supplied by
-`--model` argument.
-
-board_name
-~~~~~~~~~~
-
-Content of `/tmp/sysinfo/board_name`. On non-OpenWRT systems it has to be supplied
-by `--board` argument.
-
-turris_version
-~~~~~~~~~~~~~~
-
-Content of `/etc/turris-version`. Might be nil on non-Turris systems.
-
 self_version
 ~~~~~~~~~~~~
 
@@ -671,6 +643,32 @@ install_time::
 The top-level table is instantiated (not generated through
 meta-tables), therefore it is possible to get the list of installed
 packages.
+
+os_release
+~~~~~~~~~~
+
+This is table with parsed content of os-release file. Path to this file is
+`etc/os-release` but relative to target root. This means that if you are running
+updater on root file system that is not current root then values in this table are
+for target not for host system.
+
+This is normal table and you can iterate trough it using `pairs` or you can
+directly access specific value by indexing it. List of standard options can be
+found https://www.freedesktop.org/software/systemd/man/os-release.html[here].
+
+The most interesting value is `os_release.VERSION` as this contains current system
+release version.
+
+This table can be empty if there was no `os-release` file.
+
+host_os_release
+~~~~~~~~~~~~~~~
+
+This is table with parsed content of os-release file for host system. Source file
+for this is always `/etc/os-release`. See variable os_release for example usage
+and expected content.
+
+Table can be empty if there was no `/etc/os-release`.
 
 Export variables to Script
 --------------------------
