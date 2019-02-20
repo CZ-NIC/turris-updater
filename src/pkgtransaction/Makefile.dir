@@ -2,3 +2,4 @@ BINARIES += src/pkgtransaction/pkgtransaction
 
 pkgtransaction_MODULES := main
 pkgtransaction_LOCAL_LIBS := updater
+pkgtransaction_PKG_CONFIGS := $(LUA_NAME)

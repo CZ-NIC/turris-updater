@@ -16,11 +16,9 @@
  * You should have received a copy of the GNU General Public License
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#include "../src/lib/util.h"
-
 #ifndef UPDATER_TEST_DATA_H
 #define UPDATER_TEST_DATA_H
+#include "../src/lib/util.h"
 
 const char *get_tmpdir();
 const char *get_sdir();

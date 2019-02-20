@@ -33,8 +33,6 @@ local tostring = tostring
 local error = error
 local WARN = WARN
 local ERROR = ERROR
-local run_command = run_command
-local events_wait = events_wait
 local get_updater_version = get_updater_version
 local utils = require "utils"
 local backend = require "backend"
@@ -120,12 +118,11 @@ function load_state_vars()
 	]]
 	state_vars = {
 		root_dir = syscnf.root_dir,
-		model = syscnf.target_model,
-		board_name = syscnf.target_board,
-		turris_version = utils.strip(utils.read_file('/etc/turris-version')),
 		self_version = get_updater_version(),
 		language_version = 1,
 		features = updater_features,
+		os_release = syscnf.os_release(),
+		host_os_release = syscnf.host_os_release(),
 		--[[
 		In case we fail to read that file (it is not there), we match against
 		an empty string, which produces nil ‒ the element won't be in there.
@@ -147,11 +144,6 @@ function load_state_vars()
 			end
 		end)
 	}
-	events_wait(run_command(function (ecode, _, stdout, _)
-		if ecode == 0 then
-			state_vars.serial = utils.strip(stdout)
-		end
-	end, nil, nil, -1, -1, '/usr/bin/atsha204cmd', 'serial-number'))
 end
 
 
