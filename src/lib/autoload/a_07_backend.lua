@@ -763,13 +763,13 @@ function steal_configs(current_status, installed_confs, configs)
 end
 
 --[[
-Move anything on given path to dir_opkg_collided. This backups and removes original files.
+Move anything on given path to opkg_collided_dir. This backups and removes original files.
 When keep is set to true, file is copied instead of moved.
 ]]
 function user_path_move(path, keep)
-	-- At first create same parent directory relative to dir_opkg_collided
+	-- At first create same parent directory relative to opkg_collided_dir
 	local fpath = ""
-	for dir in (syscnf.dir_opkg_collided .. path):gsub("[^/]*/?$", ""):gmatch("[^/]+") do
+	for dir in (syscnf.opkg_collided_dir .. path):gsub("[^/]*/?$", ""):gmatch("[^/]+") do
 		local randex = ""
 		while not utils.dir_ensure(fpath .. "/" .. dir .. randex) do
 			-- If there is file with same name, then append some random extension
