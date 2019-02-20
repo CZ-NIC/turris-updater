@@ -17,6 +17,7 @@
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../lib/syscnf.h"
 #include "../lib/events.h"
 #include "../lib/interpreter.h"
 #include "../lib/util.h"
@@ -45,7 +46,7 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 }
 
 static const enum cmd_op_type cmd_op_allows[] = {
-	COT_BATCH, COT_NO_OP, COT_REEXEC, COT_REBOOT, COT_STATE_LOG, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_TASK_LOG, COT_USIGN, COT_MODEL, COT_BOARD, COT_NO_REPLAN, COT_NO_IMMEDIATE_REBOOT, COT_LAST
+	COT_BATCH, COT_NO_OP, COT_REEXEC, COT_REBOOT, COT_STATE_LOG, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_TASK_LOG, COT_USIGN, COT_NO_REPLAN, COT_NO_IMMEDIATE_REBOOT, COT_LAST
 };
 
 static void print_help() {
@@ -125,9 +126,6 @@ int main(int argc, char *argv[]) {
 	struct cmd_op *ops = cmd_args_parse(argc, argv, cmd_op_allows);
 	struct cmd_op *op = ops;
 	const char *top_level_config = NULL;
-	const char *root_dir = NULL;
-	const char *target_model = NULL;
-	const char *target_board = NULL;
 	bool batch = false, early_exit = false, replan = false, reboot_finished = false;
 	const char *approval_file = NULL;
 	const char **approvals = NULL;
@@ -161,42 +159,34 @@ int main(int argc, char *argv[]) {
 				reboot_finished = true;
 				break;
 			case COT_ROOT_DIR:
-				root_dir = op->parameter;
-				break;
-			case COT_MODEL:
-				target_model = op->parameter;
-				break;
-			case COT_BOARD:
-				target_board = op->parameter;
+				set_root_dir(op->parameter);
 				break;
 			case COT_STATE_LOG:
 				set_state_log(true);
 				break;
-			case COT_SYSLOG_LEVEL: {
-				enum log_level level = log_level_get(op->parameter);
-				ASSERT_MSG(level != LL_UNKNOWN, "Unknown log level %s", op->parameter);
-				log_syslog_level(level);
-				break;
-			}
-			case COT_SYSLOG_NAME: {
-				log_syslog_name(op->parameter);
-				break;
-			}
 			case COT_STDERR_LEVEL: {
 				enum log_level level = log_level_get(op->parameter);
 				ASSERT_MSG(level != LL_UNKNOWN, "Unknown log level %s", op->parameter);
 				log_stderr_level(level);
 				break;
 			}
+			case COT_SYSLOG_LEVEL: {
+				enum log_level level = log_level_get(op->parameter);
+				ASSERT_MSG(level != LL_UNKNOWN, "Unknown log level %s", op->parameter);
+				log_syslog_level(level);
+				break;
+			}
+			case COT_SYSLOG_NAME:
+				log_syslog_name(op->parameter);
+				break;
 			case COT_ASK_APPROVAL:
 				approval_file = op->parameter;
 				break;
-			case COT_APPROVE: {
+			case COT_APPROVE:
 				// cppcheck-suppress memleakOnRealloc
 				approvals = realloc(approvals, (++ approval_count) * sizeof *approvals);
 				approvals[approval_count - 1] = op->parameter;
 				break;
-			}
 			case COT_TASK_LOG:
 				task_log = op->parameter;
 				break;
@@ -214,25 +204,20 @@ int main(int argc, char *argv[]) {
 		}
 	enum cmd_op_type exit_type = op->type;
 	free(ops);
+	system_detect();
 
 	update_state(LS_INIT);
 	struct events *events = events_new();
 	// Prepare the interpreter and load it with the embedded lua scripts
 	struct interpreter *interpreter = interpreter_create(events);
-	const char *error = interpreter_autoload(interpreter);
-	ASSERT_MSG(!error, "%s", error);
+	const char *err = interpreter_autoload(interpreter);
+	ASSERT_MSG(!err, "%s", err);
 
 	bool trans_ok = true;
 	if (exit_type != COT_EXIT || early_exit)
 		goto CLEANUP;
 	size_t result_count;
 	// Set some configuration
-	const char *err = interpreter_call(interpreter, "syscnf.set_root_dir", NULL, "s", root_dir);
-	ASSERT_MSG(!err, "%s", err);
-	if (!root_dir)
-		root_dir = "";
-	err = interpreter_call(interpreter, "syscnf.set_target", NULL, "ss", target_model, target_board);
-	ASSERT_MSG(!err, "%s", err);
 	if (usign_exec) {
 		err = interpreter_call(interpreter, "uri.usign_exec_set", NULL, "s", usign_exec);
 		ASSERT_MSG(!err, "%s", err);
@@ -242,7 +227,7 @@ int main(int argc, char *argv[]) {
 		ASSERT_MSG(!err, "%s", err);
 	}
 	// Check if we should recover previous execution first if so do
-	if (journal_exists(root_dir)) {
+	if (journal_exists(root_dir())) {
 		INFO("Detected existing journal. Trying to recover it.");
 		err = interpreter_call(interpreter, "transaction.recover_pretty", &result_count, "");
 		ASSERT_MSG(!err, "%s", err);
@@ -280,8 +265,8 @@ int main(int argc, char *argv[]) {
 	ASSERT_MSG(!err, "%s", err);
 	if (!replan) {
 		update_state(LS_PREUPD);
-		const char *hook_path = aprintf("%s%s", root_dir, hook_preupdate);
-		setenv("ROOT_DIR", root_dir, true);
+		const char *hook_path = aprintf("%s%s", root_dir(), hook_preupdate);
+		setenv("ROOT_DIR", root_dir(), true);
 		exec_hook(hook_path, "Executing preupdate hook");
 	}
 	if (task_log) {
@@ -307,7 +292,7 @@ int main(int argc, char *argv[]) {
 	bool reboot_delayed;
 	ASSERT(interpreter_collect_results(interpreter, "bb", &reboot_delayed, &reboot_finished) == -1);
 	if (reboot_delayed) {
-		const char *hook_path = aprintf("%s%s", root_dir, hook_reboot_delayed);
+		const char *hook_path = aprintf("%s%s", root_dir(), hook_reboot_delayed);
 		exec_hook(hook_path, "Executing reboot_required hook");
 	}
 	err = interpreter_call(interpreter, "updater.cleanup", NULL, "bb", reboot_finished);
@@ -322,7 +307,7 @@ int main(int argc, char *argv[]) {
 	}
 REPLAN_CLEANUP:
 	update_state(LS_POSTUPD);
-	const char *hook_path = aprintf("%s%s", root_dir, hook_postupdate);
+	const char *hook_path = aprintf("%s%s", root_dir(), hook_postupdate);
 	setenv("SUCCESS", trans_ok ? "true" : "false", true); // ROOT_DIR is already set
 	exec_hook(hook_path, "Executing postupdate hook");
 CLEANUP:
