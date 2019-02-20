@@ -598,34 +598,6 @@ root_dir
 Root directory specified from command line or `/` if no such option
 was specified. Use this if you are accessing some files.
 
-serial
-~~~~~~
-
-The variable contains the serial number of the device. It may be `nil`
-in case it is not supported on the given device.
-
-architectures
-~~~~~~~~~~~~~
-
-Allowed package architectures (in a table).
-
-model
-~~~~~
-
-Content of `/tmp/sysinfo/model`. On non-OpenWRT systems it has to be supplied by
-`--model` argument.
-
-board_name
-~~~~~~~~~~
-
-Content of `/tmp/sysinfo/board_name`. On non-OpenWRT systems it has to be supplied
-by `--board` argument.
-
-turris_version
-~~~~~~~~~~~~~~
-
-Content of `/etc/turris-version`. Might be nil on non-Turris systems.
-
 self_version
 ~~~~~~~~~~~~
 
