@@ -29,6 +29,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <dirent.h>
 #include <signal.h>
 #include <poll.h>
@@ -56,6 +57,15 @@ char *readfile(const char *file) {
 	fclose(f);
 	ret[fsize] = 0;
 	return ret;
+}
+
+bool statfile(const char *file, int mode) {
+	struct stat st;
+	if (stat(file, &st))
+		return false;
+	if (!S_ISREG(st.st_mode))
+		return false;
+	return !access(file, mode);
 }
 
 static int exec_dir_filter(const struct dirent *de) {
