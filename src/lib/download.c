@@ -263,7 +263,6 @@ static struct download_i *init_instance(struct download_i *inst,
 	else
 		user_agent = aprintf(USER_AGENT " (%s; %s)",
 			host_os_release(OS_RELEASE_PRETTY_NAME), os_release(OS_RELEASE_PRETTY_NAME));
-	printf("UserAgent: %s\n", user_agent);
 	CURL_SETOPT(CURLOPT_USERAGENT, user_agent); // We set our own User Agent, so our server knows we're not just some bot
 	if (opts->ssl_verify) {
 		if (opts->cacert_file)
