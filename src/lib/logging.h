@@ -19,7 +19,9 @@
 #ifndef UPDATER_LOGGING_H
 #define UPDATER_LOGGING_H
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
