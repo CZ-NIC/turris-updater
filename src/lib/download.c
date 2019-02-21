@@ -23,11 +23,12 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <string.h>
+#include "syscnf.h"
 
 // Initial size of storage buffer
 #define BUFFER_INIT_SIZE 2048
 // User agent reported to server
-#define USER_AGENT ( "Turris Updater/" UPDATER_VERSION )
+#define USER_AGENT "Turris Updater/" UPDATER_VERSION
 
 #define ASSERT_CURL(X) ASSERT((X) == CURLE_OK)
 #define ASSERT_CURLM(X) ASSERT((X) == CURLM_OK)
@@ -256,7 +257,13 @@ static struct download_i *init_instance(struct download_i *inst,
 	CURL_SETOPT(CURLOPT_TIMEOUT, opts->timeout);
 	CURL_SETOPT(CURLOPT_CONNECTTIMEOUT, opts->connect_timeout);
 	CURL_SETOPT(CURLOPT_FAILONERROR, 1); // If we use http and request fails (response >= 400) request also fails. TODO according to documentation this doesn't cover authentications errors. If authentication is added, this won't be enough.
-	CURL_SETOPT(CURLOPT_USERAGENT, USER_AGENT); // We set our own User Agent, so our server knows we're not just some bot
+	char *user_agent;
+	if (root_dir_is_root())
+		user_agent = aprintf(USER_AGENT " (%s)", os_release(OS_RELEASE_PRETTY_NAME));
+	else
+		user_agent = aprintf(USER_AGENT " (%s; %s)",
+			host_os_release(OS_RELEASE_PRETTY_NAME), os_release(OS_RELEASE_PRETTY_NAME));
+	CURL_SETOPT(CURLOPT_USERAGENT, user_agent); // We set our own User Agent, so our server knows we're not just some bot
 	if (opts->ssl_verify) {
 		if (opts->cacert_file)
 			CURL_SETOPT(CURLOPT_CAINFO, opts->cacert_file);
