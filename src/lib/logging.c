@@ -154,11 +154,6 @@ enum log_level log_level_get(const char *level) {
 	return LL_UNKNOWN;
 }
 
-static const char *type_string[] = {
-	[LST_PKG_SCRIPT] = "pkg-script",
-	[LST_HOOK] = "hook"
-};
-
 // log_subproc cookie
 struct c_log_subproc {
 	bool err; // Is this out or err
