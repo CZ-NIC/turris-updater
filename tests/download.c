@@ -21,6 +21,7 @@
 #include <string.h>
 #include <unistd.h>
 #include "../src/lib/download.h"
+#include "../src/lib/syscnf.h"
 #include "test_data.h"
 
 START_TEST(downloader_empty) {
@@ -335,6 +336,7 @@ Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Download");
 	TCase *down = tcase_create("download");
 	tcase_set_timeout(down, 30);
+	tcase_add_checked_fixture(down, system_detect, NULL); // To fill in agent with meaningful values
 	tcase_add_test(down, downloader_empty);
 	tcase_add_test(down, simple_download);
 	tcase_add_test(down, multiple_downloads);
