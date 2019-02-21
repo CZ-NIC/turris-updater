@@ -67,6 +67,17 @@ int is_dir(const char *file) {
 	}
 }
 
+int is_link(const char *file) {
+	struct stat sb;
+	int ret = stat(file, &sb);
+	if (ret == 0) {
+		int dir = S_ISLNK(sb.st_mode);
+		return dir;
+	} else {
+		return 0;
+	}
+}
+
 /*
  * Make directory with same attributes as 'src'
  */
@@ -324,7 +335,8 @@ int do_cp_file(const char *src, const char *dst) {
 	/* Create destination for writing */
 	f_dst = open(dst, O_WRONLY | O_CREAT | O_EXCL, sb.st_mode);
 	if (f_dst < 0) {
-		printf("Problem with creating destination file <%s>\n", dst);
+		printf("Problem with creating destination file <%s>: <%d>\n", dst, f_dst);
+		return -1;
 	}
 	while(nread = read(f_src, buffer, sizeof buffer), nread > 0) {
 		char *out_ptr = buffer;
@@ -381,16 +393,20 @@ int mv_file(const char *name) {
 	This needs more testing I guess.
 
 */
-	/*get_dst_path(name, file_dst_path, dst_path);*/
+	get_dst_path(name, file_dst_path, dst_path);
 	strcpy(dst_path, file_dst_path);
 	printf("$$$mv_file$$$\nMoving file:<%s>\n<%s>\n", name, dst_path);
 	int src_exists = file_exists(name);
 	printf("Exists src? %d\n", src_exists);
+	printf("Is it link? %d\n", is_link(name));
+	printf("Exists dst? %d\n", file_exists(dst_path));
+	printf("Is it dir? %d\n", is_dir(dst_path));
     /* now we can rename original file and we're done */
     if (rename(name, dst_path) != 0) {
-		printf("Moving failed\n");
+		printf("\n------ Moving failed, trying to copy------\n");
 		/* Rename failed, so we need to copy&remove the file */
 		do_cp_file(name, dst_path);
+		printf("DST exists? %d", file_exists(dst_path));
 		unlink(name);	
 	} else {
 		int dst_exists = file_exists(dst_path);
@@ -416,7 +432,7 @@ int mv_dir(const char *name, int type) {
 }
 
 int cpmv(const char *src, const char *dst, int move) {
-//printf("\n@@@CPMV@@@\n");
+printf("\n@@@CPMV@@@\n");
 /* MOVE: 0: cp, 1: mv */
 /* we would expect that it's always recursive */
 	int retval = 0;
@@ -1104,7 +1120,9 @@ static int _lua_move(lua_State *L) {
 	struct events *events = extract_registry(L, "events");
 	ASSERT(events);
 	struct mv_result_data mv_result_data = { .err = NULL };
-	printf("$$$ Moving file:\n---<%s>\n+++<%s>\n", old, new);
+
+	printf("\n\n$$$###\n\n Moving file:\n---<%s>\n+++<%s>\n", old, new);
+
 	struct wait_id id = run_util(events, mv_result, NULL, &mv_result_data, 0, NULL, -1, -1, "mv", "-f", old, new, (const char *)NULL);
 	events_wait(events, 1, &id);
 	if (mv_result_data.status) {
@@ -1112,6 +1130,14 @@ static int _lua_move(lua_State *L) {
 		free(mv_result_data.err);
 		return lua_error(L);
 	}
+
+
+
+	int fe = file_exists(new);
+	printf("\n\n====result: %d\n\n", fe);
+
+
+
 	return 0;
 }
 
@@ -1119,7 +1145,7 @@ static int lua_move(lua_State *L) {
     const char *old = luaL_checkstring(L, 1);
     const char *new = luaL_checkstring(L, 2);
     
-	printf("$$$ Moving file:\n---<%s>\n+++<%s>\n", old, new);
+	printf("\n\n$$$###\n\n Moving file:\n---<%s>\n+++<%s>\n", old, new);
 	mv(old, new);	
 
     return 0;
