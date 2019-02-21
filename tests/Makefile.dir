@@ -59,7 +59,7 @@ define DO_C_TEST
 BINARIES_NOTARGET += tests/ctest-$(1)
 ctest-$(1)_MODULES += $(1) ctest test_data
 ctest-$(1)_SYSTEM_LIBS += m rt
-ctest-$(1)_PKG_CONFIGS += check
+ctest-$(1)_PKG_CONFIGS += check $(LUA_NAME)
 ctest-$(1)_LOCAL_LIBS += updater
 
 test: test-c-$(1)
