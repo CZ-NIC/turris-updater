@@ -139,7 +139,6 @@ local allowed_package_extras = {
 	["replan"] = utils.arr2set({"boolean", "string"}),
 	["abi_change"] = utils.arr2set({"table", "boolean"}),
 	["abi_change_deep"] = utils.arr2set({"table", "boolean"}),
-	["content"] = utils.arr2set({"string"}),
 	["priority"] = utils.arr2set({"number"}),
 	["ignore"] = utils.arr2set({"table"})
 }
