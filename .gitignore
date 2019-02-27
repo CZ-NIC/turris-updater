@@ -20,6 +20,7 @@ __pycache__
 # Stuff dump core all over the place.
 core
 vgcore.*
+massif.out.*
 # Development
 tags
 .tags
