@@ -25,13 +25,14 @@ local DIE = DIE
 module "syscnf"
 
 -- Variables accessed from outside of this module
--- luacheck: globals root_dir status_file info_dir pkg_temp_dir dir_opkg_collided target_model target_board
+-- luacheck: globals root_dir status_file info_dir pkg_download_dir pkg_unpacked_dir dir_opkg_collided target_model target_board
 -- Functions that we want to access from outside of this module
 -- luacheck: globals set_root_dir set_target
 
 local status_file_suffix = "usr/lib/opkg/status"
 local info_dir_suffix = "usr/lib/opkg/info/"
-local pkg_temp_dir_suffix = "usr/share/updater/unpacked/"
+local pkg_unpacked_dir_suffix = "usr/share/updater/unpacked/"
+local pkg_download_dir_suffix = "usr/share/updater/download/"
 local dir_opkg_collided_suffix = "usr/share/updater/collided/"
 
 --[[
@@ -68,8 +69,10 @@ function set_root_dir(dir)
 	status_file = dir .. status_file_suffix
 	-- The directory where unpacked control files of the packages live
 	info_dir = dir .. info_dir_suffix
+	-- A directory to which we download packages
+	pkg_download_dir = dir .. pkg_download_dir_suffix
 	-- A directory where unpacked packages live
-	pkg_temp_dir = dir .. pkg_temp_dir_suffix
+	pkg_unpacked_dir = dir .. pkg_unpacked_dir_suffix
 	-- Directory where we move files and directories that weren't part of any package.
 	dir_opkg_collided = dir .. dir_opkg_collided_suffix
 end

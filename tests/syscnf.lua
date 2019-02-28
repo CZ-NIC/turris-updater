@@ -26,7 +26,8 @@ function test_set_root_dir()
 	SC.set_root_dir("/dir/")
 	assert_equal("/dir/usr/lib/opkg/status", SC.status_file)
 	assert_equal("/dir/usr/lib/opkg/info/", SC.info_dir)
-	assert_equal("/dir/usr/share/updater/unpacked/", SC.pkg_temp_dir)
+	assert_equal("/dir/usr/share/updater/unpacked/", SC.pkg_unpacked_dir)
+	assert_equal("/dir/usr/share/updater/download/", SC.pkg_download_dir)
 	assert_equal("/dir/usr/share/updater/collided/", SC.dir_opkg_collided)
 end
 
