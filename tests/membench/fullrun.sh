@@ -26,7 +26,7 @@ mkdir repo
 pushd repo
 for i in $(seq 50); do
 	package_template "test_$i"
-	openssl rand -out "test_big/data/file" $(( i * 1000000 ))
+	openssl rand -out "test_$i/data/file.$i" $(( i * 1000000 ))
 	package_pack "test_$i"
 done
 repo_gen
