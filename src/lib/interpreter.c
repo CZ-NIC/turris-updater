@@ -26,6 +26,7 @@
 #include "locks.h"
 #include "arguments.h"
 #include "picosat.h"
+#include "unpacker.h"
 
 #include <lua.h>
 #include <lualib.h>
