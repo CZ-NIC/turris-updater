@@ -31,6 +31,7 @@ local error = error
 local pcall = pcall
 local assert = assert
 local pairs = pairs
+local collectgarbage = collectgarbage
 local unpack = unpack
 local table = table
 local backend = require "backend"
@@ -91,7 +92,7 @@ local function pkg_unpack(operations, status)
 				WARN("Package " .. op.name .. " is not installed. Can't remove")
 			end
 		elseif op.op == "install" then
-			local pkg_dir = backend.pkg_unpack(op.data, syscnf.pkg_temp_dir)
+			local pkg_dir = backend.pkg_unpack(op.file)
 			table.insert(dir_cleanups, pkg_dir)
 			local files, dirs, configs, control = backend.pkg_examine(pkg_dir)
 			to_remove[control.Package] = true
@@ -292,14 +293,11 @@ local function perform_internal(operations, journal_status, run_state)
 	-- Emulate try-finally
 	local ok, err = pcall(function ()
 		-- Make sure the temporary directory for unpacked packages exist
-		local created = ""
-		for segment in syscnf.pkg_temp_dir:gmatch("([^/]*)/") do
-			created = created .. segment .. "/"
-			backend.dir_ensure(created)
-		end
+		utils.mkdirp(syscnf.pkg_unpacked_dir)
 		-- Look at what the current status looks like.
 		local to_remove, to_install, plan
 		to_remove, to_install, plan, dir_cleanups, cleanup_actions = step(journal.UNPACKED, pkg_unpack, true, operations, status)
+		utils.cleanup_dirs({syscnf.pkg_download_dir})
 		cleanup_actions = cleanup_actions or {} -- just to handle if journal contains no cleanup actions (journal from previous version)
 		-- Drop the operations. This way, if we are tail-called, then the package buffers may be garbage-collected
 		operations = nil
@@ -426,6 +424,7 @@ function perform_queue()
 		-- Ensure we reset the queue by running it. And also that we allow the garbage collector to collect the data in there.
 		local queue_cp = queue
 		queue = {}
+		collectgarbage() -- explicitly try to collect queue
 		return errors_format(perform(queue_cp))
 	end
 end
@@ -442,18 +441,13 @@ end
 
 -- Queue a request to install a package from the given file name.
 function queue_install(filename)
-	local content, err = utils.read_file(filename)
-	if content then
-		table.insert(queue, {op = "install", data = content})
-	else
-		error(err)
-	end
+	table.insert(queue, {op = "install", file = filename})
 end
 
-function queue_install_downloaded(data, name, version, modifier)
+function queue_install_downloaded(file, name, version, modifier)
 	table.insert(queue, {
 		op = "install",
-		data = data,
+		file = file,
 		name = name,
 		version = version,
 		reboot = modifier.reboot,

@@ -22,7 +22,7 @@ local B = require 'backend'
 local T = require 'transaction'
 local utils = require 'utils'
 local journal = require 'journal'
-require "syscnf"
+local syscnf = require "syscnf"
 
 syscnf.set_root_dir()
 
@@ -57,25 +57,9 @@ local intro = {
 		p = {}
 	},
 	{
-		f = "backend.dir_ensure",
-		p = {"/"}
-	},
-	{
-		f = "backend.dir_ensure",
-		p = {"/usr/"}
-	},
-	{
-		f = "backend.dir_ensure",
-		p = {"/usr/share/"}
-	},
-	{
-		f = "backend.dir_ensure",
-		p = {"/usr/share/updater/"}
-	},
-	{
-		f = "backend.dir_ensure",
+		f = "utils.mkdirp",
 		p = {"/usr/share/updater/unpacked/"}
-	}
+	},
 }
 
 local function outro(cleanup_dirs, status)
@@ -120,7 +104,9 @@ local function tables_join(...)
 end
 
 local function mocks_install()
-	mock_gen("backend.dir_ensure")
+	mock_gen("os.remove")
+	mock_gen("utils.dir_ensure")
+	mock_gen("utils.mkdirp")
 	mock_gen("backend.status_parse", function () fail("Forbidden function backend.status_parse") end)
 	mock_gen("backend.run_state", function()
 		return {
@@ -169,6 +155,10 @@ function test_perform_empty()
 			p = {journal.UNPACKED, {}, {}, {}, {}, {}}
 		},
 		{
+			f="utils.cleanup_dirs",
+			p={ { "/usr/share/updater/download/" } }
+		},
+		{
 			f = "backend.collision_check",
 			p = {test_status, {}, {}}
 		},
@@ -199,7 +189,7 @@ function test_perform_ok()
 	local result = T.perform({
 		{
 			op = "install",
-			data = "<package data>"
+			file = "<package>"
 		}, {
 			op = "remove",
 			name = "pkg-rem"
@@ -223,7 +213,7 @@ function test_perform_ok()
 	local expected = tables_join(intro, {
 		{
 			f = "backend.pkg_unpack",
-			p = {"<package data>", syscnf.pkg_temp_dir}
+			p = {"<package>"}
 		},
 		{
 			f = "backend.pkg_examine",
@@ -257,6 +247,10 @@ function test_perform_ok()
 				{"pkg_dir"},
 				{}
 			}
+		},
+		{
+			f = "utils.cleanup_dirs",
+			p = {{syscnf.pkg_download_dir}}
 		},
 		{
 			f = "backend.collision_check",
@@ -351,16 +345,16 @@ end
 function test_perform_collision()
 	mocks_install()
 	mock_gen("backend.collision_check", function () return {f = {["<pkg1name>"] = "new", ["<pkg2name>"] = "new", ["other"] = "existing"}}, {} end)
-	mock_gen("backend.pkg_unpack", function (data) return data:gsub("data", "dir") end)
+	mock_gen("backend.pkg_unpack", function (data) return data:gsub("file", "dir") end)
 	mock_gen("backend.pkg_examine", function (dir) return {f = true}, {d = true}, {c = "1234567890123456"}, {Package = dir:gsub("dir", "name")} end)
 	local ok, err = pcall(T.perform, {
 		{
 			op = "install",
-			data = "<pkg1data>"
+			file = "<pkg1file>"
 		},
 		{
 			op = "install",
-			data = "<pkg2data>"
+			file = "<pkg2file>"
 		}
 	})
 	assert_false(ok)
@@ -370,7 +364,7 @@ function test_perform_collision()
 	local expected = tables_join(intro, {
 		{
 			f = "backend.pkg_unpack",
-			p = {"<pkg1data>", syscnf.pkg_temp_dir}
+			p = {"<pkg1file>"}
 		},
 		{
 			f = "backend.pkg_examine",
@@ -378,7 +372,7 @@ function test_perform_collision()
 		},
 		{
 			f = "backend.pkg_unpack",
-			p = {"<pkg2data>", syscnf.pkg_temp_dir}
+			p = {"<pkg2file>"}
 		},
 		{
 			f = "backend.pkg_examine",
@@ -415,6 +409,10 @@ function test_perform_collision()
 				{"<pkg1dir>", "<pkg2dir>"},
 				{}
 			}
+		},
+		{
+			f = "utils.cleanup_dirs",
+			p = {{syscnf.pkg_download_dir}}
 		},
 		{
 			f = "backend.collision_check",
@@ -552,6 +550,7 @@ function test_recover_late()
 	status_mod["pkg-rem"] = nil
 	local intro_mod = utils.clone(intro)
 	intro_mod[2].f = "journal.recover"
+	intro_mod[4] = {f = "utils.cleanup_dirs", p = {{syscnf.pkg_download_dir}}}
 	local expected = tables_join(intro_mod, outro({"pkg_dir"}, status_mod))
 	assert_table_equal(expected, mocks_called)
 end

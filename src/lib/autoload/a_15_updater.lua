@@ -114,7 +114,9 @@ function prepare(entrypoint)
 					error(utils.exception("corruption", "The sha256 sum of " .. task.name .. " does not match"))
 				end
 			end
-			transaction.queue_install_downloaded(data, task.name, task.package.Version, task.modifier)
+			local fpath = syscnf.pkg_download_dir .. task.name .. '-' .. task.package.Version .. '.ipk'
+			utils.write_file(fpath, data)
+			transaction.queue_install_downloaded(fpath, task.name, task.package.Version, task.modifier)
 		elseif task.action == "remove" then
 			INFO("Queue removal of " .. task.name)
 			transaction.queue_remove(task.name)

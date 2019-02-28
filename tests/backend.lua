@@ -28,6 +28,7 @@ local lines2set = utils.lines2set
 module("backend-tests", package.seeall, lunit.testcase)
 
 local datadir = (os.getenv("S") or ".") .. "/tests/data/"
+local tmpdir = os.getenv("TMPDIR") or "/tmp"
 
 -- Tests for the block_parse function
 function test_block_parse()
@@ -257,7 +258,8 @@ local tmp_dirs = {}
 Test the chain of functions ‒ unpack, examine
 ]]
 function test_pkg_unpack()
-	local path = B.pkg_unpack(utils.read_file(datadir .. "updater.ipk"))
+	syscnf.set_root_dir(tmpdir)
+	local path = B.pkg_unpack(datadir .. "updater.ipk")
 	-- Make sure it is deleted on teardown
 	table.insert(tmp_dirs, path)
 	-- Check list of extracted files

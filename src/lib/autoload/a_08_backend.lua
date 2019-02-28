@@ -60,7 +60,7 @@ module "backend"
 -- luacheck: globals cmd_timeout cmd_kill_timeout
 -- Functions that we want to access from outside (ex. for testing purposes)
 -- luacheck: globals block_parse block_split block_dump_ordered pkg_status_dump package_postprocess status_parse get_parent config_modified
--- luacheck: globals repo_parse status_dump pkg_unpack pkg_examine collision_check installed_confs steal_configs dir_ensure pkg_merge_files pkg_merge_control pkg_config_info pkg_cleanup_files script_run control_cleanup version_cmp version_match run_state user_path_move get_nonconf_files get_changed_files
+-- luacheck: globals repo_parse status_dump pkg_unpack pkg_examine collision_check installed_confs steal_configs pkg_merge_files pkg_merge_control pkg_config_info pkg_cleanup_files script_run control_cleanup version_cmp version_match run_state user_path_move get_nonconf_files get_changed_files
 
 --[[
 Configuration of the module. It is supported (yet unlikely to be needed) to modify
@@ -417,9 +417,18 @@ function status_dump(status)
 	end
 end
 
+local function rmrf(dir)
+	-- TODO: Would it be better to remove from within our code, without calling rm?
+	events_wait(run_util(function (ecode, _, _, stderr)
+		if ecode ~= 0 then
+			WARN("Failed to clean up work directory ", dir, ": ", stderr)
+		end
+	end, nil, nil, cmd_timeout, cmd_kill_timeout, "rm", "-rf", dir))
+end
+
 --[[
-Take the .ipk package (passed as the data, not as a path to a file) and unpack it
-into a temporary location somewhere under tmp_dir. If you omit tmp_dir, /tmp is used.
+Take the .ipk package and unpack it into a temporary location somewhere under
+pkg_unpacked_dir.
 
 It returns a path to a subdirectory of tmp_dir, where the package is unpacked.
 There are two further subdirectories, control and data. Data are the files to be merged
@@ -429,13 +438,13 @@ TODO:
 • Sanity checking of the package.
 • Less calling of external commands.
 ]]
-function pkg_unpack(package, tmp_dir)
+function pkg_unpack(package_path)
 	-- The first unpack goes into the /tmp
 	-- We assume s1dir returs sane names of directories ‒ no spaces or strange chars in them
 	local s1dir = mkdtemp()
 	-- The results go into the provided dir, or to /tmp if none was provided
-	-- FIXME: Sanity-check provided tmp_dir ‒ it must not contain strange chars
-	local s2dir = mkdtemp(tmp_dir)
+	utils.mkdirp(syscnf.pkg_unpacked_dir)
+	local s2dir = mkdtemp(syscnf.pkg_unpacked_dir)
 	-- If anything goes wrong, this is where we find the error message
 	local err
 	-- Unpack the ipk into s1dir, getting control.tar.gz and data.tar.gz
@@ -444,7 +453,7 @@ function pkg_unpack(package, tmp_dir)
 			if ecode ~= 0 then
 				err = "Stage 1 unpack failed: " .. stderr
 			end
-		end, function () chdir(s1dir) end, package, cmd_timeout, cmd_kill_timeout, "sh", "-c", "gzip -dc | tar x"))
+		end, nil, nil, cmd_timeout, cmd_kill_timeout, "tar", "-xzf", package_path, "-C", s1dir))
 		-- TODO: Sanity check debian-binary
 		return err == nil
 	end
@@ -452,11 +461,12 @@ function pkg_unpack(package, tmp_dir)
 	local function unpack_archive(what)
 		local archive = s1dir .. "/" .. what .. ".tar.gz"
 		local dir = s2dir .. "/" .. what
+		mkdir(dir)
 		return run_util(function (ecode, _, _, stderr)
 			if ecode ~= 0 then
 				err = "Stage 2 unpack of " .. what .. " failed: " .. stderr
 			end
-		end, nil, package, cmd_timeout, cmd_kill_timeout, "sh", "-c", "mkdir -p '" .. dir .. "' && cd '" .. dir .. "' && gzip -dc <'" .. archive .. "' | tar xp")
+		end, nil, nil, cmd_timeout, cmd_kill_timeout, "tar", "-xzf", archive, '-C', dir)
 	end
 	local function stage2()
 		events_wait(unpack_archive("control"), unpack_archive("data"))
@@ -464,24 +474,12 @@ function pkg_unpack(package, tmp_dir)
 	end
 	-- Try-finally like construct, make sure cleanup is called no matter what
 	local success, ok = pcall(function () return stage1() and stage2() end)
-	-- Do the cleanups
-	local events = {}
-	local function remove(dir)
-		-- TODO: Would it be better to remove from within our code, without calling rm?
-		table.insert(events, run_util(function (ecode, _, _, stderr)
-			if ecode ~= 0 then
-				WARN("Failed to clean up work directory ", dir, ": ", stderr)
-			end
-		end, nil, nil, cmd_timeout, cmd_kill_timeout, "rm", "-rf", dir))
-	end
 	-- Intermediate work space, not needed by the caller
-	remove(s1dir)
+	rmrf(s1dir)
 	if err then
 		-- Clean up the resulting directory in case of errors
-		remove(s2dir)
+		rmrf(s2dir)
 	end
-	-- Run all the cleanup removes in parallel
-	events_wait(unpack(events))
 	-- Cleanup done, call error() if anything failed
 	if not success then error(ok) end
 	if not ok then error(err) end
@@ -764,25 +762,6 @@ function steal_configs(current_status, installed_confs, configs)
 	return steal
 end
 
--- Ensure the given directory exists
-function dir_ensure(dir)
-	-- Try creating it.
-	local ok, err = pcall(function () mkdir(dir) end)
-	if not ok then
-		-- It may have failed because it already exists, check it
-		local tp = stat(dir)
-		if not tp then
-			-- It does not create, so creation failed for some reason
-			error(err)
-		elseif tp ~= "d" then
-			-- It failed because there is some file
-			return false
-		end
-		-- else ‒ there's the given directory, so it failed because it pre-existed. That's OK.
-	end
-	return true
-end
-
 --[[
 Move anything on given path to dir_opkg_collided. This backups and removes original files.
 When keep is set to true, file is copied instead of moved.
@@ -792,7 +771,7 @@ function user_path_move(path, keep)
 	local fpath = ""
 	for dir in (syscnf.dir_opkg_collided .. path):gsub("[^/]*/?$", ""):gmatch("[^/]+") do
 		local randex = ""
-		while not dir_ensure(fpath .. "/" .. dir .. randex) do
+		while not utils.dir_ensure(fpath .. "/" .. dir .. randex) do
 			-- If there is file with same name, then append some random extension
 			randex = "." .. utils.randstr(6)
 		end
@@ -842,10 +821,10 @@ function pkg_merge_files(dir, dirs, files, configs)
 	for _, new_dir in ipairs(dirs_sorted) do
 		DBG("Creating dir " .. new_dir)
 		local dir = syscnf.root_dir .. new_dir
-		if not dir_ensure(dir) then
+		if not utils.dir_ensure(dir) then
 			-- There is some file that user created. Move it away
 			user_path_move(dir)
-			dir_ensure(dir)
+			utils.dir_ensure(dir)
 		end
 	end
 	--[[
