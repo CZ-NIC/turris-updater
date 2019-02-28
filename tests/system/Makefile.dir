@@ -9,6 +9,7 @@ TRANS_SYS_TESTS := \
 UPD_SYS_TESTS := \
 	help \
 	plan \
+	plan-unapproved \
 	steal-confs \
 	simple-update \
 	multiple-repos \
