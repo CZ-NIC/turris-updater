@@ -11,7 +11,7 @@
 #include <linux/limits.h>
 
 
-static int copy_data(struct archive *ar, struct archive *aw) {
+int copy_data(struct archive *ar, struct archive *aw) {
     int r;
     const void *buff;
     size_t size;
@@ -31,10 +31,7 @@ static int copy_data(struct archive *ar, struct archive *aw) {
     }
 }
 
-/* 
- * Insert ./ when missing
- */
-static char * sanitize_filename(char *dst, const char *src) {
+char * sanitize_filename(char *dst, const char *src) {
 	int r;
 	r = strncmp("./", src, 2);
 	if (r != 0) {
@@ -46,10 +43,7 @@ static char * sanitize_filename(char *dst, const char *src) {
 	return dst;
 }
 
-/*
- * Get inner archive `subarcname` from archive `arcname` into `arc`
- */
-static int get_inner_archive(struct archive *arc, const char* arcname, const char* subarcname) {
+int get_inner_archive(struct archive *arc, const char* arcname, const char* subarcname) {
 	struct archive *a;
 	struct archive_entry *entry;
 	int r, size;
@@ -84,7 +78,7 @@ static int get_inner_archive(struct archive *arc, const char* arcname, const cha
 	return -1;
 }
 
-static int extract_file(struct archive *a, const char *filename) {
+int extract_file(struct archive *a, const char *filename) {
 	struct archive *ext;
 	struct archive_entry *entry;
 	int r;
@@ -124,7 +118,7 @@ static int extract_file(struct archive *a, const char *filename) {
 	return 0;
 }
 
-static int extract_files(struct archive *a, char *files[], int count) {
+int extract_files(struct archive *a, char *files[], int count) {
 	struct archive *ext;
 	struct archive_entry *entry;
 	int i, r, flags;
