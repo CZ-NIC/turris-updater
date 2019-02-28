@@ -7,7 +7,6 @@ Updater is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
-
 Updater is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -553,114 +552,6 @@ function test_recover_late()
 	intro_mod[4] = {f = "utils.cleanup_dirs", p = {{syscnf.pkg_download_dir}}}
 	local expected = tables_join(intro_mod, outro({"pkg_dir"}, status_mod))
 	assert_table_equal(expected, mocks_called)
-end
-
-function test_empty()
-	assert(transaction.empty())
-	transaction.queue_remove("pkg")
-	assert_false(transaction.empty())
-end
-
-function test_approval_hash()
-	-- When nothing is present, the hash is equal to one of an empty string
-	assert_equal(sha256(''), transaction.approval_hash())
-	-- Override the transaction.perform with empty function, so we can clean the queue when we like
-	mocks_install('transaction.perform', function () return {} end)
-	local function ops_hash(ops)
-		for _, op in ipairs(ops) do
-			transaction["queue_" .. op[1]](unpack(op, 2))
-		end
-		local hash = transaction.approval_hash()
-		-- get rid of the queue
-		transaction.perform_queue()
-		return hash
-	end
-	local function equal(ops1, ops2)
-		return ops_hash(ops1) == ops_hash(ops2)
-	end
-	-- The same lists of operations return the same hash
-	assert_true(equal(
-	{
-		{'install_downloaded', '', 'pkg', 13, {}},
-		{'remove', 'pkg2'}
-	},
-	{
-		{'install_downloaded', '', 'pkg', 13, {}},
-		{'remove', 'pkg2'}
-	}))
-	-- The order doesn't matter (since we are not sure if the planner is deterministic in that regard)
-	assert_true(equal(
-	{
-		{'install_downloaded', '', 'pkg', 13, {}},
-		{'remove', 'pkg2'}
-	},
-	{
-		{'remove', 'pkg2'},
-		{'install_downloaded', '', 'pkg', 13, {}}
-	}))
-	-- Package version changes the hash
-	assert_false(equal(
-	{
-		{'install_downloaded', '', 'pkg', 13, {}},
-		{'remove', 'pkg2'}
-	},
-	{
-		{'install_downloaded', '', 'pkg', 14, {}},
-		{'remove', 'pkg2'}
-	}))
-	-- Package name changes the hash
-	assert_false(equal(
-	{
-		{'install_downloaded', '', 'pkg', 13, {}},
-		{'remove', 'pkg2'}
-	},
-	{
-		{'install_downloaded', '', 'pkg3', 13, {}},
-		{'remove', 'pkg2'}
-	}))
-	-- Package the operation changes the hash
-	assert_false(equal(
-	{
-		{'install_downloaded', '', 'pkg', 13, {}},
-		{'remove', 'pkg2'}
-	},
-	{
-		{'remove', 'pkg'},
-		{'remove', 'pkg2'}
-	}))
-	-- Omitting one of the tasks changes the hash
-	assert_false(equal(
-	{
-		{'install_downloaded', '', 'pkg', 13, {}},
-		{'remove', 'pkg2'}
-	},
-	{
-		{'remove', 'pkg2'}
-	}))
-end
-
-function test_task_report()
-	assert_equal('', transaction.task_report())
-	assert_equal('', transaction.task_report('', true))
-	assert_equal('', transaction.task_report('prefix '))
-	transaction.queue_install_downloaded('', "pkg1", 13, {reboot = "finished"})
-	transaction.queue_remove("pkg2")
-	assert_equal([[
-install	13	pkg1
-remove	-	pkg2
-]], transaction.task_report())
-	assert_equal([[
-install	13	pkg1	finished
-remove	-	pkg2	-
-]], transaction.task_report('', true))
-	assert_equal([[
-prefix install	13	pkg1
-prefix remove	-	pkg2
-]], transaction.task_report('prefix '))
-	assert_equal([[
-prefix install	13	pkg1	finished
-prefix remove	-	pkg2	-
-]], transaction.task_report('prefix ', true))
 end
 
 function teardown()

@@ -27,7 +27,8 @@ LUA_TESTS := \
 	syscnf \
 	cleanup \
 	uri \
-	picosat
+	picosat \
+	updater
 
 ifdef COV
 LUA_TESTS += coverage

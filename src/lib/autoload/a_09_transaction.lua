@@ -51,12 +51,11 @@ local LS_CLEANUP = LS_CLEANUP
 local update_state = update_state
 local sync = sync
 local log_event = log_event
-local sha256 = sha256
 local system_reboot = system_reboot
 
 module "transaction"
 
--- luacheck: globals perform recover empty perform_queue recover_pretty queue_remove queue_install queue_install_downloaded approval_hash task_report cleanup_actions
+-- luacheck: globals perform recover perform_queue recover_pretty queue_remove queue_install queue_install_downloaded cleanup_actions
 
 -- Wrap the call to the maintainer script, and store any possible errors for later use
 local function script(errors_collected, name, suffix, ...)
@@ -410,23 +409,16 @@ local function errors_format(errors)
 	end
 end
 
-function empty()
-	return not next(queue)
-end
-
 --[[
 Run transaction of the queued operations.
 ]]
 function perform_queue()
-	if empty() then
-		return true
-	else
-		-- Ensure we reset the queue by running it. And also that we allow the garbage collector to collect the data in there.
-		local queue_cp = queue
-		queue = {}
-		collectgarbage() -- explicitly try to collect queue
-		return errors_format(perform(queue_cp))
-	end
+	if not next(queue) then return true end
+	-- Ensure we reset the queue by running it. And also that we allow the garbage collector to collect the data in there.
+	local queue_cp = queue
+	queue = {}
+	collectgarbage() -- explicitly try to collect queue
+	return errors_format(perform(queue_cp))
 end
 
 -- Just like recover, but with the result formatted.
@@ -453,30 +445,6 @@ function queue_install_downloaded(file, name, version, modifier)
 		reboot = modifier.reboot,
 		replan = modifier.replan
 	})
-end
-
-local function queued_tasks(extensive)
-	return utils.map(queue, function (i, task)
-		local d = {task.op, task.version or '-', task.name}
-		if extensive then
-			table.insert(d, task.reboot or '-')
-		end
-		return i, table.concat(d, '	') .. "\n"
-	end)
-end
-
--- Compute the approval hash of the queued operations
-function approval_hash()
-	-- Convert the tasks into formatted lines, sort them and hash it.
-	local requests = queued_tasks(true)
-	table.sort(requests)
-	return sha256(table.concat(requests))
-end
-
--- Provide a human-readable report of the queued tasks
-function task_report(prefix, extensive)
-	prefix = prefix or ''
-	return table.concat(utils.map(queued_tasks(extensive), function (i, str) return i, prefix .. str end))
 end
 
 return _M
