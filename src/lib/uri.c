@@ -47,7 +47,7 @@ static const char *error_messages[] = {
 	[URI_E_PUBKEY_FAIL] = "Unable to get public key",
 	[URI_E_SIG_FAIL] = "Signature URI failure",
 	[URI_E_VERIFY_FAIL] = "Signature verification failure",
-	[URI_E_NONLOCAL] = "URI configured to be used as either CA, CRL or PUBKEY is not local one (file or data)",
+	[URI_E_NONLOCAL] = "URI to be used as either CA, CRL or PUBKEY is not local one (file or data)",
 };
 
 static const char *schemes_table[] = {
@@ -532,8 +532,7 @@ bool uri_finish(struct uri *uri) {
 }
 
 void uri_take_buffer(struct uri *uri, uint8_t **buffer, size_t *len) {
-	ASSERT_MSG(uri->output_type == URI_OUT_T_BUFFER,
-			"URI is not of buffer output type: %s", uri->uri);
+	ASSERT_MSG(uri->output_type == URI_OUT_T_BUFFER, "URI is not of buffer output type: %s", uri->uri);
 	ASSERT_MSG(uri->finished, "URI has to be finished before requesting buffers: %s", uri->uri);
 	*buffer = uri->output_info.buf.data;
 	*len = uri->output_info.buf.size;
@@ -559,10 +558,9 @@ const char *uri_scheme_string(enum uri_scheme scheme) {
 #define CONFIG_GUARD ASSERT_MSG(!uri->download_instance && !uri->finished, \
 		"(%s) URI configuration can't be changed after uri_register_downloader and uri_finish", uri->uri)
 
-bool uri_set_ssl_verify(struct uri *uri, bool verify) {
+void uri_set_ssl_verify(struct uri *uri, bool verify) {
 	CONFIG_GUARD;
 	uri->ssl_verify = verify;
-	return true;
 }
 
 // Generate temporally file from all subsequent certificates (and CRLs)
@@ -648,6 +646,11 @@ static bool list_ca_crl_add(const char *str_uri, struct uri_local_list **list) {
 		return true;
 	}
 	struct uri *nuri = uri_to_buffer(str_uri, NULL);
+	if (!nuri) {
+		uri_sub_errno = uri_errno;
+		uri_sub_err_uri = NULL;
+		return false;
+	}
 	if (!uri_is_local(nuri)) {
 		uri_errno = URI_E_NONLOCAL;
 		uri_free(nuri);
@@ -669,10 +672,9 @@ bool uri_add_crl(struct uri *uri, const char *crl_uri) {
 	return list_ca_crl_add(crl_uri, &uri->crl);
 }
 
-bool uri_set_ocsp(struct uri *uri, bool enabled) {
+void uri_set_ocsp(struct uri *uri, bool enabled) {
 	CONFIG_GUARD;
 	uri->ocsp = enabled;
-	return true;
 }
 
 // Generate temporally file from all subsequent public keys
@@ -741,5 +743,6 @@ bool uri_set_sig(struct uri *uri, const char *sig_uri) {
 	if (!uri->sig_uri)
 		return false;
 	uri_add_pubkey(uri->sig_uri, NULL); // Reset public keys (verification is not possible)
+	TRACE("Signature URI set for %s set to: %s", uri->uri, sig_uri);
 	return true;
 }

@@ -182,7 +182,7 @@ const char *uri_scheme_string(enum uri_scheme);
 // verify: boolean value setting if verification should or should not be done
 // In default this is enabled.
 // This setting is inherited.
-bool uri_set_ssl_verify(struct uri *uri, bool verify) __attribute__((nonnull(1)));
+void uri_set_ssl_verify(struct uri *uri, bool verify) __attribute__((nonnull(1)));
 // Set certification authority to be used
 // uri: URI object CA to be set to
 // ca_uri: URI to local CA to be added to list of CAs for SSL verification. You
@@ -204,7 +204,7 @@ bool uri_add_crl(struct uri *uri, const char *crl_uri) __attribute__((nonnull(1)
 // enabled: If OCSP should be used
 // In default OCSP is enabled.
 // This setting is inherited.
-bool uri_set_ocsp(struct uri *uri, bool enabled) __attribute__((nonnull(1)));
+void uri_set_ocsp(struct uri *uri, bool enabled) __attribute__((nonnull(1)));
 // HTTP/HTTPS configuration //
 // Set public key verification
 // uri: URI object public keys are set to

@@ -50,16 +50,13 @@ end
 
 function required_pkgs(entrypoint)
 	-- Get the top-level script
-	local tlc = sandbox.new('Full')
-	local ep_uri = uri(tlc, entrypoint)
-	local ok, tls = ep_uri:get()
-	if not ok then error(tls) end
+	local entry_chunk, entry_uri = utils.uri_content(entrypoint, nil, {})
+	local merge = {
+		-- Note: See requests.script for usage of this value
+		["parent_script_uri"] = entry_uri
+	}
 	update_state(LS_CONF)
-	--[[
-	Run the top level script with full privileges.
-	The script shall be part of updater anyway.
-	]]
-	local err = sandbox.run_sandboxed(tls, "", 'Full')
+	local err = sandbox.run_sandboxed(entry_chunk, entrypoint, 'Full', nil, merge)
 	if err and err.tp == 'error' then error(err) end
 	update_state(LS_PLAN)
 	-- Go through all the requirements and decide what we need

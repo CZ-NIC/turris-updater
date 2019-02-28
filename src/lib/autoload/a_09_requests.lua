@@ -38,7 +38,7 @@ local WARN = WARN
 
 module "requests"
 
--- luacheck: globals known_packages package_wrap known_repositories known_repositories_all repo_serial repository repository_get content_requests install uninstall script package
+-- luacheck: globals known_packages package_wrap known_repositories known_repositories_all repositories_uri_master repo_serial repository repository_get content_requests install uninstall script package
 
 -- Verifications fields are same for script, repository and package. Lets define them here once and then just append.
 local allowed_extras_verification = {
@@ -266,6 +266,8 @@ known_repositories_all = {}
 -- Order of the repositories as they are parsed
 repo_serial = 1
 
+repositories_uri_master = uri.new()
+
 --[[
 Promise of a future repository. The repository shall be downloaded after
 all the configuration scripts are run, parsed and used as a source of
@@ -307,15 +309,16 @@ function repository(context, name, repo_uri, extra)
 		for _, sub in pairs(extra.subdirs) do
 			sub = "/" .. sub
 			local u = repo_uri .. sub .. '/Packages.gz'
-			local params = utils.table_overlay(result)
-			params.sig = repo_uri .. sub .. '/Packages.sig'
-			utils.private(result).index_uri[sub] = uri(context, u, params)
+			extra.sig = extra.sig or repo_uri .. sub .. '/Packages.sig'
+			local iuri = repositories_uri_master:to_buffer(u, context.paret_script_uri)
+			utils.uri_config(iuri, extra);
+			utils.private(result).index_uri[sub] = iuri
 		end
 	else
 		local u = result.index or repo_uri .. '/Packages.gz'
-		local params = utils.table_overlay(result)
-		params.sig = params.sig or u:gsub('%.gz$', '') .. '.sig'
-		utils.private(result).index_uri = {[""] = uri(context, u, params)}
+		extra.sig = extra.sig or u:gsub('%.gz$', '') .. '.sig'
+		local iuri = repositories_uri_master:to_buffer(u, context.paret_script_uri)
+		utils.private(result).index_uri = {[""] = iuri}
 	end
 	result.priority = result.priority or 50
 	result.serial = repo_serial

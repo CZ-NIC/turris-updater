@@ -38,6 +38,12 @@ function test_master()
 	master:download() -- it whould pass without any uri
 end
 
+function test_uri()
+	local master = uri.new()
+	local u = master:to_buffer("file:///dev/null")
+	assert_equal("file:///dev/null", u:uri())
+end
+
 function test_to_buffer()
 	local master = uri.new()
 	local u = master:to_buffer("data:,Hello!")

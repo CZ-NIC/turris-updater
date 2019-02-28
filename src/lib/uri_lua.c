@@ -42,7 +42,7 @@ struct uri_master {
 
 static int lua_uri_master_new(lua_State *L) {
 	struct uri_master *urim = lua_newuserdata(L, sizeof *urim);
-	static unsigned rid_seq = 0; // TODO: no rollover expected
+	static unsigned rid_seq = 0; // Note: no rollover expected
 	urim->rid = rid_seq++;
 	urim->downloader = downloader_new(DEFAULT_PARALLEL_DOWNLOAD);
 	luaL_getmetatable(L, URI_MASTER_META);
@@ -75,7 +75,16 @@ static void lua_uri_master_registry(lua_State *L, struct uri_master *urim) {
 	lua_replace(L, -2);
 }
 
-static void lua_new_uri_tail(lua_State *L, struct uri_master *urim, struct uri_lua *uri) {
+static int lua_new_uri_tail(lua_State *L, struct uri_master *urim, struct uri *u, char *fpath) {
+	// Verify uri
+	if (!u) {
+		free(fpath);
+		return luaL_error(L, aprintf("URI object initialization failed: %s", uri_error_msg(uri_errno)));;
+	}
+	// Create lua URI object
+	struct uri_lua *uri = lua_newuserdata(L, sizeof *uri);
+	uri->uri = u;
+	uri->fpath = fpath;
 	// Set meta
 	luaL_getmetatable(L, URI_META);
 	lua_setmetatable(L, -2);
@@ -87,6 +96,7 @@ static void lua_new_uri_tail(lua_State *L, struct uri_master *urim, struct uri_l
 		lua_settable(L, -3);
 		lua_pop(L, 1);
 	}
+	return 1;
 }
 
 static int lua_uri_master_to_file(lua_State *L) {
@@ -96,12 +106,9 @@ static int lua_uri_master_to_file(lua_State *L) {
 	struct uri *parent = NULL;
 	if (!lua_isnoneornil(L, 4))
 		parent = ((struct uri_lua*)luaL_checkudata(L, 4, URI_META))->uri;
-	struct uri_lua *uri = lua_newuserdata(L, sizeof *uri);
-	uri->uri = uri_to_file(str_uri, output_path, parent);
-	// TODO handle errors
-	uri->fpath = strdup(output_path);
-	lua_new_uri_tail(L, urim, uri);
-	return 1;
+
+	struct uri *u = uri_to_file(str_uri, output_path, parent);
+	return lua_new_uri_tail(L, urim, u, strdup(output_path));
 }
 
 static int lua_uri_master_to_temp_file(lua_State *L) {
@@ -111,12 +118,10 @@ static int lua_uri_master_to_temp_file(lua_State *L) {
 	struct uri *parent = NULL;
 	if (!lua_isnoneornil(L, 4))
 		parent = ((struct uri_lua*)luaL_checkudata(L, 4, URI_META))->uri;
-	struct uri_lua *uri = lua_newuserdata(L, sizeof *uri);
-	uri->fpath = strdup(template);
-	uri->uri = uri_to_temp_file(str_uri, uri->fpath, parent);
-	// TODO handle error
-	lua_new_uri_tail(L, urim, uri);
-	return 1;
+
+	char *fpath = strdup(template);
+	struct uri *u = uri_to_temp_file(str_uri, fpath, parent);
+	return lua_new_uri_tail(L, urim, u, fpath);
 }
 
 static int lua_uri_master_to_buffer(lua_State *L) {
@@ -127,12 +132,9 @@ static int lua_uri_master_to_buffer(lua_State *L) {
 		printf("ups %s %d\n", lua_typename(L, lua_type(L, 3)), lua_gettop(L));
 		parent = ((struct uri_lua*)luaL_checkudata(L, 3, URI_META))->uri;
 	}
-	struct uri_lua *uri = lua_newuserdata(L, sizeof *uri);
-	uri->uri = uri_to_buffer(str_uri, parent);
-	// TODO handle error
-	uri->fpath = NULL;
-	lua_new_uri_tail(L, urim, uri);
-	return 1;
+
+	struct uri *u = uri_to_buffer(str_uri, parent);
+	return lua_new_uri_tail(L, urim, u, NULL);
 }
 
 static int lua_uri_master_download(lua_State *L) {
@@ -184,10 +186,16 @@ static const struct inject_func uri_master_meta[] = {
 	{ lua_uri_master_gc, "__gc" }
 };
 
+static int lua_uri_uri(lua_State *L) {
+	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
+	lua_pushstring(L, uri->uri->uri);
+	return 1;
+}
+
 static int lua_uri_finish(lua_State *L) {
 	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
-	uri_finish(uri->uri);
-	// TODO handle possible error
+	if (!uri_finish(uri->uri))
+		return luaL_error(L, aprintf("Unable to finish URI: %s", uri_error_msg(uri_errno)));
 	switch (uri->uri->output_type) {
 		case URI_OUT_T_FILE:
 		case URI_OUT_T_TEMP_FILE:
@@ -196,7 +204,7 @@ static int lua_uri_finish(lua_State *L) {
 			{
 				uint8_t *buf;
 				size_t len;
-				uri_take_buffer(uri->uri, &buf, &len); // TODO handle possible error
+				uri_take_buffer(uri->uri, &buf, &len);
 				lua_pushlstring(L, (const char*)buf, len);
 				free(buf);
 				return 1;
@@ -214,7 +222,6 @@ static int lua_uri_is_local(lua_State *L) {
 static int lua_uri_path(lua_State *L) {
 	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
 	char *path = uri_path(uri->uri);
-	// TODO what if error
 	lua_pushstring(L, path);
 	free(path);
 	return 1;
@@ -232,59 +239,63 @@ static int lua_uri_output_path(lua_State *L) {
 static int lua_uri_set_ssl_verify(lua_State *L) {
 	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
 	uri_set_ssl_verify(uri->uri, lua_toboolean(L, 2));
-	// TODO handle error
 	return 0;
 }
 
 static int lua_uri_add_ca(lua_State *L) {
 	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
 	const char *cauri = luaL_checkstring(L, 2);
-	uri_add_ca(uri->uri, cauri);
-	// TODO handle error
+	if (!uri_add_ca(uri->uri, cauri))
+	   return luaL_error(L, "TODO error");
 	return 0;
 }
 
 static int lua_uri_add_crl(lua_State *L) {
 	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
 	const char *crluri = luaL_checkstring(L, 2);
-	uri_add_crl(uri->uri, crluri);
-	// TODO handle error
+	if (!uri_add_crl(uri->uri, crluri))
+	   return luaL_error(L, "TODO error");
 	return 0;
 }
 
 static int lua_uri_set_ocsp(lua_State *L) {
 	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
 	uri_set_ocsp(uri->uri, lua_toboolean(L, 2));
-	// TODO handle error
 	return 0;
 }
 
 static int lua_uri_add_pubkey(lua_State *L) {
 	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
 	const char *pubkey = luaL_checkstring(L, 2);
-	uri_add_pubkey(uri->uri, pubkey);
-	// TODO handle error
+	if (!uri_add_pubkey(uri->uri, pubkey))
+	   return luaL_error(L, "TODO error");
 	return 0;
 }
 
 static int lua_uri_set_sig(lua_State *L) {
 	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
 	const char *siguri = luaL_checkstring(L, 2);
-	uri_set_sig(uri->uri, siguri);
-	// TODO handle error
+	if (!uri_set_sig(uri->uri, siguri))
+	   return luaL_error(L, "TODO error");
 	return 0;
+}
+
+static int lua_uri_download_error(lua_State *L) {
+	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
+	lua_pushstring(L, uri_download_error(uri->uri));
+	return 1;
 }
 
 static int lua_uri_gc(lua_State *L) {
 	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
 	TRACE("Freeing uri");
-	if (uri->fpath)
-		free(uri->fpath);
+	free(uri->fpath);
 	uri_free(uri->uri);
 	return 0;
 }
 
 static const struct inject_func uri_meta[] = {
+	{ lua_uri_uri, "uri" },
 	{ lua_uri_finish, "finish" },
 	{ lua_uri_is_local, "is_local" },
 	{ lua_uri_path, "path" },
@@ -295,6 +306,7 @@ static const struct inject_func uri_meta[] = {
 	{ lua_uri_set_ocsp, "set_ocsp" },
 	{ lua_uri_add_pubkey, "add_pubkey" },
 	{ lua_uri_set_sig, "set_sig" },
+	{ lua_uri_download_error, "download_error" },
 	{ lua_uri_gc, "__gc" }
 };
 
