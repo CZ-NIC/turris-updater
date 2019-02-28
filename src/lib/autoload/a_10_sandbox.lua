@@ -38,7 +38,6 @@ local utils = require "utils"
 local backend = require "backend"
 local requests = require "requests"
 local syscnf = require "syscnf"
-local uri = require "uri"
 local uci_ok, uci = pcall(require, "uci")
 
 module "sandbox"
@@ -91,8 +90,8 @@ local local_available_funcs = {
 local rest_additional_funcs = {
 	{"version_match", backend.version_match},
 	{"version_cmp", backend.version_cmp},
-	{"system_cas", uri.system_cas},
-	{"no_crl", uri.no_crl}
+	{"system_cas", true},
+	{"no_crl", false}
 }
 
 state_vars = nil
@@ -396,8 +395,7 @@ function run_sandboxed(chunk, name, sec_level, parent, context_merge, context_mo
 	end
 	local context = new(sec_level, parent)
 	utils.table_merge(context, context_merge or {})
-	context_mod = context_mod or function () end
-	context_mod(context)
+	if context_mod then context_mod(context) end
 	local func = setfenv(chunk, context.env)
 	local ok, err = pcall(func)
 	if ok then
