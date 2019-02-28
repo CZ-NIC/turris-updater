@@ -9,6 +9,7 @@ C_TESTS := \
 	arguments \
 	events \
 	util \
+	files \
 	subprocess \
 	interpreter
 

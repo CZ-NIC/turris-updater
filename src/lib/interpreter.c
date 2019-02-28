@@ -276,6 +276,7 @@ int print_dir(const char *name, int type) {
 
 int tree(const char *name) {
 	foreach_file(name, print_tree);
+	return 0;
 }
 
 /* --- REMOVE FILE/DIR --- */
@@ -286,13 +287,18 @@ int rm_file(const char *name) {
 	return 0;
 }
 int rm_link(const char *name) {
-	/* TODO */
+	if (unlink(name) == -1) {
+		perror("unlink");
+		return -1;
+	}
 	return 0;
 }
 int rm_dir(const char *name, int type) {
 	if (type == 1) { /* directory should be empty now, so we can delete it */
-		if (rmdir(name) == -1)
+		if (rmdir(name) == -1) {
 			perror("rmdir");
+			return -1;
+		}
 	}
 	return 0;
 }
@@ -301,6 +307,7 @@ int rm(const char *name) {
 	struct stat info;
 	stat(name, &info);
 	/* TODO: Use rm_* funcs directly, so I don't have to implement error handling twice? */
+	int ret;
 	if (!file_exists(name)) {
 		printf("rm: Cannot remove '%s': No such file or directory\n", name);
 		return -1;
@@ -308,12 +315,12 @@ int rm(const char *name) {
 	if (S_ISDIR(info.st_mode)) {
 		/* directory - remove files recursively and then remove dir */
 		foreach_file(name, rm_tree);
-		rmdir(name); /* TODO: error handling */
+		ret = rmdir(name); /* TODO: error handling */
 	} else {
 		/* file - remove file directly */
-		unlink(name); /* TODO: error handlink */
+		ret = unlink(name); /* TODO: error handlink */
 	}
-	return 0;
+	return ret;
 }
 
 /* --- COPY/MOVE FILE/DIR --- */
@@ -442,21 +449,19 @@ printf("\n@@@CPMV@@@\n");
 	char dst_top[strlen(src) + 1];
 	memset(dst_top, '\0', sizeof(dst_top));
 	strncpy(dst_top, dst, strlen(src));
-/* FIXME: This needs to check not if 'src' and 'dst' are same, but if 'src' is same as start of 'dst'
- * for eaxmple 'src' -> 'src/subdir' is problem also
- */
-/*	printf("===compare\n>'%s'\n<'%s'\n", src, dst_top);*/
-	if (!strcmp(src, dst_top)) {
-		if (is_dir(src)) {
-			/* FIXME: This error message can sometime say 'dir//dir', but that's not such big problem */
-			printf("%s: cannot %s a directory '%s' into itself, '%s/%s'\n",
-					fn_name, act_name, src, src, dst);
-		} else {
-			printf("%s: '%s' and '%s' are the same file\n",
-					fn_name, src, dst);
-		}
+
+	if (is_dir(src) && !strcmp(src, dst_top)) {
+		/* FIXME: This error message can sometime say 'dir//dir', but that's not such big problem */
+		printf("%s: cannot %s a directory '%s' into itself, '%s/%s'\n",
+				fn_name, act_name, src, src, dst);
 		return -1;
 	}
+	if (!strcmp(src, dst)) {
+		printf("%s: '%s' and '%s' are the same file\n",
+				fn_name, src, dst);
+		return -1;
+	}
+
 	strcpy(real_src, src);
 	printf("source exists?\n<%s>=<%d>\n---\n", real_src, file_exists(real_src));
 	if (!file_exists(real_src)) {
@@ -554,6 +559,7 @@ int find_file(const char *name) {
 	}
 	return 0;
 }
+
 int find_dir(const char *name, int type) {
 	return 0;
 }
