@@ -11,7 +11,7 @@
 #include <linux/limits.h>
 
 
-int copy_data(struct archive *ar, struct archive *aw) {
+static int copy_data(struct archive *ar, struct archive *aw) {
     int r;
     const void *buff;
     size_t size;
@@ -31,7 +31,10 @@ int copy_data(struct archive *ar, struct archive *aw) {
     }
 }
 
-char * sanitize_filename(char *dst, const char *src) {
+/* 
+ * Insert ./ when missing
+ */
+static char * sanitize_filename(char *dst, const char *src) {
 	int r;
 	r = strncmp("./", src, 2);
 	if (r != 0) {
@@ -43,7 +46,10 @@ char * sanitize_filename(char *dst, const char *src) {
 	return dst;
 }
 
-int get_inner_archive(struct archive *arc, const char* arcname, const char* subarcname) {
+/*
+ * Get inner archive `subarcname` from archive `arcname` into `arc`
+ */
+static int get_inner_archive(struct archive *arc, const char* arcname, const char* subarcname) {
 	struct archive *a;
 	struct archive_entry *entry;
 	int r, size;
@@ -163,6 +169,9 @@ int extract_files(struct archive *a, char *files[], int count) {
 	return 0;
 }
 
+/*
+ *	TODO: Support passing list of files in different format (newline separated)
+ */
 int extract_to_disk(const char *arc_name, const char *subarc_name, char *files[], int count) {
 	int r;
 	char arcname[PATH_MAX];
