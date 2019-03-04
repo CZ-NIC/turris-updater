@@ -633,6 +633,23 @@ static int lua_copy(lua_State *L) {
 	return 0;
 }
 
+static int lua_depack(lua_State *L) {
+	printf("\n ***LUA_DEPACK called***\n");
+	unpacker_test();
+	return 0;
+}
+
+static int lua_test_extract(lua_State *L) {
+	const char *arc_name = luaL_checkstring(L, 1);
+	const char *subarc_name = luaL_checkstring(L, 2);
+
+	char *files[0];
+
+	test_extract(arc_name, subarc_name, files, 0);
+
+	return 0;
+}
+
 static const char *stat2str(const struct stat *buf) {
 	switch (buf->st_mode & S_IFMT) {
 		case S_IFSOCK:
@@ -915,6 +932,8 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_mkdir, "mkdir" },
 	{ lua_move, "move" },
 	{ lua_copy, "copy" },
+	{ lua_test_extract, "test_extract" },
+	{ lua_depack, "depack" },
 	{ lua_ls, "ls" },
 	{ lua_stat, "stat" },
 	{ lua_lstat, "lstat" },

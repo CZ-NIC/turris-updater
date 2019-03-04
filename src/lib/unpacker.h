@@ -1,7 +1,7 @@
 #include <archive.h>
 #include <archive_entry.h>
 
-
+int unpacker_test();
 /*
  *
  */
@@ -16,4 +16,9 @@ int extract_files(struct archive *a, char *files[], int count);
  *
  */
 int extract_to_disk(const char *arc_name, const char *subarc_name, char *files[], int count);
+
+
+
+
+int test_extract(const char *arc_name, const char *subarc_name, char *files[], int count);
 

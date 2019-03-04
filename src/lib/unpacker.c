@@ -1,4 +1,4 @@
-#include "libxto.h"
+#include "unpacker.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <archive.h>
@@ -12,23 +12,22 @@
 
 
 static int copy_data(struct archive *ar, struct archive *aw) {
-    int r;
     const void *buff;
     size_t size;
     int64_t offset;
 
     for(;;) {
-        r = archive_read_data_block(ar, &buff, &size, &offset);
-        if (r == ARCHIVE_EOF)
-            return ARCHIVE_OK;
-        if (r != ARCHIVE_OK)
-            return r;
-        r = archive_write_data_block(aw, buff, size, offset);
-        if (r != ARCHIVE_OK) {
-            printf("WARN: archive_write_data_block()");
-            return r;
-        }
-    }
+		int r = archive_read_data_block(ar, &buff, &size, &offset);
+		if (r == ARCHIVE_EOF)
+			return ARCHIVE_OK;
+		if (r != ARCHIVE_OK)
+			return r;
+		r = archive_write_data_block(aw, buff, size, offset);
+		if (r != ARCHIVE_OK) {
+			printf("WARN: archive_write_data_block()");
+			return r;
+		}
+	}
 }
 
 /* 
@@ -80,7 +79,7 @@ static int get_inner_archive(struct archive *arc, const char* arcname, const cha
 		}
 		archive_read_data_skip(a);
 	}
-	r = archive_read_free(a);
+	archive_read_free(a);
 	return -1;
 }
 
@@ -119,6 +118,10 @@ int extract_file(struct archive *a, const char *filename) {
 		}
 	}
 	r = archive_write_finish_entry(ext);
+	if (r < ARCHIVE_OK) {
+		fprintf(stderr, "%s\n", archive_error_string(ext));
+		return -1;
+	}
 	archive_write_close(ext);
 	archive_write_free(ext);
 	return 0;
@@ -127,7 +130,7 @@ int extract_file(struct archive *a, const char *filename) {
 int extract_files(struct archive *a, char *files[], int count) {
 	struct archive *ext;
 	struct archive_entry *entry;
-	int i, r, flags;
+	int r, flags;
 	char filename[PATH_MAX];
 	char name[PATH_MAX];
 	/* Select which attributes we want to restore. */
@@ -143,7 +146,7 @@ int extract_files(struct archive *a, char *files[], int count) {
 	while (archive_read_next_header(a, &entry) == ARCHIVE_OK) {
 		const char *entry_name = archive_entry_pathname(entry);
 		sanitize_filename(name, entry_name);
-		i = 0;
+		int i = 0;
 		while (i < count) {
 			sanitize_filename(filename, files[i]);
 			if (strcmp(name, filename) == 0) {
@@ -164,6 +167,10 @@ int extract_files(struct archive *a, char *files[], int count) {
 	}
 	/* TODO: error checking */
 	r = archive_write_finish_entry(ext);
+	if (r < ARCHIVE_OK) {
+		fprintf(stderr, "%s\n", archive_error_string(ext));
+		return -1;
+	}
 	archive_write_close(ext);
 	archive_write_free(ext);
 	return 0;
@@ -176,7 +183,7 @@ int extract_to_disk(const char *arc_name, const char *subarc_name, char *files[]
 	int r;
 	char arcname[PATH_MAX];
 	char subarcname[PATH_MAX];
-	char filename[PATH_MAX];
+/*	char filename[PATH_MAX];*/
 	struct archive *arc;
 
 /* TODO: Should sanitization be here? */
@@ -196,3 +203,12 @@ int extract_to_disk(const char *arc_name, const char *subarc_name, char *files[]
 	return 0;
 }
 
+int test_extract(const char *arc_name, const char *subarc_name, char *files[], int count) {
+	printf("This is `test_extract`, arc_name: %s, subarc_name: %s\n", arc_name, subarc_name);
+	return 0;
+}
+
+int unpacker_test() {
+	printf("\n!!>> THIS IS A TEST!!!\n");
+	return 0;
+}

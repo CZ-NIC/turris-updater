@@ -408,6 +408,7 @@ function new(context, uri, verification)
 								sigval(stdout)
 							end
 						end
+						INFO("\n***GZIP called from `dispatch@10`***\n")
 						events_wait(run_util(gzip_done, nil, result.content, -1, -1, 'gzip', '-c', '-d'))
 					end
 					if not found then

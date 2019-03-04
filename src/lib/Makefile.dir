@@ -21,6 +21,7 @@ libupdater_MODULES := \
 	arguments \
 	inject \
 	interpreter \
+	unpacker \
 	lautoload.embed \
 	embed_types \
 	events \
@@ -39,7 +40,7 @@ endif
 
 libupdater_MODULES_3RDPARTY := picosat-965/picosat
 
-libupdater_PKG_CONFIGS := $(LUA_NAME) libevent libcurl libcrypto
+libupdater_PKG_CONFIGS := $(LUA_NAME) libevent libcurl libcrypto libarchive
 # Workaround, lua.pc doesn't containd -ldl, even when it uses dlopen
 libupdater_SO_LIBS += dl
 

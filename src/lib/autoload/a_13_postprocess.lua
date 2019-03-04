@@ -31,6 +31,7 @@ local string = string
 local events_wait = events_wait
 local run_util = run_util
 local DBG = DBG
+local INFO = INFO
 local WARN = WARN
 local ERROR = ERROR
 local utils = require "utils"
@@ -115,6 +116,7 @@ function get_repos()
 				elseif answer:sub(1, 2) == string.char(0x1F, 0x8B) then
 					-- It starts with gzip magic - we want to decompress it
 					DBG("Index " .. name .. " is compressed, decompressing")
+					INFO("\n***GZIP called from `get_repos@13`***\n")
 					table.insert(extract_events, run_util(decompressed, nil, answer, -1, -1, 'gzip', '-dc'))
 				else
 					parse(answer)

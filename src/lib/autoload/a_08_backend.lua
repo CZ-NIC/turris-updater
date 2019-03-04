@@ -44,10 +44,12 @@ local lstat = lstat
 local mkdir = mkdir
 local move = move
 local copy = copy
+local test_extract = test_extract
 local ls = ls
 local md5_file = md5_file
 local sha256_file = sha256_file
 local DBG = DBG
+local INFO = INFO
 local WARN = WARN
 local ERROR = ERROR
 local syscnf = require "syscnf"
@@ -430,6 +432,7 @@ TODO:
 • Less calling of external commands.
 ]]
 function pkg_unpack(package, tmp_dir)
+	INFO("\n***TAR called from `pkg_unpack@08a`***\n")
 	-- The first unpack goes into the /tmp
 	-- We assume s1dir returs sane names of directories ‒ no spaces or strange chars in them
 	local s1dir = mkdtemp()
@@ -445,13 +448,16 @@ function pkg_unpack(package, tmp_dir)
 				err = "Stage 1 unpack failed: " .. stderr
 			end
 		end, function () chdir(s1dir) end, package, cmd_timeout, cmd_kill_timeout, "sh", "-c", "gzip -dc | tar x"))
+		test_extract(s1dir, s2dir)
 		-- TODO: Sanity check debian-binary
 		return err == nil
 	end
 	-- Unpack the control.tar.gz and data.tar.gz under respective subdirs in s2dir
 	local function unpack_archive(what)
+		INFO("\n***TAR called from `unpack_archive@08b`***\n");
 		local archive = s1dir .. "/" .. what .. ".tar.gz"
 		local dir = s2dir .. "/" .. what
+		test_extract(archive, dir)
 		return run_util(function (ecode, _, _, stderr)
 			if ecode ~= 0 then
 				err = "Stage 2 unpack of " .. what .. " failed: " .. stderr
