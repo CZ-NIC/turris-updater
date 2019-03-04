@@ -11,6 +11,7 @@ Binary dependencies:
 * Lua 5.1
 * libcurl
 * libevent2
+* libarchive
 
 Runtime dependencies:
 * usign (for signatures validation)
