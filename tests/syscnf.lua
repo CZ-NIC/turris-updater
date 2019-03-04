@@ -31,7 +31,7 @@ function test_set_root_dir()
 	assert_equal("/dir/usr/lib/opkg/info/", sc.info_dir)
 	assert_equal("/dir/usr/share/updater/unpacked/", sc.pkg_unpacked_dir)
 	assert_equal("/dir/usr/share/updater/download/", sc.pkg_download_dir)
-	assert_equal("/dir/usr/share/updater/collided/", sc.dir_opkg_collided)
+	assert_equal("/dir/usr/share/updater/collided/", sc.opkg_collided_dir)
 end
 
 function test_os_release()

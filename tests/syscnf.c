@@ -26,7 +26,8 @@
 
 #define SUFFIX_STATUS_FILE "usr/lib/opkg/status"
 #define SUFFIX_INFO_DIR "usr/lib/opkg/info/"
-#define SUFFIX_PKG_TEMP_DIR "usr/share/updater/unpacked/"
+#define SUFFIX_PKG_UNPACKED_DIR "usr/share/updater/unpacked/"
+#define SUFFIX_PKG_DOWNLOAD_DIR "usr/share/updater/download/"
 #define SUFFIX_DIR_OPKG_COLLIDED "usr/share/updater/collided/"
 
 void paths_teardown() {
@@ -38,7 +39,8 @@ START_TEST(default_paths) {
 	ck_assert_str_eq("/", root_dir());
 	ck_assert_str_eq("/" SUFFIX_STATUS_FILE, status_file());
 	ck_assert_str_eq("/" SUFFIX_INFO_DIR, info_dir());
-	ck_assert_str_eq("/" SUFFIX_PKG_TEMP_DIR, pkg_temp_dir());
+	ck_assert_str_eq("/" SUFFIX_PKG_UNPACKED_DIR, pkg_unpacked_dir());
+	ck_assert_str_eq("/" SUFFIX_PKG_DOWNLOAD_DIR, pkg_download_dir());
 	ck_assert_str_eq("/" SUFFIX_DIR_OPKG_COLLIDED, opkg_collided_dir());
 }
 END_TEST
@@ -49,7 +51,8 @@ START_TEST(absolute_paths) {
 	ck_assert_str_eq(ABS_ROOT, root_dir());
 	ck_assert_str_eq(ABS_ROOT SUFFIX_STATUS_FILE, status_file());
 	ck_assert_str_eq(ABS_ROOT SUFFIX_INFO_DIR, info_dir());
-	ck_assert_str_eq(ABS_ROOT SUFFIX_PKG_TEMP_DIR, pkg_temp_dir());
+	ck_assert_str_eq(ABS_ROOT SUFFIX_PKG_UNPACKED_DIR, pkg_unpacked_dir());
+	ck_assert_str_eq(ABS_ROOT SUFFIX_PKG_DOWNLOAD_DIR, pkg_download_dir());
 	ck_assert_str_eq(ABS_ROOT SUFFIX_DIR_OPKG_COLLIDED, opkg_collided_dir());
 #undef ABS_ROOT
 }
@@ -62,7 +65,8 @@ START_TEST(relative_paths) {
 	ck_assert_str_eq(PTH(""), root_dir());
 	ck_assert_str_eq(PTH(SUFFIX_STATUS_FILE), status_file());
 	ck_assert_str_eq(PTH(SUFFIX_INFO_DIR), info_dir());
-	ck_assert_str_eq(PTH(SUFFIX_PKG_TEMP_DIR), pkg_temp_dir());
+	ck_assert_str_eq(PTH(SUFFIX_PKG_UNPACKED_DIR), pkg_unpacked_dir());
+	ck_assert_str_eq(PTH(SUFFIX_PKG_DOWNLOAD_DIR), pkg_download_dir());
 	ck_assert_str_eq(PTH(SUFFIX_DIR_OPKG_COLLIDED), opkg_collided_dir());
 #undef PTH
 	free(cwd);
@@ -76,7 +80,8 @@ START_TEST(tilde_paths) {
 	ck_assert_str_eq(PTH(""), root_dir());
 	ck_assert_str_eq(PTH(SUFFIX_STATUS_FILE), status_file());
 	ck_assert_str_eq(PTH(SUFFIX_INFO_DIR), info_dir());
-	ck_assert_str_eq(PTH(SUFFIX_PKG_TEMP_DIR), pkg_temp_dir());
+	ck_assert_str_eq(PTH(SUFFIX_PKG_UNPACKED_DIR), pkg_unpacked_dir());
+	ck_assert_str_eq(PTH(SUFFIX_PKG_DOWNLOAD_DIR), pkg_download_dir());
 	ck_assert_str_eq(PTH(SUFFIX_DIR_OPKG_COLLIDED), opkg_collided_dir());
 #undef ABS_ROOT
 }

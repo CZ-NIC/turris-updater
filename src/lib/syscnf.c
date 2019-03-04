@@ -38,7 +38,8 @@ enum e_paths {
 	P_ROOT_DIR,
 	P_FILE_STATUS,
 	P_DIR_INFO,
-	P_DIR_PKG_TEMP,
+	P_DIR_PKG_UNPACKED,
+	P_DIR_PKG_DOWNLOAD,
 	P_DIR_OPKG_COLLIDED,
 	P_LAST
 };
@@ -47,7 +48,8 @@ static const char* const default_paths[] = {
 	[P_ROOT_DIR] = "/",
 	[P_FILE_STATUS] = "/usr/lib/opkg/status",
 	[P_DIR_INFO] = "/usr/lib/opkg/info/",
-	[P_DIR_PKG_TEMP] = "/usr/share/updater/unpacked/",
+	[P_DIR_PKG_UNPACKED] = "/usr/share/updater/unpacked/",
+	[P_DIR_PKG_DOWNLOAD] = "/usr/share/updater/download/",
 	[P_DIR_OPKG_COLLIDED] = "/usr/share/updater/collided/",
 };
 
@@ -55,7 +57,8 @@ static char* paths[] = {
 	[P_ROOT_DIR] = NULL,
 	[P_FILE_STATUS] = NULL,
 	[P_DIR_INFO] = NULL,
-	[P_DIR_PKG_TEMP] = NULL,
+	[P_DIR_PKG_UNPACKED] = NULL,
+	[P_DIR_PKG_DOWNLOAD] = NULL,
 	[P_DIR_OPKG_COLLIDED] = NULL,
 };
 
@@ -98,7 +101,8 @@ void set_root_dir(const char *root) {
 	set_path(P_ROOT_DIR, pth);
 	set_path(P_FILE_STATUS, pth);
 	set_path(P_DIR_INFO, pth);
-	set_path(P_DIR_PKG_TEMP, pth);
+	set_path(P_DIR_PKG_UNPACKED, pth);
+	set_path(P_DIR_PKG_DOWNLOAD, pth);
 	set_path(P_DIR_OPKG_COLLIDED, pth);
 	TRACE("Target root directory set to: %s", root_dir());
 }
@@ -199,8 +203,12 @@ const char *info_dir() {
 	return get_path(P_DIR_INFO);
 }
 
-const char *pkg_temp_dir() {
-	return get_path(P_DIR_PKG_TEMP);
+const char *pkg_unpacked_dir() {
+	return get_path(P_DIR_PKG_UNPACKED);
+}
+
+const char *pkg_download_dir() {
+	return get_path(P_DIR_PKG_DOWNLOAD);
 }
 
 const char *opkg_collided_dir() {
@@ -252,8 +260,10 @@ static int lua_syscnf_index(lua_State *L) {
 		lua_pushstring(L, status_file());
 	else if (!strcmp("info_dir", idx))
 		lua_pushstring(L, info_dir());
-	else if (!strcmp("pkg_temp_dir", idx))
-		lua_pushstring(L, pkg_temp_dir());
+	else if (!strcmp("pkg_unpacked_dir", idx))
+		lua_pushstring(L, pkg_unpacked_dir());
+	else if (!strcmp("pkg_download_dir", idx))
+		lua_pushstring(L, pkg_download_dir());
 	else if (!strcmp("opkg_collided_dir", idx))
 		lua_pushstring(L, opkg_collided_dir());
 	else if (luaL_getmetafield(L, 1, idx) == 0)
