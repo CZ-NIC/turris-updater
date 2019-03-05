@@ -41,13 +41,16 @@ local LST_PKG_SCRIPT = LST_PKG_SCRIPT
 local events_wait = events_wait
 local stat = stat
 local lstat = lstat
-local mkdir = mkdir
+-- local mkdir = mkdir
 local move = move
 local copy = copy
 local ls = ls
 local md5_file = md5_file
 local sha256_file = sha256_file
+-- local test_extract = test_extract
+local extract_inner_archive = extract_inner_archive
 local DBG = DBG
+local INFO = INFO
 local WARN = WARN
 local ERROR = ERROR
 local syscnf = require "syscnf"
@@ -417,6 +420,7 @@ function status_dump(status)
 	end
 end
 
+--[[
 local function rmrf(dir)
 	-- TODO: Would it be better to remove from within our code, without calling rm?
 	events_wait(run_util(function (ecode, _, _, stderr)
@@ -425,6 +429,8 @@ local function rmrf(dir)
 		end
 	end, nil, nil, cmd_timeout, cmd_kill_timeout, "rm", "-rf", dir))
 end
+]]
+
 
 --[[
 Take the .ipk package and unpack it into a temporary location somewhere under
@@ -438,7 +444,21 @@ TODO:
 • Sanity checking of the package.
 • Less calling of external commands.
 ]]
+
+-- First we duplicate old functionality, to keep the rewrite simple
 function pkg_unpack(package_path)
+	INFO("***a_08/pkg_unpack: "..package_path)
+	-- We do not need temp directory, so let's just use s2dir (renamed to just dir)
+	utils.mkdirp(syscnf.pkg_unpacked_dir)
+	local dir = mkdtemp(syscnf.pkg_unpacked_dir)
+	extract_inner_archive(package_path, "control", dir)
+	extract_inner_archive(package_path, "data", dir)
+	return dir
+end
+
+--[[
+function pkg_unpack(package_path)
+	INFO("a_08/pkg_unpack")
 	-- The first unpack goes into the /tmp
 	-- We assume s1dir returs sane names of directories ‒ no spaces or strange chars in them
 	local s1dir = mkdtemp()
@@ -459,8 +479,10 @@ function pkg_unpack(package_path)
 	end
 	-- Unpack the control.tar.gz and data.tar.gz under respective subdirs in s2dir
 	local function unpack_archive(what)
+	INFO("a_08/unpack_archive")
 		local archive = s1dir .. "/" .. what .. ".tar.gz"
 		local dir = s2dir .. "/" .. what
+		test_extract(archive, dir)
 		mkdir(dir)
 		return run_util(function (ecode, _, _, stderr)
 			if ecode ~= 0 then
@@ -486,6 +508,7 @@ function pkg_unpack(package_path)
 	-- Everything went well. So return path to the directory where the package is unpacked
 	return s2dir
 end
+]]--
 
 --[[
 Look into the dir with unpacked package (the one containing control and data subdirs).

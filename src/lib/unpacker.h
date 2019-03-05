@@ -18,6 +18,7 @@ int extract_files(struct archive *a, char *files[], int count);
 int extract_to_disk(const char *arc_name, const char *subarc_name, char *files[], int count);
 
 
+int extract_inner_archive(const char* arcname, const char* subarcname, const char *path);
 
 
 int test_extract(const char *arc_name, const char *subarc_name, char *files[], int count);
