@@ -69,11 +69,11 @@ static bool approved(struct interpreter *interpreter, const char *approval_file,
 	// We need to ask for approval. But we may have gotten it already.
 	// Compute the hash of our plan first
 	size_t result_count;
-	const char *err = interpreter_call(interpreter, "transaction.approval_hash", &result_count, "");
+	const char *err = interpreter_call(interpreter, "updater.approval_hash", &result_count, "");
 	ASSERT_MSG(!err, "%s", err);
-	ASSERT_MSG(result_count == 1, "Wrong number of results from transaction.approval_hash: %zu", result_count);
+	ASSERT_MSG(result_count == 1, "Wrong number of results from updater.approval_hash: %zu", result_count);
 	const char *hash;
-	ASSERT_MSG(interpreter_collect_results(interpreter, "s", &hash) == -1, "The result of transaction.approval_hash is not a string");
+	ASSERT_MSG(interpreter_collect_results(interpreter, "s", &hash) == -1, "The result of updater.approval_hash is not a string");
 	for (size_t i = 0; i < approval_count; i ++)
 		if (strcmp(approvals[i], hash) == 0) {
 			// Yes, this is approved plan of actions. Go ahead.
@@ -87,13 +87,14 @@ static bool approved(struct interpreter *interpreter, const char *approval_file,
 	// Note we need to write the hash out before we start manipulating interpreter again
 	fputs(hash, report_file);
 	fputc('\n', report_file);
-	err = interpreter_call(interpreter, "transaction.task_report", &result_count, "sb", "", true);
+	err = interpreter_call(interpreter, "updater.task_report", &result_count, "sb", "", true);
 	ASSERT_MSG(!err, "%s", err);
-	ASSERT_MSG(result_count == 1, "Wrong number of results from transaction.task_report: %zu", result_count);
+	ASSERT_MSG(result_count == 1, "Wrong number of results from updater.task_report: %zu", result_count);
 	const char *report;
-	ASSERT_MSG(interpreter_collect_results(interpreter, "s", &report) == -1, "The result of transaction.task_report is not a string");
+	ASSERT_MSG(interpreter_collect_results(interpreter, "s", &report) == -1, "The result of updater.task_report is not a string");
 	fputs(report, report_file);
 	fclose(report_file);
+	INFO("Approval request generated");
 	return false;
 }
 
@@ -256,12 +257,12 @@ int main(int argc, char *argv[]) {
 		err_dump(err);
 		GOTO_CLEANUP;
 	}
-	err = interpreter_call(interpreter, "transaction.empty", &result_count, "");
+	err = interpreter_call(interpreter, "updater.no_tasks", &result_count, "");
 	ASSERT_MSG(!err, "%s", err);
-	ASSERT_MSG(result_count == 1, "Wrong number of results of transaction.empty");
-	bool trans_empty;
-	ASSERT_MSG(interpreter_collect_results(interpreter, "b", &trans_empty) == -1, "The result of transaction.empty is not bool");
-	if (trans_empty) {
+	ASSERT_MSG(result_count == 1, "Wrong number of results of updater.no_tasks");
+	bool no_tasks;
+	ASSERT_MSG(interpreter_collect_results(interpreter, "b", &no_tasks) == -1, "The result of updater.no_tasks is not bool");
+	if (no_tasks) {
 		approval_clean(approval_file); // There is nothing to do and if we have approvals enabled we should drop approval file
 		GOTO_CLEANUP;
 	}
@@ -275,6 +276,8 @@ int main(int argc, char *argv[]) {
 		// Approvals are only for non-interactive mode (implied by batch mode).
 		// Otherwise user approves on terminal in previous code block.
 		GOTO_CLEANUP;
+	err = interpreter_call(interpreter, "updater.tasks_to_transaction", NULL, "");
+	ASSERT_MSG(!err, "%s", err);
 	if (!replan) {
 		update_state(LS_PREUPD);
 		const char *hook_path = aprintf("%s%s", root_dir, hook_preupdate);
@@ -286,11 +289,11 @@ int main(int argc, char *argv[]) {
 		if (log) {
 			const char *timebuf = time_load();
 			fprintf(log, "%sTRANSACTION START\n", timebuf);
-			err = interpreter_call(interpreter, "transaction.task_report", &result_count, "s", timebuf);
+			err = interpreter_call(interpreter, "updater.task_report", &result_count, "s", timebuf);
 			ASSERT_MSG(!err, "%s", err);
 			const char *content;
-			ASSERT_MSG(result_count == 1, "Wrong number of results of transaction.task_report (%zu)", result_count);
-			ASSERT_MSG(interpreter_collect_results(interpreter, "s", &content) == -1, "The result of transaction.task_report is not string");
+			ASSERT_MSG(result_count == 1, "Wrong number of results of updater.task_report (%zu)", result_count);
+			ASSERT_MSG(interpreter_collect_results(interpreter, "s", &content) == -1, "The result of updater.task_report is not string");
 			fputs(content, log);
 			fclose(log);
 		} else

@@ -25,17 +25,20 @@ local type = type
 local setmetatable = setmetatable
 local getmetatable = getmetatable
 local assert = assert
+local pcall = pcall
 local table = table
 local string = string
 local math = math
 local io = io
 local unpack = unpack
+local mkdir = mkdir
+local stat = stat
 local events_wait = events_wait
 local run_util = run_util
 
 module "utils"
 
--- luacheck: globals lines2set map set2arr arr2set cleanup_dirs read_file clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay randstr arr_prune arr_inv file_exists
+-- luacheck: globals lines2set map set2arr arr2set cleanup_dirs dir_ensure mkdirp read_file write_file clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay randstr arr_prune arr_inv file_exists
 
 --[[
 Convert provided text into set of lines. Doesn't care about the order.
@@ -125,6 +128,56 @@ function read_file(filename)
 	f:close()
 	if not content then error("Could not read content of " .. filename) end
 	return content
+end
+
+--[[
+Write data to given file.
+]]
+function write_file(filename, data)
+	mkdirp(filename:gsub('/[^/]*$', '/')) -- note: file name is stripped
+	local f, err = io.open(filename, "w")
+	if not f then
+		return nil, err
+	end
+	f:write(data)
+	f:close()
+end
+
+--[[
+Create directory on given path.
+This function does not fail if directory is already there.
+It returns true if directory is there (was created or existed). On the other hand
+it returns false if there is some other path that is not directory.
+]]
+function dir_ensure(dir)
+	-- Try creating it.
+	local ok, err = pcall(function () mkdir(dir) end)
+	if not ok then
+		-- It may have failed because it already exists, check it
+		local tp = stat(dir)
+		if not tp then
+			-- It does not create, so creation failed for some reason
+			error(err)
+		elseif tp ~= "d" then
+			-- It failed because there is some file
+			return false
+		end
+		-- else ‒ there's the given directory, so it failed because it pre-existed. That's OK.
+	end
+	return true
+end
+
+--[[
+Create directory on given path while all parent directories are created as well.
+This does not fail if directory already exists.
+]]
+function mkdirp(dir)
+	if stat(dir) == "d" then return end -- quick exit
+	local created = "/"
+	for segment in dir:gmatch("([^/]+)") do
+		created = created .. segment .. "/"
+		dir_ensure(created)
+	end
 end
 
 --[[

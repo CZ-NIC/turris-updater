@@ -7,7 +7,6 @@ Updater is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
-
 Updater is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -22,7 +21,7 @@ local B = require 'backend'
 local T = require 'transaction'
 local utils = require 'utils'
 local journal = require 'journal'
-require "syscnf"
+local syscnf = require "syscnf"
 
 syscnf.set_root_dir()
 
@@ -57,25 +56,9 @@ local intro = {
 		p = {}
 	},
 	{
-		f = "backend.dir_ensure",
-		p = {"/"}
-	},
-	{
-		f = "backend.dir_ensure",
-		p = {"/usr/"}
-	},
-	{
-		f = "backend.dir_ensure",
-		p = {"/usr/share/"}
-	},
-	{
-		f = "backend.dir_ensure",
-		p = {"/usr/share/updater/"}
-	},
-	{
-		f = "backend.dir_ensure",
+		f = "utils.mkdirp",
 		p = {"/usr/share/updater/unpacked/"}
-	}
+	},
 }
 
 local function outro(cleanup_dirs, status)
@@ -120,7 +103,9 @@ local function tables_join(...)
 end
 
 local function mocks_install()
-	mock_gen("backend.dir_ensure")
+	mock_gen("os.remove")
+	mock_gen("utils.dir_ensure")
+	mock_gen("utils.mkdirp")
 	mock_gen("backend.status_parse", function () fail("Forbidden function backend.status_parse") end)
 	mock_gen("backend.run_state", function()
 		return {
@@ -169,6 +154,10 @@ function test_perform_empty()
 			p = {journal.UNPACKED, {}, {}, {}, {}, {}}
 		},
 		{
+			f="utils.cleanup_dirs",
+			p={ { "/usr/share/updater/download/" } }
+		},
+		{
 			f = "backend.collision_check",
 			p = {test_status, {}, {}}
 		},
@@ -199,7 +188,7 @@ function test_perform_ok()
 	local result = T.perform({
 		{
 			op = "install",
-			data = "<package data>"
+			file = "<package>"
 		}, {
 			op = "remove",
 			name = "pkg-rem"
@@ -223,7 +212,7 @@ function test_perform_ok()
 	local expected = tables_join(intro, {
 		{
 			f = "backend.pkg_unpack",
-			p = {"<package data>", syscnf.pkg_temp_dir}
+			p = {"<package>"}
 		},
 		{
 			f = "backend.pkg_examine",
@@ -257,6 +246,10 @@ function test_perform_ok()
 				{"pkg_dir"},
 				{}
 			}
+		},
+		{
+			f = "utils.cleanup_dirs",
+			p = {{syscnf.pkg_download_dir}}
 		},
 		{
 			f = "backend.collision_check",
@@ -351,16 +344,16 @@ end
 function test_perform_collision()
 	mocks_install()
 	mock_gen("backend.collision_check", function () return {f = {["<pkg1name>"] = "new", ["<pkg2name>"] = "new", ["other"] = "existing"}}, {} end)
-	mock_gen("backend.pkg_unpack", function (data) return data:gsub("data", "dir") end)
+	mock_gen("backend.pkg_unpack", function (data) return data:gsub("file", "dir") end)
 	mock_gen("backend.pkg_examine", function (dir) return {f = true}, {d = true}, {c = "1234567890123456"}, {Package = dir:gsub("dir", "name")} end)
 	local ok, err = pcall(T.perform, {
 		{
 			op = "install",
-			data = "<pkg1data>"
+			file = "<pkg1file>"
 		},
 		{
 			op = "install",
-			data = "<pkg2data>"
+			file = "<pkg2file>"
 		}
 	})
 	assert_false(ok)
@@ -370,7 +363,7 @@ function test_perform_collision()
 	local expected = tables_join(intro, {
 		{
 			f = "backend.pkg_unpack",
-			p = {"<pkg1data>", syscnf.pkg_temp_dir}
+			p = {"<pkg1file>"}
 		},
 		{
 			f = "backend.pkg_examine",
@@ -378,7 +371,7 @@ function test_perform_collision()
 		},
 		{
 			f = "backend.pkg_unpack",
-			p = {"<pkg2data>", syscnf.pkg_temp_dir}
+			p = {"<pkg2file>"}
 		},
 		{
 			f = "backend.pkg_examine",
@@ -415,6 +408,10 @@ function test_perform_collision()
 				{"<pkg1dir>", "<pkg2dir>"},
 				{}
 			}
+		},
+		{
+			f = "utils.cleanup_dirs",
+			p = {{syscnf.pkg_download_dir}}
 		},
 		{
 			f = "backend.collision_check",
@@ -552,116 +549,9 @@ function test_recover_late()
 	status_mod["pkg-rem"] = nil
 	local intro_mod = utils.clone(intro)
 	intro_mod[2].f = "journal.recover"
+	intro_mod[4] = {f = "utils.cleanup_dirs", p = {{syscnf.pkg_download_dir}}}
 	local expected = tables_join(intro_mod, outro({"pkg_dir"}, status_mod))
 	assert_table_equal(expected, mocks_called)
-end
-
-function test_empty()
-	assert(transaction.empty())
-	transaction.queue_remove("pkg")
-	assert_false(transaction.empty())
-end
-
-function test_approval_hash()
-	-- When nothing is present, the hash is equal to one of an empty string
-	assert_equal(sha256(''), transaction.approval_hash())
-	-- Override the transaction.perform with empty function, so we can clean the queue when we like
-	mocks_install('transaction.perform', function () return {} end)
-	local function ops_hash(ops)
-		for _, op in ipairs(ops) do
-			transaction["queue_" .. op[1]](unpack(op, 2))
-		end
-		local hash = transaction.approval_hash()
-		-- get rid of the queue
-		transaction.perform_queue()
-		return hash
-	end
-	local function equal(ops1, ops2)
-		return ops_hash(ops1) == ops_hash(ops2)
-	end
-	-- The same lists of operations return the same hash
-	assert_true(equal(
-	{
-		{'install_downloaded', '', 'pkg', 13, {}},
-		{'remove', 'pkg2'}
-	},
-	{
-		{'install_downloaded', '', 'pkg', 13, {}},
-		{'remove', 'pkg2'}
-	}))
-	-- The order doesn't matter (since we are not sure if the planner is deterministic in that regard)
-	assert_true(equal(
-	{
-		{'install_downloaded', '', 'pkg', 13, {}},
-		{'remove', 'pkg2'}
-	},
-	{
-		{'remove', 'pkg2'},
-		{'install_downloaded', '', 'pkg', 13, {}}
-	}))
-	-- Package version changes the hash
-	assert_false(equal(
-	{
-		{'install_downloaded', '', 'pkg', 13, {}},
-		{'remove', 'pkg2'}
-	},
-	{
-		{'install_downloaded', '', 'pkg', 14, {}},
-		{'remove', 'pkg2'}
-	}))
-	-- Package name changes the hash
-	assert_false(equal(
-	{
-		{'install_downloaded', '', 'pkg', 13, {}},
-		{'remove', 'pkg2'}
-	},
-	{
-		{'install_downloaded', '', 'pkg3', 13, {}},
-		{'remove', 'pkg2'}
-	}))
-	-- Package the operation changes the hash
-	assert_false(equal(
-	{
-		{'install_downloaded', '', 'pkg', 13, {}},
-		{'remove', 'pkg2'}
-	},
-	{
-		{'remove', 'pkg'},
-		{'remove', 'pkg2'}
-	}))
-	-- Omitting one of the tasks changes the hash
-	assert_false(equal(
-	{
-		{'install_downloaded', '', 'pkg', 13, {}},
-		{'remove', 'pkg2'}
-	},
-	{
-		{'remove', 'pkg2'}
-	}))
-end
-
-function test_task_report()
-	assert_equal('', transaction.task_report())
-	assert_equal('', transaction.task_report('', true))
-	assert_equal('', transaction.task_report('prefix '))
-	transaction.queue_install_downloaded('', "pkg1", 13, {reboot = "finished"})
-	transaction.queue_remove("pkg2")
-	assert_equal([[
-install	13	pkg1
-remove	-	pkg2
-]], transaction.task_report())
-	assert_equal([[
-install	13	pkg1	finished
-remove	-	pkg2	-
-]], transaction.task_report('', true))
-	assert_equal([[
-prefix install	13	pkg1
-prefix remove	-	pkg2
-]], transaction.task_report('prefix '))
-	assert_equal([[
-prefix install	13	pkg1	finished
-prefix remove	-	pkg2	-
-]], transaction.task_report('prefix ', true))
 end
 
 function teardown()

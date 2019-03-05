@@ -17,10 +17,13 @@ You should have received a copy of the GNU General Public License
 along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
 
+local next = next
 local error = error
 local ipairs = ipairs
+local table = table
 local WARN = WARN
 local INFO = INFO
+local DIE = DIE
 local md5 = md5
 local sha256 = sha256
 local reexec = reexec
@@ -41,14 +44,17 @@ local transaction = require "transaction"
 
 module "updater"
 
--- luacheck: globals prepare pre_cleanup cleanup required_pkgs disable_replan
+-- luacheck: globals tasks prepare no_tasks tasks_to_transaction pre_cleanup cleanup disable_replan approval_hash task_report
+
+-- Prepared tasks
+tasks = {}
 
 local allow_replan = true
 function disable_replan()
 	allow_replan = false
 end
 
-function required_pkgs(entrypoint)
+local function required_pkgs(entrypoint)
 	-- Get the top-level script
 	local tlc = sandbox.new('Full')
 	local ep_uri = uri(tlc, entrypoint)
@@ -73,16 +79,34 @@ function prepare(entrypoint)
 	end
 	local required = required_pkgs(entrypoint)
 	local run_state = backend.run_state()
-	local tasks = planner.filter_required(run_state.status, required, allow_replan)
-	update_state(LS_DOWN)
-	--[[
-	Start download of all the packages. They all start (or queue, if there are
-	too many). We then start taking them one by one, but that doesn't stop it
-	from being downloaded in any order.
-	]]
+	tasks = planner.filter_required(run_state.status, required, allow_replan)
+
 	for _, task in ipairs(tasks) do
-		if task.action == "require" and not task.package.data then -- if we already have data, skip downloading
-			-- Strip sig verification off, packages from repos don't have their own .sig files, but they are checked by hashes in the (already checked) index.
+		if task.action == "require" then
+			-- TODO downgrade and so on?
+			INFO("Queue install of " .. task.name .. "/" .. task.package.repo.name .. "/" .. task.package.Version)
+		elseif task.action == "remove" then
+			INFO("Queue removal of " .. task.name)
+		else
+			DIE("Unknown action " .. task.action)
+		end
+	end
+end
+
+-- Check if we have some tasks
+function no_tasks()
+	return not next(tasks)
+end
+
+-- Download all packages and push tasks to transaction
+function tasks_to_transaction()
+	INFO("Downloading packages")
+	update_state(LS_DOWN)
+	-- Start packages download
+	for _, task in ipairs(tasks) do
+		if task.action == "require" then
+			-- Strip sig verification off, packages from repos don't have their own .sig
+			-- files, but they are checked by hashes in the (already checked) index.
 			local veriopts = utils.shallow_copy(task.package.repo)
 			local veri = veriopts.verification or utils.private(task.package.repo).context.verification or 'both'
 			if veri == 'both' then
@@ -99,37 +123,58 @@ function prepare(entrypoint)
 	-- Now push all data into the transaction
 	for _, task in ipairs(tasks) do
 		if task.action == "require" then
-			if task.package.data then -- package had content extra field and we already have data downloaded
-				INFO("Queue install of " .. task.name .. "//" .. task.package.Version)
-				transaction.queue_install_downloaded(task.package.data, task.name, task.package.Version, task.modifier)
-			else
-				local ok, data = task.real_uri:get()
-				if ok then
-					INFO("Queue install of " .. task.name .. "/" .. task.package.repo.name .. "/" .. task.package.Version)
-					if task.package.MD5Sum then
-						local sum = md5(data)
-						if sum ~= task.package.MD5Sum then
-							error(utils.exception("corruption", "The md5 sum of " .. task.name .. " does not match"))
-						end
-					end
-					if task.package.SHA256Sum then
-						local sum = sha256(data)
-						if sum ~= task.package.SHA256Sum then
-							error(utils.exception("corruption", "The sha256 sum of " .. task.name .. " does not match"))
-						end
-					end
-					transaction.queue_install_downloaded(data, task.name, task.package.Version, task.modifier)
-				else
-					error(data)
+			local ok, data = task.real_uri:get()
+			if not ok then error(data) end
+			if task.package.MD5Sum then
+				local sum = md5(data)
+				if sum ~= task.package.MD5Sum then
+					error(utils.exception("corruption", "The md5 sum of " .. task.name .. " does not match"))
 				end
 			end
+			if task.package.SHA256Sum then
+				local sum = sha256(data)
+				if sum ~= task.package.SHA256Sum then
+					error(utils.exception("corruption", "The sha256 sum of " .. task.name .. " does not match"))
+				end
+			end
+			local fpath = syscnf.pkg_download_dir .. task.name .. '-' .. task.package.Version .. '.ipk'
+			utils.write_file(fpath, data)
+			transaction.queue_install_downloaded(fpath, task.name, task.package.Version, task.modifier)
 		elseif task.action == "remove" then
-			INFO("Queue removal of " .. task.name)
 			transaction.queue_remove(task.name)
 		else
 			DIE("Unknown action " .. task.action)
 		end
 	end
+end
+
+local function queued_tasks(extensive)
+	return utils.map(tasks, function (i, task)
+		local d = {task.action, utils.multi_index(task, "package", "Version") or '-', task.name}
+		if d[1] == "require" then
+			d[1] = "install"
+		elseif d[1] == "remove" then
+			d[2] = '-'
+		end -- Just to be backward compatible require=install and remove does not have version
+		if extensive then
+			table.insert(d, utils.multi_index(task, "modifier", "reboot") or '-')
+		end
+		return i, table.concat(d, '	') .. "\n"
+	end)
+end
+
+-- Compute the approval hash of the queued operations
+function approval_hash()
+	-- Convert the tasks into formatted lines, sort them and hash it.
+	local reqs = queued_tasks(true)
+	table.sort(reqs)
+	return sha256(table.concat(reqs))
+end
+
+-- Provide a human-readable report of the queued tasks
+function task_report(prefix, extensive)
+	prefix = prefix or ''
+	return table.concat(utils.map(queued_tasks(extensive), function (i, str) return i, prefix .. str end))
 end
 
 -- Only cleanup actions that we want to give chance to program to react on

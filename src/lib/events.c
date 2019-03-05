@@ -646,6 +646,7 @@ struct {
 	{"cp", "/bin/cp"},
 	{"rm", "/bin/rm"},
 	{"gzip", "/bin/gzip"},
+	{"tar", "/bin/tar"},
 	{"find", "/usr/bin/find"},
 	{"sh", "/bin/sh"},
 	{"mktemp", "/bin/mktemp"},
