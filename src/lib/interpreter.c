@@ -26,6 +26,7 @@
 #include "locks.h"
 #include "arguments.h"
 #include "syscnf.h"
+#include "uri_lua.h"
 #include "picosat.h"
 
 #include <lua.h>
@@ -1023,6 +1024,7 @@ struct interpreter *interpreter_create(struct events *events) {
 	journal_mod_init(L);
 	locks_mod_init(L);
 	syscnf_mod_init(L);
+	uri_mod_init(L);
 	picosat_mod_init(L);
 #ifdef COVERAGE
 	interpreter_load_coverage(result);
