@@ -9,7 +9,8 @@ RUN \
     busybox ca-certificates curl git \
     make pkg-config gcc \
     check cppcheck lua-check valgrind \
-    libcurl4-openssl-dev libevent-dev libssl-dev uthash-dev \
+    libcurl4-openssl-dev libevent-dev libssl-dev liburiparser-dev \
+	libb64-dev uthash-dev \
     lua5.1 liblua5.1-0-dev \
     asciidoc lcov markdown libcommon-sense-perl \
     wget procps && \
