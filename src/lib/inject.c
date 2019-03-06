@@ -20,6 +20,7 @@
 #include "inject.h"
 #include "util.h"
 #include "logging.h"
+#include <lauxlib.h>
 
 void inject_func_n(lua_State *L, const char *module, const struct inject_func *inject, size_t count) {
 	// Inject the functions
@@ -54,4 +55,10 @@ void inject_module(lua_State *L, const char *module) {
 	lua_setglobal(L, module);
 	// Drop the _M, package, loaded
 	lua_pop(L, 3);
+}
+
+void inject_metatable_self_index(lua_State *L, const char *meta) {
+	ASSERT(luaL_newmetatable(L, meta) == 1);
+	lua_pushvalue(L, -1);
+	lua_setfield(L, -2, "__index");
 }
