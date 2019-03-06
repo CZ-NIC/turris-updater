@@ -75,6 +75,8 @@ void log_internal(enum log_level level, const char *file, size_t line, const cha
 #define ASSERT_MSG(COND, ...) do { if (!(COND)) DIE(__VA_ARGS__); } while (0)
 #define ASSERT(COND) do { if (!(COND)) DIE("Failed assert: " #COND); } while (0)
 
+#define STRBOOL(COND) ( COND ? "true" : "false" )
+
 // If prepare of log would be long, check if it would be printed first.
 bool would_log(enum log_level level);
 
