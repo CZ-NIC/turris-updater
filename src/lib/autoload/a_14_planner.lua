@@ -48,7 +48,12 @@ function candidates_choose(candidates, pkg_name, version, repository)
 	for _, repo in pairs(repository or {}) do
 		assert(type(repo) == 'string' or type(repo) == 'table')
 		if type(repo) == 'string' then
-			repos[requests.known_repositories[repo]] = true
+			local rp = requests.known_repositories[repo]
+			if rp then
+				repos[rp] = true
+			else
+				WARN("Package " .. pkg_name .. " limit to non-existent repository " .. repo .. " is ignored.")
+			end
 		else
 			repos[repo] = true
 		end
