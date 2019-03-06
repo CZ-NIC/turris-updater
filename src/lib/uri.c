@@ -153,6 +153,7 @@ static bool canonize_uri(const char *uri_str, const struct uri *parent, struct u
 		uriFreeUriMembersA(&urip);
 		return false;
 	}
+	// TODO for data uri we should check for validity and probably should be done same for files
 	// For URI it self we consider as a parent only those with same scheme
 	const char *uri_parent = NULL;
 	bool free_parent = false;
@@ -421,9 +422,16 @@ static bool uri_finish_data(struct uri *uri) {
 	if (fout == NULL)
 		return false;
 	if (is_base64) {
-		DIE("base64 not implemented"); // TODO
-		fclose(fout);
-		return false;
+		uint8_t *buf;
+		size_t buf_size;
+		base64_decode(start, &buf, &buf_size);
+		size_t written = fwrite(buf, 1, buf_size, fout);
+		free(buf);
+		if (written != buf_size) {
+			uri_errno = URI_E_OUTPUT_WRITE_FAIL;
+			fclose(fout);
+			return false;
+		}
 	} else if (fputs(start, fout) <= 0) {
 		fclose(fout);
 		uri_errno = URI_E_OUTPUT_WRITE_FAIL;

@@ -69,23 +69,15 @@ function test_repository()
 		priority = 50,
 		serial = 1
 	}, r1)
-	utils.private(r1).context = nil
-	assert_table_equal({
-		index_uri = {[""] = {u = "http://example.org/repo/Packages.gz"}}
-	}, utils.private(r1))
 	local r2 = run_sandbox_fun("Repository('test-repo-2', 'http://example.org/repo-2', {subdirs = {'a', 'b'}, priority = 60})")
 	assert_table_equal({
 		tp = "repository",
-		name = "test-repo-2",
+		name = "test-repo-2-b",
 		repo_uri = "http://example.org/repo-2",
 		subdirs = {'a', 'b'},
 		priority = 60,
-		serial = 2
-	}, r2)
-	utils.private(r2).context = nil
-	assert_table_equal({
-		index_uri = {["/a"] = {u = "http://example.org/repo-2/a/Packages.gz"}, ["/b"] = {u = "http://example.org/repo-2/b/Packages.gz"}}
-	}, utils.private(r2))
+		serial = 3
+	}, r2) -- Note: this returnss last subdir
 	local r3 = run_sandbox_fun("Repository('test-repo-other', 'http://example.org/repo-other', {index = 'https://example.org/repo-other/Packages.gz'})")
 	assert_table_equal({
 		tp = "repository",
@@ -93,22 +85,22 @@ function test_repository()
 		repo_uri = "http://example.org/repo-other",
 		index = "https://example.org/repo-other/Packages.gz",
 		priority = 50,
-		serial = 3
+		serial = 4
 	}, r3)
-	utils.private(r3).context = nil
-	assert_table_equal({
-		index_uri = {[""] = {u = "https://example.org/repo-other/Packages.gz"}}
-	}, utils.private(r3))
 	assert_table_equal({
 		["test-repo"] = r1,
-		["test-repo-2"] = r2,
+		["test-repo-2-a"] = {
+			tp = "repository",
+			name = "test-repo-2-a",
+			repo_uri = "http://example.org/repo-2",
+			subdirs = {'a', 'b'},
+			priority = 60,
+			serial = 2
+		},
+		["test-repo-2-b"] = r2,
 		["test-repo-other"] = r3
 	}, requests.known_repositories)
-	assert_equal(r2, requests.repository_get("test-repo-2"))
-	assert_equal(r2, requests.repository_get(r2))
-	assert_nil(requests.repository_get(nil))
-	assert_nil(requests.repository_get("does-not-exist"))
-	assert_equal(4, requests.repo_serial)
+	assert_equal(5, requests.repo_serial)
 end
 
 function test_install_uninstall()

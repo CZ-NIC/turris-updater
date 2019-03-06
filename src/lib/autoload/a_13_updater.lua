@@ -100,6 +100,7 @@ function tasks_to_transaction()
 	INFO("Downloading packages")
 	update_state(LS_DOWN)
 	-- Start packages download
+	local uri_master = uri:new()
 	for _, task in ipairs(tasks) do
 		if task.action == "require" then
 			-- Strip sig verification off, packages from repos don't have their own .sig

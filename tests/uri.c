@@ -142,8 +142,8 @@ static void buffer_data_valid(const char *data_uri, const char *data) {
 
 START_TEST(uri_to_buffer_data) {
 	buffer_data_valid("data:,HelloWorld!", "HelloWorld!");
+	buffer_data_valid("data:base64,SGVsbG9Xb3JsZCE=", "HelloWorld!");
 	buffer_data_valid("data:charset=utf8,Hello", "Hello");
-	// TODO test base64
 }
 END_TEST
 
@@ -322,7 +322,7 @@ START_TEST(uri_cert_no_ca_verify) {
 	struct uri *uri = uri_to_buffer(HTTPS_LOREM_IPSUM_SHORT, NULL);
 	ck_assert_ptr_nonnull(uri);
 	ck_assert(uri_add_ca(uri, URI_FILE_OPENTRUST_CA_G1)); // Intentionally use invalid one
-	ck_assert(uri_set_ssl_verify(uri, false));
+	uri_set_ssl_verify(uri, false);
 	download_and_verify_lorem_ipsum_short(uri);
 }
 END_TEST

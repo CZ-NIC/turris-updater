@@ -25,12 +25,14 @@ the configuration scripts to be run in.
 local pairs = pairs
 local ipairs = ipairs
 local type = type
+local pcall = pcall
 local string = string
 local error = error
 local require = require
 local tostring = tostring
 local assert = assert
 local table = table
+local unpack = unpack
 local utils = require "utils"
 local uri = require "uri"
 local DBG = DBG
@@ -38,7 +40,7 @@ local WARN = WARN
 
 module "requests"
 
--- luacheck: globals known_packages package_wrap known_repositories known_repositories_all repositories_uri_master repo_serial repository repository_get content_requests install uninstall script package
+-- luacheck: globals known_packages package_wrap known_repositories known_repositories_all repositories_uri_master repo_serial repository content_requests install uninstall script package
 
 -- Verifications fields are same for script, repository and package. Lets define them here once and then just append.
 local allowed_extras_verification = {
@@ -288,54 +290,38 @@ function repository(context, name, repo_uri, extra)
 			extra_check_table("repository", name, value, {"missing", "integrity", "syntax"})
 		end
 	end
-	local result = {}
-	utils.table_merge(result, extra)
-	result.repo_uri = repo_uri
-	utils.private(result).context = context
 	--[[
-	Start the download. This way any potential access violation is reported
-	right away. It also allows for some parallel downloading while we process
-	the configs.
-
-	Pass result as the validation parameter, as all validation info would be
-	part of the extra.
-
 	We do some mangling with the sig URI, since they are not at Package.gz.sig, but at
 	Package.sig only.
 	]]
+	local result -- Note: we intentionally set and return only last uri
+	local function register_repo(u, repo_name)
+		result = {}
+		utils.table_merge(result, extra)
+
+		local iuri = repositories_uri_master:to_buffer(u, context.paret_script_uri)
+		utils.uri_config(iuri, {unpack(result), ["sig"] = extra.sig or u:gsub('%.gz$', '') .. '.sig'})
+		utils.private(result).index_uri = iuri
+
+		result.repo_uri = repo_uri
+		result.priority = result.priority or 50
+		result.serial = repo_serial
+		repo_serial = repo_serial + 1
+		result.name = repo_name
+		result.tp = "repository"
+		known_repositories[repo_name] = result
+		table.insert(known_repositories_all, result)
+	end
+
 	if extra.subdirs then
-		utils.private(result).index_uri = {}
 		for _, sub in pairs(extra.subdirs) do
-			sub = "/" .. sub
-			local u = repo_uri .. sub .. '/Packages.gz'
-			extra.sig = extra.sig or repo_uri .. sub .. '/Packages.sig'
-			local iuri = repositories_uri_master:to_buffer(u, context.paret_script_uri)
-			utils.uri_config(iuri, extra);
-			utils.private(result).index_uri[sub] = iuri
+			register_repo(repo_uri .. sub .. '/Packages.gz', name .. '-' .. sub)
 		end
 	else
-		local u = result.index or repo_uri .. '/Packages.gz'
-		extra.sig = extra.sig or u:gsub('%.gz$', '') .. '.sig'
-		local iuri = repositories_uri_master:to_buffer(u, context.paret_script_uri)
-		utils.private(result).index_uri = {[""] = iuri}
+		register_repo(extra.index or repo_uri .. '/Packages.gz', name)
 	end
-	result.priority = result.priority or 50
-	result.serial = repo_serial
-	repo_serial = repo_serial + 1
-	result.name = name
-	result.tp = "repository"
-	known_repositories[name] = result
-	table.insert(known_repositories_all, result)
-	return result
-end
 
--- Either return the repo, if it is one already, or look it up. Nil if it doesn't exist.
-function repository_get(repo)
-	if type(repo) == "table" and (repo.tp == "repository" or repo.tp == "parsed-repository") then
-		return repo
-	else
-		return known_repositories[repo]
-	end
+	return result
 end
 
 local allowed_install_extras = {
@@ -429,8 +415,7 @@ function script(context, filler, script_uri, extra)
 		end
 	end
 	local result = {}
-	local content, u = utils.uri_content(script_uri, context.paret_script_uri, extra)
-	local ok = false -- TODO error handling for uri_content
+	local ok, content, u = pcall(utils.uri_content(script_uri, context.paret_script_uri, extra))
 	if not ok then
 		if utils.arr2set(extra.ignore or {})["missing"] then
 			WARN("Script " .. script_uri .. " not found, but ignoring its absence as requested")

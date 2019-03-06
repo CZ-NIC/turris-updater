@@ -46,12 +46,16 @@ bool statfile(const char *file, int mode);
 // Executes all executable files in given directory
 void exec_hook(const char *dir, const char *message) __attribute__((nonnull));
 
+// Verify if given data are encoded in base64 format (this is only minimal check,
+// not complete one)
+// It returns 0 if data are valid base64 format, it returns index+1 of problematic
+// character otherwise.
+unsigned base64_valid(const char *data);
+
 // Decode given string as a base64 encoded data
 // This function allocates buffer of appropriate size to buf argument and sets
 // size of that buffer to len.
-// It returns zero if decoding process was successful or index-1 of problematic
-// character.
-unsigned base64_decode(const char *data, uint8_t **buf, size_t *len) __attribute__((nonnull));
+void base64_decode(const char *data, uint8_t **buf, size_t *len) __attribute__((nonnull));
 
 // Using these functions you can register/unregister cleanup function. Note that
 // they are called in reverse order of insertion. This is implemented using atexit

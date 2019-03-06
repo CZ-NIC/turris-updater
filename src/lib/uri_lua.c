@@ -244,7 +244,9 @@ static int lua_uri_set_ssl_verify(lua_State *L) {
 
 static int lua_uri_add_ca(lua_State *L) {
 	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
-	const char *cauri = luaL_checkstring(L, 2);
+	const char *cauri = NULL;
+	if (!lua_isnoneornil(L, 2))
+		cauri = luaL_checkstring(L, 2);
 	if (!uri_add_ca(uri->uri, cauri))
 	   return luaL_error(L, "TODO error");
 	return 0;
@@ -252,7 +254,9 @@ static int lua_uri_add_ca(lua_State *L) {
 
 static int lua_uri_add_crl(lua_State *L) {
 	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
-	const char *crluri = luaL_checkstring(L, 2);
+	const char *crluri = NULL;
+	if (!lua_isnoneornil(L, 2))
+		crluri = luaL_checkstring(L, 2);
 	if (!uri_add_crl(uri->uri, crluri))
 	   return luaL_error(L, "TODO error");
 	return 0;
@@ -266,7 +270,9 @@ static int lua_uri_set_ocsp(lua_State *L) {
 
 static int lua_uri_add_pubkey(lua_State *L) {
 	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
-	const char *pubkey = luaL_checkstring(L, 2);
+	const char *pubkey = NULL;
+	if (!lua_isnoneornil(L, 2))
+		pubkey = luaL_checkstring(L, 2);
 	if (!uri_add_pubkey(uri->uri, pubkey))
 	   return luaL_error(L, "TODO error");
 	return 0;

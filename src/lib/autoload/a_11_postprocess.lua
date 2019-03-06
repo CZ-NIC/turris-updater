@@ -44,13 +44,12 @@ module "postprocess"
 
 local function repo_parse(repo)
 	local index_uri = utils.private(repo).index_uri
-	utils.private(repo).index_uri = nil
 
 	repo.tp = 'parsed-repository'
 	repo.content = {}
-	local name = repo.name .. "/" .. index_uri.uri()
+	local name = repo.name .. "/" .. index_uri:uri()
 	-- Get index
-	local index = index_uri:finish()
+	local index = index_uri:finish() -- TODO error?
 	if index:sub(1, 2) == string.char(0x1F, 0x8B) then -- copressed index
 		DBG("Decompressing index " .. name)
 		local extr = run_util(function (ecode, _, stdout, stderr)
@@ -85,6 +84,7 @@ local function repo_parse(repo)
 end
 
 local function repos_failed_download(uri_fail)
+	-- Locate failed repository and check if we can continue
 	for _, repo in pairs(requests.known_repositories_all) do
 		local index_uri = utils.private(repo).index_uri
 		if uri_fail == index_uri then

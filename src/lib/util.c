@@ -33,6 +33,7 @@
 #include <dirent.h>
 #include <signal.h>
 #include <poll.h>
+#include <b64/cdecode.h>
 
 bool dump2file (const char *file, const char *text) {
 	FILE *f = fopen(file, "w");
@@ -115,8 +116,27 @@ static bool base64_is_valid_char(const char c) {
 		(c == '+' || c == '/' || c == '=');
 }
 
-unsigned base64_decode(const char *data, uint8_t **buf, size_t *len) {
+unsigned base64_valid(const char *data) {
+	// TODO this is only minimal verification, we should do more some times in future
+	int check_off = 0;
+	while (data[check_off] != '\0')
+		if (!base64_is_valid_char(data[check_off++]))
+			return check_off;
+	return 0;
+}
 
+void base64_decode(const char *data, uint8_t **buf, size_t *len) {
+	size_t data_len = strlen(data);
+	size_t buff_len = (data_len * 3 / 4)  + 2;
+	*buf = malloc(sizeof(uint8_t) * buff_len);
+
+	base64_decodestate s;
+	base64_init_decodestate(&s);
+	int cnt = base64_decode_block(data, data_len, (char*)*buf, &s);
+	ASSERT(cnt >= 0);
+	*len = cnt;
+	ASSERT_MSG((*len + 1) < buff_len, "Output buffer was too small, this should not happen!");
+	(*buf)[*len] = '\0'; // Terminate this with \0 so if it is string it can be used as such
 }
 
 static bool cleanup_registered = false;

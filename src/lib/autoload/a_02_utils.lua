@@ -39,7 +39,7 @@ local uri = require "uri"
 
 module "utils"
 
--- luacheck: globals lines2set map set2arr arr2set cleanup_dirs dir_ensure mkdirp read_file write_file clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay randstr arr_prune arr_inv file_exists uri_syste_cas uri_no_crl uri_config uri_content
+-- luacheck: globals lines2set map set2arr arr2set cleanup_dirs dir_ensure mkdirp read_file write_file clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay table_wrap randstr arr_prune arr_inv file_exists uri_syste_cas uri_no_crl uri_config uri_content
 
 --[[
 Convert provided text into set of lines. Doesn't care about the order.
@@ -359,6 +359,18 @@ function table_overlay(table)
 end
 
 --[[
+This function returns always table. If input is not table then it is placed to
+table. If input is table then it is returned as is.
+]]
+function table_wrap(table)
+	if type(table) == "table" then
+		return table
+	else
+		return {table}
+	end
+end
+
+--[[
 Check whether file exists
 ]]
 function file_exists(name)
@@ -379,18 +391,17 @@ For full support of all fields see language documentation, section Verification.
 Any field that is not set in table is ignored (configuration is not changed).
 ]]
 function uri_config(uriobj, config)
+	-- TODO and how about veri?
 	if config.ca ~= nil then
 		uriobj:set_ssl_verify(config.ca)
 		uriobj:add_ca(nil)
-		if type(config.ca) == "table" then
-			for ca in pairs(config.ca) do
-				uriobj:add_ca(ca)
-			end
+		for ca in pairs(table_wrap(config.ca)) do
+			uriobj:add_ca(ca)
 		end
 	end
 	if config.crl ~= nil then
 		uriobj:add_crl(nil)
-		for crl in pairs(config.crl) do
+		for crl in pairs(table_wrap(config.crl)) do
 			uriobj:add_crl(crl)
 		end
 	end
@@ -399,7 +410,7 @@ function uri_config(uriobj, config)
 	end
 	if config.pubkey ~= nil then
 		uriobj:add_pubkey(nil)
-		for pubkey in pairs(config.pubkey) do
+		for pubkey in pairs(table_wrap(config.pubkey)) do
 			uriobj:add_pubkey(pubkey)
 		end
 	end

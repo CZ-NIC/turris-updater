@@ -116,3 +116,12 @@ function test_cert_no_verify()
 	local dt = u:finish()
 	assert_equal(lorem_ipsum, dt)
 end
+
+-- This is valid usage so test that it is possible
+function test_add_nil()
+	local master = uri.new()
+	local u = master:to_buffer(https_lorem_ipsum)
+	u:add_ca(nil)
+	u:add_crl(nil)
+	u:add_pubkey(nil)
+end
