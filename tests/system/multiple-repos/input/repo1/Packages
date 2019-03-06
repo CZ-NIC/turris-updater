@@ -1,0 +1,22 @@
+Package: test1
+Version: 1
+License: GPL-2.0
+Section: none
+Architecture: all
+Installed-Size: 0
+Filename: test1.ipk
+MD5Sum: 9968e514ddfb2a9774bb793442fe2175
+SHA256sum: eabeed15e94f71d5dacb80ed21a7f948180ae951b6e04647af33eac0483d2426
+Description:  Test package 1 from repo 1
+
+Package: test2
+Version: 1
+License: GPL-2.0
+Section: none
+Architecture: all
+Installed-Size: 0
+Filename: test2.ipk
+MD5Sum: 0d9041ea7a9bea086d2206658a4f7264
+SHA256sum: 7f9b2afea23c607a7b221db9412124e6c37639f30c2be17d9a34605df2fdc6e2
+Description:  Test package 2 from repo 1
+

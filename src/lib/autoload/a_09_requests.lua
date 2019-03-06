@@ -24,7 +24,9 @@ the configuration scripts to be run in.
 
 local pairs = pairs
 local ipairs = ipairs
+local next = next
 local type = type
+local pcall = pcall
 local string = string
 local error = error
 local require = require
@@ -35,19 +37,20 @@ local utils = require "utils"
 local uri = require "uri"
 local DBG = DBG
 local WARN = WARN
+local ERROR = ERROR
 
 module "requests"
 
--- luacheck: globals known_packages package_wrap known_repositories known_repositories_all repo_serial repository repository_get content_requests install uninstall script package
+-- luacheck: globals known_packages known_repositories repositories_uri_master repo_serial repository content_requests install uninstall script package
 
 -- Verifications fields are same for script, repository and package. Lets define them here once and then just append.
 local allowed_extras_verification = {
-	["verification"] = utils.arr2set({"string"}),
 	["sig"] = utils.arr2set({"string"}),
 	["pubkey"] = utils.arr2set({"string", "table"}),
-	["ca"] = utils.arr2set({"string", "table"}),
-	["crl"] = utils.arr2set({"string", "table"}),
-	["ocsp"] = utils.arr2set({"boolean"})
+	["ca"] = utils.arr2set({"string", "table", "boolean"}),
+	["crl"] = utils.arr2set({"string", "table", "boolean"}),
+	["ocsp"] = utils.arr2set({"boolean"}),
+	["verification"] = utils.arr2set({"string"}), -- obsolete
 }
 
 -- Just die with common message about invalid type in extra field
@@ -95,19 +98,6 @@ local function extra_check_package_type(pkg, field)
 	end
 end
 
--- Common check for accepted values in table
-local function extra_check_table(field, what, table, accepted)
-	local acc = utils.arr2set(accepted)
-	for _, v in pairs(table) do
-		if type(v) ~= "string" then
-			extra_field_invalid_type(v, field, what)
-		end
-		if not acc[v] then
-			WARN("Unknown value " .. v .. " in table of extra option " .. field .. " for a " .. what)
-		end
-	end
-end
-
 -- Common check for verification field
 local function extra_check_verification(what, extra)
 	if extra.verification == nil then return end -- we don't care if there is no setting
@@ -122,6 +112,20 @@ local function extra_check_verification(what, extra)
 				end
 			end
 		end
+	end
+	if extra.verification then
+		WARN("Extra option 'verification' is obsoleted and ignored for a " .. what)
+		extra.verification = nil
+	end
+end
+
+local function extra_annul_ignore(extra, warning, set_optional)
+	if extra.ignore then
+		WARN(warning)
+		if set_optional and extra.optional == nil then
+			extra.optional = next(extra.ignore) ~= nil
+		end
+		extra.ignore = nil
 	end
 end
 
@@ -140,7 +144,7 @@ local allowed_package_extras = {
 	["abi_change"] = utils.arr2set({"table", "boolean"}),
 	["abi_change_deep"] = utils.arr2set({"table", "boolean"}),
 	["priority"] = utils.arr2set({"number"}),
-	["ignore"] = utils.arr2set({"table"})
+	["ignore"] = utils.arr2set({"table"}), -- obsoleted
 }
 utils.table_merge(allowed_package_extras, allowed_extras_verification)
 
@@ -165,8 +169,7 @@ local function extra_check_deps(what, field, deps)
 		end
 	else
 		invalid(deps)
-	end
-end
+	end end
 
 --[[
 We simply store all package promises, so they can be taken
@@ -175,6 +178,16 @@ there might be multiple package promises for a single package.
 We just store them in an array for future processing.
 ]]
 known_packages = {}
+
+local function new_package(pkg_name, extra)
+	local pkg = {
+		tp = "package",
+		name = pkg_name,
+	}
+	utils.table_merge(pkg, extra)
+	table.insert(known_packages, pkg)
+	return pkg
+end
 
 --[[
 This package is just a promise of a real package in the future. It holds the
@@ -187,7 +200,7 @@ has been run).
 
 The package has no methods, it's just a stupid structure.
 ]]
-function package(_, pkg, extra)
+function package(_, pkg_name, extra)
 	-- Minimal typo verification. Further verification is done when actually using the package.
 	extra = allowed_extras_check_type(allowed_package_extras, "package", extra or {})
 	extra_check_verification("package", extra)
@@ -209,7 +222,7 @@ function package(_, pkg, extra)
 		elseif (name == "pre_inst" or name == "post_inst" or name == "pre_rm" or name == "post_rm") and type(value) == "table" then
 			for _, v in pairs(value) do
 				if type(v) ~= "function" then
-					extra_field_invalid_type(v, name)
+					extra_field_invalid_type(v, name, "Package")
 				end
 			end
 		elseif name == "abi_change" and type(value) == "table" then
@@ -218,52 +231,30 @@ function package(_, pkg, extra)
 					extra_check_package_type(v, name)
 				end
 			end
-		elseif name == "ignore" then
-			extra_check_table("package", name, value, {"deps", "validation", "installation"})
 		end
 	end
-	local result = {}
-	utils.table_merge(result, extra)
-	result.name = pkg
-	result.tp = "package"
-	table.insert(known_packages, result)
-	return result
-end
-
---[[
-Either create a new package of that name (if string is passed) or
-pass the provided package.
-]]
-
-function package_wrap(context, pkg)
-	if type(pkg) == "table" and pkg.tp == "package" then
-		-- It is already a package object
-		return pkg
-	else
-		return package(context, pkg)
-	end
+	extra_annul_ignore(extra, 'Package extra option "ignore" is obsolete and is ignored.')
+	new_package(pkg_name, extra)
 end
 
 -- List of allowed extra options for a Repository command
 local allowed_repository_extras = {
-	["subdirs"] = utils.arr2set({"table"}),
 	["index"] = utils.arr2set({"string"}),
-	["ignore"] = utils.arr2set({"table"}),
 	["priority"] = utils.arr2set({"number"}),
+	["optional"] = utils.arr2set({"boolean"}),
+	["subdirs"] = utils.arr2set({"table"}), -- obsolete
+	["ignore"] = utils.arr2set({"table"}), -- obsolete
 }
 utils.table_merge(allowed_repository_extras, allowed_extras_verification)
 
---[[
-The repositories we already created. If there are multiple repos of the
-same name, we are allowed to provide any of them. Therefore, this is
-indexed by their names.
-]]
+-- All added known repositories
 known_repositories = {}
--- One with all the repositories, even if there are name collisions
-known_repositories_all = {}
 
--- Order of the repositories as they are parsed
+-- Order of the repositories as they are introduced
+-- We need this to decide in corner case of same repository priority
 repo_serial = 1
+
+repositories_uri_master = uri.new()
 
 --[[
 Promise of a future repository. The repository shall be downloaded after
@@ -275,99 +266,63 @@ function repository(context, name, repo_uri, extra)
 	-- Catch possible typos
 	extra = allowed_extras_check_type(allowed_repository_extras, 'repository', extra or {})
 	extra_check_verification("repository", extra)
-	for name, value in pairs(extra) do
-		if name == "subdirs" or name == "ignore" then
-			for _, v in pairs(value) do
-				if type(v) ~= "string" then
-					extra_field_invalid_type(v, name, "repository")
-				end
-			end
-		elseif name == "ignore" then
-			extra_check_table("repository", name, value, {"missing", "integrity", "syntax"})
+	extra_annul_ignore(extra, 'Repository extra option "ignore" is obsolete and should not be used. Use "optional" instead.', true)
+
+	local function register_repo(u, repo_name)
+		if known_repositories[repo_name] then
+			ERROR("Repository of name '" .. repo_name "' was already added. Repetition is ignored.")
+			return
 		end
+		local iuri = repositories_uri_master:to_buffer(u .. "/" .. (extra.index or "Packages"), context.parent_script_uri)
+		utils.uri_config(iuri, extra)
+
+		local repo = {
+			tp = "repository",
+			index_uri = iuri,
+			repo_uri = repo_uri,
+			name = repo_name,
+			serial = repo_serial,
+		}
+		utils.table_merge(repo, extra)
+		repo.priority = extra.priority or 50
+		known_repositories[repo_name] = repo
+		repo_serial = repo_serial + 1
 	end
-	local result = {}
-	utils.table_merge(result, extra)
-	result.repo_uri = repo_uri
-	utils.private(result).context = context
-	--[[
-	Start the download. This way any potential access violation is reported
-	right away. It also allows for some parallel downloading while we process
-	the configs.
 
-	Pass result as the validation parameter, as all validation info would be
-	part of the extra.
-
-	We do some mangling with the sig URI, since they are not at Package.gz.sig, but at
-	Package.sig only.
-	]]
 	if extra.subdirs then
-		utils.private(result).index_uri = {}
+		WARN('Repository extra option "subdirs" is obsolete and should not be used anymore.')
 		for _, sub in pairs(extra.subdirs) do
-			sub = "/" .. sub
-			local u = repo_uri .. sub .. '/Packages.gz'
-			local params = utils.table_overlay(result)
-			params.sig = repo_uri .. sub .. '/Packages.sig'
-			utils.private(result).index_uri[sub] = uri(context, u, params)
+			register_repo(repo_uri .. '/' .. sub, name .. '-' .. sub)
 		end
 	else
-		local u = result.index or repo_uri .. '/Packages.gz'
-		local params = utils.table_overlay(result)
-		params.sig = params.sig or u:gsub('%.gz$', '') .. '.sig'
-		utils.private(result).index_uri = {[""] = uri(context, u, params)}
-	end
-	result.priority = result.priority or 50
-	result.serial = repo_serial
-	repo_serial = repo_serial + 1
-	result.name = name
-	result.tp = "repository"
-	known_repositories[name] = result
-	table.insert(known_repositories_all, result)
-	return result
-end
-
--- Either return the repo, if it is one already, or look it up. Nil if it doesn't exist.
-function repository_get(repo)
-	if type(repo) == "table" and (repo.tp == "repository" or repo.tp == "parsed-repository") then
-		return repo
-	else
-		return known_repositories[repo]
+		register_repo(repo_uri, name)
 	end
 end
 
-local allowed_install_extras = {
-	["priority"] = utils.arr2set({"number"}),
-	["version"] = utils.arr2set({"string"}),
-	["repository"] = utils.arr2set({"string", "table"}),
-	["reinstall"] = utils.arr2set({"boolean"}),
-	["critical"] = utils.arr2set({"boolean"}),
-	["ignore"] = utils.arr2set({"table"})
-}
-
+-- This is list of all requests to be fulfilled
 content_requests = {}
 
-local function content_request(context, cmd, allowed, ...)
+local function content_request(cmd, allowed, ...)
 	local batch = {}
 	local function submit(extras)
-		for _, pkg in ipairs(batch) do
-			pkg = package_wrap(context, pkg)
-			DBG("Request " .. cmd .. " of " .. (pkg.name or pkg))
-			local request = {
-				package = pkg,
-				tp = cmd
-			}
-			extras = allowed_extras_check_type(allowed, cmd, extras)
-			for name, value in pairs(extras) do
-				if name == "repository" and type(value) == "table" then
-					for _, v in pairs(value) do
-						if type(v) ~= "string" then
-							extra_field_invalid_type(v, name, cmd)
-						end
-					end
-				elseif name == "ignore" then -- note: we don't check what cmd we have as allowed_extras_check_type filters out ignore parameters for uninstall
-					extra_check_table("cmd", name, value, {"missing"})
+		extras = allowed_extras_check_type(allowed, cmd, extras)
+		if extras.repository then
+			if type(extras.repository) == "string" then
+				extras.repository = {extras.repository}
+			end
+			for _, v in pairs(extras.repository) do
+				if type(v) ~= "string" then
+					extra_field_invalid_type(v, "repository", cmd)
 				end
 			end
+		end
+		extra_annul_ignore(extras, 'Install extra option "ignore" is obsolete and should not be used. Use "optional" instead.', true) -- Note: this is applicable only to Install
+		for _, pkg_name in ipairs(batch) do
+			DBG("Request " .. cmd .. " of " .. pkg_name)
+			local request = {
+				package = new_package(pkg_name, {}),
+				tp = cmd
+			}
 			utils.table_merge(request, extras)
 			request.priority = request.priority or 50
 			table.insert(content_requests, request)
@@ -375,7 +330,7 @@ local function content_request(context, cmd, allowed, ...)
 		batch = {}
 	end
 	for _, val in ipairs({...}) do
-		if type(val) == "table" and val.tp ~= "package" then
+		if type(val) == "table" then
 			submit(val)
 		else
 			table.insert(batch, val)
@@ -384,34 +339,35 @@ local function content_request(context, cmd, allowed, ...)
 	submit({})
 end
 
-function install(context, ...)
-	return content_request(context, "install", allowed_install_extras, ...)
+local allowed_install_extras = {
+	["priority"] = utils.arr2set({"number"}),
+	["version"] = utils.arr2set({"string"}),
+	["repository"] = utils.arr2set({"string", "table"}),
+	["reinstall"] = utils.arr2set({"boolean"}),
+	["critical"] = utils.arr2set({"boolean"}),
+	["optional"] = utils.arr2set({"boolean"}),
+	["ignore"] = utils.arr2set({"table"}), -- obsolete
+}
+
+function install(_, ...)
+	return content_request("install", allowed_install_extras, ...)
 end
 
 local allowed_uninstall_extras = {
 	["priority"] = utils.arr2set({"number"})
 }
 
-function uninstall(context, ...)
-	return content_request(context, "uninstall", allowed_uninstall_extras, ...)
+function uninstall(_, ...)
+	return content_request("uninstall", allowed_uninstall_extras, ...)
 end
 
 local allowed_script_extras = {
 	["security"] = utils.arr2set({"string"}),
-	["restrict"] = utils.arr2set({"string"}), -- This is now obsoleted (not used)
-	["ignore"] = utils.arr2set({"table"})
+	["optional"] = utils.arr2set({"boolean"}),
+	["restrict"] = utils.arr2set({"string"}), -- obsolete
+	["ignore"] = utils.arr2set({"table"}), -- obsolete
 }
 utils.table_merge(allowed_script_extras, allowed_extras_verification)
-
---[[
-We want to insert these options into the new context, if they exist.
-]]
-local script_insert_options = {
-	pubkey = true,
-	ca = true,
-	crl = true,
-	ocsp = true
-}
 
 --[[
 Note that we have filler field just for backward compatibility so when we have
@@ -427,40 +383,28 @@ function script(context, filler, script_uri, extra)
 	else
 		WARN("Syntax \"Script('script-name', 'uri', { extra })\" is deprecated and will be removed.")
 	end
-	DBG("Running script " .. script_uri)
 	extra = allowed_extras_check_type(allowed_script_extras, 'script', extra or {})
 	extra_check_verification("script", extra)
-	for name, value in pairs(extra) do
-		if name == "ignore" then
-			extra_check_table("script", script_uri, value, {"missing", "integrity"})
-		end
-	end
-	local result = {}
-	local u = uri(context, script_uri, extra)
-	local ok, content = u:get()
+	extra_annul_ignore(extra, 'Script extra option "ignore" is obsolete and should not be used. Use "optional" instead.', true)
+	local ok, content, u = pcall(utils.uri_content, script_uri, context.parent_script_uri, extra)
 	if not ok then
-		if utils.arr2set(extra.ignore or {})["missing"] then
-			WARN("Script " .. script_uri .. " not found, but ignoring its absence as requested")
-			result.tp = "script"
-			result.name = script_uri
-			result.ignored = true
-			return result
+		if extra.optional then
+			WARN("Script " .. script_uri .. " wasn't executed: " .. content)
+			return
 		end
-		-- If couldn't get the script, propagate the error
 		error(content)
 	end
+	DBG("Running script " .. script_uri)
 	-- Resolve circular dependency between this module and sandbox
 	local sandbox = require "sandbox"
 	if extra.security and not context:level_check(extra.security) then
 		error(utils.exception("access violation", "Attempt to raise security level from " .. tostring(context.sec_level) .. " to " .. extra.security))
 	end
 	-- Insert the data related to validation, so scripts inside can reuse the info
-	local merge = {}
-	for name in pairs(script_insert_options) do
-		if extra[name] ~= nil then
-			merge[name] = utils.clone(extra[name])
-		end
-	end
+	local merge = {
+		-- Note: this uri does not contain any data (it was finished) so we use it only as paret for meta data
+		["parent_script_uri"] = u
+	}
 	local err = sandbox.run_sandboxed(content, script_uri, extra.security, context, merge)
 	if err and err.tp == 'error' then
 		if not err.origin then
@@ -468,10 +412,6 @@ function script(context, filler, script_uri, extra)
 		end
 		error(err)
 	end
-	-- Return a dummy handle, just as a formality
-	result.tp = "script"
-	result.uri = script_uri
-	return result
 end
 
 return _M

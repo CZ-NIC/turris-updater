@@ -1,0 +1,11 @@
+Package: package
+Version: 1
+License: GPL-2.0
+Section: none
+Architecture: all
+Installed-Size: 0
+Filename: package.ipk
+MD5Sum: 2bead58a5f2728659f48bc028cb4f0a3
+SHA256sum: cb2463d1123472dc041d6c624502080a2cfd0b21e822364a2e282eafa557f66a
+Description:  Example package
+
