@@ -25,12 +25,14 @@ the configuration scripts to be run in.
 local pairs = pairs
 local ipairs = ipairs
 local type = type
+local pcall = pcall
 local string = string
 local error = error
 local require = require
 local tostring = tostring
 local assert = assert
 local table = table
+local unpack = unpack
 local utils = require "utils"
 local uri = require "uri"
 local DBG = DBG
@@ -38,7 +40,7 @@ local WARN = WARN
 
 module "requests"
 
--- luacheck: globals known_packages package_wrap known_repositories known_repositories_all repo_serial repository repository_get content_requests install uninstall script package
+-- luacheck: globals known_packages package_wrap known_repositories known_repositories_all repositories_uri_master repo_serial repository content_requests install uninstall script package
 
 -- Verifications fields are same for script, repository and package. Lets define them here once and then just append.
 local allowed_extras_verification = {
@@ -265,6 +267,8 @@ known_repositories_all = {}
 -- Order of the repositories as they are parsed
 repo_serial = 1
 
+repositories_uri_master = uri.new()
+
 --[[
 Promise of a future repository. The repository shall be downloaded after
 all the configuration scripts are run, parsed and used as a source of
@@ -286,53 +290,38 @@ function repository(context, name, repo_uri, extra)
 			extra_check_table("repository", name, value, {"missing", "integrity", "syntax"})
 		end
 	end
-	local result = {}
-	utils.table_merge(result, extra)
-	result.repo_uri = repo_uri
-	utils.private(result).context = context
 	--[[
-	Start the download. This way any potential access violation is reported
-	right away. It also allows for some parallel downloading while we process
-	the configs.
-
-	Pass result as the validation parameter, as all validation info would be
-	part of the extra.
-
 	We do some mangling with the sig URI, since they are not at Package.gz.sig, but at
 	Package.sig only.
 	]]
+	local result -- Note: we intentionally set and return only last uri
+	local function register_repo(u, repo_name)
+		result = {}
+		utils.table_merge(result, extra)
+
+		local iuri = repositories_uri_master:to_buffer(u, context.paret_script_uri)
+		utils.uri_config(iuri, {unpack(result), ["sig"] = extra.sig or u:gsub('%.gz$', '') .. '.sig'})
+		utils.private(result).index_uri = iuri
+
+		result.repo_uri = repo_uri
+		result.priority = result.priority or 50
+		result.serial = repo_serial
+		repo_serial = repo_serial + 1
+		result.name = repo_name
+		result.tp = "repository"
+		known_repositories[repo_name] = result
+		table.insert(known_repositories_all, result)
+	end
+
 	if extra.subdirs then
-		utils.private(result).index_uri = {}
 		for _, sub in pairs(extra.subdirs) do
-			sub = "/" .. sub
-			local u = repo_uri .. sub .. '/Packages.gz'
-			local params = utils.table_overlay(result)
-			params.sig = repo_uri .. sub .. '/Packages.sig'
-			utils.private(result).index_uri[sub] = uri(context, u, params)
+			register_repo(repo_uri .. sub .. '/Packages.gz', name .. '-' .. sub)
 		end
 	else
-		local u = result.index or repo_uri .. '/Packages.gz'
-		local params = utils.table_overlay(result)
-		params.sig = params.sig or u:gsub('%.gz$', '') .. '.sig'
-		utils.private(result).index_uri = {[""] = uri(context, u, params)}
+		register_repo(extra.index or repo_uri .. '/Packages.gz', name)
 	end
-	result.priority = result.priority or 50
-	result.serial = repo_serial
-	repo_serial = repo_serial + 1
-	result.name = name
-	result.tp = "repository"
-	known_repositories[name] = result
-	table.insert(known_repositories_all, result)
-	return result
-end
 
--- Either return the repo, if it is one already, or look it up. Nil if it doesn't exist.
-function repository_get(repo)
-	if type(repo) == "table" and (repo.tp == "repository" or repo.tp == "parsed-repository") then
-		return repo
-	else
-		return known_repositories[repo]
-	end
+	return result
 end
 
 local allowed_install_extras = {
@@ -404,16 +393,6 @@ local allowed_script_extras = {
 utils.table_merge(allowed_script_extras, allowed_extras_verification)
 
 --[[
-We want to insert these options into the new context, if they exist.
-]]
-local script_insert_options = {
-	pubkey = true,
-	ca = true,
-	crl = true,
-	ocsp = true
-}
-
---[[
 Note that we have filler field just for backward compatibility so when we have
 just one argument or two arguments where second one is table we move all arguments
 to their appropriate variables.
@@ -436,8 +415,7 @@ function script(context, filler, script_uri, extra)
 		end
 	end
 	local result = {}
-	local u = uri(context, script_uri, extra)
-	local ok, content = u:get()
+	local ok, content, u = pcall(utils.uri_content(script_uri, context.paret_script_uri, extra))
 	if not ok then
 		if utils.arr2set(extra.ignore or {})["missing"] then
 			WARN("Script " .. script_uri .. " not found, but ignoring its absence as requested")
@@ -455,12 +433,10 @@ function script(context, filler, script_uri, extra)
 		error(utils.exception("access violation", "Attempt to raise security level from " .. tostring(context.sec_level) .. " to " .. extra.security))
 	end
 	-- Insert the data related to validation, so scripts inside can reuse the info
-	local merge = {}
-	for name in pairs(script_insert_options) do
-		if extra[name] ~= nil then
-			merge[name] = utils.clone(extra[name])
-		end
-	end
+	local merge = {
+		-- Note: this uri does not contain any data (it was finished) so we use it only as paret for meta data
+		["parent_script_uri"] = u
+	}
 	local err = sandbox.run_sandboxed(content, script_uri, extra.security, context, merge)
 	if err and err.tp == 'error' then
 		if not err.origin then
