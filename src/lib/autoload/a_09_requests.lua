@@ -16,6 +16,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
+local print = print
 
 --[[
 This module prepares and manipulates contexts and environments for
@@ -37,10 +38,11 @@ local utils = require "utils"
 local uri = require "uri"
 local DBG = DBG
 local WARN = WARN
+local ERROR = ERROR
 
 module "requests"
 
--- luacheck: globals known_packages package_wrap known_repositories known_repositories_all repositories_uri_master repo_serial repository content_requests install uninstall script package
+-- luacheck: globals known_packages known_repositories repositories_uri_master repo_serial repository content_requests install uninstall script package
 
 -- Verifications fields are same for script, repository and package. Lets define them here once and then just append.
 local allowed_extras_verification = {
@@ -167,8 +169,7 @@ local function extra_check_deps(what, field, deps)
 		end
 	else
 		invalid(deps)
-	end
-end
+	end end
 
 --[[
 We simply store all package promises, so they can be taken
@@ -177,6 +178,16 @@ there might be multiple package promises for a single package.
 We just store them in an array for future processing.
 ]]
 known_packages = {}
+
+local function new_package(pkg_name, extra)
+	local pkg = {
+		tp = "package",
+		name = pkg_name,
+	}
+	utils.table_merge(pkg, extra)
+	table.insert(known_packages, pkg)
+	return pkg
+end
 
 --[[
 This package is just a promise of a real package in the future. It holds the
@@ -189,7 +200,7 @@ has been run).
 
 The package has no methods, it's just a stupid structure.
 ]]
-function package(_, pkg, extra)
+function package(_, pkg_name, extra)
 	-- Minimal typo verification. Further verification is done when actually using the package.
 	extra = allowed_extras_check_type(allowed_package_extras, "package", extra or {})
 	extra_check_verification("package", extra)
@@ -224,26 +235,7 @@ function package(_, pkg, extra)
 			extra_check_table("package", name, value, {"deps", "validation", "installation"})
 		end
 	end
-	local result = {}
-	utils.table_merge(result, extra)
-	result.name = pkg
-	result.tp = "package"
-	table.insert(known_packages, result)
-	return result
-end
-
---[[
-Either create a new package of that name (if string is passed) or
-pass the provided package.
-]]
-
-function package_wrap(context, pkg)
-	if type(pkg) == "table" and pkg.tp == "package" then
-		-- It is already a package object
-		return pkg
-	else
-		return package(context, pkg)
-	end
+	new_package(pkg_name, extra)
 end
 
 -- List of allowed extra options for a Repository command
@@ -255,16 +247,11 @@ local allowed_repository_extras = {
 }
 utils.table_merge(allowed_repository_extras, allowed_extras_verification)
 
---[[
-The repositories we already created. If there are multiple repos of the
-same name, we are allowed to provide any of them. Therefore, this is
-indexed by their names.
-]]
+-- All added known repositories
 known_repositories = {}
--- One with all the repositories, even if there are name collisions
-known_repositories_all = {}
 
--- Order of the repositories as they are parsed
+-- Order of the repositories as they are introduced
+-- We need this to decide in corner case of same repository priority
 repo_serial = 1
 
 repositories_uri_master = uri.new()
@@ -290,38 +277,80 @@ function repository(context, name, repo_uri, extra)
 			extra_check_table("repository", name, value, {"missing", "integrity", "syntax"})
 		end
 	end
+	-- Canonize some extra fields
+	extra.ignore = utils.arr2set(extra.ignore or {})
 	--[[
 	We do some mangling with the sig URI, since they are not at Package.gz.sig, but at
 	Package.sig only.
 	]]
-	local result -- Note: we intentionally set and return only last uri
 	local function register_repo(u, repo_name)
-		result = {}
-		utils.table_merge(result, extra)
-
+		if known_repositories[repo_name] then
+			ERROR("Repository of name '" .. repo_name "' was already added. Repetition is ignored.")
+			return
+		end
 		local iuri = repositories_uri_master:to_buffer(u, context.paret_script_uri)
-		utils.uri_config(iuri, {unpack(result), ["sig"] = extra.sig or u:gsub('%.gz$', '') .. '.sig'})
-		utils.private(result).index_uri = iuri
+		utils.uri_config(iuri, {unpack(extra), ["sig"] = extra.sig or u:gsub('%.gz$', '') .. '.sig'})
 
-		result.repo_uri = repo_uri
-		result.priority = result.priority or 50
-		result.serial = repo_serial
+		local repo = {
+			tp = "repository",
+			index_uri = iuri,
+			repo_uri = repo_uri,
+			name = repo_name,
+			serial = repo_serial,
+		}
+		utils.table_merge(repo, extra)
+		repo.priority = extra.priority or 50
+		known_repositories[repo_name] = repo
 		repo_serial = repo_serial + 1
-		result.name = repo_name
-		result.tp = "repository"
-		known_repositories[repo_name] = result
-		table.insert(known_repositories_all, result)
 	end
 
 	if extra.subdirs then
 		for _, sub in pairs(extra.subdirs) do
-			register_repo(repo_uri .. sub .. '/Packages.gz', name .. '-' .. sub)
+			register_repo(repo_uri .. '/' .. sub .. '/' .. (extra.index or 'Packages.gz'), name .. '-' .. sub)
 		end
 	else
-		register_repo(extra.index or repo_uri .. '/Packages.gz', name)
+		register_repo(repo_uri .. '/' .. (extra.index or 'Packages.gz'), name)
 	end
+end
 
-	return result
+-- This is list of all requests to be fulfilled
+content_requests = {}
+
+local function content_request(context, cmd, allowed, ...)
+	local batch = {}
+	local function submit(extras)
+		extras = allowed_extras_check_type(allowed, cmd, extras)
+		for name, value in pairs(extras) do
+			if name == "repository" and type(value) == "table" then
+				for _, v in pairs(value) do
+					if type(v) ~= "string" then
+						extra_field_invalid_type(v, name, cmd)
+					end
+				end
+			elseif name == "ignore" then -- note: we don't check what cmd we have as allowed_extras_check_type filters out ignore parameters for uninstall
+				extra_check_table("cmd", name, value, {"missing"})
+			end
+		end
+		for _, pkg_name in ipairs(batch) do
+			DBG("Request " .. cmd .. " of " .. pkg_name)
+			local request = {
+				package = new_package(pkg_name, {}),
+				tp = cmd
+			}
+			utils.table_merge(request, extras)
+			request.priority = request.priority or 50
+			table.insert(content_requests, request)
+		end
+		batch = {}
+	end
+	for _, val in ipairs({...}) do
+		if type(val) == "table" then
+			submit(val)
+		else
+			table.insert(batch, val)
+		end
+	end
+	submit({})
 end
 
 local allowed_install_extras = {
@@ -332,46 +361,6 @@ local allowed_install_extras = {
 	["critical"] = utils.arr2set({"boolean"}),
 	["ignore"] = utils.arr2set({"table"})
 }
-
-content_requests = {}
-
-local function content_request(context, cmd, allowed, ...)
-	local batch = {}
-	local function submit(extras)
-		for _, pkg in ipairs(batch) do
-			pkg = package_wrap(context, pkg)
-			DBG("Request " .. cmd .. " of " .. (pkg.name or pkg))
-			local request = {
-				package = pkg,
-				tp = cmd
-			}
-			extras = allowed_extras_check_type(allowed, cmd, extras)
-			for name, value in pairs(extras) do
-				if name == "repository" and type(value) == "table" then
-					for _, v in pairs(value) do
-						if type(v) ~= "string" then
-							extra_field_invalid_type(v, name, cmd)
-						end
-					end
-				elseif name == "ignore" then -- note: we don't check what cmd we have as allowed_extras_check_type filters out ignore parameters for uninstall
-					extra_check_table("cmd", name, value, {"missing"})
-				end
-			end
-			utils.table_merge(request, extras)
-			request.priority = request.priority or 50
-			table.insert(content_requests, request)
-		end
-		batch = {}
-	end
-	for _, val in ipairs({...}) do
-		if type(val) == "table" and val.tp ~= "package" then
-			submit(val)
-		else
-			table.insert(batch, val)
-		end
-	end
-	submit({})
-end
 
 function install(context, ...)
 	return content_request(context, "install", allowed_install_extras, ...)
@@ -406,7 +395,6 @@ function script(context, filler, script_uri, extra)
 	else
 		WARN("Syntax \"Script('script-name', 'uri', { extra })\" is deprecated and will be removed.")
 	end
-	DBG("Running script " .. script_uri)
 	extra = allowed_extras_check_type(allowed_script_extras, 'script', extra or {})
 	extra_check_verification("script", extra)
 	for name, value in pairs(extra) do
@@ -414,19 +402,16 @@ function script(context, filler, script_uri, extra)
 			extra_check_table("script", script_uri, value, {"missing", "integrity"})
 		end
 	end
-	local result = {}
-	local ok, content, u = pcall(utils.uri_content(script_uri, context.paret_script_uri, extra))
+	local ok, content, u = pcall(utils.uri_content, script_uri, context.paret_script_uri, extra)
 	if not ok then
 		if utils.arr2set(extra.ignore or {})["missing"] then
 			WARN("Script " .. script_uri .. " not found, but ignoring its absence as requested")
-			result.tp = "script"
-			result.name = script_uri
-			result.ignored = true
-			return result
+			return
 		end
 		-- If couldn't get the script, propagate the error
 		error(content)
 	end
+	DBG("Running script " .. script_uri)
 	-- Resolve circular dependency between this module and sandbox
 	local sandbox = require "sandbox"
 	if extra.security and not context:level_check(extra.security) then
@@ -444,10 +429,6 @@ function script(context, filler, script_uri, extra)
 		end
 		error(err)
 	end
-	-- Return a dummy handle, just as a formality
-	result.tp = "script"
-	result.uri = script_uri
-	return result
 end
 
 return _M

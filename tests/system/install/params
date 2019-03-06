@@ -1,1 +1,1 @@
--e INFO -R "$ROOT_DIR" -a "$DATA_DIR"/updater.ipk
+-e INFO -R "$ROOT_DIR" -a "$DATA_DIR"/repo/updater.ipk

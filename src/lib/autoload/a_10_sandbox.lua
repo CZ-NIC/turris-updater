@@ -51,7 +51,8 @@ local updater_features = utils.arr2set({
 	'conflicts',
 	'abi_change',
 	'abi_change_deep',
-	'replan_string'
+	'replan_string',
+	'no_returns'
 })
 
 -- Available functions and "constants" from global environment
