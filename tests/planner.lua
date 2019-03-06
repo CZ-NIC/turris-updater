@@ -469,7 +469,7 @@ function test_missing_ignore_deps()
 				tp = 'package',
 				name = 'pkg',
 			},
-			ignore = {'missing'},
+			optional = true,
 			priority = 50,
 		}
 	}
@@ -1834,7 +1834,7 @@ function test_request_no_candidate_ignore()
 				tp = 'package',
 				name = 'pkg',
 			},
-			ignore = {'missing'},
+			optional = true,
 			priority = 50,
 		}
 	}
@@ -1863,7 +1863,7 @@ function test_missing_install()
 				tp = 'package',
 				name = 'pkg2'
 			},
-			ignore = {'missing'},
+			optional = true,
 			priority = 50,
 		}
 	}
@@ -1885,7 +1885,7 @@ function test_missing_dep_ignore()
 		pkg1 = {
 			candidates = {{Package = 'pkg1', deps = 'pkg2', repo = def_repo}},
 			modifier = {
-				ignore = {"deps"}
+				optional = true
 			},
 			name = "pkg1"
 		}
@@ -1906,7 +1906,7 @@ function test_missing_dep_ignore()
 			action = "require",
 			package = {Package = 'pkg1', deps = 'pkg2', repo = def_repo},
 			modifier = {
-				ignore = {"deps"}
+				optional = true
 			},
 			critical = false,
 			name = "pkg1"
