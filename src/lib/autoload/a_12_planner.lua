@@ -261,7 +261,7 @@ local function sat_build(sat, pkgs, requests)
 	}
 	-- Go trough requests and add them to SAT
 	for _, req in ipairs(requests) do
-		if not pkgs[req.package.name] and not utils.arr2set(req.ignore or {})["missing"] then
+		if not pkgs[req.package.name] and not req.optional then
 			error(utils.exception('inconsistent', "Requested package " .. req.package.name .. " doesn't exists."))
 		end
 		local req_var = sat:var()
@@ -388,7 +388,7 @@ local function build_plan(pkgs, requests, sat, satmap)
 		inwstack[name] = #wstack + 1 -- Signal that we are working on this package group.
 		table.insert(wstack, name)
 		for _, p in pkg_dep_iterate(utils.multi_index(pkg, 'modifier', 'deps') or {}) do -- plan package group dependencies
-			pkg_plan(p, ignore_missing or utils.arr2set(utils.multi_index(pkg, 'modifier', 'ignore') or {})["deps"], false, "Package " .. name .. " requires package")
+			pkg_plan(p, ignore_missing or utils.multi_index(pkg, 'modifier', 'optional'), false, "Package " .. name .. " requires package")
 		end
 		if not next(candidates) then return end -- We have no candidate, but we passed previous check because it's virtual
 		local r = {}
@@ -401,7 +401,7 @@ local function build_plan(pkgs, requests, sat, satmap)
 			else
 				no_pkg_candidate = false
 				for _, p in pkg_dep_iterate(utils.multi_index(candidate, 'deps') or {}) do
-					pkg_plan(p, ignore_missing or utils.arr2set(utils.multi_index(pkg, 'modifier', 'ignore') or {})["deps"], false, "Package " .. name .. " requires package")
+					pkg_plan(p, ignore_missing or utils.multi_index(pkg, 'modifier', 'optional'), false, "Package " .. name .. " requires package")
 				end
 			end
 		end
@@ -434,7 +434,7 @@ local function build_plan(pkgs, requests, sat, satmap)
 	for _, req in pairs(requests) do
 		if sat[satmap.req2sat[req]] then -- Plan only if we can satisfy given request
 			if req.tp == "install" then -- And if it is install request, uninstall requests are resolved by not being planned.
-				local pln = pkg_plan(req.package, false, utils.arr2set(req.ignore or {})["missing"], 'Requested package')
+				local pln = pkg_plan(req.package, false, req.optional, 'Requested package')
 				-- Note that if pln is nil than we ignored missing package. We have to compute with that here
 				if pln then
 					if req.reinstall then

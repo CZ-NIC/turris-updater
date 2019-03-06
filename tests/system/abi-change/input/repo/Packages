@@ -1,0 +1,23 @@
+Package: apptest
+Version: 1
+License: GPL-2.0
+Section: none
+Depends: libtest
+Architecture: all
+Installed-Size: 0
+Filename: apptest.ipk
+MD5Sum: 7acfdf8112713f20e3f474905b967979
+SHA256sum: afcb8ce83c1783b070eb52ecdc99c2610fecd250dbb15b8f27efa7bb99e685a7
+Description:  Package requesting libtest
+
+Package: libtest
+Version: 2
+License: GPL-2.0
+Section: none
+Architecture: all
+Installed-Size: 0
+Filename: libtest.ipk
+MD5Sum: 16de64f6ad07fdcc1022468c60750d64
+SHA256sum: 7a0c9975d8ab15b0c4b5603646f25d96f9bba6fc0703677d101b3fc8b317a923
+Description:  This simulates library
+

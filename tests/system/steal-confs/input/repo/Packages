@@ -1,0 +1,61 @@
+Package: libgcc
+Version: 4.8-linaro-3
+Source: package/libs/toolchain
+License: GPL-3.0-with-GCC-exception
+Section: libs
+Essential: yes
+Maintainer: Felix Fietkau <nbd@openwrt.org>
+Architecture: mpc85xx
+Installed-Size: 51404
+Filename: libgcc_4.8-linaro-3_mpc85xx.ipk
+Size: 52287
+MD5Sum: aa62d6bdf2dcecf1b7b4604dc9374cac
+SHA256sum: 750e27d6ed5359db1a80bfe5f125173ed2f6a30ce141d1fb900791c88d3fa75c
+Description:  GCC support library
+
+Package: libc
+Version: 0.9.33.2-3
+Depends: libgcc
+Source: package/libs/toolchain
+License: GPL-3.0-with-GCC-exception
+Section: libs
+Essential: yes
+Maintainer: Felix Fietkau <nbd@openwrt.org>
+Architecture: mpc85xx
+Installed-Size: 211453
+Filename: libc_0.9.33.2-3_mpc85xx.ipk
+Size: 212436
+MD5Sum: 740ee154e958903b0cefac3421ecf799
+SHA256sum: baa5efda3a3d729d9d1179651bd09c361531f82b55e30d5059d476b1d586a434
+Description:  C library
+
+Package: dnsmasq-dhcpv6
+Version: 2.73-1
+Depends: libc
+Source: package/network/services/dnsmasq
+License: GPL-2.0
+LicenseFiles: COPYING
+Section: net
+Architecture: mpc85xx
+Installed-Size: 142135
+Filename: dnsmasq-dhcpv6_2.73-1_mpc85xx.ipk
+MD5Sum: da7294df3b57dfaeeb33c1f0aa66c1e2
+SHA256sum: cc8bf5648682c0814b919eff92d564eb42cf41aedb2026683e43406cb07218de
+Description:  It is intended to provide coupled DNS and DHCP service to a LAN.
+ 
+ This is a variant with DHCPv6 support
+
+Package: dropbear
+Version: 2015.67-1
+Depends: libc
+Source: package/network/services/dropbear
+License: MIT
+LicenseFiles: LICENSE libtomcrypt/LICENSE libtommath/LICENSE
+Section: net
+Architecture: mpc85xx
+Installed-Size: 93215
+Filename: dropbear_2015.67-1_mpc85xx.ipk
+MD5Sum: 979cd0bc5b3f5cee6877687a80791afa
+SHA256sum: e0ebd77b264d34b6245dd26fc2e5d0ea3028966a996c23fb099aac187b4f4001
+Description:  A small SSH2 server/client designed for small memory environments.
+
