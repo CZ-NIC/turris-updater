@@ -157,9 +157,15 @@ sig;;
   URI. The option has effect only if `pubkey` is set so signature checking is
   done. In default it's set to `nil`.
 
-URIs specified in these verification options are not verified (default values, not
-inherited ones, are used). Because of that it is suggested to used only
-trusted/secure URIs for that purpose. Suggested are `file://` and `data://`.
+IMPORTANT: URIs specified in these verification options are not verified (default
+values, not inherited ones, are used). Because of that it is suggested and
+required to use only trusted/secure local URIs for that purpose. That means:
+`file://` and `data://`.
+
+TIP: URIs specified in these verification options has to be valid but the resource
+don't have to be available (such as missing file). That is ok and it does not
+cause error directly. This means that you can provide keys and certificates that
+might not be installed in configuration without worrying about their existence.
 
 NOTE::
   Another option `verification` exist. It was originally used for verification
