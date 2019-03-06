@@ -20,7 +20,7 @@ and sometimes desirable.
 Security levels
 ---------------
 
-There are different security levels of the scripts used.  The security
+There are different security levels of the scripts used. The security
 level may further limit the set of commands and the abilities of given
 commands. This is to ensure the server may never send malicious
 commands covertly (it still can send version of package that contains
@@ -37,12 +37,10 @@ Full::
   (including compiled `.so` modules). This is what the internals of the
   updater would be built in.
 Local::
-  It is possible to reference local files and directories as further
-  configuration scripts. It is possible to read UCI configuration and
-  execute arbitrary shell commands.
+  It is possible to read UCI configuration and execute arbitrary
+  shell commands.
 Remote::
-  The functions may reference only other remote resources, not local
-  ones. Reading UCI config is not possible.
+  Reading UCI config is not possible.
 Restricted::
   It is possible to further restrict the entities referenced to a
   string match (eg. ensure that it comes from a given server). Access
@@ -270,21 +268,11 @@ produced by the buildroot.
 
 Extra parameters are:
 
-subdirs::
-  If the URI contains multiple subdirectories, each one being a valid
-  repository, you may list the subdirectories here (as a lua table of
-  strings). The repository will unify all the subdirectory contents
-  together to form one huge repository. In case of collision of
-  packages between the subdirectories, the first one containing a
-  given package wins (in the order listed here). If this option is not
-  listed, the repository acts in normal way (the URI directly
-  containing the packages).
 index::
   Overrides the URI at which the repository index lives and uses the
   main URI as the place where packages are downloaded from. Both
   gzipped and plain versions may be in the given URI. If the option is
-  not listed, it is expected to be in `Packages.gz`. Overriding the
-  URI is not compatible with the subdirs option.
+  not listed, it is expected to be in `Packages.gz`.
 ignore::
   Ignore certain errors. This is a lua table with strings, each
   specifying a category of errors to ignore. If there's an error
@@ -316,6 +304,15 @@ ca::
 crl::
 ocsp::
   Options to verify the index integrity.
+
+NOTE::
+  There is also obsoleted `subdirs` extra parameter. It was intended to be used as
+  a simple way to add multiple repositories at once. It had small trick under its
+  sleeve that it combined all those repositories under one name but that
+  effectively changes nothing. In new versions of Updater-ng this option is only
+  emulated and repository with name generated with following script is added
+  instead: `NAME-SUBDIR` where `NAME` is name of repository and `SUBDIR` is
+  specific `subdirs` values.
 
 Uninstall
 ~~~~~~~~~

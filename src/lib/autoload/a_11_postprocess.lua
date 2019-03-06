@@ -42,106 +42,85 @@ module "postprocess"
 
 -- luacheck: globals get_repos deps_canon conflicts_canon available_packages pkg_aggregate run sort_candidates
 
-function get_repos()
-	DBG("Getting repos")
-	--[[
-	The repository index downloads are already in progress since
-	the repository objects have been created. We now register
-	callback for the arrival of data. This might happen right
-	away or later on. Anyway, after we wait, all the indices
-	have been downloaded.
+local function repo_parse(repo)
+	local index_uri = utils.private(repo).index_uri
 
-	When we get each index, we detect if the data is gzipped
-	or not. If it is not, the repository is parsed right away.
-	If it is, extraction is run in the background and parsing
-	is scheduled for once it finishes. Eventually, we wait for
-	all the extractions to finish, and at that point everything
-	is parsed.
-	]]
-	local uris = {} -- The uris we wait for to be downloaded
-	local extract_events = {} -- The extractions we wait for
-	local errors = {} -- Collect errors as we go
-	local fatal = false -- Are any of them a reason to abort?
-	--[[
-	We don't care about the order in which we register the callbacks
-	(which may be different from the order in which they are called
-	anyway).
-	]]
-	for _, repo in pairs(requests.known_repositories_all) do
-		repo.tp = 'parsed-repository'
-		repo.content = {}
-		for subrepo, index_uri in pairs(utils.private(repo).index_uri) do
-			local name = repo.name .. "/" .. index_uri.uri
-			table.insert(uris, index_uri)
-			local function broken(why, extra)
-				ERROR("Index " .. name .. " is broken (" .. why .. "): " .. tostring(extra))
-				extra.why = why
-				extra.repo = name
-				repo.content[subrepo] = extra
-				table.insert(errors, extra)
-				fatal = fatal or not utils.arr2set(repo.ignore or {})[why]
-			end
-			local function parse(content)
-				DBG("Parsing index " .. name)
-				local ok, list = pcall(backend.repo_parse, content)
-				if ok then
-					for _, pkg in pairs(list) do
-						-- Compute the URI of each package (but don't download it yet, so don't create the uri object)
-						pkg.uri_raw = repo.repo_uri .. subrepo .. '/' .. pkg.Filename
-						pkg.repo = repo
-					end
-					repo.content[subrepo] = {
-						tp = "pkg-list",
-						list = list
-					}
-				else
-					broken('syntax', utils.exception('repo broken', "Couldn't parse the index of " .. name .. ": " .. tostring(list)))
+	repo.tp = 'parsed-repository'
+	repo.content = {}
+	local name = repo.name .. "/" .. index_uri:uri()
+	-- Get index
+	local index = index_uri:finish() -- TODO error?
+	if index:sub(1, 2) == string.char(0x1F, 0x8B) then -- copressed index
+		DBG("Decompressing index " .. name)
+		local extr = run_util(function (ecode, _, stdout, stderr)
+				if ecode ~= 0 then
+					error(utils.exception('repo broken', "Couldn't decompress " .. name .. ": " .. stderr))
 				end
+				index = stdout
 			end
-			local function decompressed(ecode, _, stdout, stderr)
-				DBG("Decompression of " .. name .. " done")
-				if ecode == 0 then
-					parse(stdout)
-				else
-					broken('syntax', utils.exception('repo broken', "Couldn't decompress " .. name .. ": " .. stderr))
-				end
-			end
-			local function downloaded(ok, answer)
-				DBG("Received repository index " .. name)
-				if not ok then
-					-- Couldn't download
-					-- TODO: Once we have validation, this could also mean the integrity is broken, not download
-					broken('missing', answer)
-				elseif answer:sub(1, 2) == string.char(0x1F, 0x8B) then
-					-- It starts with gzip magic - we want to decompress it
-					DBG("Index " .. name .. " is compressed, decompressing")
-					table.insert(extract_events, run_util(decompressed, nil, answer, -1, -1, 'gzip', '-dc'))
-				else
-					parse(answer)
-				end
-			end
-			index_uri:cback(downloaded)
-		end
-		--[[
-		We no longer need to keep the uris in there, we
-		wait for them here and after all is done, we want
-		the contents to be garbage collected.
-		]]
-		utils.private(repo).index_uri = nil
+			, nil, index, -1, -1, 'gzip', '-dc')
+		events_wait({extr})
 	end
-	-- Make sure everything is downloaded
-	uri.wait(unpack(uris))
-	-- And extracted
-	events_wait(unpack(extract_events))
-	-- Process any errors
-	local multi = utils.exception('multiple', "Multiple exceptions (" .. #errors .. ")")
-	multi.errors = errors
-	if fatal then
-		error(multi)
-	elseif next(errors) then
-		return multi
-	else
-		return nil
+	-- Parse index
+	DBG("Parsing index " .. name)
+	local ok, list = pcall(backend.repo_parse, index)
+	if not ok then
+		local msg = "Couldn't parse the index of " .. name .. ": " .. tostring(list)
+		if repo.ignore['syntax'] then
+			WARN(msg)
+		else
+			error(utils.exception('syntax', msg))
+		end
+	end
+	for _, pkg in pairs(list) do
+		-- Compute the URI of each package (but don't download it yet, so don't create the uri object)
+		pkg.uri_raw = repo.repo_uri .. subrepo .. '/' .. pkg.Filename
+		pkg.repo = repo
+	end
+	repo.content[subrepo] = {
+		tp = "pkg-list",
+		list = list
+	}
+end
+
+local function repos_failed_download(uri_fail)
+	-- Locate failed repository and check if we can continue
+	for _, repo in pairs(requests.known_repositories_all) do
+		local index_uri = utils.private(repo).index_uri
+		if uri_fail == index_uri then
+			local message = "Download failed for repository index " ..
+				repo.name .. "/" .. index_uri:uri() .. ": " ..
+				tostring(index_uri:download_error())
+			if not repo.ignore['missing'] then
+				error(utils.exception('repo missing', message))
+			end
+			WARN(message)
+			repo.tp = 'failed-repository'
+			break
+		end
+	end
+end
+
+function get_repos()
+	DBG("Downloading repositories indexes")
+	-- Run download
+	while true do
+		local uri_fail = requests.repositories_uri_master:download()
+		if uri_fail then
+			repos_failed_download(uri_fail)
+		else
+			break
+		end
+	end
+	-- Collect indexes and parse them
+	for _, repo in pairs(requests.known_repositories_all) do
+		if repo.tp == 'repository' then -- ignore failed repositories
+			local ok, err = pcall(repo_parse, repo)
+			if not ok then
+				-- TODO is this fatal?
+				error(err)
+			end
+		end
 	end
 end
 
@@ -467,10 +446,7 @@ function pkg_aggregate()
 end
 
 function run()
-	local repo_errors = get_repos()
-	if repo_errors then
-		WARN("Not all repositories are available")
-	end
+	get_repos()
 	pkg_aggregate()
 end
 
