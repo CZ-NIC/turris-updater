@@ -43,13 +43,11 @@ module "postprocess"
 -- luacheck: globals get_repos deps_canon conflicts_canon available_packages pkg_aggregate run sort_candidates
 
 local function repo_parse(repo)
-	local index_uri = utils.private(repo).index_uri
-
 	repo.tp = 'parsed-repository'
 	repo.content = {}
-	local name = repo.name .. "/" .. index_uri:uri()
+	local name = repo.name .. "/" .. repo.index_uri:uri()
 	-- Get index
-	local index = index_uri:finish() -- TODO error?
+	local index = repo.index_uri:finish() -- TODO error?
 	if index:sub(1, 2) == string.char(0x1F, 0x8B) then -- copressed index
 		DBG("Decompressing index " .. name)
 		local extr = run_util(function (ecode, _, stdout, stderr)
@@ -86,11 +84,10 @@ end
 local function repos_failed_download(uri_fail)
 	-- Locate failed repository and check if we can continue
 	for _, repo in pairs(requests.known_repositories_all) do
-		local index_uri = utils.private(repo).index_uri
-		if uri_fail == index_uri then
+		if uri_fail == repo.index_uri then
 			local message = "Download failed for repository index " ..
-				repo.name .. "/" .. index_uri:uri() .. ": " ..
-				tostring(index_uri:download_error())
+				repo.name .. "/" .. repo.index_uri:uri() .. ": " ..
+				tostring(repo.index_uri:download_error())
 			if not repo.ignore['missing'] then
 				error(utils.exception('repo missing', message))
 			end
