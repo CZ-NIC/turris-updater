@@ -25,7 +25,6 @@ local pcall = pcall
 local next = next
 local type = type
 local assert = assert
-local unpack = unpack
 local table = table
 local string = string
 local events_wait = events_wait
@@ -36,20 +35,17 @@ local ERROR = ERROR
 local utils = require "utils"
 local backend = require "backend"
 local requests = require "requests"
-local uri = require "uri"
 
 module "postprocess"
 
 -- luacheck: globals get_repos deps_canon conflicts_canon available_packages pkg_aggregate run sort_candidates
 
 local function repo_parse(repo)
-	local index_uri = utils.private(repo).index_uri
-
 	repo.tp = 'parsed-repository'
 	repo.content = {}
-	local name = repo.name .. "/" .. index_uri:uri()
+	local name = repo.name .. "/" .. repo.index_uri:uri()
 	-- Get index
-	local index = index_uri:finish() -- TODO error?
+	local index = repo.index_uri:finish() -- TODO error?
 	if index:sub(1, 2) == string.char(0x1F, 0x8B) then -- copressed index
 		DBG("Decompressing index " .. name)
 		local extr = run_util(function (ecode, _, stdout, stderr)
@@ -59,7 +55,7 @@ local function repo_parse(repo)
 				index = stdout
 			end
 			, nil, index, -1, -1, 'gzip', '-dc')
-		events_wait({extr})
+		events_wait(extr)
 	end
 	-- Parse index
 	DBG("Parsing index " .. name)
@@ -74,23 +70,19 @@ local function repo_parse(repo)
 	end
 	for _, pkg in pairs(list) do
 		-- Compute the URI of each package (but don't download it yet, so don't create the uri object)
-		pkg.uri_raw = repo.repo_uri .. subrepo .. '/' .. pkg.Filename
+		pkg.uri_raw = repo.repo_uri .. '/' .. pkg.Filename
 		pkg.repo = repo
 	end
-	repo.content[subrepo] = {
-		tp = "pkg-list",
-		list = list
-	}
+	repo.content = list
 end
 
 local function repos_failed_download(uri_fail)
 	-- Locate failed repository and check if we can continue
-	for _, repo in pairs(requests.known_repositories_all) do
-		local index_uri = utils.private(repo).index_uri
-		if uri_fail == index_uri then
+	for _, repo in pairs(requests.known_repositories) do
+		if uri_fail == repo.index_uri then
 			local message = "Download failed for repository index " ..
-				repo.name .. "/" .. index_uri:uri() .. ": " ..
-				tostring(index_uri:download_error())
+				repo.name .. " (" .. repo.index_uri:uri() .. "): " ..
+				tostring(repo.index_uri:download_error())
 			if not repo.ignore['missing'] then
 				error(utils.exception('repo missing', message))
 			end
@@ -113,7 +105,7 @@ function get_repos()
 		end
 	end
 	-- Collect indexes and parse them
-	for _, repo in pairs(requests.known_repositories_all) do
+	for _, repo in pairs(requests.known_repositories) do
 		if repo.tp == 'repository' then -- ignore failed repositories
 			local ok, err = pcall(repo_parse, repo)
 			if not ok then
@@ -311,21 +303,20 @@ to form single package object.
 ]]
 function pkg_aggregate()
 	DBG("Aggregating packages together")
-	for _, repo in pairs(requests.known_repositories_all) do
-		for _, cont in pairs(repo.content) do
-			if type(cont) == 'table' and cont.tp == 'pkg-list' then
-				for name, candidate in pairs(cont.list) do
-					if not available_packages[name] then
-						available_packages[name] = {candidates = {}, modifiers = {}}
-					end
-					table.insert(available_packages[name].candidates, candidate)
-					if candidate.Provides then -- Add this candidate to package it provides
-						for p in candidate.Provides:gmatch("[^,	]+") do
-							if not available_packages[p] then
-								available_packages[p] = {candidates = {}, modifiers = {}}
-							end
-							table.insert(available_packages[p].candidates, candidate)
+	for _, repo in pairs(requests.known_repositories) do
+		if repo.tp == "parsed-repository" then
+			-- TODO this content design is invalid as there can be multiple packages of same name in same repository with different versions
+			for name, candidate in pairs(repo.content) do
+				if not available_packages[name] then
+					available_packages[name] = {candidates = {}, modifiers = {}}
+				end
+				table.insert(available_packages[name].candidates, candidate)
+				if candidate.Provides then -- Add this candidate to package it provides
+					for p in candidate.Provides:gmatch("[^,	]+") do
+						if not available_packages[p] then
+							available_packages[p] = {candidates = {}, modifiers = {}}
 						end
+						table.insert(available_packages[p].candidates, candidate)
 					end
 				end
 			end

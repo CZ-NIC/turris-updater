@@ -189,12 +189,10 @@ Most of the commands has following format:
 
   Command("string", "string", {param = 1})
 
-They start with a capital letter, since they act as constructors.
-
 Script
 ~~~~~~
 
-  script = Script("uri", { extra })
+  Script("uri", { extra })
 
 This command runs another script.
 
@@ -227,19 +225,17 @@ ocsp::
 
 Note that following format is now marked as obsolete and should not be used:
 
-  script = Script("script-name", "uri", { extra })
+  Script("script-name", "uri", { extra })
 
 Repository
 ~~~~~~~~~~
 
-  repository = Repository("repository-name", "uri", { extra })
+  Repository("repository-name", "uri", { extra })
 
-This command introduces another repository of packages. The name may
+This command introduces another repository of packages. The can
 be used as a reference from other commands and is used in error
-messages. However, every place where the name may be used, the result
-of the command may be used instead. It is legal to have multiple
-repositories with the same name, but referencing it by name may
-produce any of them. Referencing by the result is reliable.
+messages. Be aware that collision names are considered error and
+such repositories are not considered.
 
 The URI is expected to contain an OpenWRT repository in the format
 produced by the buildroot.
@@ -375,7 +371,7 @@ etc).
 Package
 ~~~~~~~
 
-  package = Package("name", { extra })
+  Package("name", { extra })
 
 This command allows amending a package from a repository. It allows
 for adding dependencies (even negative or alternative dependencies).
@@ -385,13 +381,6 @@ doesn't really exist, but can participates in the dependency computation.
 
 A package may be amended multiple times. Each time the options are
 merged into the package options.
-
-The result may be used instead of a package name in the dependencies
-of other packages and in `Install` and `Uninstall` commands.
-
-Also, the name parameter is optional. If it is omitted (either
-specified as nil or just left out), an unique name is generated. This
-is useful only for virtual packages.
 
 The options are:
 
@@ -595,6 +584,9 @@ abi_change_deep::
 replan_string::
   Updater expects replan to be a string (if this feature isn't set than it's
   expected to be only boolean).
+no_returns::
+  Functions such as `Repository` and `Package` no longer return handler that can
+  be used in other calls.
 
 installed
 ~~~~~~~~~
