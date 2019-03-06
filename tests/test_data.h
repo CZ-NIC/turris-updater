@@ -36,6 +36,14 @@ const char *get_sdir();
 #define FILE_LOREM_IPSUM_SHORT aprintf("%s/tests/data/lorem_ipsum_short.txt", get_sdir())
 #define FILE_LOREM_IPSUM aprintf("%s/tests/data/lorem_ipsum.txt", get_sdir())
 
+// Signatures
+#define USIGN_KEY_1_PUB (aprintf("%s/tests/data/usign.key1.pub", get_sdir()))
+#define USIGN_KEY_2_PUB (aprintf("%s/tests/data/usign.key2.pub", get_sdir()))
+#define SIG_1_LOREM_IPSUM (aprintf("%s/tests/data/lorem_ipsum.txt.sig", get_sdir()))
+#define SIG_2_LOREM_IPSUM (aprintf("%s/tests/data/lorem_ipsum.txt.sig2", get_sdir()))
+#define SIG_1_LOREM_IPSUM_SHORT (aprintf("%s/tests/data/lorem_ipsum_short.txt.sig", get_sdir()))
+#define SIG_2_LOREM_IPSUM_SHORT (aprintf("%s/tests/data/lorem_ipsum_short.txt.sig2", get_sdir()))
+
 // Certificates
 #define FILE_LETS_ENCRYPT_ROOTS aprintf("%s/tests/data/lets_encrypt_roots.pem", get_sdir())
 #define URI_FILE_LETS_ENCRYPT_ROOTS aprintf("file://%s/tests/data/lets_encrypt_roots.pem", get_sdir())
