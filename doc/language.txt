@@ -69,28 +69,6 @@ It is possible to hook some functions in between (after, before)
 installation of packages, or even between installation and
 configuration.
 
-Script names
-------------
-
-Each script has a name. The names form a tree structure and are used
-to namespace various kinds of information, most importantly flag
-storage.
-
-Having two scripts of the same full name is an error. The name of the
-script may be the same if it is referenced from different scripts.
-
-The names are separated by a slash. The top-level built in script has
-an empty name, but it doesn't store any information, only references
-other scripts.
-
-A script may reference other scripts by the names. An empty string
-means itself. Names starting with slash are absolute ‒ they start from
-the top-level script. Other names are relative and refer to
-sub-scripts.
-
-This is similar to filesystem paths. However, the `.` and `..` names
-are not supported here.
-
 URIs
 ----
 
