@@ -38,7 +38,6 @@ local utils = require "utils"
 local backend = require "backend"
 local requests = require "requests"
 local syscnf = require "syscnf"
-local uri = require "uri"
 local uci_ok, uci = pcall(require, "uci")
 
 module "sandbox"
@@ -52,7 +51,9 @@ local updater_features = utils.arr2set({
 	'conflicts',
 	'abi_change',
 	'abi_change_deep',
-	'replan_string'
+	'replan_string',
+	'relative_uri',
+	'no_returns'
 })
 
 -- Available functions and "constants" from global environment
@@ -91,8 +92,8 @@ local local_available_funcs = {
 local rest_additional_funcs = {
 	{"version_match", backend.version_match},
 	{"version_cmp", backend.version_cmp},
-	{"system_cas", uri.system_cas},
-	{"no_crl", uri.no_crl}
+	{"system_cas", true},
+	{"no_crl", false}
 }
 
 state_vars = nil
@@ -251,7 +252,7 @@ List the variable names here. This way we ensure they are actually set in case
 they are nil. This helps in testing and also ensures some other global variable
 isn't mistaken for the actual value that isn't available.
 ]]
-for _, name in pairs({'root_dir', 'model', 'board_name', 'turris_version', 'serial', 'architectures', 'installed', 'self_version', 'language_version', 'features'}) do
+for _, name in pairs({'root_dir', 'os_release', 'host_os_release', 'architectures', 'installed', 'self_version', 'language_version', 'features'}) do
 	funcs.Restricted[name] = {
 		mode = "state",
 		value = name
@@ -396,8 +397,7 @@ function run_sandboxed(chunk, name, sec_level, parent, context_merge, context_mo
 	end
 	local context = new(sec_level, parent)
 	utils.table_merge(context, context_merge or {})
-	context_mod = context_mod or function () end
-	context_mod(context)
+	if context_mod then context_mod(context) end
 	local func = setfenv(chunk, context.env)
 	local ok, err = pcall(func)
 	if ok then

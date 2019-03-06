@@ -1,0 +1,22 @@
+Package: pkg-exist
+Version: 1
+License: GPL-2.0
+Section: none
+Architecture: all
+Installed-Size: 0
+Filename: pkg-exist.ipk
+MD5Sum: cf89af0fb2dd8ad6e70d9135de55d011
+SHA256sum: 3f52c16706fa07825063a2388f7e512a47349c7caeb2fa6d3fdb0338c4b0dd74
+Description:  Example existing package
+
+Package: pkg-new
+Version: 1
+License: GPL-2.0
+Section: none
+Architecture: all
+Installed-Size: 0
+Filename: pkg-new.ipk
+MD5Sum: a1cb59dbae47ec20818b49d353a006e1
+SHA256sum: bae47898a86c0fef2b093ffd6efbdfbed84c50845c57494305ef9465d001e17e
+Description:  Example new package
+

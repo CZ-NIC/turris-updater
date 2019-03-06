@@ -259,7 +259,7 @@ Test the chain of functions ‒ unpack, examine
 ]]
 function test_pkg_unpack()
 	syscnf.set_root_dir(tmpdir)
-	local path = B.pkg_unpack(datadir .. "updater.ipk")
+	local path = B.pkg_unpack(datadir .. "repo/updater.ipk")
 	-- Make sure it is deleted on teardown
 	table.insert(tmp_dirs, path)
 	-- Check list of extracted files
@@ -911,7 +911,7 @@ function test_config_modified()
 	-- If a file doesn't exist, it returns nil
 	assert_nil(B.config_modified("/file/does/not/exist", "12345678901234567890123456789012"))
 	-- We test on a non-config file, but it the same.
-	local file = (os.getenv("S") or ".") .. "/tests/data/updater.ipk"
+	local file = (os.getenv("S") or ".") .. "/tests/data/repo/updater.ipk"
 	assert_false(B.config_modified(file, "182171ccacfc32a9f684479509ac471a"))
 	assert(B.config_modified(file, "282171ccacfc32a9f684479509ac471b"))
 	assert_false(B.config_modified(file, "4f54362b30f53ae6862b11ff34d22a8d4510ed2b3e757b1f285dbd1033666e55"))
