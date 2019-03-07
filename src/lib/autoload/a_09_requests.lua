@@ -277,6 +277,8 @@ function repository(context, name, repo_uri, extra)
 			extra_check_table("repository", name, value, {"missing", "integrity", "syntax"})
 		end
 	end
+	-- Canonize some extra fields
+	extra.ignore = utils.arr2set(extra.ignore or {})
 	--[[
 	We do some mangling with the sig URI, since they are not at Package.gz.sig, but at
 	Package.sig only.

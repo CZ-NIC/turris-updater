@@ -80,10 +80,10 @@ end
 
 local function repos_failed_download(uri_fail)
 	-- Locate failed repository and check if we can continue
-	for _, repo in pairs(requests.known_repositories_all) do
+	for _, repo in pairs(requests.known_repositories) do
 		if uri_fail == repo.index_uri then
 			local message = "Download failed for repository index " ..
-				repo.name .. "/" .. repo.index_uri:uri() .. ": " ..
+				repo.name .. " (" .. repo.index_uri:uri() .. "): " ..
 				tostring(repo.index_uri:download_error())
 			if not repo.ignore['missing'] then
 				error(utils.exception('repo missing', message))
@@ -306,20 +306,19 @@ to form single package object.
 function pkg_aggregate()
 	DBG("Aggregating packages together")
 	for _, repo in pairs(requests.known_repositories) do
-		for _, cont in pairs(repo.content) do
-			if type(cont) == 'table' and cont.tp == 'pkg-list' then
-				for name, candidate in pairs(cont.list) do
-					if not available_packages[name] then
-						available_packages[name] = {candidates = {}, modifiers = {}}
-					end
-					table.insert(available_packages[name].candidates, candidate)
-					if candidate.Provides then -- Add this candidate to package it provides
-						for p in candidate.Provides:gmatch("[^,	]+") do
-							if not available_packages[p] then
-								available_packages[p] = {candidates = {}, modifiers = {}}
-							end
-							table.insert(available_packages[p].candidates, candidate)
+		if repo.tp == "parsed-repository" then
+			-- TODO this content design is invalid as there can be multiple packages of same name in same repository with different versions
+			for name, candidate in pairs(repo.content) do
+				if not available_packages[name] then
+					available_packages[name] = {candidates = {}, modifiers = {}}
+				end
+				table.insert(available_packages[name].candidates, candidate)
+				if candidate.Provides then -- Add this candidate to package it provides
+					for p in candidate.Provides:gmatch("[^,	]+") do
+						if not available_packages[p] then
+							available_packages[p] = {candidates = {}, modifiers = {}}
 						end
+						table.insert(available_packages[p].candidates, candidate)
 					end
 				end
 			end

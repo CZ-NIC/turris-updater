@@ -75,6 +75,7 @@ local example_output = {
 		name = "test1",
 		priority = 50,
 		repo_uri = "file://./tests/data/repo",
+		ignore = {},
 		serial = 1,
 		tp = "parsed-repository"
 	}
@@ -106,29 +107,28 @@ sub_err.why = "missing"
 sub_err.repo = "test1/http://example.org/test1/Packages"
 multierror.errors = {sub_err}
 
-function no_test_get_repos_broken_fatal()
+function test_get_repos_broken_fatal()
 	-- When we can't download the thing, it throws
-	requests.known_repositories_all = {repo_fake("test1", "http://example.org/test1", false, utils.exception("unreachable", "Fake network is down"))}
+	requests.repository({}, "test1", "http://example.org/test1")
 	local ok, err = pcall(postprocess.get_repos)
 	assert_false(ok)
-	assert_table_equal(multierror, err)
+	assert_table_equal(utils.exception('repo missing', "Download failed for repository index test1 (http://example.org/test1/Packages.gz): The requested URL returned error: 404 Not Found"), err)
 end
 
-function no_test_get_repos_broken_nonfatal()
-	requests.known_repositories_all = {repo_fake("test1", "http://example.org/test1", false, utils.exception("unreachable", "Fake network is down"))}
-	requests.known_repositories_all[1].ignore = {"missing"}
-	assert_table_equal(multierror, postprocess.get_repos())
+function test_get_repos_broken_nonfatal()
+	requests.repository({}, "test1", "http://example.org/test1", {ignore = {"missing"}})
+	assert_nil(postprocess.get_repos())
+	requests.known_repositories["test1"].index_uri = nil
 	assert_table_equal({
-		{
-			content = {
-				[""] = sub_err
-			},
-			ignore = {"missing"},
+		["test1"] = {
+			ignore = {["missing"]=true},
 			name = "test1",
 			repo_uri = "http://example.org/test1",
-			tp = "parsed-repository"
+			priority = 50,
+			serial = 1,
+			tp = "failed-repository"
 		}
-	}, requests.known_repositories_all)
+	}, requests.known_repositories)
 end
 
 -- Default values for package modifiers to be added if they are not mentioned
@@ -149,13 +149,9 @@ local modifier_def = {
 -- Common tasks used in pkg_merge tests for building data structures
 local function common_pkg_merge(exp)
 	-- Add repo field
-	for _, repo in pairs(requests.known_repositories_all) do
-		for _, cont in pairs(repo.content) do
-			if cont.tp == 'pkg-list' then
-				for _, pkg in pairs(cont.list) do
-					pkg.repo = repo
-				end
-			end
+	for _, repo in pairs(requests.known_repositories) do
+		for _, pkg in pairs(repo.content) do
+			pkg.repo = repo
 		end
 	end
 	-- Fill in default values for the ones that are not mentioned above
@@ -168,37 +164,28 @@ local function common_pkg_merge(exp)
 	end
 end
 
-function no_test_pkg_merge()
-	requests.known_repositories_all = {
-		{
+function test_pkg_merge()
+	requests.known_repositories = {
+		["test1"] = {
 			content = {
-				[""] = {
-					tp = 'pkg-list',
-					list = {
-						xyz = {Package = "xyz", Version = "1"},
-						abc = {Package = "abc", Version = "2", Depends = "cde", Conflicts = "xyz"},
-						cde = {Package = "cde", Version = "1"},
-						fgh = {Package = "fgh", Version = "1", Provides = "cde"}
-					}
-				}
-			}
+				xyz = {Package = "xyz", Version = "1"},
+				abc = {Package = "abc", Version = "2", Depends = "cde", Conflicts = "xyz"},
+				cde = {Package = "cde", Version = "1"},
+				fgh = {Package = "fgh", Version = "1", Provides = "cde"}
+			},
+			tp = "parsed-repository"
 		},
-		{
+		["test2-a"] = {
 			content = {
-				a = {
-					tp = 'pkg-list',
-					list = {
-						abc = {Package = "abc", Version = "1"}
-					}
-				},
-				b = {
-					tp = 'pkg-list',
-					list = {
-						another = {Package = "another", Version = "4"}
-					}
-				},
-				c = utils.exception("Just an exception", "Just an exception")
-			}
+				abc = {Package = "abc", Version = "1"}
+			},
+			tp = "parsed-repository"
+		},
+		["test2-b"] = {
+			content = {
+				another = {Package = "another", Version = "4"}
+			},
+			tp = "parsed-repository"
 		}
 	}
 	requests.known_packages = {
@@ -231,24 +218,24 @@ function no_test_pkg_merge()
 				{Package = "abc", Depends = "cde", Conflicts = "xyz", Version = "2", deps = {
 						tp = "dep-and", sub = { "cde", { tp = "dep-not", sub = {
 							{ tp = "dep-package", name = "xyz", version = "~.*" }
-					}}}}, repo = requests.known_repositories_all[1]},
-				{Package = "abc", Version = "1", repo = requests.known_repositories_all[2]}
+					}}}}, repo = requests.known_repositories["test1"]},
+				{Package = "abc", Version = "1", repo = requests.known_repositories["test2-a"]}
 			},
 			modifier = {name = "abc"}
 		},
 		cde = {
 			candidates = {
-				{Package = "cde", Version = "1", repo = requests.known_repositories_all[1]},
-				{Package = "fgh", Version = "1", Provides = "cde", repo = requests.known_repositories_all[1]}
+				{Package = "cde", Version = "1", repo = requests.known_repositories["test1"]},
+				{Package = "fgh", Version = "1", Provides = "cde", repo = requests.known_repositories["test1"]}
 			},
 			modifier = {name = "cde"}
 		},
 		fgh = {
-			candidates = {{Package = "fgh", Version = "1", Provides = "cde", repo = requests.known_repositories_all[1]}},
+			candidates = {{Package = "fgh", Version = "1", Provides = "cde", repo = requests.known_repositories["test1"]}},
 			modifier = {name = "fgh"}
 		},
 		another = {
-			candidates = {{Package = "another", Version = "4", repo = requests.known_repositories_all[2]}},
+			candidates = {{Package = "another", Version = "4", repo = requests.known_repositories["test2-b"]}},
 			modifier = {name = "another"}
 		},
 		virt = {
@@ -260,7 +247,7 @@ function no_test_pkg_merge()
 			},
 		},
 		xyz = {
-			candidates = {{Package = "xyz", Version = "1", repo = requests.known_repositories_all[1]}},
+			candidates = {{Package = "xyz", Version = "1", repo = requests.known_repositories["test1"]}},
 			modifier = {
 				name = "xyz",
 				order_after = {abc = true},
@@ -279,17 +266,13 @@ function no_test_pkg_merge()
 	assert_table_equal(exp, postprocess.available_packages)
 end
 
-function no_test_pkg_merge_virtual()
-	requests.known_repositories_all = {
-		{
+function test_pkg_merge_virtual()
+	requests.known_repositories = {
+		["test1"] = {
 			content = {
-				[""] = {
-					tp = 'pkg-list',
-					list = {
-						pkg = {Package = "pkg", Version = "1", Provides="virt"}
-					}
-				}
-			}
+				pkg = {Package = "pkg", Version = "1", Provides="virt"}
+			},
+			tp = "parsed-repository"
 		}
 	}
 	requests.known_packages = {
@@ -302,11 +285,11 @@ function no_test_pkg_merge_virtual()
 	-- Build the expected data structure
 	local exp = {
 		pkg = {
-			candidates = {{Package = "pkg", Version = "1", Provides="virt", repo = requests.known_repositories_all[1]}},
+			candidates = {{Package = "pkg", Version = "1", Provides="virt", repo = requests.known_repositories["test1"]}},
 			modifier = {name = "pkg"}
 		},
 		virt = {
-			candidates = {{Package = "pkg", Version = "1", Provides="virt", repo = requests.known_repositories_all[1]}},
+			candidates = {{Package = "pkg", Version = "1", Provides="virt", repo = requests.known_repositories["test1"]}},
 			modifier = {
 				name = "virt",
 				virtual = true
@@ -318,18 +301,14 @@ function no_test_pkg_merge_virtual()
 	assert_table_equal(exp, postprocess.available_packages)
 end
 
-function no_test_pkg_merge_virtual_with_candidate()
-	requests.known_repositories_all = {
-		{
+function test_pkg_merge_virtual_with_candidate()
+	requests.known_repositories = {
+		["test1"] = {
 			content = {
-				[""] = {
-					tp = 'pkg-list',
-					list = {
-						pkg = {Package = "pkg", Version = "1", Provides="virt"},
-						virt = {Package = "virt", Version = "2"}
-					}
-				}
-			}
+				pkg = {Package = "pkg", Version = "1", Provides="virt"},
+				virt = {Package = "virt", Version = "2"}
+			},
+			tp = "parsed-repository"
 		}
 	}
 	requests.known_packages = {
@@ -343,70 +322,7 @@ function no_test_pkg_merge_virtual_with_candidate()
 	assert_exception(function() postprocess.pkg_aggregate() end, "inconsistent")
 end
 
---[[
-Test we handle when a package has a candidate from a repository and from local content.
-The local one should be preferred.
-]]
-function no_test_local_and_repo()
-	requests.known_repositories_all = {
-		{
-			content = {
-				[""] = {
-					tp = 'pkg-list',
-					list = {
-						xyz = {Package = "xyz", Version = "2"},
-					}
-				}
-			},
-			priority = 50,
-			name = 'repo1',
-			sequence = 1
-		}
-	}
-	requests.known_repositories_all[1].content[""].list.xyz.repo = requests.known_repositories_all[1]
-	requests.known_packages = {
-		xyz = {
-			tp = 'package',
-			name = 'xyz',
-			priority = 60,
-			candidate = {Package = "xyz", Version = "1", local_mark = true}, -- Mark the package so we recognize it got through unmodified
-			content = "dummy-content"
-		}
-	}
-	requests.known_packages.xyz.candidate.pkg = requests.known_packages.xyz
-	postprocess.pkg_aggregate()
-	local exp = {
-		xyz = {
-			candidates = {
-				{Package = "xyz", Version = "1", local_mark = true, pkg = requests.known_packages.xyz},
-				{Package = "xyz", Version = "2", repo = requests.known_repositories_all[1]}
-			},
-			modifier = {
-				name = "xyz",
-				abi_change = {},
-				abi_change_deep = {},
-				order_after = {},
-				order_before = {},
-				post_install = {},
-				post_remove = {},
-				pre_install = {},
-				pre_remove = {},
-				reboot = false,
-				replan = false,
-				tp = "package"
-			}
-		}
-	}
-	assert_table_equal(exp, postprocess.available_packages)
-	-- Try again, but with the same priority ‒ versions should be used to sort them
-	postprocess.available_packages = {}
-	requests.known_packages.xyz.priority = nil
-	exp.xyz.candidates = {exp.xyz.candidates[2], exp.xyz.candidates[1]}
-	postprocess.pkg_aggregate()
-	assert_table_equal(exp, postprocess.available_packages)
-end
-
-function no_test_deps_canon()
+function test_deps_canon()
 	assert_equal(nil, postprocess.deps_canon(nil))
 	assert_equal(nil, postprocess.deps_canon({}))
 	assert_equal(nil, postprocess.deps_canon(""))
@@ -481,4 +397,5 @@ function teardown()
 	requests.known_repositories = {}
 	requests.repo_serial = 1
 	requests.repositories_uri_master = uri.new()
+	postprocess.available_packages = {}
 end
