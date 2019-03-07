@@ -20,6 +20,7 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 local next = next
 local error = error
 local ipairs = ipairs
+local pcall = pcall
 local table = table
 local WARN = WARN
 local INFO = INFO
@@ -103,26 +104,20 @@ function tasks_to_transaction()
 	local uri_master = uri:new()
 	for _, task in ipairs(tasks) do
 		if task.action == "require" then
-			-- Strip sig verification off, packages from repos don't have their own .sig
-			-- files, but they are checked by hashes in the (already checked) index.
-			local veriopts = utils.shallow_copy(task.package.repo)
-			local veri = veriopts.verification or utils.private(task.package.repo).context.verification or 'both'
-			if veri == 'both' then
-				veriopts.verification = 'cert'
-			elseif veri == 'sig' then
-				veriopts.verification = 'none'
-			end
-			task.real_uri = uri(utils.private(task.package.repo).context, task.package.uri_raw, veriopts)
-			task.real_uri:cback(function()
-				log_event('D', task.name .. " " .. task.package.Version)
-			end)
+			task.file = syscnf.pkg_download_dir .. task.name .. '-' .. task.package.Version .. '.ipk'
+			task.real_uri = uri_master:to_file(task.package.Filename, task.file, task.package.repo.index_uri)
+			task.real_uri:add_pubkey() -- do not verify signatures (there are none)
+			-- TODO on failure: log_event('D', task.name .. " " .. task.package.Version)
 		end
 	end
+	uri_master:download() -- TODO what if error?
 	-- Now push all data into the transaction
+	utils.mkdirp(syscnf.pkg_download_dir)
 	for _, task in ipairs(tasks) do
 		if task.action == "require" then
-			local ok, data = task.real_uri:get()
-			if not ok then error(data) end
+			local ok, err = pcall(function() task.real_uri:finish() end)
+			if not ok then error(err) end
+			--[[
 			if task.package.MD5Sum then
 				local sum = md5(data)
 				if sum ~= task.package.MD5Sum then
@@ -135,9 +130,8 @@ function tasks_to_transaction()
 					error(utils.exception("corruption", "The sha256 sum of " .. task.name .. " does not match"))
 				end
 			end
-			local fpath = syscnf.pkg_download_dir .. task.name .. '-' .. task.package.Version .. '.ipk'
-			utils.write_file(fpath, data)
-			transaction.queue_install_downloaded(fpath, task.name, task.package.Version, task.modifier)
+			]]
+			transaction.queue_install_downloaded(task.file, task.name, task.package.Version, task.modifier)
 		elseif task.action == "remove" then
 			transaction.queue_remove(task.name)
 		else
