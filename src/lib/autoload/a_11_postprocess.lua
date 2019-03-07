@@ -57,7 +57,7 @@ local function repo_parse(repo)
 				index = stdout
 			end
 			, nil, index, -1, -1, 'gzip', '-dc')
-		events_wait({extr})
+		events_wait(extr)
 	end
 	-- Parse index
 	DBG("Parsing index " .. name)
@@ -72,13 +72,10 @@ local function repo_parse(repo)
 	end
 	for _, pkg in pairs(list) do
 		-- Compute the URI of each package (but don't download it yet, so don't create the uri object)
-		pkg.uri_raw = repo.repo_uri .. subrepo .. '/' .. pkg.Filename
+		pkg.uri_raw = repo.repo_uri .. '/' .. pkg.Filename
 		pkg.repo = repo
 	end
-	repo.content[subrepo] = {
-		tp = "pkg-list",
-		list = list
-	}
+	repo.content = list
 end
 
 local function repos_failed_download(uri_fail)
@@ -110,7 +107,7 @@ function get_repos()
 		end
 	end
 	-- Collect indexes and parse them
-	for _, repo in pairs(requests.known_repositories_all) do
+	for _, repo in pairs(requests.known_repositories) do
 		if repo.tp == 'repository' then -- ignore failed repositories
 			local ok, err = pcall(repo_parse, repo)
 			if not ok then
@@ -308,7 +305,7 @@ to form single package object.
 ]]
 function pkg_aggregate()
 	DBG("Aggregating packages together")
-	for _, repo in pairs(requests.known_repositories_all) do
+	for _, repo in pairs(requests.known_repositories) do
 		for _, cont in pairs(repo.content) do
 			if type(cont) == 'table' and cont.tp == 'pkg-list' then
 				for name, candidate in pairs(cont.list) do

@@ -198,26 +198,6 @@ function test_script_level_transition()
 	end
 end
 
-function test_script_pass_validation()
-	local bad_i = 0
-	local function bad(opts, msg, exctype)
-		local err = sandbox.run_sandboxed([[
-			Script("data:,", { security = 'Restricted']] .. opts .. [[ })
-		]], "test_script_pass_validation_chunk1" .. tostring(bad_i), "Restricted")
-		bad_i = bad_i + 1
-		assert_table_equal(utils.exception(exctype or "bad value", msg), err)
-	end
-	-- Bad uri inside something
-	bad(", verification = 'sig', pubkey = 'invalid://'", "Unknown URI schema invalid")
-	-- We don't allow this URI in the given context (even if it is not directly used)
-	bad(", verification = 'sig', pubkey = 'file:///dev/null'", "At least Local level required for file URI", "access violation")
-	-- But we allow it if there's a high enough level
-	local result = sandbox.run_sandboxed([[
-		Script("data:,", { security = 'Restricted', pubkey = 'file:///dev/null' })
-	]], "test_script_pass_validation_chunk2", "Local")
-	assert_equal("context", result.tp, result.msg)
-end
-
 function test_script_err_propagate()
 	local err = sandbox.run_sandboxed([[
 		Script("data:,error()")

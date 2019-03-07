@@ -304,10 +304,10 @@ function repository(context, name, repo_uri, extra)
 
 	if extra.subdirs then
 		for _, sub in pairs(extra.subdirs) do
-			register_repo(repo_uri .. '/' .. sub .. (extra.index or '/Packages.gz'), name .. '-' .. sub)
+			register_repo(repo_uri .. '/' .. sub .. '/' .. (extra.index or 'Packages.gz'), name .. '-' .. sub)
 		end
 	else
-		register_repo(repo_uri .. (extra.index or '/Packages.gz'), name)
+		register_repo(repo_uri .. '/' .. (extra.index or 'Packages.gz'), name)
 	end
 end
 
@@ -393,7 +393,6 @@ function script(context, filler, script_uri, extra)
 	else
 		WARN("Syntax \"Script('script-name', 'uri', { extra })\" is deprecated and will be removed.")
 	end
-	DBG("Running script " .. script_uri)
 	extra = allowed_extras_check_type(allowed_script_extras, 'script', extra or {})
 	extra_check_verification("script", extra)
 	for name, value in pairs(extra) do
@@ -405,10 +404,12 @@ function script(context, filler, script_uri, extra)
 	if not ok then
 		if utils.arr2set(extra.ignore or {})["missing"] then
 			WARN("Script " .. script_uri .. " not found, but ignoring its absence as requested")
+			return
 		end
 		-- If couldn't get the script, propagate the error
 		error(content)
 	end
+	DBG("Running script " .. script_uri)
 	-- Resolve circular dependency between this module and sandbox
 	local sandbox = require "sandbox"
 	if extra.security and not context:level_check(extra.security) then
