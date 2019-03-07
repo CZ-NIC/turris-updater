@@ -25,7 +25,6 @@ local pcall = pcall
 local next = next
 local type = type
 local assert = assert
-local unpack = unpack
 local table = table
 local string = string
 local events_wait = events_wait
@@ -36,7 +35,6 @@ local ERROR = ERROR
 local utils = require "utils"
 local backend = require "backend"
 local requests = require "requests"
-local uri = require "uri"
 
 module "postprocess"
 

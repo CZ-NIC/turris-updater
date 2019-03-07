@@ -16,7 +16,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 ]]--
-local print = print
 
 --[[
 This module prepares and manipulates contexts and environments for
@@ -316,7 +315,7 @@ end
 -- This is list of all requests to be fulfilled
 content_requests = {}
 
-local function content_request(context, cmd, allowed, ...)
+local function content_request(cmd, allowed, ...)
 	local batch = {}
 	local function submit(extras)
 		extras = allowed_extras_check_type(allowed, cmd, extras)
@@ -362,16 +361,16 @@ local allowed_install_extras = {
 	["ignore"] = utils.arr2set({"table"})
 }
 
-function install(context, ...)
-	return content_request(context, "install", allowed_install_extras, ...)
+function install(_, ...)
+	return content_request("install", allowed_install_extras, ...)
 end
 
 local allowed_uninstall_extras = {
 	["priority"] = utils.arr2set({"number"})
 }
 
-function uninstall(context, ...)
-	return content_request(context, "uninstall", allowed_uninstall_extras, ...)
+function uninstall(_, ...)
+	return content_request("uninstall", allowed_uninstall_extras, ...)
 end
 
 local allowed_script_extras = {

@@ -25,14 +25,12 @@ local table = table
 local WARN = WARN
 local INFO = INFO
 local DIE = DIE
-local md5 = md5
 local sha256 = sha256
 local reexec = reexec
 local LS_CONF = LS_CONF
 local LS_PLAN = LS_PLAN
 local LS_DOWN = LS_DOWN
 local update_state = update_state
-local log_event = log_event
 local utils = require "utils"
 local syscnf = require "syscnf"
 local sandbox = require "sandbox"
@@ -117,6 +115,7 @@ function tasks_to_transaction()
 		if task.action == "require" then
 			local ok, err = pcall(function() task.real_uri:finish() end)
 			if not ok then error(err) end
+			-- TODO check hash
 			--[[
 			if task.package.MD5Sum then
 				local sum = md5(data)
