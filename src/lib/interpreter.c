@@ -641,20 +641,34 @@ static int lua_extract_inner_archive(lua_State *L) {
 
 	/* TODO: error handling */
 	/* TODO: return something sensible to lua? */
-	return r;
+	return 0;
 }
 
 static int lua_get_file_size(lua_State *L) {
+	/* Returns -1 if file is not found in archive */
 	const char *arc_name = luaL_checkstring(L, 1);
 	const char *subarc_name = luaL_checkstring(L, 2);
 	const char *path = luaL_checkstring(L, 3);
-	int r = get_file_size(arc_name, subarc_name, path);
+	int size = get_file_size(arc_name, subarc_name, path);
 
-	printf("File size of %s in %d.\n", path, r);
+	printf("File size of %s in %d.\n", path, size);
+	lua_pushinteger(L, size);
+	return 1;
+}
 
-	/* TODO: error handling */
-	/* TODO: return something sensible to lua? */
-	return r;
+static int lua_get_file_content(lua_State *L) {
+	const char *arc_name = luaL_checkstring(L, 1);
+	const char *subarc_name = luaL_checkstring(L, 2);
+	const char *path = luaL_checkstring(L, 3);
+	int size = get_file_size(arc_name, subarc_name, path);
+	if (size > 0) {
+		char buffer[size];
+		extract_file_to_memory(buffer, arc_name, subarc_name, path, size);
+		lua_pushlstring(L, buffer, size);
+	} else {
+		lua_pushlstring(L, "", 0);
+	}
+	return 1;
 }
 
 static const char *stat2str(const struct stat *buf) {
@@ -941,6 +955,7 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_copy, "copy" },
 	{ lua_extract_inner_archive, "extract_inner_archive" },
 	{ lua_get_file_size, "get_file_size" },
+	{ lua_get_file_content, "get_file_content" },
 	{ lua_ls, "ls" },
 	{ lua_stat, "stat" },
 	{ lua_lstat, "lstat" },

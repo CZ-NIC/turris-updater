@@ -50,13 +50,16 @@ local sha256_file = sha256_file
 -- local test_extract = test_extract
 local extract_inner_archive = extract_inner_archive
 local get_file_size = get_file_size
+local get_file_content = get_file_content
 local DBG = DBG
-local INFO = INFO
 local WARN = WARN
 local ERROR = ERROR
 local syscnf = require "syscnf"
 local utils = require "utils"
 local locks = require "locks"
+
+local print = print
+
 
 module "backend"
 
@@ -448,7 +451,8 @@ TODO:
 
 -- First we duplicate old functionality, to keep the rewrite simple
 function pkg_unpack(package_path)
-	INFO("***a_08/pkg_unpack: "..package_path)
+
+
 	-- We do not need temp directory, so let's just use s2dir (renamed to just dir)
 	utils.mkdirp(syscnf.pkg_unpacked_dir)
 	local dir = mkdtemp(syscnf.pkg_unpacked_dir)
@@ -457,6 +461,11 @@ function pkg_unpack(package_path)
 
 
 	get_file_size(package_path, "control", "conffiles")
+
+	
+	local data = get_file_content(package_path, "control", "conffiles")
+
+	print("(((in Lua, data)))\n" .. data .. "---")
 
 	return dir
 end
@@ -878,6 +887,9 @@ function pkg_merge_files(dir, dirs, files, configs)
 		end
 	end
 	-- Remove the original directory
+
+print("cleanup from merge_files")
+
 	utils.cleanup_dirs({dir})
 	return true
 end

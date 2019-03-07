@@ -83,7 +83,7 @@ static int get_inner_archive(struct archive *arc, const char* arcname, const cha
 	return -1;
 }
 
-int extract_file(struct archive *a, const char *filename) {
+int _extract_file(struct archive *a, const char *filename) {
 	struct archive *ext;
 	struct archive_entry *entry;
 	char name[PATH_MAX];
@@ -255,14 +255,12 @@ int extract_to_disk(const char *arc_name, const char *subarc_name, char *files[]
 	return 0;
 }
 
-/* do some action to file in subarchive */
-int process_file(const char *arcname, const char *subarcname, const char *filename) {
-
-}
-
-
-int get_file_size(const char *arcname, const char *subarcname, const char *filename) {
-
+/* 
+ * do some action to file in subarchive 
+ * pass action as function that takes archive_entry
+ * filename is sanitized automatically
+ */
+int process_file(const char *arcname, const char *subarcname, const char *filename, int (*action)(struct archive *, struct archive_entry *)){
 	struct archive *a;		/* main archive */
 	struct archive *sa;		/* sub archive */
 	struct archive_entry *entry;
@@ -293,7 +291,6 @@ int get_file_size(const char *arcname, const char *subarcname, const char *filen
 		const char *entry_name = archive_entry_pathname(entry);
 		sanitize_filename(name, entry_name);
 		if (strcmp(name, subarc_name) == 0) {
-			printf("%s matched\n", name);
 			/* prepare subarchive */
 			size = archive_entry_size(entry);
 			char *buff = malloc(size);
@@ -314,15 +311,14 @@ int get_file_size(const char *arcname, const char *subarcname, const char *filen
 			while (archive_read_next_header(sa, &subentry) == ARCHIVE_OK) {
 				/* check if we have right file */
 				const char *subentry_name = archive_entry_pathname(subentry);
-				printf("Comparing:\n%s\n%s\n", file_name, subentry_name);
 				if (strcmp(file_name, subentry_name) == 0) {
-					r = archive_entry_size(subentry);
+					r = action(sa, subentry);
 					archive_read_free(sa);
 					return r;
 				}
 				archive_read_data_skip(sa);
 			}
-			printf("Found nothing\n");
+			/* Found nothing */
 			archive_read_free(sa);
 			return -1;
 		}
@@ -330,6 +326,59 @@ int get_file_size(const char *arcname, const char *subarcname, const char *filen
 	}
 	archive_read_free(a);
 	return -1;
+}
+
+int get_file_size(const char *arcname, const char *subarcname, const char *filename) {
+	int get_size(struct archive *a, struct archive_entry *entry) {
+		return archive_entry_size(entry);
+	}
+	return process_file(arcname, subarcname, filename, get_size);
+}
+
+/* extract file into current directory (TODO: add path?) */
+int extract_file_to_disk(const char *arcname, const char *subarcname, const char *filename) {
+	int unpack(struct archive *a, struct archive_entry *entry) {
+		int r;
+		struct archive *ext;
+		int flags;
+		/* Select which attributes we want to restore. */
+		flags = ARCHIVE_EXTRACT_TIME;
+		flags |= ARCHIVE_EXTRACT_PERM;
+		flags |= ARCHIVE_EXTRACT_ACL;
+		flags |= ARCHIVE_EXTRACT_FFLAGS;
+		ext = archive_write_disk_new();
+		archive_write_disk_set_options(ext, flags);
+		archive_write_disk_set_standard_lookup(ext);
+		r = archive_write_header(ext, entry);
+		if (r < ARCHIVE_OK) {
+			fprintf(stderr, "%s\n", archive_error_string(ext));
+			return -1;
+		} else if (archive_entry_size(entry) > 0) {
+			r = copy_data(a, ext);
+			if (r < ARCHIVE_OK) {
+				fprintf(stderr, "%s\n", archive_error_string(ext));
+				return -1;
+			}
+		}
+		r = archive_write_finish_entry(ext);
+		if (r < ARCHIVE_OK) {
+			fprintf(stderr, "%s\n", archive_error_string(ext));
+			return -1;
+		}
+		archive_write_close(ext);
+		archive_write_free(ext);
+		return 0;
+	}
+	return process_file(arcname, subarcname, filename, unpack);
+}
+
+int extract_file_to_memory(char *buff, const char *arcname, const char *subarcname, const char *filename, int size) {
+	int unpack(struct archive *a, struct archive_entry *entry) {
+		archive_read_data(a, buff, size);
+		/* TODO: error checking */
+		return 0;
+	}
+	return process_file(arcname, subarcname, filename, unpack);
 }
 
 int extract_inner_archive(const char *arcname, const char *subarcname, const char *path) {

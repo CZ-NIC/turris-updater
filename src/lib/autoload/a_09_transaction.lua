@@ -24,6 +24,7 @@ interrupted and the dangerous parts already started.
 
 This is a fairly high-level module, connecting many things together.
 ]]
+local tostring = tostring
 
 local ipairs = ipairs
 local next = next
@@ -52,6 +53,9 @@ local update_state = update_state
 local sync = sync
 local log_event = log_event
 local system_reboot = system_reboot
+
+local print = print
+local type = type
 
 module "transaction"
 
@@ -296,6 +300,13 @@ local function perform_internal(operations, journal_status, run_state)
 		-- Look at what the current status looks like.
 		local to_remove, to_install, plan
 		to_remove, to_install, plan, dir_cleanups, cleanup_actions = step(journal.UNPACKED, pkg_unpack, true, operations, status)
+
+
+print(syscnf.pkg_download_dir)
+print("cleanup from perrfom_internals1" .. type({syscnf.pkg_download_dir}))
+
+
+
 		utils.cleanup_dirs({syscnf.pkg_download_dir})
 		cleanup_actions = cleanup_actions or {} -- just to handle if journal contains no cleanup actions (journal from previous version)
 		-- Drop the operations. This way, if we are tail-called, then the package buffers may be garbage-collected
@@ -307,6 +318,11 @@ local function perform_internal(operations, journal_status, run_state)
 		status, errors_collected = step(journal.SCRIPTS, pkg_scripts, true, status, plan, removes, to_install, errors_collected, all_configs)
 	end)
 	-- Make sure the temporary dirs are removed even if it fails. This will probably be slightly different with working journal.
+
+
+print("cleanup from perrfom_internals2 " .. tostring(dir_cleanups))
+
+
 	utils.cleanup_dirs(dir_cleanups)
 	if not ok then
 		--[[
