@@ -41,4 +41,4 @@ EOF
 
 popd
 
-pkgupdate --model none --board none --batch "file://$root_dir/script.lua"
+pkgupdate --batch "file://$root_dir/script.lua"
