@@ -644,6 +644,19 @@ static int lua_extract_inner_archive(lua_State *L) {
 	return r;
 }
 
+static int lua_get_file_size(lua_State *L) {
+	const char *arc_name = luaL_checkstring(L, 1);
+	const char *subarc_name = luaL_checkstring(L, 2);
+	const char *path = luaL_checkstring(L, 3);
+	int r = get_file_size(arc_name, subarc_name, path);
+
+	printf("File size of %s in %d.\n", path, r);
+
+	/* TODO: error handling */
+	/* TODO: return something sensible to lua? */
+	return r;
+}
+
 static const char *stat2str(const struct stat *buf) {
 	switch (buf->st_mode & S_IFMT) {
 		case S_IFSOCK:
@@ -927,6 +940,7 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_move, "move" },
 	{ lua_copy, "copy" },
 	{ lua_extract_inner_archive, "extract_inner_archive" },
+	{ lua_get_file_size, "get_file_size" },
 	{ lua_ls, "ls" },
 	{ lua_stat, "stat" },
 	{ lua_lstat, "lstat" },

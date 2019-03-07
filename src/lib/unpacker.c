@@ -83,7 +83,6 @@ static int get_inner_archive(struct archive *arc, const char* arcname, const cha
 	return -1;
 }
 
-
 int extract_file(struct archive *a, const char *filename) {
 	struct archive *ext;
 	struct archive_entry *entry;
@@ -256,7 +255,84 @@ int extract_to_disk(const char *arc_name, const char *subarc_name, char *files[]
 	return 0;
 }
 
-int extract_inner_archive(const char* arcname, const char* subarcname, const char *path) {
+/* do some action to file in subarchive */
+int process_file(const char *arcname, const char *subarcname, const char *filename) {
+
+}
+
+
+int get_file_size(const char *arcname, const char *subarcname, const char *filename) {
+
+	struct archive *a;		/* main archive */
+	struct archive *sa;		/* sub archive */
+	struct archive_entry *entry;
+	struct archive_entry *subentry;
+	char name[PATH_MAX];
+	char subarc_name[PATH_MAX];
+	char file_name[PATH_MAX];
+	int r, size;
+
+	/* Prepend ./ and append .tar.gz to subarchive name */
+	sanitize_filename(subarc_name, subarcname);
+	strcat(subarc_name, ".tar.gz");
+
+	sanitize_filename(file_name, filename);
+
+	/* Prepare main archive */
+	a = archive_read_new();
+	archive_read_support_filter_all(a);
+	archive_read_support_format_all(a);
+	r = archive_read_open_filename(a, arcname, 10240);
+	if (r != ARCHIVE_OK) {
+		return 1;
+	}
+
+	/* loop over files in archive and when we find right file, extract it */
+	while (archive_read_next_header(a, &entry) == ARCHIVE_OK) {
+		/* check if we have right file */
+		const char *entry_name = archive_entry_pathname(entry);
+		sanitize_filename(name, entry_name);
+		if (strcmp(name, subarc_name) == 0) {
+			printf("%s matched\n", name);
+			/* prepare subarchive */
+			size = archive_entry_size(entry);
+			char *buff = malloc(size);
+			archive_read_data(a, buff, size);
+			sa = archive_read_new();
+			archive_read_support_filter_all(sa);
+			archive_read_support_format_all(sa);
+			r = archive_read_open_memory(sa, buff, size);
+			if (r != ARCHIVE_OK) {
+				return -1;
+			}
+			free(buff);
+			r = archive_read_free(a);
+			if (r != ARCHIVE_OK) {
+				return -1;
+			}
+			/* loop over files in archive and when we find right file, extract it */
+			while (archive_read_next_header(sa, &subentry) == ARCHIVE_OK) {
+				/* check if we have right file */
+				const char *subentry_name = archive_entry_pathname(subentry);
+				printf("Comparing:\n%s\n%s\n", file_name, subentry_name);
+				if (strcmp(file_name, subentry_name) == 0) {
+					r = archive_entry_size(subentry);
+					archive_read_free(sa);
+					return r;
+				}
+				archive_read_data_skip(sa);
+			}
+			printf("Found nothing\n");
+			archive_read_free(sa);
+			return -1;
+		}
+		archive_read_data_skip(a);
+	}
+	archive_read_free(a);
+	return -1;
+}
+
+int extract_inner_archive(const char *arcname, const char *subarcname, const char *path) {
 /* 
 
 NOTE: subarcname is without `.tar.gz`, because in archives need to create directory based on their names: path/control, path/data
