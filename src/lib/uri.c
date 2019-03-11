@@ -473,7 +473,7 @@ static bool uri_verify_signature(struct uri *uri) {
 		if(lsubprocv(LST_USIGN,
 				aprintf("Verify %s (%s) against %s", uri->uri, uri->sig_uri_file, key->path),
 				NULL, 30000, "usign", "-V", "-p", key->path,
-				"-x", uri->sig_uri_file, "-m", fcontent, NULL) == 0) {
+				"-x", uri->sig_uri_file, "-m", fcontent, (void*)NULL) == 0) {
 			verified = true;
 			break;
 		}
