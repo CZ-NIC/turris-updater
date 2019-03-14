@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <event2/event.h>
 #include <curl/curl.h>
+#include <openssl/ssl.h>
 #include "logging.h"
 
 struct download_i;
@@ -41,6 +42,9 @@ struct downloader {
 };
 
 // Download options (additional options configuring security and more)
+// Note that these options are used during instance creation and with one
+// exception you can free it afterwards. The exception is content of certs field.
+// This field should be valid at least until download_run is called and finishes.
 struct download_opts {
 	long timeout; // Download timeout (including download retries)
 	long connect_timeout; // Timeout for single connection
@@ -48,9 +52,8 @@ struct download_opts {
 	bool follow_redirect; // If HTTP request 3xx should be followed
 	bool ssl_verify; // If SSL should be verified
 	bool ocsp; // If OCSP should be used for certificate verification
-	const char *cacert_file; // Path to custom CA certificate bundle
-	const char *capath; // Path to directory containing CA certificates
-	const char *crl_file; // Path to custom CA crl
+	bool system_ca; // If system CAs should be used or not
+	STACK_OF(X509_INFO) *certs; // Custom CAs and CRLs
 };
 
 enum download_output_type {
@@ -140,5 +143,15 @@ void download_i_free(struct download_i*) __attribute__((nonnull));
 // In other words this overtakes allocated buffer and frees rest of instance.
 // This can be called only on instance that was created by download_data.
 void download_i_collect_data(struct download_i*, uint8_t **data, size_t *size);
+
+// Helper function to create stack of X509 OpenSSL certificates.
+// cert: data to be loaded as certificate
+// len: length of data
+// prev: previous stack to append info to. It can be NULL to allocate new one.
+STACK_OF(X509_INFO) *download_x509_info(const void *cert, int len,
+		STACK_OF(X509_INFO) *prev);
+
+// Just a wrapper around: sk_X509_INFO_pop_free(inf, X509_INFO_free)
+void download_x509_info_free(STACK_OF(X509_INFO)*);
 
 #endif

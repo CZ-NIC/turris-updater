@@ -195,14 +195,13 @@ void downloader_flush(struct downloader *d) {
 
 void download_opts_def(struct download_opts *opts) {
 	opts->timeout = 120; // 2 minutes
-	opts->connect_timeout = 30; // haf of a minute
+	opts->connect_timeout = 30; // half of a minute
 	opts->retries = 3;
 	opts->follow_redirect = true;
 	opts->ssl_verify = true;
 	opts->ocsp = true;
-	opts->cacert_file = NULL; // In default use system CAs
-	opts->capath = NULL; // In default use compiled in path (system path)
-	opts->crl_file = NULL; // In default don't check CRL
+	opts->system_ca = true; // In default use system CAs
+	opts->certs = NULL;
 }
 
 // Called by libcurl to store downloaded data
@@ -238,6 +237,22 @@ static size_t download_write_callback(char *ptr, size_t size, size_t nmemb, void
 	return rsize;
 }
 
+static CURLcode sslctx_function(CURL *curl __attribute__((unused)), void *sslctx, void *data) {
+	STACK_OF(X509_INFO) *certs = (STACK_OF(X509_INFO)*)data;
+	X509_STORE *cts = SSL_CTX_get_cert_store((SSL_CTX*)sslctx);
+	if (!cts)
+		return CURLE_ABORTED_BY_CALLBACK;
+
+	for (int i = 0; i < sk_X509_INFO_num(certs); i++) {
+		X509_INFO *info = sk_X509_INFO_value(certs, i);
+		if(info->x509)
+			X509_STORE_add_cert(cts, info->x509);
+		if(info->crl)
+			X509_STORE_add_crl(cts, info->crl);
+	}
+	return CURLE_OK;
+}
+
 static struct download_i *init_instance(struct download_i *inst,
 		struct downloader *downloader, const char *url,
 		const struct download_opts *opts, enum download_output_type type) {
@@ -265,12 +280,15 @@ static struct download_i *init_instance(struct download_i *inst,
 			host_os_release(OS_RELEASE_PRETTY_NAME), os_release(OS_RELEASE_PRETTY_NAME));
 	CURL_SETOPT(CURLOPT_USERAGENT, user_agent); // We set our own User Agent, so our server knows we're not just some bot
 	if (opts->ssl_verify) {
-		if (opts->cacert_file)
-			CURL_SETOPT(CURLOPT_CAINFO, opts->cacert_file);
-		if (opts->capath)
-			CURL_SETOPT(CURLOPT_CAPATH, opts->capath);
-		if (opts->crl_file)
-			CURL_SETOPT(CURLOPT_CRLFILE, opts->crl_file);
+		if (!opts->system_ca) {
+			CURL_SETOPT(CURLOPT_CAINFO, NULL);
+			CURL_SETOPT(CURLOPT_CAPATH, NULL);
+		}
+		if (opts->certs) {
+			CURL_SETOPT(CURLOPT_SSL_CTX_FUNCTION, *sslctx_function);
+			CURL_SETOPT(CURLOPT_SSL_CTX_DATA, opts->certs);
+			CURL_SETOPT(CURLOPT_FORBID_REUSE, 1); // Curl is not aware of our changes so it should not reuse this connection
+		}
 		CURL_SETOPT(CURLOPT_SSL_VERIFYSTATUS, opts->ocsp);
 	} else
 		CURL_SETOPT(CURLOPT_SSL_VERIFYPEER, 0L);
@@ -378,4 +396,18 @@ void download_i_collect_data(struct download_i *inst, uint8_t **data, size_t *si
 		*size = 0;
 	}
 	download_i_free(inst);
+}
+
+STACK_OF(X509_INFO) *download_x509_info(const void *cert, int len,
+		STACK_OF(X509_INFO) *prev) {
+	BIO *cbio = BIO_new_mem_buf(cert, len);
+	if (!cbio)
+		return NULL;
+	STACK_OF(X509_INFO) *sti = PEM_X509_INFO_read_bio(cbio, prev, NULL, NULL);
+	BIO_free(cbio);
+	return sti;
+}
+
+void download_x509_info_free(STACK_OF(X509_INFO) *si) {
+	sk_X509_INFO_pop_free(si, X509_INFO_free);
 }

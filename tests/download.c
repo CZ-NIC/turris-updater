@@ -205,8 +205,10 @@ START_TEST(cert_pinning) {
 	struct download_opts opts;
 	download_opts_def(&opts);
 
-	opts.cacert_file = FILE_LETS_ENCRYPT_ROOTS;
-	opts.capath = "/dev/null";
+	opts.system_ca = false;
+	char *cert = readfile(FILE_LETS_ENCRYPT_ROOTS);
+	opts.certs = download_x509_info(cert, strlen(cert), NULL);
+	free(cert);
 
 	struct download_i *inst = download_data(d, HTTP_LOREM_IPSUM_SHORT, &opts);
 
@@ -215,6 +217,7 @@ START_TEST(cert_pinning) {
 	ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, inst->out.buff->size);
 	ck_assert_str_eq(LOREM_IPSUM_SHORT, (char *)inst->out.buff->data);
 
+	download_x509_info_free(opts.certs);
 	downloader_free(d);
 }
 END_TEST
@@ -226,13 +229,16 @@ START_TEST(cert_invalid) {
 	struct download_opts opts;
 	download_opts_def(&opts);
 
-	opts.cacert_file = FILE_OPENTRUST_CA_G1;
-	opts.capath = "/dev/null";
+	opts.system_ca = false;
+	char *cert = readfile(FILE_OPENTRUST_CA_G1);
+	opts.certs = download_x509_info(cert, strlen(cert), NULL);
+	free(cert);
 
 	struct download_i *inst = download_data(d, HTTP_LOREM_IPSUM_SHORT, &opts);
 
 	ck_assert_ptr_eq(downloader_run(d), inst);
 
+	download_x509_info_free(opts.certs);
 	downloader_free(d);
 }
 END_TEST
