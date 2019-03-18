@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <threads.h>
+#include <openssl/ssl.h>
 #include "download.h"
 
 struct uri;
@@ -73,13 +74,19 @@ enum uri_output_type {
 	URI_OUT_T_BUFFER,
 };
 
-// This implements list of local URI handlers
-struct uri_local_list {
-	struct uri_local_list *next; // Link to (next) previous provided uri
-	unsigned ref_count; // Reference counter (counts number of usages in uri object)
+struct uri_ca_crl_list {
+	struct uri_ca_crl_list *next;
+	unsigned ref_count;
+	struct uri *uri;
+	STACK_OF(X509_INFO) *x509info;
+};
 
-	struct uri *uri; // Uri object initialized by URI provided by user
-	char *path; // Used to store path to file
+struct uri_pubkey_list {
+	struct uri_pubkey_list *next;
+	unsigned ref_count;
+	struct uri *uri;
+	char *path;
+	bool temporally;
 };
 
 // URI representation
@@ -91,10 +98,10 @@ struct uri {
 	// HTTPS options
 	bool ssl_verify; // If SSL should be verified
 	bool ocsp; // If OCSP should be used for ceritification validity check
-	struct uri_local_list *ca; // List of all configured CAs
-	struct uri_local_list *crl; // List of all configured CRLs
+	struct uri_ca_crl_list *ca; // List of all configured CAs
+	struct uri_ca_crl_list *crl; // List of all configured CRLs
 	// Signature verification
-	struct uri_local_list *pubkey; // URIs to public keys used for verification
+	struct uri_pubkey_list *pubkey; // URIs to public keys used for verification
 	char *sig_uri_file; // path to output file for signature
 	struct uri *sig_uri; // signature URI
 

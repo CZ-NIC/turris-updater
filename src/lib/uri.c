@@ -59,39 +59,10 @@ static const char *schemes_table[] = {
 };
 
 
-static bool list_ca_crl_collect(struct uri_local_list*);
-static bool list_pubkey_collect(struct uri_local_list*);
-
-// Bup reference count
-static void list_refup(struct uri_local_list *list) {
-	while(list) {
-		list->ref_count++;
-		list = list->next;
-	}
-}
-
-// Generic function to add item to list used by all following add functions
-static struct uri_local_list *list_add(struct uri_local_list *list) {
-	struct uri_local_list *w = malloc(sizeof *w);
-	*w = (struct uri_local_list) {
-		.next = list,
-		.ref_count = 1,
-	};
-	return w;
-}
-
-// Decrease reference count and if this is last copy then free
-static void list_dealloc(struct uri_local_list *list, void (*list_free)(struct uri_local_list*)) {
-	while (list) {
-		list->ref_count--;
-		struct uri_local_list *old = list;
-		list = list->next;
-		if (old->ref_count == 0) {
-			list_free(old);
-			free(old);
-		}
-	}
-}
+static bool list_ca_crl_collect(struct uri_ca_crl_list*);
+static void list_ca_crl_free(struct uri_ca_crl_list*);
+static bool list_pubkey_collect(struct uri_pubkey_list*);
+static void list_pubkey_free(struct uri_pubkey_list*);
 
 
 // This function returns URI for default parent for file scheme.
@@ -203,12 +174,12 @@ static struct uri *uri_new(const char *uri_str, const struct uri *parent) {
 	ret->sig_uri_file = NULL;
 	ret->sig_uri = NULL;
 #define SET(X, DEF) do { if (parent) ret->X = parent->X; else ret->X = DEF; } while (false);
-#define SET_LIST(X) do { SET(X, NULL); list_refup(ret->X); } while (false);
+#define SET_LIST(X, TYPE) do { SET(X, NULL); struct TYPE *tmp = ret->X; while(tmp) { tmp->ref_count++; tmp = tmp->next; } } while (false);
 	SET(ssl_verify, true);
 	SET(ocsp, true);
-	SET_LIST(ca);
-	SET_LIST(crl);
-	SET_LIST(pubkey);
+	SET_LIST(ca, uri_ca_crl_list);
+	SET_LIST(crl, uri_ca_crl_list);
+	SET_LIST(pubkey, uri_pubkey_list);
 #undef SET_LIST
 #undef SET
 	ret->download_instance = NULL;
@@ -243,18 +214,15 @@ struct uri *uri_to_buffer(const char *uri, const struct uri *parent) {
 	return ret;
 }
 
-static void list_ca_crl_free(struct uri_local_list *list);
-static void list_pubkey_free(struct uri_local_list *list);
-
 void uri_free(struct uri *uri) {
 	free(uri->uri);
 	if (uri->sig_uri)
 		uri_free(uri->sig_uri);
 	if (uri->sig_uri_file)
 		free(uri->sig_uri_file);
-	list_dealloc(uri->ca, list_ca_crl_free);
-	list_dealloc(uri->crl, list_ca_crl_free);
-	list_dealloc(uri->pubkey, list_pubkey_free);
+	list_ca_crl_free(uri->ca);
+	list_ca_crl_free(uri->crl);
+	list_pubkey_free(uri->pubkey);
 	switch (uri->output_type) {
 		case URI_OUT_T_FILE:
 			free(uri->output_info.fpath);
@@ -324,15 +292,15 @@ bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
 			uri_errno = URI_E_CA_FAIL;
 			return false;
 		}
-		opts.cacert_file = uri->ca->path;
-		opts.capath = "/dev/null"; // disables system CAs
+		// TODO set collected ca to downloader
+		opts.system_ca = false;
 	}
 	if (uri->crl) {
 		if (!list_ca_crl_collect(uri->crl)) {
 			uri_errno = URI_E_CRL_FAIL;
 			return false;
 		}
-		opts.crl_file = uri->crl->path;
+		// TODO set collected crl to downloader
 	}
 	switch (uri->output_type) {
 		case URI_OUT_T_FILE:
@@ -468,7 +436,7 @@ static bool uri_verify_signature(struct uri *uri) {
 			DIE("Unsupported output type in uri_verify_signature. This should not happen.");
 	}
 	bool verified = false;
-	struct uri_local_list *key = uri->pubkey;
+	struct uri_pubkey_list *key = uri->pubkey;
 	do {
 		if(lsubprocv(LST_USIGN,
 				aprintf("Verify %s (%s) against %s", uri->uri, uri->sig_uri_file, key->path),
@@ -571,85 +539,49 @@ void uri_set_ssl_verify(struct uri *uri, bool verify) {
 	uri->ssl_verify = verify;
 }
 
-// Generate temporally file from all subsequent certificates (and CRLs)
-static bool list_ca_crl_collect(struct uri_local_list *list) {
-	if (!list || list->path)
-		return true; // not set or already collected to file so all is done
-
-	bool success = true;
-	unsigned refs = 0;
-	struct mwrite mw;
-	mwrite_init(&mw);
-	do {
-		if (list->uri) {
-			if (list->ref_count > refs) {
-				list->path = strdup(TMP_TEMPLATE_CA_CRL_FILE);
-				if (!mwrite_mkstemp(&mw, list->path, 0)) {
-					uri_sub_errno = URI_E_OUTPUT_OPEN_FAIL;
-					uri_sub_err_uri = NULL;
-					success = false;
-					break;
-				}
-				refs = list->ref_count;
-			}
-			if (!uri_finish(list->uri)) {
-				uri_sub_errno = uri_errno;
-				uri_sub_err_uri = list->uri;
-				success = false;
-				break;
-			}
-			uint8_t *buf;
-			size_t buf_size;
-			uri_take_buffer(list->uri, &buf, &buf_size);
-			if (mwrite_write(&mw, buf, buf_size) != MWRITE_R_OK) {
-				uri_sub_errno = URI_E_OUTPUT_WRITE_FAIL;
-				uri_sub_err_uri = NULL;
-				success = false;
-				free(buf);
-				break;
-			}
-			free(buf);
-			uri_free(list->uri);
-			list->uri = NULL;
-		} else {
-			// This is already collected to file so we read file it self.
-			int fd = open(list->path, 0, O_RDONLY);
-			char *buf[BUFSIZ];
-			ssize_t cnt;
-			while((cnt = read(fd, buf, BUFSIZ)) > 0)
-				if (mwrite_write(&mw, buf, cnt) != MWRITE_R_OK) {
-					uri_sub_errno = URI_E_OUTPUT_WRITE_FAIL;
-					uri_sub_err_uri = NULL;
-					success = false;
-					break;
-				}
-			close(fd);
-			break;
+static bool list_ca_crl_collect(struct uri_ca_crl_list *list) {
+	// We stop at list that does no longer have uri (was already collected)
+	while (list && list->uri) {
+		if (!uri_finish(list->uri)) {
+			uri_sub_errno = uri_errno;
+			uri_sub_err_uri = list->uri;
+			return false;
+		}
+		uint8_t *buf;
+		size_t buf_size;
+		uri_take_buffer(list->uri, &buf, &buf_size);
+		uri_free(list->uri);
+		list->uri = NULL;
+		list->x509info = download_x509_info(buf, buf_size, NULL);
+		free(buf);
+		if (!list->x509info) {
+			// TODO error
+			return false;
 		}
 		list = list->next;
-	} while (list);
-
-	if (!mwrite_close(&mw)) {
-		uri_sub_errno = URI_E_OUTPUT_WRITE_FAIL;
-		uri_sub_err_uri = NULL;
 	}
-	return success;
+	return true;
 }
 
-// deallocation handler for CA and CRL list
-static void list_ca_crl_free(struct uri_local_list *list) {
-	if (list->uri)
-		uri_free(list->uri);
-	if (list->path) {
-		unlink(list->path);
-		free(list->path);
+static void list_ca_crl_free(struct uri_ca_crl_list *list) {
+	while (list) {
+		list->ref_count--;
+		struct uri_ca_crl_list *next = list->next;
+		if (list->ref_count == 0) {
+			if (list->uri)
+				uri_free(list->uri);
+			if (list->x509info)
+				sk_X509_INFO_pop_free(list->x509info, X509_INFO_free);
+			free(list);
+		}
+		list = next;
 	}
 }
 
 // Common add function for both CA and CRL
-static bool list_ca_crl_add(const char *str_uri, struct uri_local_list **list) {
-	if (!str_uri){
-		list_dealloc(*list, list_ca_crl_free);
+static bool list_ca_crl_add(const char *str_uri, struct uri_ca_crl_list **list) {
+	if (!str_uri) {
+		list_ca_crl_free(*list);
 		*list = NULL;
 		return true;
 	}
@@ -664,9 +596,14 @@ static bool list_ca_crl_add(const char *str_uri, struct uri_local_list **list) {
 		uri_free(nuri);
 		return false;
 	}
-	*list = list_add(*list);
-	(*list)->uri = nuri;
-	(*list)->path = NULL;
+	struct uri_ca_crl_list *new_list = malloc(sizeof *new_list);
+	*new_list = (struct uri_ca_crl_list){
+		.next = *list,
+		.ref_count = 1,
+		.uri = nuri,
+		.x509info = NULL,
+	};
+	*list = new_list;
 	return true;
 }
 
@@ -686,8 +623,14 @@ void uri_set_ocsp(struct uri *uri, bool enabled) {
 }
 
 // Generate temporally file from all subsequent public keys
-static bool list_pubkey_collect(struct uri_local_list *list) {
-	while (list && list->uri) {
+static bool list_pubkey_collect(struct uri_pubkey_list *list) {
+	while (list) {
+		if (!list->uri) {
+			if (list->temporally)
+				break; // Rest of the list was already collected
+			else
+				continue; // We don't have to store this in file
+		}
 		if (!uri_finish(list->uri)) {
 			uri_sub_errno = uri_errno;
 			uri_sub_err_uri = list->uri;
@@ -701,11 +644,12 @@ static bool list_pubkey_collect(struct uri_local_list *list) {
 }
 
 // deallocation handler for pubkey list
-static void list_pubkey_free(struct uri_local_list *list) {
+static void list_pubkey_free(struct uri_pubkey_list *list) {
 	if (list->uri)
 		uri_free(list->uri);
 	if (list->path) {
-		unlink(list->path); // Intentionally ignoring error (if no file was created)
+		if (!list->temporally)
+			unlink(list->path); // Intentionally ignoring error (if no file was created)
 		free(list->path);
 	}
 }
@@ -713,11 +657,11 @@ static void list_pubkey_free(struct uri_local_list *list) {
 bool uri_add_pubkey(struct uri *uri, const char *pubkey_uri) {
 	CONFIG_GUARD;
 	if (!pubkey_uri) {
-		list_dealloc(uri->pubkey, list_pubkey_free);
+		list_pubkey_free(uri->pubkey);
 		uri->pubkey = NULL;
 		return true;
 	}
-	// TODO we can reuse file path but can't automatically remove such file on cleanup
+	bool temp = true;
 	char *file_path = strdup(TMP_TEMPLATE_PUBKEY_FILE);
 	struct uri *nuri = uri_to_temp_file(pubkey_uri, file_path, NULL);
 	if (!nuri) {
@@ -733,9 +677,22 @@ bool uri_add_pubkey(struct uri *uri, const char *pubkey_uri) {
 		free(file_path);
 		return false;
 	}
-	uri->pubkey = list_add(uri->pubkey);
-	uri->pubkey->uri = nuri;
-	uri->pubkey->path = file_path;
+	if (nuri->scheme == URI_S_FILE) {
+		free(file_path);
+		file_path = uri_path(nuri);
+		uri_free(nuri);
+		nuri = NULL;
+		temp = false;
+	}
+	struct uri_pubkey_list *new_list = malloc(sizeof *new_list);
+	*new_list = (struct uri_pubkey_list){
+		.next = uri->pubkey,
+		.ref_count = 1,
+		.uri = nuri,
+		.path = file_path,
+		.temporally = temp,
+	};
+	uri->pubkey = new_list;
 	return true;
 }
 
