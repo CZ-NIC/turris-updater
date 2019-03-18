@@ -27,6 +27,7 @@ local next = next
 local tostring = tostring
 local tonumber = tonumber
 local assert = assert
+local string = string
 local unpack = unpack
 local io = io
 local os = os
@@ -50,7 +51,8 @@ local sha256_file = sha256_file
 -- local test_extract = test_extract
 local extract_inner_archive = extract_inner_archive
 local get_file_size = get_file_size
-local get_file_content = get_file_content
+local archive_read_file = archive_read_file
+local archive_file_present = archive_file_present
 local DBG = DBG
 local WARN = WARN
 local ERROR = ERROR
@@ -452,6 +454,7 @@ TODO:
 -- First we duplicate old functionality, to keep the rewrite simple
 function pkg_unpack(package_path)
 
+	print("====================pkg_unpack: " .. package_path)
 
 	-- We do not need temp directory, so let's just use s2dir (renamed to just dir)
 	utils.mkdirp(syscnf.pkg_unpacked_dir)
@@ -460,12 +463,15 @@ function pkg_unpack(package_path)
 	extract_inner_archive(package_path, "data", dir)
 
 
-	get_file_size(package_path, "control", "conffiles")
+	local fs = get_file_size(package_path, "control", "conffiles")
 
-	
+	print("file_size:" .. fs)
+
 	local data = get_file_content(package_path, "control", "conffiles")
 
 	print("(((in Lua, data)))\n" .. data .. "---")
+	
+	print("dir: " .. dir)
 
 	return dir
 end
@@ -538,7 +544,7 @@ In all three cases, the file names are keys, not values.
 
 In case of errors, it raises error()
 ]]
-function pkg_examine(dir)
+function orig_pkg_examine(dir)
 	local data_dir = dir .. "/data"
 	-- Events to wait for
 	local events = {}
@@ -570,6 +576,7 @@ function pkg_examine(dir)
 	-- Get list of config files, if there are any
 	local control_dir = dir .. "/control"
 	local cidx = io.open(control_dir .. "/conffiles")
+-- BB: use extract_file_to_memory_here 
 	local conffiles = {}
 	if cidx then
 		for l in cidx:lines() do
@@ -585,6 +592,75 @@ function pkg_examine(dir)
 	conffiles = slashes_sanitize(conffiles)
 	-- Load the control file of the package and parse it
 	local control = package_postprocess(block_parse(utils.read_file(control_dir .. "/control")));
+	-- Wait for all asynchronous processes to finish
+	events_wait(unpack(events))
+	-- How well did it go?
+	if err then
+		error(err)
+	end
+	-- Complete the control structure
+	control.files = files
+	if next(conffiles) then -- Don't store empty config files
+		control.Conffiles = conffiles
+	end
+	control["Installed-Time"] = tostring(os.time())
+	control.Status = {"install", "user", "installed"}
+	return files, dirs, conffiles, control
+end
+
+
+
+
+
+function pkg_examine(package_path, dir)
+	local data_dir = dir .. "/data"
+	-- Events to wait for
+	local events = {}
+	local err = nil
+	-- Launch scans of the data directory
+	local function launch(postprocess, ...)
+		local function cback(ecode, _, stdout, stderr)
+			if ecode == 0 then
+				postprocess(stdout)
+			else
+				err = stderr
+			end
+		end
+		print("-------launch() called--------")
+		local event = run_util(cback, function () chdir(data_dir) end, nil, cmd_timeout, cmd_kill_timeout, ...)
+		table.insert(events, event)
+	end
+	local function find_result(text)
+		--[[
+		Split into „lines“ separated by 0-char. Then eat leading dots and, in case
+		there was only a dot, replace it by /.
+		]]
+		return utils.map(utils.lines2set(text, "%z"), function (f) return f:gsub("^%.", ""):gsub("^$", "/"), true end)
+	end
+	local files, dirs
+	-- One for non-directories
+	launch(function (text) files = slashes_sanitize(find_result(text)) end, "find", "!", "-type", "d", "-print0")
+	-- One for directories
+	launch(function (text) dirs = slashes_sanitize(find_result(text)) end, "find", "-type", "d", "-print0")
+	-- Get list of config files, if there are any
+	local cidx = archive_read_file(package_path, "control", "conffiles")
+
+	print("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB\n" .. cidx)
+
+	local conffiles = {}
+	if cidx then
+		for l in string.gmatch(cidx, "[^\n]+") do
+			local fname = l:match("^%s*(/.*%S)%s*")
+			if archive_file_present(package_path, "data", fname) then
+				conffiles[fname] = sha256(archive_read_file(package_path, "data", fname))
+			else
+				error("File " .. fname .. " does not exist.")
+			end
+		end
+	end
+	conffiles = slashes_sanitize(conffiles)
+	-- Load the control file of the package and parse it
+	local control = package_postprocess(block_parse(archive_read_file(package_path, "control", "control")))
 	-- Wait for all asynchronous processes to finish
 	events_wait(unpack(events))
 	-- How well did it go?

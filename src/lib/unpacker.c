@@ -37,8 +37,14 @@ static char * sanitize_filename(char *dst, const char *src) {
 	int r;
 	r = strncmp("./", src, 2);
 	if (r != 0) {
-		strcpy(dst, "./");
-		strcat(dst, src);
+		r = strncmp("/", src, 1);
+		if (r != 0) {
+			strcpy(dst, "./");
+			strcat(dst, src);
+		} else {
+			strcpy(dst, ".");
+			strcat(dst, src);
+		}
 	} else {
 		strcpy(dst, src);
 	}
@@ -333,6 +339,18 @@ int get_file_size(const char *arcname, const char *subarcname, const char *filen
 		return archive_entry_size(entry);
 	}
 	return process_file(arcname, subarcname, filename, get_size);
+}
+
+int archive_file_present(const char *arcname, const char *subarcname, const char *filename) {
+	int ret = -1;
+	printf("[[[FPIA]]] top: %s\n", filename);
+	int file_present(struct archive *a, struct archive_entry *entry) {
+		printf("[[[FPIA]]]\nentry: %s\nfilen: %s\n", archive_entry_pathname(entry), filename);
+		ret = 0;
+		return 0;
+	}
+	process_file(arcname, subarcname, filename, file_present);
+	return ret;
 }
 
 /* extract file into current directory (TODO: add path?) */

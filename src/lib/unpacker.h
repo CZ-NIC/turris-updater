@@ -25,4 +25,4 @@ int get_file_size(const char *arcname, const char *subarcname, const char *filen
 int extract_file_to_memory(char *buff, const char *arcname, const char *subarcname, const char *filename, int size);
 
 int test_extract(const char *arc_name, const char *subarc_name, char *files[], int count);
-
+int archive_file_present(const char *arcname, const char *subarcname, const char *filename);

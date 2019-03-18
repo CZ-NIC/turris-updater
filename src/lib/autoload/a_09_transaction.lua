@@ -72,6 +72,7 @@ end
 
 -- Stages of the transaction. Each one is written into the journal, with its results.
 local function pkg_unpack(operations, status)
+	print("+++pkg_unpack+++")
 	update_state(LS_UNPACK)
 	INFO("Unpacking download packages")
 	local dir_cleanups = {}
@@ -97,7 +98,9 @@ local function pkg_unpack(operations, status)
 		elseif op.op == "install" then
 			local pkg_dir = backend.pkg_unpack(op.file)
 			table.insert(dir_cleanups, pkg_dir)
-			local files, dirs, configs, control = backend.pkg_examine(pkg_dir)
+--			local files, dirs, configs, control = backend.pkg_examine(pkg_dir)
+			print("xxx Calling pkg_examine(" .. op.file .. ", " .. pkg_dir .. ")")
+			local files, dirs, configs, control = backend.pkg_examine(op.file, pkg_dir)
 			to_remove[control.Package] = true
 			to_install[control.Package] = files
 			--[[

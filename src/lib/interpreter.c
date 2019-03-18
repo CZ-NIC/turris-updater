@@ -656,7 +656,7 @@ static int lua_get_file_size(lua_State *L) {
 	return 1;
 }
 
-static int lua_get_file_content(lua_State *L) {
+static int lua_archive_read_file(lua_State *L) {
 	const char *arc_name = luaL_checkstring(L, 1);
 	const char *subarc_name = luaL_checkstring(L, 2);
 	const char *path = luaL_checkstring(L, 3);
@@ -669,6 +669,33 @@ static int lua_get_file_content(lua_State *L) {
 		lua_pushlstring(L, "", 0);
 	}
 	return 1;
+}
+
+static int lua_archive_file_present(lua_State *L) {
+	const char *arc_name = luaL_checkstring(L, 1);
+	const char *subarc_name = luaL_checkstring(L, 2);
+	const char *path = luaL_checkstring(L, 3);
+	printf("lua_calling fpia\n");
+	int ret = archive_file_present(arc_name, subarc_name, path);
+	if (ret == 0) {
+		lua_pushboolean(L, 1);
+	} else {
+		lua_pushboolean(L, 0);
+	}
+	printf("returned: %d\n", ret);
+	return 1;
+}
+void l_pushtablestring(lua_State* L , char* key , char* value) {
+	lua_pushstring(L, key);
+	lua_pushstring(L, value);
+	lua_settable(L, -3);
+} 
+static int lua_archive_list_files(lua_State *L) {
+	const char *arc_name = luaL_checkstring(L, 1);
+	const char *subarc_name = luaL_checkstring(L, 2);
+	printf("lua_archive_list_names");
+	lua_newtable(L);
+	l_pushtablestring(L, 
 }
 
 static const char *stat2str(const struct stat *buf) {
@@ -955,7 +982,9 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_copy, "copy" },
 	{ lua_extract_inner_archive, "extract_inner_archive" },
 	{ lua_get_file_size, "get_file_size" },
-	{ lua_get_file_content, "get_file_content" },
+	{ lua_archive_read_file, "archive_read_file" },
+	{ lua_archive_file_present, "archive_file_present" },
+	{ lua_archive_list_files, "archive_list_files" },
 	{ lua_ls, "ls" },
 	{ lua_stat, "stat" },
 	{ lua_lstat, "lstat" },

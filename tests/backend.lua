@@ -298,7 +298,7 @@ function test_pkg_unpack()
 ./data/usr/share/updater/keys/standby.pem
 ]]), lines2set(stdout))
 	end, function () chdir(path) end, nil, -1, -1, "/usr/bin/find"))
-	local files, dirs, conffiles, control = B.pkg_examine(path)
+	local files, dirs, conffiles, control = B.pkg_examine(datadir .. "updater.ipk", path)
 	assert_table_equal(lines2set(
 [[
 /etc/init.d/updater
