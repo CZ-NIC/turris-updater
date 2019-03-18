@@ -24,6 +24,7 @@ the configuration scripts to be run in.
 
 local pairs = pairs
 local ipairs = ipairs
+local next = next
 local type = type
 local pcall = pcall
 local string = string
@@ -98,19 +99,6 @@ local function extra_check_package_type(pkg, field)
 	end
 end
 
--- Common check for accepted values in table
-local function extra_check_table(field, what, table, accepted)
-	local acc = utils.arr2set(accepted)
-	for _, v in pairs(table) do
-		if type(v) ~= "string" then
-			extra_field_invalid_type(v, field, what)
-		end
-		if not acc[v] then
-			WARN("Unknown value " .. v .. " in table of extra option " .. field .. " for a " .. what)
-		end
-	end
-end
-
 -- Common check for verification field
 local function extra_check_verification(what, extra)
 	if extra.verification == nil then return end -- we don't care if there is no setting
@@ -143,7 +131,7 @@ local allowed_package_extras = {
 	["abi_change"] = utils.arr2set({"table", "boolean"}),
 	["abi_change_deep"] = utils.arr2set({"table", "boolean"}),
 	["priority"] = utils.arr2set({"number"}),
-	["ignore"] = utils.arr2set({"table"})
+	["ignore"] = utils.arr2set({"table"}), -- obsoleted
 }
 utils.table_merge(allowed_package_extras, allowed_extras_verification)
 
@@ -230,19 +218,22 @@ function package(_, pkg_name, extra)
 					extra_check_package_type(v, name)
 				end
 			end
-		elseif name == "ignore" then
-			extra_check_table("package", name, value, {"deps", "validation", "installation"})
 		end
+	end
+	if extra["ignore"] then -- obsolete
+		WARN('Package extra option "ignore" is obsolete and is ignored.')
+		extra["ignore"] = nil
 	end
 	new_package(pkg_name, extra)
 end
 
 -- List of allowed extra options for a Repository command
 local allowed_repository_extras = {
-	["subdirs"] = utils.arr2set({"table"}),
 	["index"] = utils.arr2set({"string"}),
-	["ignore"] = utils.arr2set({"table"}),
 	["priority"] = utils.arr2set({"number"}),
+	["optional"] = utils.arr2set({"boolean"}),
+	["subdirs"] = utils.arr2set({"table"}), -- obsolete
+	["ignore"] = utils.arr2set({"table"}), -- obsolete
 }
 utils.table_merge(allowed_repository_extras, allowed_extras_verification)
 
@@ -265,19 +256,13 @@ function repository(context, name, repo_uri, extra)
 	-- Catch possible typos
 	extra = allowed_extras_check_type(allowed_repository_extras, 'repository', extra or {})
 	extra_check_verification("repository", extra)
-	for name, value in pairs(extra) do
-		if name == "subdirs" or name == "ignore" then
-			for _, v in pairs(value) do
-				if type(v) ~= "string" then
-					extra_field_invalid_type(v, name, "repository")
-				end
-			end
-		elseif name == "ignore" then
-			extra_check_table("repository", name, value, {"missing", "integrity", "syntax"})
+	if extra.ignore then
+		WARN('Repository extra option "ignore" is obsolete and should not be used. Use "optional" instead.')
+		if extra.optional == nil then
+			extra.optional = next(extra.ignore) ~= nil -- if any ignore was specified then set it as optional
 		end
+		extra.ignore = nil
 	end
-	-- Canonize some extra fields
-	extra.ignore = utils.arr2set(extra.ignore or {})
 	--[[
 	We do some mangling with the sig URI, since they are not at Package.gz.sig, but at
 	Package.sig only.
@@ -304,6 +289,7 @@ function repository(context, name, repo_uri, extra)
 	end
 
 	if extra.subdirs then
+		WARN('Repository extra option "subdirs" is obsolete and should not be used anymore.')
 		for _, sub in pairs(extra.subdirs) do
 			register_repo(repo_uri .. '/' .. sub .. '/' .. (extra.index or 'Packages.gz'), name .. '-' .. sub)
 		end
@@ -319,16 +305,22 @@ local function content_request(cmd, allowed, ...)
 	local batch = {}
 	local function submit(extras)
 		extras = allowed_extras_check_type(allowed, cmd, extras)
-		for name, value in pairs(extras) do
-			if name == "repository" and type(value) == "table" then
-				for _, v in pairs(value) do
+		if extras.repository then
+			if type(extras.repository) == "table" then
+				for _, v in pairs(extras.repository) do
 					if type(v) ~= "string" then
-						extra_field_invalid_type(v, name, cmd)
+						extra_field_invalid_type(v, "repository", cmd)
 					end
 				end
-			elseif name == "ignore" then -- note: we don't check what cmd we have as allowed_extras_check_type filters out ignore parameters for uninstall
-				extra_check_table("cmd", name, value, {"missing"})
 			end
+		end
+		if extras.ignore then
+			-- Note: this is applicable only to Install
+			WARN('Install extra option "ignore" is obsolete and should not be used. Use "optional" instead.')
+			if extras.optional == nil then
+				extras.optional = next(extras.ignore) ~= nil -- if any ignore was specified then set it as optional
+			end
+			extras.ignore = nil
 		end
 		for _, pkg_name in ipairs(batch) do
 			DBG("Request " .. cmd .. " of " .. pkg_name)
@@ -358,7 +350,8 @@ local allowed_install_extras = {
 	["repository"] = utils.arr2set({"string", "table"}),
 	["reinstall"] = utils.arr2set({"boolean"}),
 	["critical"] = utils.arr2set({"boolean"}),
-	["ignore"] = utils.arr2set({"table"})
+	["optional"] = utils.arr2set({"boolean"}),
+	["ignore"] = utils.arr2set({"table"}), -- obsolete
 }
 
 function install(_, ...)
@@ -375,8 +368,9 @@ end
 
 local allowed_script_extras = {
 	["security"] = utils.arr2set({"string"}),
-	["restrict"] = utils.arr2set({"string"}), -- This is now obsoleted (not used)
-	["ignore"] = utils.arr2set({"table"})
+	["optional"] = utils.arr2set({"boolean"}),
+	["restrict"] = utils.arr2set({"string"}), -- obsolete
+	["ignore"] = utils.arr2set({"table"}), -- obsolete
 }
 utils.table_merge(allowed_script_extras, allowed_extras_verification)
 
@@ -396,18 +390,18 @@ function script(context, filler, script_uri, extra)
 	end
 	extra = allowed_extras_check_type(allowed_script_extras, 'script', extra or {})
 	extra_check_verification("script", extra)
-	for name, value in pairs(extra) do
-		if name == "ignore" then
-			extra_check_table("script", script_uri, value, {"missing", "integrity"})
+	if extra.ignore then
+		WARN('Script extra option "ignore" is obsolete and should not be used. Use "optional" instead.')
+		if extra.optional == nil then
+			extra.optional = next(extra.ignore) ~= nil
 		end
 	end
 	local ok, content, u = pcall(utils.uri_content, script_uri, context.paret_script_uri, extra)
 	if not ok then
-		if utils.arr2set(extra.ignore or {})["missing"] then
-			WARN("Script " .. script_uri .. " not found, but ignoring its absence as requested")
+		if extra.optional then
+			WARN("Script " .. script_uri .. " wasn't executed: " .. content)
 			return
 		end
-		-- If couldn't get the script, propagate the error
 		error(content)
 	end
 	DBG("Running script " .. script_uri)

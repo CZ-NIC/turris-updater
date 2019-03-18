@@ -62,11 +62,11 @@ local function repo_parse(repo)
 	local ok, list = pcall(backend.repo_parse, index)
 	if not ok then
 		local msg = "Couldn't parse the index of " .. name .. ": " .. tostring(list)
-		if repo.ignore['syntax'] then
-			WARN(msg)
-		else
+		if not repo.optional then
 			error(utils.exception('syntax', msg))
 		end
+		WARN(msg)
+		-- TODO we might want to ignore this repository in its fulles instead of this
 	end
 	for _, pkg in pairs(list) do
 		-- Compute the URI of each package (but don't download it yet, so don't create the uri object)
@@ -83,7 +83,7 @@ local function repos_failed_download(uri_fail)
 			local message = "Download failed for repository index " ..
 				repo.name .. " (" .. repo.index_uri:uri() .. "): " ..
 				tostring(repo.index_uri:download_error())
-			if not repo.ignore['missing'] then
+			if not repo.optional then
 				error(utils.exception('repo missing', message))
 			end
 			WARN(message)

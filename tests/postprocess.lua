@@ -75,7 +75,6 @@ local example_output = {
 		name = "test1",
 		priority = 50,
 		repo_uri = "file://./tests/data/repo",
-		ignore = {},
 		serial = 1,
 		tp = "parsed-repository"
 	}
@@ -116,12 +115,12 @@ function test_get_repos_broken_fatal()
 end
 
 function test_get_repos_broken_nonfatal()
-	requests.repository({}, "test1", "http://example.org/test1", {ignore = {"missing"}})
+	requests.repository({}, "test1", "http://example.org/test1", {optional = true})
 	assert_nil(postprocess.get_repos())
 	requests.known_repositories["test1"].index_uri = nil
 	assert_table_equal({
 		["test1"] = {
-			ignore = {["missing"]=true},
+			optional = true,
 			name = "test1",
 			repo_uri = "http://example.org/test1",
 			priority = 50,

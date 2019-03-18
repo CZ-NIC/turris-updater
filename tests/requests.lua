@@ -68,7 +68,6 @@ function test_repository()
 			tp = "repository",
 			name = "test-repo",
 			repo_uri = "http://example.org/repo",
-			ignore = {},
 			priority = 50,
 			serial = 1
 		},
@@ -77,7 +76,6 @@ function test_repository()
 			name = "test-repo-2-a",
 			repo_uri = "http://example.org/repo-2",
 			subdirs = {'a', 'b'},
-			ignore = {},
 			priority = 60,
 			serial = 2
 		},
@@ -86,7 +84,6 @@ function test_repository()
 			name = "test-repo-2-b",
 			repo_uri = "http://example.org/repo-2",
 			subdirs = {'a', 'b'},
-			ignore = {},
 			priority = 60,
 			serial = 3
 		},
@@ -95,7 +92,6 @@ function test_repository()
 			name = "test-repo-other",
 			repo_uri = "http://example.org/repo-other",
 			index = "https://example.org/repo-other/Packages.gz",
-			ignore = {},
 			priority = 50,
 			serial = 4
 		}
@@ -169,9 +165,9 @@ function test_script_legacy()
 	}, requests.content_requests)
 end
 
-function test_script_missing()
+function test_script_optional()
 	local result = sandbox.run_sandboxed([[
-		Script("file:///does/not/exist", { ignore = {"missing"}, security = "local" })
+		Script("file:///does/not/exist", { optional = true, security = "local" })
 	]], "test_script_missing_chunk", "Local")
 	-- It doesn't produce an error, even when the script doesn't exist
 	assert_equal("context", result.tp, result.msg)

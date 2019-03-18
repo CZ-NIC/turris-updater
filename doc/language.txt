@@ -14,7 +14,7 @@ supported version of Lua on OpenWRT is 5.1, but there should be very
 little difference in what we use). Just the set of functions available
 is limited to the functions listed here.
 
-Note that using conditions, loops and variables is fully supported
+TIP: Using conditions, loops and variables is fully supported
 and sometimes desirable.
 
 Security levels
@@ -137,16 +137,14 @@ URIs specified in these verification options are not verified (default values, n
 inherited ones, are used). Because of that it is suggested to used only
 trusted/secure URIs for that purpose. Suggested are `file://` and `data://`.
 
-NOTE::
-  Another option `verification` exist. It was originally used for verification
-  level specification but that is now replaced with `pubkey` and `ca` option
-  specific values. For backward compatibility it is silently ignored.
+NOTE: Another option `verification` exist. It was originally used for verification
+level specification but that is now replaced with `pubkey` and `ca` option
+specific values. For backward compatibility it is silently ignored.
 
-NOTE::
-  For `ca` option there is also constant `system_cas` and for `crl` option there
-  is constant `no_crl`. These are obsoleted but are still defined. `system_cas` is
-  defined as `true` and `no_crl` is defined as `false`.
-  `system_cas` 
+NOTE: For `ca` option there is also constant `system_cas` and for `crl` option
+there is constant `no_crl`. These are obsoleted but are still defined.
+`system_cas` is defined as `true` and `no_crl` is defined as `false`.
+`system_cas` 
 
 Dependency description
 ----------------------
@@ -208,14 +206,8 @@ security::
   raise the level, such attempt is reported as an error. If not
   specified, the level is deduced from the URI. If the URI is remote,
   it doesn't go above `remote`, otherwise it doesn't go above `local`.
-ignore::
-  Ignore certain errors. If they happen, don't process such script,
-  but continue with the rest. This is a lua table with strings, each
-  one specifying a category of erorrs to ignore.
-  missing;;
-    If the script can't be found.
-  integrity;;
-    Some signatures don't match.
+optional::
+  Set this to `true` to not fail if retrieval of this script fails.
 sig::
 pubkey::
 ca::
@@ -223,9 +215,12 @@ crl::
 ocsp::
   Options to verify the script integrity.
 
-Note that following format is now marked as obsolete and should not be used:
+WARNING: Following format is now marked as obsolete and should not be used:
+`Script("script-name", "uri", { extra })`
 
-  Script("script-name", "uri", { extra })
+NOTE: There is also obsoleted extra option `ignore`. This should not be used and
+any value set to it is effectively considered to be same as setting `optional` to
+`true`.
 
 Repository
 ~~~~~~~~~~
@@ -247,31 +242,17 @@ index::
   main URI as the place where packages are downloaded from. Both
   gzipped and plain versions may be in the given URI. If the option is
   not listed, it is expected to be in `Packages.gz`.
-ignore::
-  Ignore certain errors. This is a lua table with strings, each
-  specifying a category of errors to ignore. If there's an error
-  ignored, the repository acts as being empty. Otherwise, such error
-  would cause the updater to stop.
-  missing;;
-    This error happens if the repository is not found. This can mean,
-    for example, that the `https` URI where the index
-    (`https://example.org/repository/Packages.gz`) returns 404.
-    However, a missing package from the repository is not this kind of
-    error (and cannot be ignored, because it is discovered late after
-    planning what to install).
-  integrity;;
-    This is when the integrity verification/signature check fails.
-    This may be caused by manipulation with the content, or by missing
-    a key on our side.
-  syntax;;
-    It happens when the repository index can not be parsed because of
-    syntax errors.
 priority::
   In case of a package being available in multiple directories, the
   package is taken from the repository with highest priority. In case
   of equality, the one introduced first wins. The default when the
   option is not specified is 50. The number must be an integer between
   0 and 100.
+optional::
+  Set this to `true` to not fail if it is not possible to receive repository for
+  any reason or to parse it. This can be due to missing resource or invalid
+  verification but in both cases this is not fatal for updater execution and it
+  continues without this repository.
 sig::
 pubkey::
 ca::
@@ -279,14 +260,17 @@ crl::
 ocsp::
   Options to verify the index integrity.
 
-NOTE::
-  There is also obsoleted `subdirs` extra parameter. It was intended to be used as
-  a simple way to add multiple repositories at once. It had small trick under its
-  sleeve that it combined all those repositories under one name but that
-  effectively changes nothing. In new versions of Updater-ng this option is only
-  emulated and repository with name generated with following script is added
-  instead: `NAME-SUBDIR` where `NAME` is name of repository and `SUBDIR` is
-  specific `subdirs` values.
+NOTE: There is also obsoleted `subdirs` extra parameter. It was intended to be
+used as a simple way to add multiple repositories at once. It had small trick
+under its sleeve that it combined all those repositories under one name but that
+effectively changes nothing. In new versions of Updater-ng this option is only
+emulated and repository with name generated with following script is added
+instead: `NAME-SUBDIR` where `NAME` is name of repository and `SUBDIR` is specific
+`subdirs` values.
+
+NOTE: There is also obsoleted extra option `ignore`. This should not be used and
+any value set to it is effectively considered to be same as setting `optional` to
+`true`.
 
 Uninstall
 ~~~~~~~~~
@@ -296,8 +280,8 @@ Uninstall
 This command takes multiple package names. It ensures none of the
 packages is installed.
 
-Note that this is not needed most of the time, since unneeded packages
-are removed automatically.
+TIP: This is not needed most cases, since unneeded packages are removed
+automatically.
 
 Extra options modify the packages preceding them, but only up to the
 previous extra options block. Therefore, the first two packages in the
@@ -353,20 +337,18 @@ critical::
   network. Other packages may stop working if the update is
   interrupted at the wrong time (for example by a power outage), but
   would be fixed by another finished updater run.
-ignore::
-  Ignore certain errors regarding the installation request. Note that
-  errors related to the package itself are modified by the `Package`
-  command. This takes an array of strings, each string represents one
-  category of errors to ignore.
-  missing;;
-    Don't fail on the package not being available. The package
-    wouldn't be installed if not available, but the run of the updater
-    wouldn't be aborted.
+optional::
+  Set this to `true` to not fail if packages is not available from any configured
+  repository. Be aware that this has implications if form of possible removed
+  packages from system.
 
-Note that a package may be required to be installed or uninstalled
-multiple times (for example by multiple scripts). All such
-requirements are tried to be met (eg. by unifying the version options,
-etc).
+IMPORTANT: Package may be required to be installed or uninstalled multiple times
+(for example by multiple scripts). All such requirements are tried to be met (eg.
+by unifying the version options, etc).
+
+NOTE: There is also obsoleted but still working option `ignore` which if set to
+any boolean true value it is considered as if `optional` extra option would be
+set to `true`.
 
 Package
 ~~~~~~~
@@ -450,19 +432,10 @@ abi_change_deep::
   package that changed its ABI. That means if some package is reinstalled because
   of change of ABI, all packages that depends on it are also reinstalled and so
   on.
-ignore::
-  Ignore listed categories of errors. This takes an array of strings,
-  each string meaning one category to ignore.
-  deps;;
-    Don't error on missing dependencies. Simply install the package
-    without satisfying the dependency.
-  validation;;
-    Install the package despite it failing validation (eg. when having
-    different checksum).
-  installation;;
-    Don't report errors of installation in this package as an error
-    and don't abort the rest of the installation process even if it is
-    in an early stage.
+
+NOTE: Originally there was also option `ignore` that allowed pass for different
+problems but most of those were not working and usage of them was questionable.
+This options is now considered as obsolete and is ignored.
 
 Export and Unexport
 ~~~~~~~~~~~~~~~~~~~
