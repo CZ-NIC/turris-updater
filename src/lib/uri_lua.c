@@ -79,7 +79,7 @@ static int lua_new_uri_tail(lua_State *L, struct uri_master *urim, struct uri *u
 	// Verify uri
 	if (!u) {
 		free(fpath);
-		return luaL_error(L, aprintf("URI object initialization failed: %s", uri_error_msg(uri_errno)));;
+		return luaL_error(L, "URI object initialization failed: %s", uri_error_msg(uri_errno));;
 	}
 	// Create lua URI object
 	struct uri_lua *uri = lua_newuserdata(L, sizeof *uri);
@@ -128,10 +128,8 @@ static int lua_uri_master_to_buffer(lua_State *L) {
 	struct uri_master *urim = luaL_checkudata(L, 1, URI_MASTER_META);
 	const char *str_uri = luaL_checkstring(L, 2);
 	struct uri *parent = NULL;
-	if (!lua_isnoneornil(L, 3)) {
-		printf("ups %s %d\n", lua_typename(L, lua_type(L, 3)), lua_gettop(L));
+	if (!lua_isnoneornil(L, 3))
 		parent = ((struct uri_lua*)luaL_checkudata(L, 3, URI_META))->uri;
-	}
 
 	struct uri *u = uri_to_buffer(str_uri, parent);
 	return lua_new_uri_tail(L, urim, u, NULL);
@@ -144,20 +142,36 @@ static int lua_uri_master_download(lua_State *L) {
 	while (lua_next(L, -2) != 0) {
 		lua_pop(L, 1); // pop value (just boolean true)
 		struct uri_lua *uri = luaL_checkudata(L, -1, URI_META);
-		uri_downloader_register(uri->uri, urim->downloader); // Multiple calls have no effect
+		if (!uri->uri->download_instance)
+			if (!uri_downloader_register(uri->uri, urim->downloader)) {
+				char *err;
+				if (uri_errno == URI_E_CA_FAIL || uri_errno == URI_E_CRL_FAIL)
+					err = aprintf("Error while registering for download: %s: %s: %s: %s",
+							uri->uri->uri, uri_error_msg(uri_errno),
+							uri_sub_err_uri->uri, uri_error_msg(uri_sub_errno));
+				else
+					err = aprintf("Error while registering for download: %s: %s",
+							uri->uri->uri, uri_error_msg(uri_errno));
+				return luaL_error(L, err);
+			}
 	}
 
-	struct download_i *inst = downloader_run(urim->downloader);
-	if (inst) {
-		lua_pushnil(L);
-		while (lua_next(L, -2) != 0) {
-			lua_pop(L, 1);
-			struct uri_lua *uri = luaL_checkudata(L, -1, URI_META);
-			if (uri->uri->download_instance == inst)
-				return 1; // Just return this URI object
+	struct download_i *inst;
+	do {
+		inst = downloader_run(urim->downloader);
+		if (inst) {
+			lua_pushnil(L);
+			while (lua_next(L, -2) != 0) {
+				lua_pop(L, 1);
+				struct uri_lua *uri = luaL_checkudata(L, -1, URI_META);
+				if (uri->uri->download_instance == inst)
+					return 1; // Just return this URI object
+			}
+			// We continue as this should be failed signature and those are
+			// resolved later on when we call finish on uri object that owns given
+			// signature
 		}
-		DIE("Failed instance has no URI object. This should not happen.");
-	}
+	} while (inst);
 
 	// Push empty table so we drop reference to all completed uris
 	lua_getfield(L, LUA_REGISTRYINDEX, URI_MASTER_REGISTRY);
@@ -194,8 +208,15 @@ static int lua_uri_uri(lua_State *L) {
 
 static int lua_uri_finish(lua_State *L) {
 	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
-	if (!uri_finish(uri->uri))
-		return luaL_error(L, aprintf("Unable to finish URI: %s", uri_error_msg(uri_errno)));
+	if (!uri_finish(uri->uri)) {
+		if (uri_errno == URI_E_PUBKEY_FAIL || uri_errno == URI_E_SIG_FAIL) {
+			return luaL_error(L, "Unable to finish URI (%s): %s: %s: %s",
+					uri->uri->uri, uri_error_msg(uri_errno),
+					uri_sub_err_uri->uri, uri_error_msg(uri_sub_errno));
+		} else
+			return luaL_error(L, "Unable to finish URI (%s): %s",
+					uri->uri->uri, uri_error_msg(uri_errno));
+	}
 	switch (uri->uri->output_type) {
 		case URI_OUT_T_FILE:
 		case URI_OUT_T_TEMP_FILE:
@@ -248,7 +269,8 @@ static int lua_uri_add_ca(lua_State *L) {
 	if (!lua_isnoneornil(L, 2))
 		cauri = luaL_checkstring(L, 2);
 	if (!uri_add_ca(uri->uri, cauri))
-	   return luaL_error(L, "TODO error");
+	   return luaL_error(L, "Unable to add CA (%s): %s", cauri,
+			   uri_error_msg(uri_errno));
 	return 0;
 }
 
@@ -258,7 +280,8 @@ static int lua_uri_add_crl(lua_State *L) {
 	if (!lua_isnoneornil(L, 2))
 		crluri = luaL_checkstring(L, 2);
 	if (!uri_add_crl(uri->uri, crluri))
-	   return luaL_error(L, "TODO error");
+	   return luaL_error(L, "Unable to add CRL (%s): %s", crluri,
+				   uri_error_msg(uri_errno));
 	return 0;
 }
 
@@ -274,7 +297,8 @@ static int lua_uri_add_pubkey(lua_State *L) {
 	if (!lua_isnoneornil(L, 2))
 		pubkey = luaL_checkstring(L, 2);
 	if (!uri_add_pubkey(uri->uri, pubkey))
-	   return luaL_error(L, "TODO error");
+	   return luaL_error(L, "Unable to add public key (%s): %s", pubkey,
+				   uri_error_msg(uri_errno));
 	return 0;
 }
 
@@ -282,7 +306,8 @@ static int lua_uri_set_sig(lua_State *L) {
 	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
 	const char *siguri = luaL_checkstring(L, 2);
 	if (!uri_set_sig(uri->uri, siguri))
-	   return luaL_error(L, "TODO error");
+	   return luaL_error(L, "Unable to set signature (%s): %s", siguri,
+				   uri_error_msg(uri_errno));
 	return 0;
 }
 
