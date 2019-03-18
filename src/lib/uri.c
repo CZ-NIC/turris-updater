@@ -47,7 +47,7 @@ static const char *error_messages[] = {
 	[URI_E_PUBKEY_FAIL] = "Unable to get public key",
 	[URI_E_SIG_FAIL] = "Signature URI failure",
 	[URI_E_VERIFY_FAIL] = "Signature verification failure",
-	[URI_E_NONLOCAL] = "URI to be used as either CA, CRL or PUBKEY is not local one (file or data)",
+	[URI_E_NONLOCAL] = "URI to be used for local resources is not local one (file or data)",
 };
 
 static const char *schemes_table[] = {
@@ -310,7 +310,9 @@ bool downloader_register_signature(struct uri *uri, struct downloader *downloade
 }
 
 bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
-	if (uri_is_local(uri) || uri->download_instance || uri->finished)
+	ASSERT_MSG(!uri->download_instance && !uri->finished,
+			"uri_download_register can be called only on not yet registered uri");
+	if (uri_is_local(uri))
 		return true; // Just ignore if it makes no sense to call this
 	if (!ensure_signature(uri))
 		return false;
@@ -654,11 +656,8 @@ static bool list_ca_crl_add(const char *str_uri, struct uri_local_list **list) {
 		return true;
 	}
 	struct uri *nuri = uri_to_buffer(str_uri, NULL);
-	if (!nuri) {
-		uri_sub_errno = uri_errno;
-		uri_sub_err_uri = NULL;
+	if (!nuri)
 		return false;
-	}
 	if (!uri_is_local(nuri)) {
 		uri_errno = URI_E_NONLOCAL;
 		uri_free(nuri);
@@ -720,23 +719,22 @@ bool uri_add_pubkey(struct uri *uri, const char *pubkey_uri) {
 	// TODO we can reuse file path but can't automatically remove such file on cleanup
 	char *file_path = strdup(TMP_TEMPLATE_PUBKEY_FILE);
 	struct uri *nuri = uri_to_temp_file(pubkey_uri, file_path, NULL);
-	if (!nuri) {
-		uri_sub_errno = uri_errno;
-		uri_sub_err_uri = NULL;
-		free(file_path);
-		return false;
-	}
+	if (!nuri)
+		goto error;
 	if (!uri_is_local(nuri)) {
-		uri_sub_errno = URI_E_NONLOCAL;
-		uri_sub_err_uri = NULL;
-		uri_free(nuri);
-		free(file_path);
-		return false;
+		uri_errno = URI_E_NONLOCAL;
+		goto error;
 	}
 	uri->pubkey = list_add(uri->pubkey);
 	uri->pubkey->uri = nuri;
 	uri->pubkey->path = file_path;
 	return true;
+
+error:
+	if (nuri)
+		uri_free(nuri);
+	free(file_path);
+	return false;
 }
 
 bool uri_set_sig(struct uri *uri, const char *sig_uri) {
