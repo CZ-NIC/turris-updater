@@ -557,6 +557,9 @@ abi_change_deep::
 replan_string::
   Updater expects replan to be a string (if this feature isn't set than it's
   expected to be only boolean).
+relative_uri::
+  Updater supports relative URI where URI is deduced relative to script in which
+  it was defined in.
 no_returns::
   Functions such as `Repository` and `Package` no longer return handler that can
   be used in other calls.
