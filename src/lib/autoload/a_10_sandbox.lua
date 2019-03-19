@@ -52,6 +52,7 @@ local updater_features = utils.arr2set({
 	'abi_change',
 	'abi_change_deep',
 	'replan_string',
+	'relative_uri',
 	'no_returns'
 })
 
