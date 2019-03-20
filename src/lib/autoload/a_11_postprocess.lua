@@ -46,7 +46,7 @@ local function repo_parse(repo)
 	local name = repo.name .. "/" .. repo.index_uri:uri()
 	-- Get index
 	local index = repo.index_uri:finish() -- TODO error?
-	if index:sub(1, 2) == string.char(0x1F, 0x8B) then -- copressed index
+	if index:sub(1, 2) == string.char(0x1F, 0x8B) then -- compressed index
 		DBG("Decompressing index " .. name)
 		local extr = run_util(function (ecode, _, stdout, stderr)
 				if ecode ~= 0 then
