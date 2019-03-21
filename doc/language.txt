@@ -410,85 +410,74 @@ Package
 
   package = Package("name", { extra })
 
-This command allows amending a package from a repository. It allows
-for adding dependencies (even negative or alternative dependencies).
-It allows for specifying hooks ‒ functions that are run at specific
-times. It also allows creation of virtual packages ‒ a package that
-doesn't really exist, but can participates in the dependency computation.
+This command allows amending a package from a repository. It allows for adding
+dependencies (even negative or alternative dependencies).  It also allows creation
+of virtual packages ‒ a package that doesn't really exist, but can participates in
+the dependency computation.
 
-A package may be amended multiple times. Each time the options are
-merged into the package options.
+A package may be amended multiple times. Each time the options are merged into the
+package options.
 
-The result may be used instead of a package name in the dependencies
-of other packages and in `Install` and `Uninstall` commands.
+The result may be used instead of a package name in the dependencies of other
+packages and in `Install` and `Uninstall` commands.
 
-Also, the name parameter is optional. If it is omitted (either
-specified as nil or just left out), an unique name is generated. This
-is useful only for virtual packages.
+Also, the name parameter is optional. If it is omitted (either specified as nil or
+just left out), an unique name is generated. This is useful only for virtual
+packages.
 
 The options are:
 
 virtual::
-  If set to any value, the package is virtual. If a real package of
-  the same name exists, an error is reported.
+  If set to any value, the package is virtual. If a real package of the same name
+  exists, an error is reported.
 deps::
-  Additional dependencies for the package. The dependencies are merged
-  together as if all the sources were put into a table (eg. all of
-  them must be fulfilled). There's no way to remove dependencies.
+  Additional dependencies for the package. The dependencies are merged together as
+  if all the sources were put into a table (eg. all of them must be fulfilled).
+  There's no way to remove dependencies.
 order_after::
 order_before::
-  Usually, all dependencies of a package are installed before the
-  package. Sometimes, it may be desirable to break this order and
-  these options allow that. Both of them list packages after or before
-  which the current package shall be installed, in a table. This
-  allows breaking dependency cycles. These options are mere hint, the
-  updater may decide to not follow them if it is not possible to
-  satisfy. Note that this has effect only on running the pre_* and
-  post_* scripts and hooks, since all the files of all updated
-  packages are merged into the system together.
-pre_*::
-post_*::
-  A hook to be run after or before a step. The value may be a single
-  function or a table of functions. All the functions (from the table
-  or merged from multiple `Package` commands) are run, in unspecified
-  order. TODO: List the steps and what commands may be used inside the
-  functions.
+  Usually, all dependencies of a package are installed before the package.
+  Sometimes, it may be desirable to break this order and these options allow that.
+  Both of them list packages after or before which the current package shall be
+  installed, in a table. This allows breaking dependency cycles. These options are
+  mere hint, the updater may decide to not follow them if it is not possible to
+  satisfy. Note that this has effect only on running the pre_* and post_* scripts
+  and hooks, since all the files of all updated packages are merged into the
+  system together.
 reboot::
-  A reboot is needed when installing the package. The reboot is
-  scheduled according to the value.
+  A reboot is needed when installing the package. The reboot is scheduled
+  according to the value.
   delayed;;
-    The package needs a reboot for the new version to take effect, but
-    the old version works, so it may be delayed for arbitrary amount
-    of time.
+	The package needs a reboot for the new version to take effect, but the old
+	version works, so it may be delayed for arbitrary amount of time.
   finished;;
-    The reboot needs to be done once the update is finished. It is
-    because the old version no longer works as expected. The whole
-    update may be delayed because the need of this update, so the
-    update happens at a time convenient to the user.
+	The reboot needs to be done once the update is finished. It is because the old
+	version no longer works as expected. The whole update may be delayed because
+	the need of this update, so the update happens at a time convenient to the
+	user.
   immediate;;
-    The reboot needs to be done just after the package is set up. This
-    may be needed when the old version would prevent the rest of the
-    update from happening.
+	The reboot needs to be done just after the package is set up. This may be
+	needed when the old version would prevent the rest of the update from
+	happening.
 replan::
-  The package has an effect on the updater itself. Therefore, updater
-  have to run planning again. When this happens is according to value.
+  The package has an effect on the updater itself. Therefore, updater have to run
+  planning again. When this happens is according to value.
   finished;;
-    Replan is done after whole initial update was performed. Use this option
-    if your package changes some setting that updater reads. It can be some
-	uci config or even some additional updater configuration (usable for
-    example if you want to add repository by installing package).
+	Replan is done after whole initial update was performed. Use this option if
+	your package changes some setting that updater reads. It can be some uci
+	config or even some additional updater configuration (usable for example if
+	you want to add repository by installing package).
   immediate;;
-    When this is set it interrupts the update after this package is set
-    up. This causes updater to run planning again as soon as the change is made.
-    This should be used only for packages containing updater itself or
-    closely related packages.
+	When this is set it interrupts the update after this package is set up. This
+	causes updater to run planning again as soon as the change is made.  This
+	should be used only for packages containing updater itself or closely related
+	packages.
 abi_change::
-  The package changed its ABI (or some other interface) and some other
-  packages need to be reinstalled. If this is set to `true` and the
-  package is installed or updated, all packages that depend on it are
-  reinstalled. If it is set to a table, it lists packages that need to
-  be reinstalled. When merging `true` to a table, `true` is considered
-  to be the list of packages depending on this one.
+  The package changed its ABI (or some other interface) and some other packages
+  need to be reinstalled. If this is set to `true` and the package is installed or
+  updated, all packages that depend on it are reinstalled. If it is set to a
+  table, it lists packages that need to be reinstalled. When merging `true` to a
+  table, `true` is considered to be the list of packages depending on this one.
 abi_change_deep::
   Same as abi_change, but also reinstall packages that depends indirectly on
   package that changed its ABI. That means if some package is reinstalled because
