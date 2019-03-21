@@ -116,6 +116,16 @@ local function extra_check_verification(what, extra)
 	end
 end
 
+local function extra_annul_ignore(extra, warning, set_optional)
+	if extra.ignore then
+		WARN(warning)
+		if set_optional and extra.optional == nil then
+			extra.optional = next(extra.ignore) ~= nil
+		end
+		extra.ignore = nil
+	end
+end
+
 local allowed_package_extras_hooks = utils.arr2set({"table", "function"})
 local allowed_package_extras = {
 	["virtual"] = utils.arr2set({"boolean"}),
@@ -209,7 +219,7 @@ function package(_, pkg_name, extra)
 		elseif (name == "pre_inst" or name == "post_inst" or name == "pre_rm" or name == "post_rm") and type(value) == "table" then
 			for _, v in pairs(value) do
 				if type(v) ~= "function" then
-					extra_field_invalid_type(v, name)
+					extra_field_invalid_type(v, name, "Package")
 				end
 			end
 		elseif name == "abi_change" and type(value) == "table" then
@@ -220,10 +230,7 @@ function package(_, pkg_name, extra)
 			end
 		end
 	end
-	if extra["ignore"] then -- obsolete
-		WARN('Package extra option "ignore" is obsolete and is ignored.')
-		extra["ignore"] = nil
-	end
+	extra_annul_ignore(extra, 'Package extra option "ignore" is obsolete and is ignored.')
 	new_package(pkg_name, extra)
 end
 
@@ -256,13 +263,7 @@ function repository(context, name, repo_uri, extra)
 	-- Catch possible typos
 	extra = allowed_extras_check_type(allowed_repository_extras, 'repository', extra or {})
 	extra_check_verification("repository", extra)
-	if extra.ignore then
-		WARN('Repository extra option "ignore" is obsolete and should not be used. Use "optional" instead.')
-		if extra.optional == nil then
-			extra.optional = next(extra.ignore) ~= nil -- if any ignore was specified then set it as optional
-		end
-		extra.ignore = nil
-	end
+	extra_annul_ignore(extra, 'Repository extra option "ignore" is obsolete and should not be used. Use "optional" instead.', true)
 	--[[
 	We do some mangling with the sig URI, since they are not at Package.gz.sig, but at
 	Package.sig only.
@@ -306,22 +307,16 @@ local function content_request(cmd, allowed, ...)
 	local function submit(extras)
 		extras = allowed_extras_check_type(allowed, cmd, extras)
 		if extras.repository then
-			if type(extras.repository) == "table" then
-				for _, v in pairs(extras.repository) do
-					if type(v) ~= "string" then
-						extra_field_invalid_type(v, "repository", cmd)
-					end
+			if type(extras.repository) == "string" then
+				extras.repository = {extras.repository}
+			end
+			for _, v in pairs(extras.repository) do
+				if type(v) ~= "string" then
+					extra_field_invalid_type(v, "repository", cmd)
 				end
 			end
 		end
-		if extras.ignore then
-			-- Note: this is applicable only to Install
-			WARN('Install extra option "ignore" is obsolete and should not be used. Use "optional" instead.')
-			if extras.optional == nil then
-				extras.optional = next(extras.ignore) ~= nil -- if any ignore was specified then set it as optional
-			end
-			extras.ignore = nil
-		end
+		extra_annul_ignore(extras, 'Install extra option "ignore" is obsolete and should not be used. Use "optional" instead.', true) -- Note: this is applicable only to Install
 		for _, pkg_name in ipairs(batch) do
 			DBG("Request " .. cmd .. " of " .. pkg_name)
 			local request = {
@@ -390,12 +385,7 @@ function script(context, filler, script_uri, extra)
 	end
 	extra = allowed_extras_check_type(allowed_script_extras, 'script', extra or {})
 	extra_check_verification("script", extra)
-	if extra.ignore then
-		WARN('Script extra option "ignore" is obsolete and should not be used. Use "optional" instead.')
-		if extra.optional == nil then
-			extra.optional = next(extra.ignore) ~= nil
-		end
-	end
+	extra_annul_ignore(extra, 'Script extra option "ignore" is obsolete and should not be used. Use "optional" instead.', true)
 	local ok, content, u = pcall(utils.uri_content, script_uri, context.paret_script_uri, extra)
 	if not ok then
 		if extra.optional then
