@@ -426,7 +426,7 @@ function uri_content(struri, parent, config)
 	local master = uri.new()
 	local u = master:to_buffer(struri, parent)
 	uri_config(u, config)
-	-- TODO finish error and others?
+	master:download()
 	return u:finish(), u
 end
 
