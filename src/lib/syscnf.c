@@ -117,24 +117,26 @@ static struct os_release_data *read_os_release(const char *path) {
 
 	struct os_release_data *osr_dt = NULL;
 
-	regex_t rgex;
-	ASSERT(!regcomp(&rgex, "^([^=]*)=(\"?)(.*)\\2$", REG_NEWLINE | REG_EXTENDED));
-	regmatch_t match[4];
 	char *line = NULL;
 	size_t linel = 0;
 	while (getline(&line, &linel, f) != -1) {
-		if (regexec(&rgex, line, 4, match, 0) == REG_NOMATCH) {
-			ERROR("Unable to parse os-release (%s) line: %.*s", path, (int)strlen(line) - 1, line);
-		} else {
+		const char *eq = strchr(line, '=');
+		if (eq) {
 			struct os_release_data *n = malloc(sizeof *n);
-			n->field = strndup(&line[match[1].rm_so], match[1].rm_eo - match[1].rm_so);
-			n->content = strndup(&line[match[3].rm_so], match[3].rm_eo - match[3].rm_so);
+			n->field = strndup(line, eq - line);
+			size_t val_len = strlen(eq + 1);
+			// Note: there is trailing \n
+			if (*(eq+1) == '"' && (eq+1)[val_len-2] == '"')
+				n->content = strndup(eq + 2, val_len - 3);
+			else
+				n->content = strndup(eq + 1, val_len - 1);
 			HASH_ADD_KEYPTR(hh, osr_dt, n->field, strlen(n->field), n);
 			TRACE("Parsed os-release (%s): %s=\"%s\"", path, n->field, n->content);
+		} else {
+			ERROR("Unable to parse os-release (%s) line: %.*s", path, (int)strlen(line) - 1, line);
 		}
 	}
 	free(line);
-	regfree(&rgex);
 	fclose(f);
 
 	return osr_dt;
