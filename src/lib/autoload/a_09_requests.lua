@@ -268,6 +268,9 @@ function repository(context, name, repo_uri, extra)
 	extra = allowed_extras_check_type(allowed_repository_extras, 'repository', extra or {})
 	extra_check_verification("repository", extra)
 	extra_annul_ignore(extra, 'Repository extra option "ignore" is obsolete and should not be used. Use "optional" instead.', true)
+
+	local index = extra.index or "Packages.gz"
+	local signature = index:gsub("%.gz", ".sig")
 	--[[
 	We do some mangling with the sig URI, since they are not at Package.gz.sig, but at
 	Package.sig only.
@@ -277,8 +280,8 @@ function repository(context, name, repo_uri, extra)
 			ERROR("Repository of name '" .. repo_name "' was already added. Repetition is ignored.")
 			return
 		end
-		local iuri = repositories_uri_master:to_buffer(u, context.parent_script_uri)
-		utils.uri_config(iuri, {unpack(extra), ["sig"] = extra.sig or u:gsub('%.gz$', '') .. '.sig'})
+		local iuri = repositories_uri_master:to_buffer(u .. "/" .. index, context.parent_script_uri)
+		utils.uri_config(iuri, {unpack(extra), ["sig"] = signature})
 
 		local repo = {
 			tp = "repository",
@@ -296,10 +299,10 @@ function repository(context, name, repo_uri, extra)
 	if extra.subdirs then
 		WARN('Repository extra option "subdirs" is obsolete and should not be used anymore.')
 		for _, sub in pairs(extra.subdirs) do
-			register_repo(repo_uri .. '/' .. sub .. '/' .. (extra.index or 'Packages.gz'), name .. '-' .. sub)
+			register_repo(repo_uri .. '/' .. sub, name .. '-' .. sub)
 		end
 	else
-		register_repo(repo_uri .. '/' .. (extra.index or 'Packages.gz'), name)
+		register_repo(repo_uri, name)
 	end
 end
 
