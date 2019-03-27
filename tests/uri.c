@@ -333,6 +333,7 @@ START_TEST(uri_sig_verify_valid) {
 	ck_assert_ptr_nonnull(u);
 	ck_assert(uri_add_pubkey(u, USIGN_KEY_1_PUB));
 	ck_assert(uri_add_pubkey(u, USIGN_KEY_2_PUB));
+	ck_assert(uri_set_sig(u, NULL));
 	ck_assert(uri_finish(u));
 	uri_free(u);
 }
@@ -343,6 +344,7 @@ START_TEST(uri_sig_verify_invalid) {
 	struct uri *u = uri_to_buffer(FILE_LOREM_IPSUM_SHORT, NULL);
 	ck_assert_ptr_nonnull(u);
 	ck_assert(uri_add_pubkey(u, USIGN_KEY_2_PUB));
+	ck_assert(uri_set_sig(u, NULL));
 	ck_assert(!uri_finish(u));
 	ck_assert_int_eq(URI_E_VERIFY_FAIL, uri_errno);
 	uri_free(u);
