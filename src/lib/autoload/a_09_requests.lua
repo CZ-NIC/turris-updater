@@ -277,7 +277,7 @@ function repository(context, name, repo_uri, extra)
 			ERROR("Repository of name '" .. repo_name "' was already added. Repetition is ignored.")
 			return
 		end
-		local iuri = repositories_uri_master:to_buffer(u, context.paret_script_uri)
+		local iuri = repositories_uri_master:to_buffer(u, context.parent_script_uri)
 		utils.uri_config(iuri, {unpack(extra), ["sig"] = extra.sig or u:gsub('%.gz$', '') .. '.sig'})
 
 		local repo = {
