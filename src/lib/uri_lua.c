@@ -145,7 +145,7 @@ static int lua_uri_master_download(lua_State *L) {
 		if (!uri->uri->download_instance)
 			if (!uri_downloader_register(uri->uri, urim->downloader)) {
 				char *err;
-				if (uri_errno == URI_E_CA_FAIL || uri_errno == URI_E_CRL_FAIL)
+				if (uri_errno == URI_E_CA_FAIL || uri_errno == URI_E_CRL_FAIL || uri_errno == URI_E_SIG_FAIL)
 					err = aprintf("Error while registering for download: %s: %s: %s: %s",
 							uri->uri->uri, uri_error_msg(uri_errno),
 							uri_sub_err_uri->uri, uri_error_msg(uri_sub_errno));
