@@ -301,14 +301,6 @@ static bool ensure_signature(struct uri *uri) {
 	return true;
 }
 
-bool downloader_register_signature(struct uri *uri, struct downloader *downloader) {
-	if (!uri->pubkey)
-		return true;
-	if (!list_pubkey_collect(uri->pubkey))
-		return false;
-	return uri_downloader_register(uri->sig_uri, downloader);
-}
-
 bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
 	ASSERT_MSG(!uri->download_instance && !uri->finished,
 			"uri_download_register can be called only on not yet registered uri");
@@ -352,7 +344,7 @@ bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
 		uri_errno = URI_E_OUTPUT_OPEN_FAIL;
 		return false;
 	}
-	if (!downloader_register_signature(uri, downloader)) {
+	if (uri->pubkey && !uri_downloader_register(uri->sig_uri, downloader)) {
 		download_i_free(uri->download_instance);
 		uri->download_instance = NULL;
 		uri_sub_errno = uri_errno;
