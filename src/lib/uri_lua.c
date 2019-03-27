@@ -136,6 +136,7 @@ static int lua_uri_master_to_buffer(lua_State *L) {
 }
 
 static int lua_uri_master_download(lua_State *L) {
+	TRACE("URI master download")
 	struct uri_master *urim = luaL_checkudata(L, 1, URI_MASTER_META);
 	lua_uri_master_registry(L, urim);
 	lua_pushnil(L);
