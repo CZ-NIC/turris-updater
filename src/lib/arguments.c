@@ -62,9 +62,9 @@ static const char *opt_help[COT_LAST] = {
 	[COT_STATE_LOG] =
 		"--state-log			Dump state to files in /etc/updater-state directory.\n",
 	[COT_SYSLOG_LEVEL] =
-		"-s <syslog-level>		What level of messages to send to syslog.\n",
+		"-s <syslog-level>		What level of messages to send to syslog (DISABLE/ERROR/WARN/INFO/DBG).\n",
 	[COT_STDERR_LEVEL] =
-		"-e <stderr-level>		What level of messages to send to stderr.\n",
+		"-e <stderr-level>		What level of messages to send to stderr (DISABLE/ERROR/WARN/INFO/DBG).\n",
 	[COT_SYSLOG_NAME] =
 		"-S <syslog-name>		Under which name messages are sent to syslog.\n",
 	[COT_ASK_APPROVAL] =
