@@ -46,12 +46,12 @@ module "requests"
 
 -- Verifications fields are same for script, repository and package. Lets define them here once and then just append.
 local allowed_extras_verification = {
-	["verification"] = utils.arr2set({"string"}),
 	["sig"] = utils.arr2set({"string"}),
 	["pubkey"] = utils.arr2set({"string", "table"}),
-	["ca"] = utils.arr2set({"string", "table"}),
-	["crl"] = utils.arr2set({"string", "table"}),
-	["ocsp"] = utils.arr2set({"boolean"})
+	["ca"] = utils.arr2set({"string", "table", "boolean"}),
+	["crl"] = utils.arr2set({"string", "table", "boolean"}),
+	["ocsp"] = utils.arr2set({"boolean"}),
+	["verification"] = utils.arr2set({"string"}), -- obsolete
 }
 
 -- Just die with common message about invalid type in extra field
@@ -113,6 +113,10 @@ local function extra_check_verification(what, extra)
 				end
 			end
 		end
+	end
+	if extra.verification then
+		WARN("Extra option 'verification' is obsoleted and ignored for a " .. what)
+		extra.verification = nil
 	end
 end
 
