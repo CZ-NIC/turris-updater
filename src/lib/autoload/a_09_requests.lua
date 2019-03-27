@@ -390,7 +390,7 @@ function script(context, filler, script_uri, extra)
 	extra = allowed_extras_check_type(allowed_script_extras, 'script', extra or {})
 	extra_check_verification("script", extra)
 	extra_annul_ignore(extra, 'Script extra option "ignore" is obsolete and should not be used. Use "optional" instead.', true)
-	local ok, content, u = pcall(utils.uri_content, script_uri, context.paret_script_uri, extra)
+	local ok, content, u = pcall(utils.uri_content, script_uri, context.parent_script_uri, extra)
 	if not ok then
 		if extra.optional then
 			WARN("Script " .. script_uri .. " wasn't executed: " .. content)
