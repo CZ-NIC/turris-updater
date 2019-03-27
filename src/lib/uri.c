@@ -42,9 +42,6 @@ static const char *error_messages[] = {
 	[URI_E_FILE_INPUT_ERROR] = "Unable to open local file for reading",
 	[URI_E_OUTPUT_OPEN_FAIL] = "Unable to open output file for writing",
 	[URI_E_OUTPUT_WRITE_FAIL] = "Unable to write data to output",
-	[URI_E_CA_FAIL] = "Unable to get CA",
-	[URI_E_CRL_FAIL] = "Unable to get CRL",
-	[URI_E_PUBKEY_FAIL] = "Unable to get public key",
 	[URI_E_SIG_FAIL] = "Signature URI failure",
 	[URI_E_VERIFY_FAIL] = "Signature verification failure",
 	[URI_E_NONLOCAL] = "URI to be used for local resources is not local one (file or data)",
@@ -59,8 +56,8 @@ static const char *schemes_table[] = {
 };
 
 
-static bool list_ca_crl_collect(struct uri_local_list*);
-static bool list_pubkey_collect(struct uri_local_list*);
+static void list_ca_crl_collect(struct uri_local_list*);
+static void list_pubkey_collect(struct uri_local_list*);
 
 // Bup reference count
 static void list_refup(struct uri_local_list *list) {
@@ -289,43 +286,23 @@ char *uri_path(const struct uri *uri) {
 	return path;
 }
 
-// Make sure that uri object for signature is initialized if we need it.
-static bool ensure_signature(struct uri *uri) {
-	if (!uri->pubkey || uri->sig_uri)
-		return true;
-	if (!uri_set_sig(uri, NULL)) {
-		uri_sub_errno = uri_errno;
-		uri_errno = URI_E_SIG_FAIL;
-		return false;
-	}
-	return true;
-}
-
 bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
 	ASSERT_MSG(!uri->download_instance && !uri->finished,
 			"uri_download_register can be called only on not yet registered uri");
 	if (uri_is_local(uri))
 		return true; // Just ignore if it makes no sense to call this
-	if (!ensure_signature(uri))
-		return false;
 	struct download_opts opts;
 	download_opts_def(&opts);
 	opts.ssl_verify = uri->ssl_verify;
 	opts.ocsp = uri->ocsp;
 	// TODO use instead of files: https://curl.haxx.se/libcurl/c/cacertinmem.html
 	if (uri->ca) {
-		if (!list_ca_crl_collect(uri->ca)) {
-			uri_errno = URI_E_CA_FAIL;
-			return false;
-		}
+		list_ca_crl_collect(uri->ca);
 		opts.cacert_file = uri->ca->path;
 		opts.capath = "/dev/null"; // disables system CAs
 	}
 	if (uri->crl) {
-		if (!list_ca_crl_collect(uri->crl)) {
-			uri_errno = URI_E_CRL_FAIL;
-			return false;
-		}
+		list_ca_crl_collect(uri->crl);
 		opts.crl_file = uri->crl->path;
 	}
 	switch (uri->output_type) {
@@ -344,10 +321,11 @@ bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
 		uri_errno = URI_E_OUTPUT_OPEN_FAIL;
 		return false;
 	}
-	if (uri->pubkey && !uri_downloader_register(uri->sig_uri, downloader)) {
+	if (uri->pubkey && uri->sig_uri && !uri_downloader_register(uri->sig_uri, downloader)) {
 		download_i_free(uri->download_instance);
 		uri->download_instance = NULL;
 		uri_sub_errno = uri_errno;
+		uri_sub_err_uri = uri->sig_uri;
 		uri_errno = URI_E_SIG_FAIL;
 		return false;
 	}
@@ -444,10 +422,7 @@ static bool uri_verify_signature(struct uri *uri) {
 	}
 	uri_free(uri->sig_uri);
 	uri->sig_uri = NULL;
-	if (!list_pubkey_collect(uri->pubkey)) {
-		uri_errno = URI_E_PUBKEY_FAIL;
-		return false;
-	}
+	list_pubkey_collect(uri->pubkey);
 
 	char *fcontent;
 	switch (uri->output_type) {
@@ -495,8 +470,6 @@ bool uri_finish(struct uri *uri) {
 		return true; // Ignore if this is alredy finished
 	TRACE("URI finish: %s", uri->uri);
 	if (uri_is_local(uri)) {
-		if (!ensure_signature(uri))
-			return false;
 		switch (uri->scheme) {
 			case URI_S_FILE:
 				if (!uri_finish_file(uri))
@@ -529,7 +502,7 @@ bool uri_finish(struct uri *uri) {
 		uri->download_instance = NULL;
 	}
 	uri->finished = true;
-	if (uri->pubkey)
+	if (uri->pubkey && uri->sig_uri)
 		return uri_verify_signature(uri);
 	return true;
 }
@@ -567,11 +540,10 @@ void uri_set_ssl_verify(struct uri *uri, bool verify) {
 }
 
 // Generate temporally file from all subsequent certificates (and CRLs)
-static bool list_ca_crl_collect(struct uri_local_list *list) {
+static void list_ca_crl_collect(struct uri_local_list *list) {
 	if (!list || list->path)
-		return true; // not set or already collected to file so all is done
+		return; // not set or already collected to file so all is done
 
-	bool success = true;
 	unsigned refs = 0;
 	struct mwrite mw;
 	mwrite_init(&mw);
@@ -579,31 +551,17 @@ static bool list_ca_crl_collect(struct uri_local_list *list) {
 		if (list->uri) {
 			if (list->ref_count > refs) {
 				list->path = strdup(TMP_TEMPLATE_CA_CRL_FILE);
-				if (!mwrite_mkstemp(&mw, list->path, 0)) {
-					uri_sub_errno = URI_E_OUTPUT_OPEN_FAIL;
-					uri_sub_err_uri = NULL;
-					success = false;
-					break;
-				}
+				ASSERT(mwrite_mkstemp(&mw, list->path, 0));
 				refs = list->ref_count;
 			}
-			if (!uri_finish(list->uri)) {
-				uri_sub_errno = uri_errno;
-				uri_sub_err_uri = list->uri;
-				success = false;
-				break;
-			}
-			uint8_t *buf;
-			size_t buf_size;
-			uri_take_buffer(list->uri, &buf, &buf_size);
-			if (mwrite_write(&mw, buf, buf_size) != MWRITE_R_OK) {
-				uri_sub_errno = URI_E_OUTPUT_WRITE_FAIL;
-				uri_sub_err_uri = NULL;
-				success = false;
+			if (uri_finish(list->uri)) {
+				uint8_t *buf;
+				size_t buf_size;
+				uri_take_buffer(list->uri, &buf, &buf_size);
+				ASSERT(mwrite_write(&mw, buf, buf_size) == MWRITE_R_OK);
 				free(buf);
-				break;
-			}
-			free(buf);
+			} else
+				DBG("Unable to get CA/CRL %s: %s", list->uri->uri, uri_error_msg(uri_errno));
 			uri_free(list->uri);
 			list->uri = NULL;
 		} else {
@@ -612,12 +570,7 @@ static bool list_ca_crl_collect(struct uri_local_list *list) {
 			char *buf[BUFSIZ];
 			ssize_t cnt;
 			while((cnt = read(fd, buf, BUFSIZ)) > 0)
-				if (mwrite_write(&mw, buf, cnt) != MWRITE_R_OK) {
-					uri_sub_errno = URI_E_OUTPUT_WRITE_FAIL;
-					uri_sub_err_uri = NULL;
-					success = false;
-					break;
-				}
+				ASSERT(mwrite_write(&mw, buf, cnt) == MWRITE_R_OK);
 			close(fd);
 			break;
 		}
@@ -628,7 +581,6 @@ static bool list_ca_crl_collect(struct uri_local_list *list) {
 		uri_sub_errno = URI_E_OUTPUT_WRITE_FAIL;
 		uri_sub_err_uri = NULL;
 	}
-	return success;
 }
 
 // deallocation handler for CA and CRL list
@@ -678,18 +630,14 @@ void uri_set_ocsp(struct uri *uri, bool enabled) {
 }
 
 // Generate temporally file from all subsequent public keys
-static bool list_pubkey_collect(struct uri_local_list *list) {
+static void list_pubkey_collect(struct uri_local_list *list) {
 	while (list && list->uri) {
-		if (!uri_finish(list->uri)) {
-			uri_sub_errno = uri_errno;
-			uri_sub_err_uri = list->uri;
-			return false;
-		}
+		if (!uri_finish(list->uri))
+			DBG("Unable to get pubkey %s: %s", list->uri->uri, uri_error_msg(uri_errno));
 		uri_free(list->uri);
 		list->uri = NULL;
 		list = list->next;
 	}
-	return true;
 }
 
 // deallocation handler for pubkey list
