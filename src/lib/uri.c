@@ -37,7 +37,7 @@ thread_local struct uri *uri_sub_err_uri = NULL;
 static const char *error_messages[] = {
 	[URI_E_INVALID_URI] = "URI has invalid format",
 	[URI_E_UNKNOWN_SCHEME] = "URI contains invalid or unsupported scheme",
-	[URI_E_UNFINISHED_DOWNLOAD] = "Download wasn't started or finished",
+	[URI_E_UNFINISHED_DOWNLOAD] = "Download wasn't finished or even started",
 	[URI_E_DOWNLOAD_FAILED] = "Download failed",
 	[URI_E_FILE_INPUT_ERROR] = "Unable to open local file for reading",
 	[URI_E_OUTPUT_OPEN_FAIL] = "Unable to open output file for writing",
@@ -487,7 +487,7 @@ bool uri_finish(struct uri *uri) {
 	} else {
 		ASSERT_MSG(uri->download_instance, "uri_downloader_register has to be called before uri_finish");
 		if (!uri->download_instance->done || !uri->download_instance->success) {
-			uri_errno = uri->download_instance->done ? URI_E_UNFINISHED_DOWNLOAD : URI_E_DOWNLOAD_FAILED;
+			uri_errno = uri->download_instance->done ? URI_E_DOWNLOAD_FAILED : URI_E_UNFINISHED_DOWNLOAD;
 			return false;
 		}
 		switch (uri->output_type) {
