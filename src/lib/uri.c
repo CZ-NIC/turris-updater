@@ -197,7 +197,7 @@ static struct uri *uri_new(const char *uri_str, const struct uri *parent) {
 		free(ret);
 		return NULL;
 	}
-	TRACE("URI new (%s) (%s): %s", uri_str, parent ? parent->uri : "none", uri->uri);
+	TRACE("URI new (%s) (%s): %s", uri_str, parent ? parent->uri : "none", ret->uri);
 	ret->sig_uri_file = NULL;
 	ret->sig_uri = NULL;
 #define SET(X, DEF) do { if (parent) ret->X = parent->X; else ret->X = DEF; } while (false);
