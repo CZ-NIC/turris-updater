@@ -493,6 +493,7 @@ static bool uri_verify_signature(struct uri *uri) {
 bool uri_finish(struct uri *uri) {
 	if (uri->finished)
 		return true; // Ignore if this is alredy finished
+	TRACE("URI finish: %s", uri->uri);
 	if (uri_is_local(uri)) {
 		if (!ensure_signature(uri))
 			return false;
