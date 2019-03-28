@@ -1,0 +1,11 @@
+Package: pkg
+Version: 1
+License: GPL-2.0
+Section: none
+Architecture: all
+Installed-Size: 0
+Filename: pkg.ipk
+MD5Sum: 0c6dcc1ef27c9752d4fc34959f150392
+SHA256sum: 83cb9532fea83441d99bc170cb1f97074e183e983109c0e14f2a6c3aefea43fb
+Description:  Example package
+
