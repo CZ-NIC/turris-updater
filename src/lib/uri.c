@@ -537,6 +537,7 @@ const char *uri_scheme_string(enum uri_scheme scheme) {
 
 void uri_set_ssl_verify(struct uri *uri, bool verify) {
 	CONFIG_GUARD;
+	TRACE("URI ssl verify (%s): $%s", uri->uri, STRBOOL(verify))
 	uri->ssl_verify = verify;
 }
 
@@ -617,16 +618,19 @@ static bool list_ca_crl_add(const char *str_uri, struct uri_local_list **list) {
 
 bool uri_add_ca(struct uri *uri, const char *ca_uri) {
 	CONFIG_GUARD;
+	TRACE("URI add CA (%s): %s", uri->uri, ca_uri);
 	return list_ca_crl_add(ca_uri, &uri->ca);
 }
 
 bool uri_add_crl(struct uri *uri, const char *crl_uri) {
 	CONFIG_GUARD;
+	TRACE("URI add CRL (%s): %s", uri->uri, crl_uri);
 	return list_ca_crl_add(crl_uri, &uri->crl);
 }
 
 void uri_set_ocsp(struct uri *uri, bool enabled) {
 	CONFIG_GUARD;
+	TRACE("URI OCSP (%s): $%s", uri->uri, STRBOOL(enabled))
 	uri->ocsp = enabled;
 }
 
@@ -653,6 +657,7 @@ static void list_pubkey_free(struct uri_local_list *list) {
 
 bool uri_add_pubkey(struct uri *uri, const char *pubkey_uri) {
 	CONFIG_GUARD;
+	TRACE("URI add pubkey (%s): %s", uri->uri, pubkey_uri);
 	if (!pubkey_uri) {
 		list_dealloc(uri->pubkey, list_pubkey_free);
 		uri->pubkey = NULL;
@@ -681,6 +686,7 @@ error:
 
 bool uri_set_sig(struct uri *uri, const char *sig_uri) {
 	CONFIG_GUARD;
+	TRACE("URI set signature (%s): %s", uri->uri, sig_uri);
 	if (uri->sig_uri) // Free any previous uri
 		uri_free(uri->sig_uri);
 
@@ -691,6 +697,5 @@ bool uri_set_sig(struct uri *uri, const char *sig_uri) {
 	if (!uri->sig_uri)
 		return false;
 	uri_add_pubkey(uri->sig_uri, NULL); // Reset public keys (verification is not possible)
-	TRACE("Signature URI set for %s set to: %s", uri->uri, sig_uri);
 	return true;
 }
