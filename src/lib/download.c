@@ -344,9 +344,9 @@ void download_i_free(struct download_i *inst) {
 	while (i >= 0 && inst->downloader->instances[i] != inst)
 		i--;
 	ASSERT_MSG(i >= 0, "Download instance is not registered with downloader that it specifies");
-	memmove(inst->downloader->instances + i, inst->downloader + i + 1,
-			(inst->downloader->i_size - i - 1) * sizeof *inst->downloader->instances);
 	inst->downloader->i_size--;
+	memmove(inst->downloader->instances + i, inst->downloader->instances + i + 1,
+			(inst->downloader->i_size - i) * sizeof *inst->downloader->instances);
 
 	// Free instance it self
 	ASSERT_CURLM(curl_multi_remove_handle(inst->downloader->cmulti, inst->curl)); // remove download from multi handler
