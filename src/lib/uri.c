@@ -537,7 +537,7 @@ const char *uri_scheme_string(enum uri_scheme scheme) {
 
 void uri_set_ssl_verify(struct uri *uri, bool verify) {
 	CONFIG_GUARD;
-	TRACE("URI ssl verify (%s): $%s", uri->uri, STRBOOL(verify))
+	TRACE("URI ssl verify (%s): $%s", uri->uri, STRBOOL(verify));
 	uri->ssl_verify = verify;
 }
 
@@ -630,7 +630,7 @@ bool uri_add_crl(struct uri *uri, const char *crl_uri) {
 
 void uri_set_ocsp(struct uri *uri, bool enabled) {
 	CONFIG_GUARD;
-	TRACE("URI OCSP (%s): $%s", uri->uri, STRBOOL(enabled))
+	TRACE("URI OCSP (%s): $%s", uri->uri, STRBOOL(enabled));
 	uri->ocsp = enabled;
 }
 
