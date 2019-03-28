@@ -269,19 +269,13 @@ function repository(context, name, repo_uri, extra)
 	extra_check_verification("repository", extra)
 	extra_annul_ignore(extra, 'Repository extra option "ignore" is obsolete and should not be used. Use "optional" instead.', true)
 
-	local index = extra.index or "Packages.gz"
-	local signature = index:gsub("%.gz", ".sig")
-	--[[
-	We do some mangling with the sig URI, since they are not at Package.gz.sig, but at
-	Package.sig only.
-	]]
 	local function register_repo(u, repo_name)
 		if known_repositories[repo_name] then
 			ERROR("Repository of name '" .. repo_name "' was already added. Repetition is ignored.")
 			return
 		end
-		local iuri = repositories_uri_master:to_buffer(u .. "/" .. index, context.parent_script_uri)
-		utils.uri_config(iuri, {unpack(extra), ["sig"] = signature})
+		local iuri = repositories_uri_master:to_buffer(u .. "/" .. (extra.index or "Packages"), context.parent_script_uri)
+		utils.uri_config(iuri, extra)
 
 		local repo = {
 			tp = "repository",
