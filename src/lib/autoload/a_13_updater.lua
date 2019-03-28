@@ -98,6 +98,7 @@ end
 function tasks_to_transaction()
 	INFO("Downloading packages")
 	update_state(LS_DOWN)
+	utils.mkdirp(syscnf.pkg_download_dir)
 	-- Start packages download
 	local uri_master = uri:new()
 	for _, task in ipairs(tasks) do
