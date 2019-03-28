@@ -91,6 +91,13 @@ static void list_dealloc(struct uri_local_list *list, void (*list_free)(struct u
 }
 
 
+// Helper function to set default signature path if no signature set
+static void ensure_default_signature(struct uri *uri) {
+	if (uri->pubkey && !uri->sig_uri)
+		ASSERT_MSG(uri_set_sig(uri, NULL),
+			"URI creation passed so signature creation should not cause error.");
+}
+
 // This function returns URI for default parent for file scheme.
 // Note that returned string is malloced and has to be freed by caller.
 static char *default_file_parent() {
@@ -322,15 +329,18 @@ bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
 		uri_errno = URI_E_OUTPUT_OPEN_FAIL;
 		return false;
 	}
-	if (uri->pubkey && uri->sig_uri && !uri_downloader_register(uri->sig_uri, downloader)) {
-		download_i_free(uri->download_instance);
-		uri->download_instance = NULL;
-		uri_sub_errno = uri_errno;
-		uri_sub_err_uri = uri->sig_uri;
-		uri_errno = URI_E_SIG_FAIL;
-		return false;
+	if (uri->pubkey) {
+		ensure_default_signature(uri);
+		if (!uri_downloader_register(uri->sig_uri, downloader)) {
+			uri_sub_errno = uri_errno;
+			uri_sub_err_uri = uri->sig_uri;
+			uri_errno = URI_E_SIG_FAIL;
+			download_i_free(uri->download_instance);
+			uri->download_instance = NULL;
+			return false;
+		}
 	}
-	return (bool)uri->download_instance;
+	return true;
 }
 
 static FILE *uri_finish_out_f(struct uri *uri) {
@@ -414,7 +424,10 @@ static bool uri_finish_data(struct uri *uri) {
 	return true;
 }
 
-static bool uri_verify_signature(struct uri *uri) {
+static bool verify_signature(struct uri *uri) {
+	if (!uri->pubkey) // no keys means no verification
+		return true;
+	ASSERT_MSG(uri->sig_uri, "Signature uri should be set if public keys are provided");
 	if (!uri_finish(uri->sig_uri)) {
 		uri_sub_errno = uri_errno;
 		uri_sub_err_uri = uri->sig_uri;
@@ -435,20 +448,17 @@ static bool uri_verify_signature(struct uri *uri) {
 			fcontent = writetempfile((char*)uri->output_info.buf.data, uri->output_info.buf.size);
 			break;
 		default:
-			DIE("Unsupported output type in uri_verify_signature. This should not happen.");
+			DIE("Unsupported output type in verify_signature. This should not happen.");
 	}
 	bool verified = false;
 	struct uri_local_list *key = uri->pubkey;
 	do {
-		if(lsubprocv(LST_USIGN,
-				aprintf("Verify %s (%s) against %s", uri->uri, uri->sig_uri_file, key->path),
-				NULL, 30000, "usign", "-V", "-p", key->path,
-				"-x", uri->sig_uri_file, "-m", fcontent, (void*)NULL) == 0) {
-			verified = true;
-			break;
-		}
+		verified = !lsubprocv(LST_USIGN,
+			aprintf("Verify %s (%s) against %s", uri->uri, uri->sig_uri_file, key->path),
+			NULL, 30000, "usign", "-V", "-p", key->path,
+			"-x", uri->sig_uri_file, "-m", fcontent, (void*)NULL);
 		key = key->next;
-	} while(key);
+	} while(key && !verified);
 	switch (uri->output_type) {
 		case URI_OUT_T_FILE:
 		case URI_OUT_T_TEMP_FILE:
@@ -471,6 +481,7 @@ bool uri_finish(struct uri *uri) {
 		return true; // Ignore if this is alredy finished
 	TRACE("URI finish: %s", uri->uri);
 	if (uri_is_local(uri)) {
+		ensure_default_signature(uri);
 		switch (uri->scheme) {
 			case URI_S_FILE:
 				if (!uri_finish_file(uri))
@@ -503,9 +514,7 @@ bool uri_finish(struct uri *uri) {
 		uri->download_instance = NULL;
 	}
 	uri->finished = true;
-	if (uri->pubkey && uri->sig_uri)
-		return uri_verify_signature(uri);
-	return true;
+	return verify_signature(uri);
 }
 
 void uri_take_buffer(struct uri *uri, uint8_t **buffer, size_t *len) {
