@@ -299,6 +299,7 @@ bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
 			"uri_download_register can be called only on not yet registered uri");
 	if (uri_is_local(uri))
 		return true; // Just ignore if it makes no sense to call this
+	ensure_default_signature(uri);
 	struct download_opts opts;
 	download_opts_def(&opts);
 	opts.ssl_verify = uri->ssl_verify;
@@ -329,16 +330,13 @@ bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
 		uri_errno = URI_E_OUTPUT_OPEN_FAIL;
 		return false;
 	}
-	if (uri->pubkey) {
-		ensure_default_signature(uri);
-		if (!uri_downloader_register(uri->sig_uri, downloader)) {
-			uri_sub_errno = uri_errno;
-			uri_sub_err_uri = uri->sig_uri;
-			uri_errno = URI_E_SIG_FAIL;
-			download_i_free(uri->download_instance);
-			uri->download_instance = NULL;
-			return false;
-		}
+	if (uri->pubkey && !uri_downloader_register(uri->sig_uri, downloader)) {
+		uri_sub_errno = uri_errno;
+		uri_sub_err_uri = uri->sig_uri;
+		uri_errno = URI_E_SIG_FAIL;
+		download_i_free(uri->download_instance);
+		uri->download_instance = NULL;
+		return false;
 	}
 	return true;
 }
