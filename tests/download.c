@@ -158,6 +158,42 @@ START_TEST(multiple_downloads) {
 }
 END_TEST
 
+// Check if we can selectivelly free handlers
+START_TEST(free_instances) {
+	struct downloader *d = downloader_new(4);
+	ck_assert_ptr_null(downloader_run(d));
+	struct download_opts opts;
+	download_opts_def(&opts);
+
+	const size_t cnt = 16;
+	struct download_i *insts[cnt];
+	for (size_t i = 0; i < cnt; i++)
+		insts[i] = download_data(d, HTTP_LOREM_IPSUM, &opts);
+
+	// Free half of the instances
+	for (size_t i = 0; i < cnt; i += 2)
+		download_i_free(insts[i]);
+
+	ck_assert_ptr_null(downloader_run(d));
+
+	char *lorem_ipsum_file = FILE_LOREM_IPSUM;
+	char *content = readfile(lorem_ipsum_file);
+	size_t size = strlen(content);
+
+	for (size_t i = 1; i < cnt; i += 2) {
+		char *data;
+		size_t dsize;
+		download_i_collect_data(insts[i], (uint8_t**)&data, &dsize);
+		ck_assert_uint_eq(size, dsize);
+		ck_assert_str_eq(content, data);
+		free(data);
+	}
+
+	free(content);
+	downloader_free(d);
+}
+END_TEST
+
 // Test failure if we access non-existent url
 START_TEST(invalid) {
 	struct downloader *d = downloader_new(1);
@@ -270,6 +306,7 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(down, multiple_downloads);
 	tcase_add_test(down, file_download);
 	tcase_add_test(down, temp_file_download);
+	tcase_add_test(down, free_instances);
 	tcase_add_test(down, invalid);
 	tcase_add_test(down, invalid_continue);
 	tcase_add_test(down, cert_pinning);
