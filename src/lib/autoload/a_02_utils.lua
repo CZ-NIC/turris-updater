@@ -392,13 +392,13 @@ function uri_config(uriobj, config)
 	if config.ca ~= nil then
 		uriobj:set_ssl_verify(config.ca)
 		uriobj:add_ca(nil)
-		for ca in pairs(wrap(config.ca)) do
+		for _, ca in pairs(wrap(config.ca)) do
 			uriobj:add_ca(ca)
 		end
 	end
 	if config.crl ~= nil then
 		uriobj:add_crl(nil)
-		for crl in pairs(wrap(config.crl)) do
+		for _, crl in pairs(wrap(config.crl)) do
 			uriobj:add_crl(crl)
 		end
 	end
@@ -407,7 +407,7 @@ function uri_config(uriobj, config)
 	end
 	if config.pubkey ~= nil then
 		uriobj:add_pubkey(nil)
-		for pubkey in pairs(wrap(config.pubkey)) do
+		for _, pubkey in pairs(wrap(config.pubkey)) do
 			uriobj:add_pubkey(pubkey)
 		end
 	end
