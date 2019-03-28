@@ -596,9 +596,9 @@ static void list_ca_crl_free(struct uri_local_list *list) {
 }
 
 // Common add function for both CA and CRL
-static bool list_ca_crl_add(const char *str_uri, struct uri_local_list **list) {
+static bool list_ca_crl_add(const char *str_uri, struct uri_local_list **list, const char *what, const char *for_uri) {
 	if (!str_uri){
-		TRACE("URI all CA/CRLs dropped (%s)", uri->uri);
+		TRACE("URI all %ss dropped (%s)", what, for_uri);
 		list_dealloc(*list, list_ca_crl_free);
 		*list = NULL;
 		return true;
@@ -614,18 +614,18 @@ static bool list_ca_crl_add(const char *str_uri, struct uri_local_list **list) {
 	*list = list_add(*list);
 	(*list)->uri = nuri;
 	(*list)->path = NULL;
-	TRACE("URI added CA/CRL (%s): %s", uri->uri, nuri->uri);
+	TRACE("URI added %s (%s): %s", what, for_uri, nuri->uri);
 	return true;
 }
 
 bool uri_add_ca(struct uri *uri, const char *ca_uri) {
 	CONFIG_GUARD;
-	return list_ca_crl_add(ca_uri, &uri->ca);
+	return list_ca_crl_add(ca_uri, &uri->ca, "CA", uri->uri);
 }
 
 bool uri_add_crl(struct uri *uri, const char *crl_uri) {
 	CONFIG_GUARD;
-	return list_ca_crl_add(crl_uri, &uri->crl);
+	return list_ca_crl_add(crl_uri, &uri->crl, "CRL", uri->uri);
 }
 
 void uri_set_ocsp(struct uri *uri, bool enabled) {
