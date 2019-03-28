@@ -111,7 +111,7 @@ function test_get_repos_broken_fatal()
 	requests.repository({}, "test1", "http://example.org/test1")
 	local ok, err = pcall(postprocess.get_repos)
 	assert_false(ok)
-	assert_table_equal(utils.exception('repo missing', "Download failed for repository index test1 (http://example.org/test1/Packages.gz): The requested URL returned error: 404 Not Found"), err)
+	assert_table_equal(utils.exception('repo missing', "Download failed for repository index test1 (http://example.org/test1/Packages): The requested URL returned error: 404 Not Found"), err)
 end
 
 function test_get_repos_broken_nonfatal()

@@ -33,7 +33,6 @@ local require = require
 local tostring = tostring
 local assert = assert
 local table = table
-local unpack = unpack
 local utils = require "utils"
 local uri = require "uri"
 local DBG = DBG
