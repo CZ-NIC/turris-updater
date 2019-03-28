@@ -423,7 +423,9 @@ function uri_content(struri, parent, config)
 	local master = uri.new()
 	local u = master:to_buffer(struri, parent)
 	uri_config(u, config)
-	master:download()
+	if master:download() then
+		error("URI download failed: " .. u:download_error())
+	end
 	return u:finish(), u
 end
 

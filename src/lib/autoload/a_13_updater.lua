@@ -25,6 +25,8 @@ local table = table
 local WARN = WARN
 local INFO = INFO
 local DIE = DIE
+local md5_file = md5_file
+local sha256_file = sha256_file
 local sha256 = sha256
 local reexec = reexec
 local LS_CONF = LS_CONF
@@ -109,28 +111,29 @@ function tasks_to_transaction()
 			-- TODO on failure: log_event('D', task.name .. " " .. task.package.Version)
 		end
 	end
-	uri_master:download() -- TODO what if error?
+	local failed_uri = uri_master:download()
+	if failed_uri then
+		error(utils.exception("download",
+			"Download of " .. failed_uri:uri() .. " failed: " .. failed_uri:download_error()))
+	end
 	-- Now push all data into the transaction
 	utils.mkdirp(syscnf.pkg_download_dir)
 	for _, task in ipairs(tasks) do
 		if task.action == "require" then
 			local ok, err = pcall(function() task.real_uri:finish() end)
 			if not ok then error(err) end
-			-- TODO check hash
-			--[[
 			if task.package.MD5Sum then
-				local sum = md5(data)
+				local sum = md5_file(task.file)
 				if sum ~= task.package.MD5Sum then
 					error(utils.exception("corruption", "The md5 sum of " .. task.name .. " does not match"))
 				end
 			end
 			if task.package.SHA256Sum then
-				local sum = sha256(data)
+				local sum = sha256_file(task.file)
 				if sum ~= task.package.SHA256Sum then
 					error(utils.exception("corruption", "The sha256 sum of " .. task.name .. " does not match"))
 				end
 			end
-			]]
 			transaction.queue_install_downloaded(task.file, task.name, task.package.Version, task.modifier)
 		elseif task.action == "remove" then
 			transaction.queue_remove(task.name)
