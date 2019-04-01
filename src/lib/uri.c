@@ -422,6 +422,68 @@ static bool uri_finish_data(struct uri *uri) {
 	return true;
 }
 
+static bool verify_signature_against(const struct uri* uri, const char *fcontent) {
+	struct uri_local_list *key = uri->pubkey;
+	do {
+		if(!lsubprocv(LST_USIGN,
+			aprintf("Verify %s (%s) against %s", uri->uri, uri->sig_uri_file, key->path),
+			NULL, 30000, "usign", "-V", "-p", key->path,
+			"-x", uri->sig_uri_file, "-m", fcontent, (void*)NULL))
+			return true;
+		key = key->next;
+	} while(key);
+	return false;
+}
+
+static bool verify_signature_gz(struct uri *uri) {
+	DIE("GZIP content signature verification not fully implemented!"); // TODO implement and drop
+	char *fcontent = strdup("/tmp/updater-temp-gz-XXXXXX");
+	// TODO generate random name for fcontent. Do we want to do it with fdopen?
+	switch (uri->output_type) {
+		case URI_OUT_T_FILE:
+		case URI_OUT_T_TEMP_FILE:
+			// TODO extract content of file uri->output_info.path to temporally file fcontent
+			break;
+		case URI_OUT_T_BUFFER:
+			// TODO extract buffer uri->output_info.buf.data of size
+			// uri->output_info.buf.size to temporally file fcontent.
+			break;
+		default:
+			DIE("Unsupported output type in verify_signature. This should not happen.");
+	}
+	bool verified = verify_signature_against(uri, fcontent);
+	unlink(fcontent);
+	free(fcontent);
+	return verified;
+}
+
+static bool verify_signature_plain(struct uri *uri) {
+	char *fcontent;
+	switch (uri->output_type) {
+		case URI_OUT_T_FILE:
+		case URI_OUT_T_TEMP_FILE:
+			fcontent = uri->output_info.fpath; // reuse output path
+			break;
+		case URI_OUT_T_BUFFER:
+			fcontent = writetempfile((char*)uri->output_info.buf.data, uri->output_info.buf.size);
+			break;
+		default:
+			DIE("Unsupported output type in verify_signature. This should not happen.");
+	}
+	bool verified = verify_signature_against(uri, fcontent);
+	switch (uri->output_type) {
+		case URI_OUT_T_FILE:
+		case URI_OUT_T_TEMP_FILE:
+			// Nothing to do (path reused)
+			break;
+		case URI_OUT_T_BUFFER:
+			unlink(fcontent);
+			free(fcontent);
+			break;
+	}
+	return verified;
+}
+
 static bool verify_signature(struct uri *uri) {
 	if (!uri->pubkey) // no keys means no verification
 		return true;
@@ -436,37 +498,9 @@ static bool verify_signature(struct uri *uri) {
 	uri->sig_uri = NULL;
 	list_pubkey_collect(uri->pubkey);
 
-	char *fcontent;
-	switch (uri->output_type) {
-		case URI_OUT_T_FILE:
-		case URI_OUT_T_TEMP_FILE:
-			fcontent = uri->output_info.fpath; // reuse output path
-			break;
-		case URI_OUT_T_BUFFER:
-			fcontent = writetempfile((char*)uri->output_info.buf.data, uri->output_info.buf.size);
-			break;
-		default:
-			DIE("Unsupported output type in verify_signature. This should not happen.");
-	}
-	bool verified = false;
-	struct uri_local_list *key = uri->pubkey;
-	do {
-		verified = !lsubprocv(LST_USIGN,
-			aprintf("Verify %s (%s) against %s", uri->uri, uri->sig_uri_file, key->path),
-			NULL, 30000, "usign", "-V", "-p", key->path,
-			"-x", uri->sig_uri_file, "-m", fcontent, (void*)NULL);
-		key = key->next;
-	} while(key && !verified);
-	switch (uri->output_type) {
-		case URI_OUT_T_FILE:
-		case URI_OUT_T_TEMP_FILE:
-			// Nothing to do (path reused)
-			break;
-		case URI_OUT_T_BUFFER:
-			unlink(fcontent);
-			free(fcontent);
-			break;
-	}
+	bool verified = verify_signature_plain(uri);
+	// TODO check if content starts with 0x1f8b and if so run verify_signature_gz
+
 	free(uri->sig_uri_file);
 	uri->sig_uri_file = NULL;
 	if (!verified)
