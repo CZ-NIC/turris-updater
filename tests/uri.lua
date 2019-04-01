@@ -105,8 +105,6 @@ function test_cert_pinning_correct()
 	assert_equal(lorem_ipsum, dt)
 end
 
--- TODO incorrect pinnging (when we have error handling)
-
 function test_cert_no_verify()
 	local master = uri.new()
 	local u = master:to_buffer(https_lorem_ipsum)
