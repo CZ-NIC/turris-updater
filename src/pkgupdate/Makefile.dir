@@ -1,6 +1,6 @@
 BINARIES += src/pkgupdate/pkgupdate
 
-pkgupdate_MODULES := main 
+pkgupdate_MODULES := main arguments
 
 pkgupdate_LOCAL_LIBS := updater
 pkgupdate_PKG_CONFIGS := $(LUA_NAME)
