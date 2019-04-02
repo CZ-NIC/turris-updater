@@ -13,6 +13,7 @@ Binary dependencies:
 * libevent2
 * libb64
 * uthash
+* (argp-standalone on non-glibc systems)
 
 Runtime dependencies:
 * usign (for signatures validation)
