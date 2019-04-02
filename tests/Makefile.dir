@@ -6,7 +6,6 @@ locks_MODULES += locks
 locks_LOCAL_LIBS += updater
 
 C_TESTS := \
-	arguments \
 	events \
 	util \
 	syscnf \
