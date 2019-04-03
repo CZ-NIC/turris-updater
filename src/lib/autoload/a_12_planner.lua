@@ -38,7 +38,7 @@ local postprocess = require "postprocess"
 
 module "planner"
 
--- luacheck: globals required_pkgs candidates_choose filter_required pkg_dep_iterate plan_sorter sat_penalize sat_pkg_group sat_dep sat_dep_traverse
+-- luacheck: globals required_pkgs candidates_choose filter_required pkg_dep_iterate plan_sorter sat_penalize sat_pkg_group sat_dep sat_dep_traverse set_reinstall_all
 
 -- Choose candidates that complies to version requirement.
 function candidates_choose(candidates, pkg_name, version, repository)
@@ -280,6 +280,15 @@ local function sat_build(sat, pkgs, requests)
 end
 
 
+local planned_action = 'require'
+function set_reinstall_all(enable)
+	if enable then
+		planned_action = 'reinstall'
+	else
+		planned_action = 'require'
+	end
+end
+
 -- Iterate trough all packages in given dependency tree.
 -- TODO This goes trough all dependencies, so even negative dependencies and
 -- packages used only as conditionals are returned. This is harmless for what we
@@ -413,7 +422,7 @@ local function build_plan(pkgs, requests, sat, satmap)
 		-- And finally plan it --
 		planned[name] = #plan + 1
 		r = {
-			action = 'require',
+			action = planned_action,
 			package = candidates[1],
 			modifier = (pkg or {}).modifier or {},
 			critical = false,
@@ -589,8 +598,8 @@ local function check_install_version(status, requests)
 	-- Go through the requests and look which ones are needed and which ones are satisfied
 	for _, request in ipairs(requests) do
 		local installed_version = installed[request.name]
-		-- TODO: Handle stand-alone packages
 		local requested_version = utils.multi_index(request, "package", "Version") or ""
+		unused[request.name] = nil
 		if request.action == "require" then
 			if not installed_version or installed_version ~= requested_version then
 				DBG("Want to install " .. request.name)
@@ -598,11 +607,9 @@ local function check_install_version(status, requests)
 			else
 				DBG("Package " .. request.name .. " already installed")
 			end
-			unused[request.name] = nil
 		elseif request.action == "reinstall" then
 			DBG("Want to reinstall " .. request.name)
 			install[request.name] = request
-			unused[request.name] = nil
 		else
 			DIE("Unknown action " .. request.action)
 		end
