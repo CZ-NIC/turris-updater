@@ -1,0 +1,2 @@
+Repository("test", "./repo")
+Install("test-package")
