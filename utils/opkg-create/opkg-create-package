@@ -11,8 +11,8 @@ ORG=`pwd`
 NAME=`grep -E "^Package:" control | sed 's/^Package:[ ]*//;s/[ ]*$//'`
 
 # First lets generate files-md5sum file
-find data -type f | xargs md5sum > files-md5sum
-sed -i 's/ data/ /' files-md5sum
+find data -type f | xargs sha256sum > files-sha256
+sed -i 's/ data/ /' files-sha256
 
 # now lets create control.tar.gz
 if [ -f conffiles ]; then CTRFILES="$CTRFILES ./conffiles"; fi
@@ -20,8 +20,8 @@ if [ -x preinst ]; then CTRFILES="$CTRFILES ./preinst"; fi
 if [ -x postinst ]; then CTRFILES="$CTRFILES ./postinst"; fi
 if [ -x prerm ]; then CTRFILES="$CTRFILES ./prerm"; fi
 if [ -x postrm ]; then CTRFILES="$CTRFILES ./postrm"; fi
-tar -czf control.tar.gz ./control $CTRFILES ./files-md5sum
-rm files-md5sum
+tar -czf control.tar.gz ./control $CTRFILES ./files-sha256
+rm files-sha256
 
 # package data
 cd data
