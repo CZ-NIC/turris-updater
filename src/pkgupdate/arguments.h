@@ -24,6 +24,7 @@
 
 struct opts {
 	bool batch; // --batch
+	bool reinstall_all; // --reinstall-all
 	const char *approval_file; // --ask-approval
 	const char **approve; // --approve
 	size_t approve_cnt;
