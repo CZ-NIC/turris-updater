@@ -202,6 +202,10 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 		end
 		-- Ignore others, at least for now.
 	end
+	-- Remove all other files (see note in backend.collision_check)
+	if early_remove[true] then
+		backend.pkg_cleanup_files(early_remove[true], all_configs)
+	end
 	return status, errors_collected, all_configs
 end
 

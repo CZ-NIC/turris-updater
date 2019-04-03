@@ -707,7 +707,23 @@ function collision_check(current_status, remove_pkgs, add_pkgs)
 		end
 	end
 
-	return collisions, early_remove, remove
+	--[[
+	Note on third argument here. This was list of files to be removed later in
+	installation phase. This was done after postinst/rm scripts were run. This
+	was invalid approach because that means that packages are settled in with
+	old files still present which can potentially cause some unexpected behavior.
+	It also caused problems like removal of path that was introduced by postinst
+	script. Removing files after postinst/rm scripts was just wrong so we replaced
+	it with already existing early_remove. That was originally introduced to
+	remove files that are suppose to be directories but now it not only removes
+	those files but all files. The list of later removed files is returned as
+	empty. This is compatible with previous implementation and effectively changes
+	behavior without need for journal change.
+	]]
+	if next(remove) then
+		early_remove[true] = remove
+	end
+	return collisions, early_remove, {}
 end
 
 --[[
