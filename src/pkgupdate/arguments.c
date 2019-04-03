@@ -9,7 +9,7 @@ static const char doc[] = "Updater-ng core tool. This updates system to latest v
 
 enum option_val_prg {
 	OPT_BATCH_VAL = 300,
-	OPT_ALLREINSTALL,
+	OPT_REINSTALL_ALL,
 	OPT_ASK_APPROVAL,
 	OPT_APPROVE,
 	OPT_TASKLOG,
@@ -24,7 +24,7 @@ enum option_val_prg {
 
 static struct argp_option options[] = {
 	{"batch", OPT_BATCH_VAL, NULL, 0, "Run without user confirmation.", 0},
-	{"allreinstall", OPT_ALLREINSTALL, NULL, 0, "Reinstall packages that are already installed in latest version.", 0},
+	{"reinstall-all", OPT_REINSTALL_ALL, NULL, 0, "Reinstall packages that are already installed in latest version.", 0},
 	{"ask-approval", OPT_ASK_APPROVAL, "FILE", 0, "Require user's approval to proceed (abort if --approve with appropriate ID is not present, plan of action is put into the FILE if approval is needed)", 1},
 	{"approve", OPT_APPROVE, "HASH", 0, "Approve actions with given HASH (multiple allowed).", 1},
 	{"out-of-root", OPT_OUT_OF_ROOT, NULL, 0, "We are running updater out of root filesystem. This implies --no-replan and --no-immediate-reboot and is suggested to be used with --root option.", 2},
@@ -42,8 +42,8 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 		case OPT_BATCH_VAL:
 			opts->batch = true;
 			break;
-		case OPT_ALLREINSTALL:
-			opts->allreinstall = true;
+		case OPT_REINSTALL_ALL:
+			opts->reinstall_all = true;
 			break;
 		case OPT_ASK_APPROVAL:
 			opts->approval_file = arg;
