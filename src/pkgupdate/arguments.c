@@ -9,6 +9,7 @@ static const char doc[] = "Updater-ng core tool. This updates system to latest v
 
 enum option_val_prg {
 	OPT_BATCH_VAL = 300,
+	OPT_ALLREINSTALL,
 	OPT_ASK_APPROVAL,
 	OPT_APPROVE,
 	OPT_TASKLOG,
@@ -23,11 +24,12 @@ enum option_val_prg {
 
 static struct argp_option options[] = {
 	{"batch", OPT_BATCH_VAL, NULL, 0, "Run without user confirmation.", 0},
-	{"ask-approval", OPT_ASK_APPROVAL, "FILE", 0, "Require user's approval to proceed (abort if --approve with appropriate ID is not present, plan of action is put into the FILE if approval is needed)", 0},
-	{"approve", OPT_APPROVE, "HASH", 0, "Approve actions with given HASH (multiple allowed).", 0},
-	{"out-of-root", OPT_OUT_OF_ROOT, NULL, 0, "We are running updater out of root filesystem. This implies --no-replan and --no-immediate-reboot and is suggested to be used with --root option.", 0},
-	{"task-log", OPT_TASK_LOG, "FILE", 0, "Append list of executed tasks into a log file.", 0},
-	{"state-log", OPT_STATE_LOG, NULL, 0, "Dump state to files in /tmp/updater-state directory", 0},
+	{"allreinstall", OPT_ALLREINSTALL, NULL, 0, "Reinstall packages that are already installed in latest version.", 0},
+	{"ask-approval", OPT_ASK_APPROVAL, "FILE", 0, "Require user's approval to proceed (abort if --approve with appropriate ID is not present, plan of action is put into the FILE if approval is needed)", 1},
+	{"approve", OPT_APPROVE, "HASH", 0, "Approve actions with given HASH (multiple allowed).", 1},
+	{"out-of-root", OPT_OUT_OF_ROOT, NULL, 0, "We are running updater out of root filesystem. This implies --no-replan and --no-immediate-reboot and is suggested to be used with --root option.", 2},
+	{"task-log", OPT_TASK_LOG, "FILE", 0, "Append list of executed tasks into a log file.", 2},
+	{"state-log", OPT_STATE_LOG, NULL, 0, "Dump state to files in /tmp/updater-state directory", 2},
 	// Following options are internal
 	{"reexec", OPT_REEXEC, NULL, OPTION_HIDDEN, "", 0},
 	{"reboot-finished", OPT_REBOOT_FINISHED, NULL, OPTION_HIDDEN, "", 0},
@@ -39,6 +41,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 	switch (key) {
 		case OPT_BATCH_VAL:
 			opts->batch = true;
+			break;
+		case OPT_ALLREINSTALL:
+			opts->allreinstall = true;
 			break;
 		case OPT_ASK_APPROVAL:
 			opts->approval_file = arg;
