@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
 	bool trans_ok = true;
 	size_t result_count;
 	// Set some configuration
-	if (opts.no_replan) {
+	if (opts.no_replan || opts.reinstall_all) {
 		err = interpreter_call(interpreter, "updater.disable_replan", NULL, "");
 		ASSERT_MSG(!err, "%s", err);
 	}
