@@ -63,8 +63,8 @@ $(O)/.uriparser/.libs/liburiparser.a:
 	cd "$(O)/.uriparser" && ./configure --with-pic --disable-test --disable-doc --disable-shared
 	+$(MAKE) -C "$(O)/.uriparser"
 
-libupdater_EXTRA_INCLUDES := $(O)/.uriparser/include
 libupdater_EXTRA_DEPENDS := $(O)/.uriparser/.libs/liburiparser.a
+libupdater_CFLAGS += -I$(O)/.uriparser/include
 libupdater_LDFLAGS += $(O)/.uriparser/.libs/liburiparser.a
 
 .PHONY: clean-uriparser
