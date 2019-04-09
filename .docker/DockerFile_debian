@@ -1,6 +1,6 @@
 # Container for compilation test against system used on build servers
 
-FROM debian:stable AS jenkins
+FROM debian:stable
 
 ENV HOME /root
 
