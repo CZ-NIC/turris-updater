@@ -58,6 +58,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 			break;
 		case OPT_NO_IMMEDIATE_REBOOT:
 			opts->no_immediate_reboot = true;
+			system_reboot_disable();
 			break;
 		case OPT_OUT_OF_ROOT:
 			opts->no_replan = true;
@@ -73,8 +74,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 			opts->reexec = true;
 			break;
 		case OPT_REBOOT_FINISHED:
-			opts->no_immediate_reboot = true;
-			system_reboot_disable();
+			opts->reboot_finished = true;
 			break;
 		case ARGP_KEY_ARG:
 			if (!opts->config) {
