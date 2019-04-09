@@ -33,6 +33,7 @@ struct opts {
 	bool no_immediate_reboot; // --no-immediate-reboot
 	const char *config; // CONFIG
 	bool reexec; // --reexec
+	bool reboot_finished; // --reboot-finished
 };
 
 extern struct argp argp_parser;
