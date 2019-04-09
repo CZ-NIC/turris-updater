@@ -1,48 +1,72 @@
-image: registry.labs.nic.cz/turris/updater/updater
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
 
 stages:
+  - build
   - test
   - pages
 
-before_script:
-  - git submodule update --init --recursive
+## Build stage ###################################################################
+.build:
+  stage: build
+  script:
+    - make
+
+build-debian-stable:
+  extends: .build
+  image: registry.labs.nic.cz/turris/updater/updater:debian
+
+build-debian-unstable:
+  extends: .build
+  image: registry.labs.nic.cz/turris/updater/updater:tests
+
+#build-debian-alpine:
+#  extends: .build
+#  image: registry.labs.nic.cz/turris/updater/updater:alpine
+
+## Test stage ####################################################################
+.test:
+  stage: test
+  image: registry.labs.nic.cz/turris/updater/updater:tests
 
 # Unit tests #
 unit-tests:
-  stage: test
+  extends: .test
   script:
     - make test
 
 unit-valgrind-tests:
-  stage: test
+  extends: .test
+  retry: 2
   script:
     - make OPENSSL_PURITY=y valgrind
 
 # System integration tests #
 system-tests:
-  stage: test
+  extends: .test
   script:
     - make test-sys
 
 system-valgrind-tests:
-  stage: test
+  extends: .test
   script:
     - make OPENSSL_PURITY=y valgrind-sys
 
 # Static checkers #
 cppcheck:
-  stage: test
+  extends: .test
   script:
     - make cppcheck
 
 luacheck:
-  stage: test
+  extends: .test
   script:
     - make luacheck
 
-# Gitlab pages #
+## Pages stage ###################################################################
 pages:
   stage: pages
+  image: registry.labs.nic.cz/turris/updater/updater:tests
   script:
   - rm -rf public
   - mkdir public
