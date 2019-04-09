@@ -21,8 +21,13 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <threads.h>
 #include "download.h"
+#ifndef __STDC_NO_THREADS__
+#include <threads.h>
+#define THREAD_LOCAL thread_local
+#else
+#define THREAD_LOCAL
+#endif
 
 struct uri;
 
@@ -40,12 +45,12 @@ enum uri_error {
 };
 
 // URI error number
-extern thread_local enum uri_error uri_errno;
+extern THREAD_LOCAL enum uri_error uri_errno;
 // Error that is set when uri_errno is set to URI_E_SIG_FAIL
-extern thread_local enum uri_error uri_sub_errno;
+extern THREAD_LOCAL enum uri_error uri_sub_errno;
 // URI object that caused uri_sub_errno error.
 // This is valid only until original URI object is freed or new error happens
-extern thread_local struct uri *uri_sub_err_uri;
+extern THREAD_LOCAL struct uri *uri_sub_err_uri;
 
 #define URI_E_
 
