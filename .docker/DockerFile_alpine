@@ -8,7 +8,7 @@ ENV HOME /root
 RUN \
   apk update upgrade && \
   apk add \
-      ca-certificates curl git \
+      ca-certificates curl git coreutils \
       make cmake pkgconf gcc perl \
 	  musl-dev argp-standalone \
       curl-dev libevent-dev uriparser-dev \
