@@ -1,0 +1,11 @@
+Package: test-package
+Version: 1
+License: GPL-2.0
+Section: none
+Architecture: all
+Installed-Size: 0
+Filename: test-package.ipk
+MD5Sum: 58e51614a4ee8354fa91fbe7aa3dd659
+SHA256sum: d728935c11aac7b952d4ca03ed8317c1a6742600e131001b338e4c1c323c50df
+Description:  Simple test package with postinst script
+

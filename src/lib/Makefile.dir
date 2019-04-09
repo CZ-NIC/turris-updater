@@ -26,10 +26,15 @@ libupdater_MODULES := \
 	embed_types \
 	events \
 	subprocess \
+	download \
+	uri \
+	uri_lua \
 	journal \
 	locks \
 	picosat \
 	util \
+	syscnf \
+	multiwrite \
 	logging
 ifdef COV
 libupdater_MODULES += lcoverage.embed
@@ -40,9 +45,12 @@ endif
 
 libupdater_MODULES_3RDPARTY := picosat-965/picosat
 
-libupdater_PKG_CONFIGS := $(LUA_NAME) libevent libcurl libcrypto libarchive
+libupdater_PKG_CONFIGS := $(LUA_NAME) libevent libcurl libcrypto libarchive liburiparser
 # Workaround, lua.pc doesn't containd -ldl, even when it uses dlopen
-libupdater_SO_LIBS += dl
+libupdater_SO_LIBS += dl b64
+ifneq ($(ARGP_STANDALONE),)
+libupdater_SO_LIBS += argp
+endif
 
 LIB_DOCS := \
 	journal \

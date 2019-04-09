@@ -25,6 +25,8 @@
 #include "journal.h"
 #include "locks.h"
 #include "arguments.h"
+#include "syscnf.h"
+#include "uri_lua.h"
 #include "picosat.h"
 #include "unpacker.h"
 
@@ -1019,6 +1021,7 @@ struct {
 	{ LS_FAIL, "LS_FAIL"},
 	{ LST_PKG_SCRIPT, "LST_PKG_SCRIPT"},
 	{ LST_HOOK, "LST_HOOK"},
+	{ LST_USIGN, "LST_USIGN"},
 };
 // Various enum values that we want to inject
 
@@ -1091,6 +1094,8 @@ struct interpreter *interpreter_create(struct events *events) {
 	// Some binary embedded modules
 	journal_mod_init(L);
 	locks_mod_init(L);
+	syscnf_mod_init(L);
+	uri_mod_init(L);
 	picosat_mod_init(L);
 #ifdef COVERAGE
 	interpreter_load_coverage(result);

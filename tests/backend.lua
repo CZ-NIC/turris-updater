@@ -259,7 +259,7 @@ Test the chain of functions ‒ unpack, examine
 ]]
 function test_pkg_unpack()
 	syscnf.set_root_dir(tmpdir)
-	local path = B.pkg_unpack(datadir .. "updater.ipk")
+	local path = B.pkg_unpack(datadir .. "repo/updater.ipk")
 	-- Make sure it is deleted on teardown
 	table.insert(tmp_dirs, path)
 	-- Check list of extracted files
@@ -425,12 +425,14 @@ function test_collisions()
 	-- Just remove a package - no collisions, but files should disappear
 	local col, erem, rem = B.collision_check(status, {['kmod-usb-storage'] = true}, {})
 	assert_table_equal({}, col)
-	assert_table_equal({}, erem)
 	assert_table_equal({
-		["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
-		["/etc/modules-boot.d/usb-storage"] = true,
-		["/etc/modules.d/usb-storage"] = true
-	}, rem)
+		[true] = {
+			["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
+			["/etc/modules-boot.d/usb-storage"] = true,
+			["/etc/modules.d/usb-storage"] = true
+		}
+	}, erem)
+	assert_table_equal({}, rem)
 	-- Add a new package, but without any collisions
 	local col, erem, rem = B.collision_check(status, {}, {
 		['package'] = {
@@ -448,12 +450,14 @@ function test_collisions()
 	-- Add a new package, collision isn't reported, because the original package owning it gets removed
 	local col, erem, rem = B.collision_check(status, {['kmod-usb-storage'] = true}, test_pkg)
 	assert_table_equal({}, col)
-	assert_table_equal({}, erem)
 	assert_table_equal({
-		["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
-		["/etc/modules-boot.d/usb-storage"] = true
-		-- The usb-storage file is taken over, it doesn't disappear
-	}, rem)
+		[true] = {
+			["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
+			["/etc/modules-boot.d/usb-storage"] = true
+			-- The usb-storage file is taken over, it doesn't disappear
+		}
+	}, erem)
+	assert_table_equal({}, rem)
 	-- A collision
 	local col, erem, rem = B.collision_check(status, {}, test_pkg)
 	assert_table_equal({
@@ -473,12 +477,14 @@ function test_collisions()
 			["another"] = "new-file"
 		}
 	}, col)
-	assert_table_equal({}, erem)
 	assert_table_equal({
-		["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
-		["/etc/modules-boot.d/usb-storage"] = true
-		-- The usb-storage file is taken over, it doesn't disappear
-	}, rem)
+		[true] = {
+			["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
+			["/etc/modules-boot.d/usb-storage"] = true
+			-- The usb-storage file is taken over, it doesn't disappear
+		}
+	}, erem)
+	assert_table_equal({}, rem)
 	-- Packaage is updated and one of its original files should be removed
 	local test_pkg = {
 		['terminfo'] = {
@@ -496,8 +502,10 @@ function test_collisions()
 	}
 	local col, erem, rem = B.collision_check(status, {}, test_pkg)
 	assert_table_equal({}, col)
-	assert_table_equal({}, erem)
-	assert_table_equal({["/usr/share/terminfo/v/vt100"] = true}, rem)
+	assert_table_equal({
+		[true] = {["/usr/share/terminfo/v/vt100"] = true}
+	}, erem)
+	assert_table_equal({}, rem)
 	-- Collision of file with new directory
 	local test_pkg = {
 		["package"] = {
@@ -521,12 +529,13 @@ function test_collisions()
 	assert_table_equal({
 		["package"] = {
 			["/etc/modules.d/usb-storage"] = true,
+		},
+		[true] = {
+			["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
+			["/etc/modules-boot.d/usb-storage"] = true,
 		}
 	}, erem)
-	assert_table_equal({
-		["/lib/modules/3.18.21-70ea6b9a4b789c558ac9d579b5c1022f-10/usb-storage.ko"] = true,
-		["/etc/modules-boot.d/usb-storage"] = true,
-	}, rem)
+	assert_table_equal({}, rem)
 	-- Collision of directory with new file
 	local test_pkg = {
 		["package"] = {
@@ -902,7 +911,7 @@ function test_config_modified()
 	-- If a file doesn't exist, it returns nil
 	assert_nil(B.config_modified("/file/does/not/exist", "12345678901234567890123456789012"))
 	-- We test on a non-config file, but it the same.
-	local file = (os.getenv("S") or ".") .. "/tests/data/updater.ipk"
+	local file = (os.getenv("S") or ".") .. "/tests/data/repo/updater.ipk"
 	assert_false(B.config_modified(file, "182171ccacfc32a9f684479509ac471a"))
 	assert(B.config_modified(file, "282171ccacfc32a9f684479509ac471b"))
 	assert_false(B.config_modified(file, "4f54362b30f53ae6862b11ff34d22a8d4510ed2b3e757b1f285dbd1033666e55"))
