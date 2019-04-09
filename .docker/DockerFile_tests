@@ -1,0 +1,23 @@
+# Container used to run all tests and to generate documentation and gitlab pages.
+
+FROM debian:unstable
+
+ENV HOME /root
+
+RUN \
+  apt-get update && \
+  apt-get -y upgrade && \
+  apt-get -y install --no-install-recommends \
+    busybox ca-certificates curl git bzip2 \
+    make cmake pkg-config gcc \
+    check cppcheck lua-check valgrind \
+    libcurl4-openssl-dev libevent-dev libssl-dev liburiparser-dev \
+    libb64-dev uthash-dev \
+    liblua5.1-0-dev \
+    asciidoc lcov markdown libcommon-sense-perl \
+	&& \
+  apt-get clean
+
+CMD [ "bash" ]
+
+# vim: ft=dockerfile
