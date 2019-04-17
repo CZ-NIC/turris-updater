@@ -30,9 +30,9 @@
 #define TMP_TEMPLATE_SIGNATURE_FILE "/tmp/updater-sig-XXXXXX"
 
 
-thread_local enum uri_error uri_errno = 0;
-thread_local enum uri_error uri_sub_errno = 0;
-thread_local struct uri *uri_sub_err_uri = NULL;
+THREAD_LOCAL enum uri_error uri_errno = 0;
+THREAD_LOCAL enum uri_error uri_sub_errno = 0;
+THREAD_LOCAL struct uri *uri_sub_err_uri = NULL;
 
 static const char *error_messages[] = {
 	[URI_E_INVALID_URI] = "URI has invalid format",

@@ -45,11 +45,33 @@ endif
 
 libupdater_MODULES_3RDPARTY := picosat-965/picosat
 
-libupdater_PKG_CONFIGS := $(LUA_NAME) libevent libcurl libcrypto libarchive liburiparser
+libupdater_PKG_CONFIGS := $(LUA_NAME) libevent libcurl libcrypto
 # Workaround, lua.pc doesn't containd -ldl, even when it uses dlopen
 libupdater_SO_LIBS += dl b64
 ifneq ($(ARGP_STANDALONE),)
 libupdater_SO_LIBS += argp
+endif
+
+# We require liburiparser at least in version 0.9.0. We can build our version if needed be.
+ifeq ($(shell pkg-config liburiparser --atleast-version=0.9.0 && echo $$?),0)
+libupdater_PKG_CONFIGS += liburiparser
+else
+URIPARSER_SRC := https://github.com/uriparser/uriparser/releases/download/uriparser-0.9.1/uriparser-0.9.1.tar.bz2
+
+$(O)/.uriparser/.libs/liburiparser.a:
+	mkdir -p "$(O)/.uriparser"
+	curl -L $(URIPARSER_SRC) | tar -xjf - -C "$(O)/.uriparser" --strip-components=1
+	cd "$(O)/.uriparser" && ./configure --with-pic --disable-test --disable-doc --disable-shared
+	+$(MAKE) -C "$(O)/.uriparser"
+
+libupdater_EXTRA_INCLUDES := $(O)/.uriparser/include
+libupdater_EXTRA_DEPENDS := $(O)/.uriparser/.libs/liburiparser.a
+libupdater_LDFLAGS += $(O)/.uriparser/.libs/liburiparser.a
+
+.PHONY: clean-uriparser
+clean-uriparser:
+	rm -rf "$(O)/.uriparser"
+
 endif
 
 LIB_DOCS := \

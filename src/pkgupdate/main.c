@@ -119,6 +119,7 @@ int main(int argc, char *argv[]) {
 		.no_immediate_reboot = false,
 		.config = NULL,
 		.reexec = false,
+		.reboot_finished = false,
 	};
 	argp_parse (&argp_parser, argc, argv, 0, 0, &opts);
 
@@ -205,12 +206,12 @@ int main(int argc, char *argv[]) {
 	err = interpreter_call(interpreter, "updater.pre_cleanup", NULL, "");
 	ASSERT_MSG(!err, "%s", err);
 	bool reboot_delayed;
-	ASSERT(interpreter_collect_results(interpreter, "bb", &reboot_delayed, &opts.no_immediate_reboot) == -1);
+	ASSERT(interpreter_collect_results(interpreter, "bb", &reboot_delayed, &opts.reboot_finished) == -1);
 	if (reboot_delayed) {
 		const char *hook_path = aprintf("%s%s", root_dir(), hook_reboot_delayed);
 		exec_hook(hook_path, "Executing reboot_required hook");
 	}
-	err = interpreter_call(interpreter, "updater.cleanup", NULL, "bb", opts.no_immediate_reboot);
+	err = interpreter_call(interpreter, "updater.cleanup", NULL, "bb", opts.reboot_finished);
 	ASSERT_MSG(!err, "%s", err);
 	if (opts.task_log) {
 		FILE *log = fopen(opts.task_log, "a");
@@ -230,7 +231,7 @@ CLEANUP:
 	interpreter_destroy(interpreter);
 	events_destroy(events);
 	arg_backup_clear();
-	if (opts.no_immediate_reboot)
+	if (opts.reboot_finished)
 		system_reboot(false);
 	if (trans_ok) {
 		update_state(LS_EXIT);
