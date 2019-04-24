@@ -660,10 +660,10 @@ static int lua_get_file_content(lua_State *L) {
 	const char *arc_name = luaL_checkstring(L, 1);
 	const char *subarc_name = luaL_checkstring(L, 2);
 	const char *path = luaL_checkstring(L, 3);
-	int size = get_file_size(arc_name, subarc_name, path);
+	int size = upack_get_file_size(arc_name, subarc_name, path);
 	if (size > 0) {
 		char buffer[size];
-		extract_file_to_memory(buffer, arc_name, subarc_name, path, size);
+		upack_extract_inner_file_to_memory(buffer, arc_name, subarc_name, path, size);
 		lua_pushlstring(L, buffer, size);
 	} else {
 		lua_pushlstring(L, "", 0);

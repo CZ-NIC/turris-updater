@@ -328,7 +328,7 @@ int process_file(const char *arcname, const char *subarcname, const char *filena
 	return -1;
 }
 
-int get_file_size(const char *arcname, const char *subarcname, const char *filename) {
+int upack_get_file_size(const char *arcname, const char *subarcname, const char *filename) {
 	int get_size(struct archive *a, struct archive_entry *entry) {
 		return archive_entry_size(entry);
 	}
@@ -372,7 +372,7 @@ int extract_file_to_disk(const char *arcname, const char *subarcname, const char
 	return process_file(arcname, subarcname, filename, unpack);
 }
 
-int extract_file_to_memory(char *buff, const char *arcname, const char *subarcname, const char *filename, int size) {
+int upack_extract_file_to_memory(char *buff, const char *arcname, const char *subarcname, const char *filename, int size) {
 	int unpack(struct archive *a, struct archive_entry *entry) {
 		archive_read_data(a, buff, size);
 		/* TODO: error checking */
@@ -381,7 +381,7 @@ int extract_file_to_memory(char *buff, const char *arcname, const char *subarcna
 	return process_file(arcname, subarcname, filename, unpack);
 }
 
-int extract_inner_archive(const char *arcname, const char *subarcname, const char *path) {
+int upack_extract_inner_file(const char *arcname, const char *subarcname, const char *path) {
 /* 
 
 NOTE: subarcname is without `.tar.gz`, because in archives need to create directory based on their names: path/control, path/data
