@@ -7,11 +7,15 @@ configuration scripts.
 Dependencies
 ------------
 Binary dependencies:
-* C compiler (gcc preferred)
+* C compiler (gcc preferred) with C11 support
 * Lua 5.1
 * libcurl
 * libevent2
 * libarchive
+* libb64
+* uthash
+* liburiparser
+* (argp-standalone on non-glibc systems)
 
 Runtime dependencies:
 * usign (for signatures validation)

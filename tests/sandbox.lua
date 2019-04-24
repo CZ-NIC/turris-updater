@@ -28,7 +28,7 @@ module("sandbox-tests", package.seeall, lunit.testcase)
 function test_context_new()
 	sandbox.load_state_vars()
 	-- Set a state variable override for testing. Check it propagates.
-	sandbox.state_vars.model = 'test'
+	sandbox.state_vars.os_release = 'test'
 	-- If we specify no parent and no security level, it fails
 	assert_error(sandbox.new)
 	-- If we specify an invalid security level, it fails
@@ -57,7 +57,7 @@ function test_context_new()
 			assert_nil(context.env.utils)
 			assert_nil(context.env.getmetatable)
 		end
-		assert_equal("test", context.env.model)
+		assert_equal("test", context.env.os_release)
 		-- While we aren't sure to detect any other architecture, the all one should be there.
 		assert_equal("all", context.env.architectures[1])
 		-- And the change to the table doesn't propagate outside

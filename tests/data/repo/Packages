@@ -1,0 +1,33 @@
+Package: 6in4
+Version: 21-2
+Depends: libc, kmod-sit
+Source: package/network/ipv6/6in4
+License: GPL-2.0
+Section: net
+Maintainer: Jo-Philipp Wich <xm@subsignal.org>
+Architecture: all
+Installed-Size: 1558
+Filename: 6in4_21-2_all.ipk
+Size: 2534
+MD5Sum: a2a58a05c002cf7b45fbe364794d96a5
+SHA256sum: 06c3e5630a54a6c2d95ff13945b76e4122ac1a9e533fe4665c501ae26d55933d
+Description:  Provides support for 6in4 tunnels in /etc/config/network.
+ Refer to http://wiki.openwrt.org/doc/uci/network for
+ configuration details.
+
+Package: 6rd
+Version: 9-2
+Depends: libc, kmod-sit
+Source: package/network/ipv6/6rd
+License: GPL-2.0
+Section: net
+Maintainer: Steven Barth <cyrus@openwrt.org>
+Architecture: all
+Installed-Size: 3432
+Filename: 6rd_9-2_all.ipk
+Size: 4416
+MD5Sum: 2b46cba96c887754f879676be77615e5
+SHA256sum: e1081e495d0055f962a0ea4710239447eabf596f7acb06ccf0bd6f06b125fda8
+Description:  Provides support for 6rd tunnels in /etc/config/network.
+ Refer to http://wiki.openwrt.org/doc/uci/network for
+ configuration details.

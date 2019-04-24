@@ -1,5 +1,5 @@
 /*
- * Copyright 2016, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+ * Copyright 2016-2019, CZ.NIC z.s.p.o. (http://www.nic.cz/)
  *
  * This file is part of the turris updater.
  *
@@ -16,20 +16,20 @@
  * You should have received a copy of the GNU General Public License
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#include "../lib/events.h"
-#include "../lib/interpreter.h"
-#include "../lib/util.h"
-#include "../lib/logging.h"
-#include "../lib/arguments.h"
-#include "../lib/journal.h"
-
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include "../lib/syscnf.h"
+#include "../lib/events.h"
+#include "../lib/interpreter.h"
+#include "../lib/util.h"
+#include "../lib/logging.h"
+#include "../lib/arguments.h"
+#include "../lib/journal.h"
+#include "arguments.h"
 
 static bool results_interpret(struct interpreter *interpreter, size_t result_count) {
 	bool result = true;
@@ -42,20 +42,6 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 	if (result_count >= 1)
 		ASSERT(interpreter_collect_results(interpreter, "b", &result) == -1);
 	return result;
-}
-
-static const enum cmd_op_type cmd_op_allows[] = {
-	COT_BATCH, COT_NO_OP, COT_REEXEC, COT_REBOOT, COT_STATE_LOG, COT_ROOT_DIR, COT_SYSLOG_LEVEL, COT_STDERR_LEVEL, COT_SYSLOG_NAME, COT_ASK_APPROVAL, COT_APPROVE, COT_TASK_LOG, COT_USIGN, COT_MODEL, COT_BOARD, COT_NO_REPLAN, COT_NO_IMMEDIATE_REBOOT, COT_LAST
-};
-
-static void print_help() {
-	fputs("Usage: pkgupdate [OPTION]...\n", stderr);
-	cmd_args_help(cmd_op_allows);
-}
-
-static void print_version() {
-	fputs("pkgupdate ", stderr);
-	cmd_args_version();
 }
 
 const char *hook_preupdate = "/etc/updater/hook_preupdate";
@@ -114,7 +100,7 @@ static const char *time_load(void) {
 
 // Cleanup depends on what ever we are running replan or not so for simplicity we
 // use this macro.
-#define GOTO_CLEANUP do { if (replan) goto REPLAN_CLEANUP; else goto CLEANUP; } while(false)
+#define GOTO_CLEANUP do { if (opts.reexec) goto REPLAN_CLEANUP; else goto CLEANUP; } while(false)
 
 int main(int argc, char *argv[]) {
 	// Some setup of the machinery
@@ -122,127 +108,41 @@ int main(int argc, char *argv[]) {
 	log_syslog_level(LL_INFO);
 	args_backup(argc, (const char **)argv);
 	// Parse the arguments
-	struct cmd_op *ops = cmd_args_parse(argc, argv, cmd_op_allows);
-	struct cmd_op *op = ops;
-	const char *top_level_config = NULL;
-	const char *root_dir = NULL;
-	const char *target_model = NULL;
-	const char *target_board = NULL;
-	bool batch = false, early_exit = false, replan = false, reboot_finished = false;
-	const char *approval_file = NULL;
-	const char **approvals = NULL;
-	size_t approval_count = 0;
-	const char *task_log = NULL;
-	const char *usign_exec = NULL;
-	bool no_replan = false;
-	for (; op->type != COT_EXIT && op->type != COT_CRASH; op ++)
-		switch (op->type) {
-			case COT_HELP:
-				print_help();
-				early_exit = true;
-				break;
-			case COT_VERSION:
-				print_version();
-				early_exit = true;
-				break;
-			case COT_ERR_MSG:
-				fputs(op->parameter, stderr);
-				break;
-			case COT_NO_OP:
-				top_level_config = op->parameter;
-				break;
-			case COT_BATCH:
-				batch = true;
-				break;
-			case COT_REEXEC:
-				replan = true;
-				break;
-			case COT_REBOOT:
-				reboot_finished = true;
-				break;
-			case COT_ROOT_DIR:
-				root_dir = op->parameter;
-				break;
-			case COT_MODEL:
-				target_model = op->parameter;
-				break;
-			case COT_BOARD:
-				target_board = op->parameter;
-				break;
-			case COT_STATE_LOG:
-				set_state_log(true);
-				break;
-			case COT_SYSLOG_LEVEL: {
-				enum log_level level = log_level_get(op->parameter);
-				ASSERT_MSG(level != LL_UNKNOWN, "Unknown log level %s", op->parameter);
-				log_syslog_level(level);
-				break;
-			}
-			case COT_SYSLOG_NAME: {
-				log_syslog_name(op->parameter);
-				break;
-			}
-			case COT_STDERR_LEVEL: {
-				enum log_level level = log_level_get(op->parameter);
-				ASSERT_MSG(level != LL_UNKNOWN, "Unknown log level %s", op->parameter);
-				log_stderr_level(level);
-				break;
-			}
-			case COT_ASK_APPROVAL:
-				approval_file = op->parameter;
-				break;
-			case COT_APPROVE: {
-				// cppcheck-suppress memleakOnRealloc
-				approvals = realloc(approvals, (++ approval_count) * sizeof *approvals);
-				approvals[approval_count - 1] = op->parameter;
-				break;
-			}
-			case COT_TASK_LOG:
-				task_log = op->parameter;
-				break;
-			case COT_USIGN:
-				usign_exec = op->parameter;
-				break;
-			case COT_NO_REPLAN:
-				no_replan = true;
-				break;
-			case COT_NO_IMMEDIATE_REBOOT:
-				system_reboot_disable();
-				break;
-			default:
-				DIE("Unknown COT");
-		}
-	enum cmd_op_type exit_type = op->type;
-	free(ops);
+	struct opts opts = {
+		.batch = false,
+		.reinstall_all = false,
+		.approval_file = NULL,
+		.approve = NULL,
+		.approve_cnt = 0,
+		.task_log = NULL,
+		.no_replan = false,
+		.no_immediate_reboot = false,
+		.config = NULL,
+		.reexec = false,
+		.reboot_finished = false,
+	};
+	argp_parse (&argp_parser, argc, argv, 0, 0, &opts);
+
+	system_detect();
 
 	update_state(LS_INIT);
 	struct events *events = events_new();
 	// Prepare the interpreter and load it with the embedded lua scripts
 	struct interpreter *interpreter = interpreter_create(events);
-	const char *error = interpreter_autoload(interpreter);
-	ASSERT_MSG(!error, "%s", error);
+	const char *err = interpreter_autoload(interpreter);
+	ASSERT_MSG(!err, "%s", err);
 
 	bool trans_ok = true;
-	if (exit_type != COT_EXIT || early_exit)
-		goto CLEANUP;
 	size_t result_count;
 	// Set some configuration
-	const char *err = interpreter_call(interpreter, "syscnf.set_root_dir", NULL, "s", root_dir);
-	ASSERT_MSG(!err, "%s", err);
-	if (!root_dir)
-		root_dir = "";
-	err = interpreter_call(interpreter, "syscnf.set_target", NULL, "ss", target_model, target_board);
-	ASSERT_MSG(!err, "%s", err);
-	if (usign_exec) {
-		err = interpreter_call(interpreter, "uri.usign_exec_set", NULL, "s", usign_exec);
-		ASSERT_MSG(!err, "%s", err);
-	}
-	if (no_replan) {
+	if (opts.no_replan || opts.reinstall_all) {
 		err = interpreter_call(interpreter, "updater.disable_replan", NULL, "");
 		ASSERT_MSG(!err, "%s", err);
 	}
+	err = interpreter_call(interpreter, "planner.set_reinstall_all", NULL, "b", opts.reinstall_all);
+	ASSERT_MSG(!err, "%s", err);
 	// Check if we should recover previous execution first if so do
-	if (journal_exists(root_dir)) {
+	if (journal_exists(root_dir())) {
 		INFO("Detected existing journal. Trying to recover it.");
 		err = interpreter_call(interpreter, "transaction.recover_pretty", &result_count, "");
 		ASSERT_MSG(!err, "%s", err);
@@ -250,12 +150,13 @@ int main(int argc, char *argv[]) {
 			goto CLEANUP;
 	}
 	// Decide what packages need to be downloaded and handled
-	err = interpreter_call(interpreter, "updater.prepare", NULL, "s", top_level_config);
+	err = interpreter_call(interpreter, "updater.prepare", NULL, "s", opts.config);
 	if (err) {
-		exit_type = COT_CRASH;
+		trans_ok = false;
 		ERROR("%s", err);
 		err_dump(err);
 		GOTO_CLEANUP;
+		goto CLEANUP; // This is to suppress cppcheck redundant assigment warning
 	}
 	err = interpreter_call(interpreter, "updater.no_tasks", &result_count, "");
 	ASSERT_MSG(!err, "%s", err);
@@ -263,29 +164,29 @@ int main(int argc, char *argv[]) {
 	bool no_tasks;
 	ASSERT_MSG(interpreter_collect_results(interpreter, "b", &no_tasks) == -1, "The result of updater.no_tasks is not bool");
 	if (no_tasks) {
-		approval_clean(approval_file); // There is nothing to do and if we have approvals enabled we should drop approval file
+		approval_clean(opts.approval_file); // There is nothing to do and if we have approvals enabled we should drop approval file
 		GOTO_CLEANUP;
 	}
-	if (!batch) {
+	if (!opts.batch) {
 		// For now we want to confirm by the user.
 		fprintf(stderr, "Press return to continue, CTRL+C to abort\n");
 		if (getchar() == EOF) // Exit if stdin is not opened or if any other error occurs
 			GOTO_CLEANUP;
-		approval_clean(approval_file); // If there is any approval_file we just approved it so remove it.
-	} else if (!approved(interpreter, approval_file, approvals, approval_count))
+		approval_clean(opts.approval_file); // If there is any approval_file we just approved it so remove it.
+	} else if (!approved(interpreter, opts.approval_file, opts.approve, opts.approve_cnt))
 		// Approvals are only for non-interactive mode (implied by batch mode).
 		// Otherwise user approves on terminal in previous code block.
 		GOTO_CLEANUP;
 	err = interpreter_call(interpreter, "updater.tasks_to_transaction", NULL, "");
 	ASSERT_MSG(!err, "%s", err);
-	if (!replan) {
+	if (!opts.reexec) {
 		update_state(LS_PREUPD);
-		const char *hook_path = aprintf("%s%s", root_dir, hook_preupdate);
-		setenv("ROOT_DIR", root_dir, true);
+		const char *hook_path = aprintf("%s%s", root_dir(), hook_preupdate);
+		setenv("ROOT_DIR", root_dir(), true);
 		exec_hook(hook_path, "Executing preupdate hook");
 	}
-	if (task_log) {
-		FILE *log = fopen(task_log, "a");
+	if (opts.task_log) {
+		FILE *log = fopen(opts.task_log, "a");
 		if (log) {
 			const char *timebuf = time_load();
 			fprintf(log, "%sTRANSACTION START\n", timebuf);
@@ -297,7 +198,7 @@ int main(int argc, char *argv[]) {
 			fputs(content, log);
 			fclose(log);
 		} else
-			WARN("Couldn't store task log %s: %s", task_log, strerror(errno));
+			WARN("Couldn't store task log %s: %s", opts.task_log, strerror(errno));
 	}
 	err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
 	ASSERT_MSG(!err, "%s", err);
@@ -305,41 +206,38 @@ int main(int argc, char *argv[]) {
 	err = interpreter_call(interpreter, "updater.pre_cleanup", NULL, "");
 	ASSERT_MSG(!err, "%s", err);
 	bool reboot_delayed;
-	ASSERT(interpreter_collect_results(interpreter, "bb", &reboot_delayed, &reboot_finished) == -1);
+	ASSERT(interpreter_collect_results(interpreter, "bb", &reboot_delayed, &opts.reboot_finished) == -1);
 	if (reboot_delayed) {
-		const char *hook_path = aprintf("%s%s", root_dir, hook_reboot_delayed);
+		const char *hook_path = aprintf("%s%s", root_dir(), hook_reboot_delayed);
 		exec_hook(hook_path, "Executing reboot_required hook");
 	}
-	err = interpreter_call(interpreter, "updater.cleanup", NULL, "bb", reboot_finished);
+	err = interpreter_call(interpreter, "updater.cleanup", NULL, "bb", opts.reboot_finished);
 	ASSERT_MSG(!err, "%s", err);
-	if (task_log) {
-		FILE *log = fopen(task_log, "a");
+	if (opts.task_log) {
+		FILE *log = fopen(opts.task_log, "a");
 		if (log) {
 			fprintf(log, "%sTRANSACTION END\n", time_load());
 			fclose(log);
 		} else
-			WARN("Could not store task log end %s: %s", task_log, strerror(errno));
+			WARN("Could not store task log end %s: %s", opts.task_log, strerror(errno));
 	}
 REPLAN_CLEANUP:
 	update_state(LS_POSTUPD);
-	const char *hook_path = aprintf("%s%s", root_dir, hook_postupdate);
+	const char *hook_path = aprintf("%s%s", root_dir(), hook_postupdate);
 	setenv("SUCCESS", trans_ok ? "true" : "false", true); // ROOT_DIR is already set
 	exec_hook(hook_path, "Executing postupdate hook");
 CLEANUP:
-	free(approvals);
+	free(opts.approve);
 	interpreter_destroy(interpreter);
 	events_destroy(events);
 	arg_backup_clear();
-	if (reboot_finished)
+	if (opts.reboot_finished)
 		system_reboot(false);
-	if (exit_type == COT_EXIT) {
-		if (trans_ok) {
-			update_state(LS_EXIT);
-			return 0;
-		} else {
-			update_state(LS_FAIL);
-			return 2;
-		}
-	} else
+	if (trans_ok) {
+		update_state(LS_EXIT);
+		return 0;
+	} else {
+		update_state(LS_FAIL);
 		return 1;
+	}
 }

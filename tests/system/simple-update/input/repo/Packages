@@ -1,0 +1,25 @@
+Package: dep-package
+Version: 1
+Source: package/dep
+License: GPL-2.0
+Section: none
+Architecture: all
+Installed-Size: 24000
+Filename: dep-package.ipk
+MD5Sum: 9fb97534d5b55bba02865f6308a337f1
+SHA256sum: 8f1a5294ca1b55a53d206c3f1f646e8ac345d4b36fc7f22ee693a11e1d69affc
+Description:  Test dependency package. Nothing special here.
+
+Package: test-package
+Version: 2
+Depends: dep-package
+Source: package/test
+License: GPL-2.0
+Section: none
+Architecture: all
+Installed-Size: 24000
+Filename: test-package.ipk
+MD5Sum: 4ab0046955fe9a2a4092530d4c7cd25b
+SHA256sum: 3299c980957e24a2bc291caac29e968b1f5c8c4107bc7475e034168f60ddfdf0
+Description:  Test package. Nothing special here.
+

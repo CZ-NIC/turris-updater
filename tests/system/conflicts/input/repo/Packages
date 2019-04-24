@@ -1,0 +1,24 @@
+Package: pkg_a
+Version: 1
+License: GPL-2.0
+Section: none
+Architecture: all
+Installed-Size: 0
+Filename: pkg_a.ipk
+MD5Sum: 23261bd7a31ee96c674c69dc03523740
+SHA256sum: 247c42f7ed97917418c065ef66e2b8cb15c30cf49096461a24b73cb8744f7bed
+Description:  Example package a
+
+Package: pkg_b
+Version: 1
+Conflicts: pkg_a
+Provides: pkg_a
+License: GPL-2.0
+Section: none
+Architecture: all
+Installed-Size: 0
+Filename: pkg_b.ipk
+MD5Sum: 7400af05961dff83fcb503e665b32dc1
+SHA256sum: 9e1f1d68a3c328376d4174c33a9d379a1912b6108603ac9439f1e04f5c511959
+Description:  Example package b
+

@@ -23,7 +23,8 @@ UPD_SYS_TESTS := \
 	force-downgrade \
 	conflicts \
 	postinst \
-	reboot-recover-update
+	reboot-recover-update \
+	reinstall-all
 
 .PHONY: test-sys valgrind-sys check
 

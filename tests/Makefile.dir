@@ -6,10 +6,13 @@ locks_MODULES += locks
 locks_LOCAL_LIBS += updater
 
 C_TESTS := \
-	arguments \
 	events \
 	util \
+	syscnf \
+	multiwrite \
 	subprocess \
+	download \
+	uri \
 	interpreter
 
 LUA_TESTS := \
@@ -51,14 +54,14 @@ clean-coverage:
 	rm -rf $(O)/coverage
 
 # Ignore stacktraceplus and dumper, not our creation.
-LUA_AUTOLOAD := $(filter-out 01_stacktraceplus 07_dumper,$(patsubst a_%.lua,%,$(notdir $(wildcard $(S)/src/lib/autoload/a_*.lua))))
+LUA_AUTOLOAD := $(filter-out 01_stacktraceplus 06_dumper,$(patsubst a_%.lua,%,$(notdir $(wildcard $(S)/src/lib/autoload/a_*.lua))))
 
 define DO_C_TEST
 
 BINARIES_NOTARGET += tests/ctest-$(1)
-ctest-$(1)_MODULES += $(1) ctest
+ctest-$(1)_MODULES += $(1) ctest test_data
 ctest-$(1)_SYSTEM_LIBS += m rt
-ctest-$(1)_PKG_CONFIGS += check
+ctest-$(1)_PKG_CONFIGS += check $(LUA_NAME)
 ctest-$(1)_LOCAL_LIBS += updater
 
 test: test-c-$(1)
@@ -72,10 +75,16 @@ valgrind: $(addprefix valgrind-lua-,$(LUA_TESTS))
 luac-autoload: $(addprefix luac-autoload-,$(LUA_AUTOLOAD))
 luacheck: $(addprefix luacheck-,$(LUA_AUTOLOAD))
 
-# Use the FORCE target instead of .PHONY, since .PHONY doesn't work well
-# with patterned recipes. The FORCE comes from our shared build system.
+USIGN_DIR = $(O)/tests/usign
+USIGN_EXEC = $(USIGN_DIR)/usign
+$(USIGN_EXEC):
+	cd "$(USIGN_DIR)" && cmake .
+	+$(MAKE) -C "$(USIGN_DIR)"
 
-TESTS_ENV = SUPPRESS_LOG=1 S=$(S) TMPDIR=$(abspath $(O)/testdir) COVERAGEDIR=$(abspath $(O)/.lua_coverage)
+clean-usign:
+	+$(MAKE) -C "$(USIGN_DIR)" clean
+
+TESTS_ENV = SUPPRESS_LOG=1 S=$(S) TMPDIR=$(abspath $(O)/testdir) COVERAGEDIR=$(abspath $(O)/.lua_coverage) PATH="$$PATH:$(USIGN_DIR)"
 
 ifeq (,$(OPENSSL_PURITY))
 include $(S)/tests/openssl_purity.mk
@@ -85,20 +94,23 @@ OPENSSL_LIBS=
 OPENSSL_ENV=
 endif
 
+# Use the FORCE target instead of .PHONY, since .PHONY doesn't work well
+# with patterned recipes. The FORCE comes from our shared build system.
+
 # Tests
-test-c-%: $(O)/bin/ctest-% FORCE
+test-c-%: $(O)/bin/ctest-% $(USIGN_EXEC) FORCE
 	mkdir -p $(O)/testdir
 	$(TESTS_ENV) $<
 
-valgrind-c-%: $(O)/bin/ctest-% $(OPENSSL_LIBS) FORCE
+valgrind-c-%: $(O)/bin/ctest-% $(OPENSSL_LIBS) $(USIGN_EXEC) FORCE
 	mkdir -p $(O)/testdir
 	CK_FORK=no $(TESTS_ENV) $(OPENSSL_ENV) $(VALGRIND) $<
 
-test-lua-%: $(S)/tests/%.lua $(O)/bin/lulaunch FORCE
+test-lua-%: $(S)/tests/%.lua $(O)/bin/lulaunch $(USIGN_EXEC) FORCE
 	mkdir -p $(O)/testdir
 	$(TESTS_ENV) $(O)/bin/lulaunch $<
 
-valgrind-lua-%: $(S)/tests/%.lua $(O)/bin/lulaunch $(OPENSSL_LIBS) FORCE
+valgrind-lua-%: $(S)/tests/%.lua $(O)/bin/lulaunch $(OPENSSL_LIBS) $(USIGN_EXEC) FORCE
 	mkdir -p $(O)/testdir
 	$(TESTS_ENV) $(OPENSSL_ENV) $(VALGRIND) $(O)/bin/lulaunch $<
 

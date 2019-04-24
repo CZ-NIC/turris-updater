@@ -14,13 +14,13 @@ supported version of Lua on OpenWRT is 5.1, but there should be very
 little difference in what we use). Just the set of functions available
 is limited to the functions listed here.
 
-Note that using conditions, loops and variables is fully supported
+TIP: Using conditions, loops and variables is fully supported
 and sometimes desirable.
 
 Security levels
 ---------------
 
-There are different security levels of the scripts used.  The security
+There are different security levels of the scripts used. The security
 level may further limit the set of commands and the abilities of given
 commands. This is to ensure the server may never send malicious
 commands covertly (it still can send version of package that contains
@@ -37,12 +37,10 @@ Full::
   (including compiled `.so` modules). This is what the internals of the
   updater would be built in.
 Local::
-  It is possible to reference local files and directories as further
-  configuration scripts. It is possible to read UCI configuration and
-  execute arbitrary shell commands.
+  It is possible to read UCI configuration and execute arbitrary
+  shell commands.
 Remote::
-  The functions may reference only other remote resources, not local
-  ones. Reading UCI config is not possible.
+  Reading UCI config is not possible.
 Restricted::
   It is possible to further restrict the entities referenced to a
   string match (eg. ensure that it comes from a given server). Access
@@ -71,28 +69,6 @@ It is possible to hook some functions in between (after, before)
 installation of packages, or even between installation and
 configuration.
 
-Script names
-------------
-
-Each script has a name. The names form a tree structure and are used
-to namespace various kinds of information, most importantly flag
-storage.
-
-Having two scripts of the same full name is an error. The name of the
-script may be the same if it is referenced from different scripts.
-
-The names are separated by a slash. The top-level built in script has
-an empty name, but it doesn't store any information, only references
-other scripts.
-
-A script may reference other scripts by the names. An empty string
-means itself. Names starting with slash are absolute ‒ they start from
-the top-level script. Other names are relative and refer to
-sub-scripts.
-
-This is similar to filesystem paths. However, the `.` and `..` names
-are not supported here.
-
 URIs
 ----
 
@@ -101,9 +77,9 @@ live in the local filesystem or be on an external server.
 
 These are the types of URIs supported:
 
-* `file://`
 * `http://`
 * `https://`
+* `file://`
 * `data:`
 
 The remote ones (`http` and `https`) may need verification of the
@@ -114,71 +90,67 @@ The `data:` is slightly limited compared to what the standard (RFC
 2397) allows. The media type and charset are irrelevant to the
 updater and are therefore not supported.
 
-Scripts with access level of `remote` or lower are not allowed to use
-the `file://` and `internal:` schemes.
-
 NOTE: In previous versions there was an `internal:` URI but that one is no longer
 available and can't be used.
 
 Verification
-------------
+~~~~~~~~~~~~
 
-It is desirable to verify that the scripts and repository indices
-weren't tampered with. It isn't needed to verify the packages (unless
-they are stand-alone without repository), because the repository index
-contains hashes of the packages.
+To make remote access secure we need to verify downloaded content. This
+is relevant to `http://` and `https://` URIs.
 
-There are two things we may verify. The server certificate (with the
-`https` schema) and the file signature.
+Options relevant to `https://` URI::
 
-Each command that takes an URI as a parameter can have following extra
-options:
-
-verification::
-  This specifies how the resource is verified. Possible values are
-  (case insensitive):
-  none;;
-    Doesn't do any verification. This is the default for `file://`,
-    `data://` and `internal://` URIs.
-  cert;;
-    Verify the server's SSL certificate.
-  sig;;
-    Verify file signature. This is the default for `http://` URIs.
-  both;;
-    Do both `cert` and `sig` verification. This is the default for
-    `https://` URIs.
-sig::
-  URI where the signature of the resource lives. This one is not
-  verified. If it isn't specified, it is constructed by adding `.sig`
-  to the end of the verified URI. The option has effect only with
-  `sig` and `both` verification.
-pubkey::
-  An URI or table of URIs with trusted public signature keys. These
-  are not verified (therefore it is recommended to come from a already
-  verified source ‒ like `data:` URI or `file://` URI). If it is not
-  specified (`nil`), it is inherited from the verification of the script
-  running the command. While it has no direct effect if the option is
-  specified on another verification than `sig` or `both`, it
-  influences the inheritance. Default value is `{}`.
-ca::
-  An URI or table of URIs with trusted SSL certificate authorities, in
-  PEM format. Similar notes as with `pubkey` apply. But instead of table
-  or URI you can also specify special value `system_cas`, which results
-  into system authorities to be used. `system_cas` is also default value.
-crl::
-  An URI or table of URIs with CRLs relevant to the server. If set into
-  `no_crl`, CRL is not checked. Note that the `crl` field is also
-  inherited, therefore you may want to set it manually to `no_crl`.
-  Default value is `no_crl`.
-ocsp::
+ca;;
+  An URI or table of URIs with trusted SSL certificate authorities, in PEM format.
+  These URIs are not verified. `true` can be specified and in such case all system
+  certificates are considered (generally all files in `/etc/ssl/certs`).
+  If `false` or empty table is specified then CA verification is skipped. If not
+  specified (or set to `nil`) it is inherited from the verification of script
+  running the command. In default it is set to `true` so it verifies server
+  against all installed CA certificates.
+crl;;
+  An URI or table of URIs with CRLs relevant to the server. Can be set to `false`
+  or empty table and in such case CRL is not checked. If set to `nil` then its
+  value is inherited from the verification of script running the command. In
+  default it is set to `{}`.
+ocsp;;
   `true` of `false` if you want or don't want to use OCSP (Online Certificate
-  Status Protocol). Default value is `true`. Inheritance is same as with
-  `pubkey`.
+  Status Protocol). If set to `nil` then value is inherited from verification of
+  the script. Default value is `true`.
 
-The file signature is verified using the `usign` utility.
+Options relevant to `http://` and `https://` URIs::
 
-Note that while a `remote` or `restricted` script may not specify
-local (`file://` and `internal:`) URIs, it may inherit them.
+pubkey;;
+  An URI or table of URIs with trusted public signature keys. These are not
+  verified (therefore it is recommended to come from a already verified source ‒
+  like `data:` or `file://` URI). If it is not specified (`nil`), it is inherited
+  from the verification of the script running the command. If empty table is
+  specified then no signature checking is done. Default value is `{}`.
+sig;;
+  URI where the signature of the resource lives. This one is not verified. If it
+  is set to `nil`, it is constructed by adding `.sig` to the end of the verified
+  URI. The option has effect only if `pubkey` is set so signature checking is
+  done. In default it's set to `nil`.
+
+IMPORTANT: URIs specified in these verification options are not verified (default
+values, not inherited ones, are used). Because of that it is suggested and
+required to use only trusted/secure local URIs for that purpose. That means:
+`file://` and `data://`.
+
+TIP: URIs specified in these verification options has to be valid but the resource
+don't have to be available (such as missing file). That is ok and it does not
+cause error directly. This means that you can provide keys and certificates that
+might not be installed in configuration without worrying about their existence.
+
+NOTE: Another option `verification` exist. It was originally used for verification
+level specification but that is now replaced with `pubkey` and `ca` option
+specific values. For backward compatibility it is silently ignored.
+
+NOTE: For `ca` option there is also constant `system_cas` and for `crl` option
+there is constant `no_crl`. These are obsoleted but are still defined.
+`system_cas` is defined as `true` and `no_crl` is defined as `false`.
+`system_cas` 
 
 Dependency description
 ----------------------
@@ -221,12 +193,10 @@ Most of the commands has following format:
 
   Command("string", "string", {param = 1})
 
-They start with a capital letter, since they act as constructors.
-
 Script
 ~~~~~~
 
-  script = Script("uri", { extra })
+  Script("uri", { extra })
 
 This command runs another script.
 
@@ -242,88 +212,71 @@ security::
   raise the level, such attempt is reported as an error. If not
   specified, the level is deduced from the URI. If the URI is remote,
   it doesn't go above `remote`, otherwise it doesn't go above `local`.
-ignore::
-  Ignore certain errors. If they happen, don't process such script,
-  but continue with the rest. This is a lua table with strings, each
-  one specifying a category of erorrs to ignore.
-  missing;;
-    If the script can't be found.
-  integrity;;
-    Some signatures don't match.
-verification::
+optional::
+  Set this to `true` to not fail if retrieval of this script fails.
 sig::
 pubkey::
 ca::
 crl::
+ocsp::
   Options to verify the script integrity.
 
-Note that following format is now marked as obsolete and should not be used:
+WARNING: Following format is now marked as obsolete and should not be used:
+`Script("script-name", "uri", { extra })`
 
-  script = Script("script-name", "uri", { extra })
+NOTE: There is also obsoleted extra option `ignore`. This should not be used and
+any value set to it is effectively considered to be same as setting `optional` to
+`true`.
 
 Repository
 ~~~~~~~~~~
 
-  repository = Repository("repository-name", "uri", { extra })
+  Repository("repository-name", "uri", { extra })
 
-This command introduces another repository of packages. The name may
+This command introduces another repository of packages. The can
 be used as a reference from other commands and is used in error
-messages. However, every place where the name may be used, the result
-of the command may be used instead. It is legal to have multiple
-repositories with the same name, but referencing it by name may
-produce any of them. Referencing by the result is reliable.
+messages. Be aware that collision names are considered error and
+such repositories are not considered.
 
 The URI is expected to contain an OpenWRT repository in the format
 produced by the buildroot.
 
 Extra parameters are:
 
-subdirs::
-  If the URI contains multiple subdirectories, each one being a valid
-  repository, you may list the subdirectories here (as a lua table of
-  strings). The repository will unify all the subdirectory contents
-  together to form one huge repository. In case of collision of
-  packages between the subdirectories, the first one containing a
-  given package wins (in the order listed here). If this option is not
-  listed, the repository acts in normal way (the URI directly
-  containing the packages).
 index::
   Overrides the URI at which the repository index lives and uses the
   main URI as the place where packages are downloaded from. Both
   gzipped and plain versions may be in the given URI. If the option is
-  not listed, it is expected to be in `Packages.gz`. Overriding the
-  URI is not compatible with the subdirs option.
-ignore::
-  Ignore certain errors. This is a lua table with strings, each
-  specifying a category of errors to ignore. If there's an error
-  ignored, the repository acts as being empty. Otherwise, such error
-  would cause the updater to stop.
-  missing;;
-    This error happens if the repository is not found. This can mean,
-    for example, that the `https` URI where the index
-    (`https://example.org/repository/Packages.gz`) returns 404.
-    However, a missing package from the repository is not this kind of
-    error (and cannot be ignored, because it is discovered late after
-    planning what to install).
-  integrity;;
-    This is when the integrity verification/signature check fails.
-    This may be caused by manipulation with the content, or by missing
-    a key on our side.
-  syntax;;
-    It happens when the repository index can not be parsed because of
-    syntax errors.
+  not listed, it is expected to be in `Packages.gz`.
 priority::
   In case of a package being available in multiple directories, the
   package is taken from the repository with highest priority. In case
   of equality, the one introduced first wins. The default when the
   option is not specified is 50. The number must be an integer between
   0 and 100.
-verification::
+optional::
+  Set this to `true` to not fail if it is not possible to receive repository for
+  any reason or to parse it. This can be due to missing resource or invalid
+  verification but in both cases this is not fatal for updater execution and it
+  continues without this repository.
 sig::
 pubkey::
 ca::
 crl::
+ocsp::
   Options to verify the index integrity.
+
+NOTE: There is also obsoleted `subdirs` extra parameter. It was intended to be
+used as a simple way to add multiple repositories at once. It had small trick
+under its sleeve that it combined all those repositories under one name but that
+effectively changes nothing. In new versions of Updater-ng this option is only
+emulated and repository with name generated with following script is added
+instead: `NAME-SUBDIR` where `NAME` is name of repository and `SUBDIR` is specific
+`subdirs` values.
+
+NOTE: There is also obsoleted extra option `ignore`. This should not be used and
+any value set to it is effectively considered to be same as setting `optional` to
+`true`.
 
 Uninstall
 ~~~~~~~~~
@@ -333,8 +286,8 @@ Uninstall
 This command takes multiple package names. It ensures none of the
 packages is installed.
 
-Note that this is not needed most of the time, since unneeded packages
-are removed automatically.
+TIP: This is not needed most cases, since unneeded packages are removed
+automatically.
 
 Extra options modify the packages preceding them, but only up to the
 previous extra options block. Therefore, the first two packages in the
@@ -390,123 +343,94 @@ critical::
   network. Other packages may stop working if the update is
   interrupted at the wrong time (for example by a power outage), but
   would be fixed by another finished updater run.
-ignore::
-  Ignore certain errors regarding the installation request. Note that
-  errors related to the package itself are modified by the `Package`
-  command. This takes an array of strings, each string represents one
-  category of errors to ignore.
-  missing;;
-    Don't fail on the package not being available. The package
-    wouldn't be installed if not available, but the run of the updater
-    wouldn't be aborted.
+optional::
+  Set this to `true` to not fail if packages is not available from any configured
+  repository. Be aware that this has implications if form of possible removed
+  packages from system.
 
-Note that a package may be required to be installed or uninstalled
-multiple times (for example by multiple scripts). All such
-requirements are tried to be met (eg. by unifying the version options,
-etc).
+IMPORTANT: Package may be required to be installed or uninstalled multiple times
+(for example by multiple scripts). All such requirements are tried to be met (eg.
+by unifying the version options, etc).
+
+NOTE: There is also obsoleted but still working option `ignore` which if set to
+any boolean true value it is considered as if `optional` extra option would be
+set to `true`.
 
 Package
 ~~~~~~~
 
-  package = Package("name", { extra })
+  Package("name", { extra })
 
-This command allows amending a package from a repository. It allows
-for adding dependencies (even negative or alternative dependencies).
-It allows for specifying hooks ‒ functions that are run at specific
-times. It also allows creation of virtual packages ‒ a package that
-doesn't really exist, but can participates in the dependency computation.
+This command allows amending a package from a repository. It allows for adding
+dependencies (even negative or alternative dependencies).  It also allows creation
+of virtual packages ‒ a package that doesn't really exist, but can participates in
+the dependency computation.
 
-A package may be amended multiple times. Each time the options are
-merged into the package options.
-
-The result may be used instead of a package name in the dependencies
-of other packages and in `Install` and `Uninstall` commands.
-
-Also, the name parameter is optional. If it is omitted (either
-specified as nil or just left out), an unique name is generated. This
-is useful only for virtual packages.
+A package may be amended multiple times. Each time the options are merged into the
+package options.
 
 The options are:
 
 virtual::
-  If set to any value, the package is virtual. If a real package of
-  the same name exists, an error is reported.
+  If set to any value, the package is virtual. If a real package of the same name
+  exists, an error is reported.
 deps::
-  Additional dependencies for the package. The dependencies are merged
-  together as if all the sources were put into a table (eg. all of
-  them must be fulfilled). There's no way to remove dependencies.
+  Additional dependencies for the package. The dependencies are merged together as
+  if all the sources were put into a table (eg. all of them must be fulfilled).
+  There's no way to remove dependencies.
 order_after::
 order_before::
-  Usually, all dependencies of a package are installed before the
-  package. Sometimes, it may be desirable to break this order and
-  these options allow that. Both of them list packages after or before
-  which the current package shall be installed, in a table. This
-  allows breaking dependency cycles. These options are mere hint, the
-  updater may decide to not follow them if it is not possible to
-  satisfy. Note that this has effect only on running the pre_* and
-  post_* scripts and hooks, since all the files of all updated
-  packages are merged into the system together.
-pre_*::
-post_*::
-  A hook to be run after or before a step. The value may be a single
-  function or a table of functions. All the functions (from the table
-  or merged from multiple `Package` commands) are run, in unspecified
-  order. TODO: List the steps and what commands may be used inside the
-  functions.
+  Usually, all dependencies of a package are installed before the package.
+  Sometimes, it may be desirable to break this order and these options allow that.
+  Both of them list packages after or before which the current package shall be
+  installed, in a table. This allows breaking dependency cycles. These options are
+  mere hint, the updater may decide to not follow them if it is not possible to
+  satisfy. Note that this has effect only on running the pre_* and post_* scripts
+  and hooks, since all the files of all updated packages are merged into the
+  system together.
 reboot::
-  A reboot is needed when installing the package. The reboot is
-  scheduled according to the value.
+  A reboot is needed when installing the package. The reboot is scheduled
+  according to the value.
   delayed;;
-    The package needs a reboot for the new version to take effect, but
-    the old version works, so it may be delayed for arbitrary amount
-    of time.
+	The package needs a reboot for the new version to take effect, but the old
+	version works, so it may be delayed for arbitrary amount of time.
   finished;;
-    The reboot needs to be done once the update is finished. It is
-    because the old version no longer works as expected. The whole
-    update may be delayed because the need of this update, so the
-    update happens at a time convenient to the user.
+	The reboot needs to be done once the update is finished. It is because the old
+	version no longer works as expected. The whole update may be delayed because
+	the need of this update, so the update happens at a time convenient to the
+	user.
   immediate;;
-    The reboot needs to be done just after the package is set up. This
-    may be needed when the old version would prevent the rest of the
-    update from happening.
+	The reboot needs to be done just after the package is set up. This may be
+	needed when the old version would prevent the rest of the update from
+	happening.
 replan::
-  The package has an effect on the updater itself. Therefore, updater
-  have to run planning again. When this happens is according to value.
+  The package has an effect on the updater itself. Therefore, updater have to run
+  planning again. When this happens is according to value.
   finished;;
-    Replan is done after whole initial update was performed. Use this option
-    if your package changes some setting that updater reads. It can be some
-	uci config or even some additional updater configuration (usable for
-    example if you want to add repository by installing package).
+	Replan is done after whole initial update was performed. Use this option if
+	your package changes some setting that updater reads. It can be some uci
+	config or even some additional updater configuration (usable for example if
+	you want to add repository by installing package).
   immediate;;
-    When this is set it interrupts the update after this package is set
-    up. This causes updater to run planning again as soon as the change is made.
-    This should be used only for packages containing updater itself or
-    closely related packages.
+	When this is set it interrupts the update after this package is set up. This
+	causes updater to run planning again as soon as the change is made.  This
+	should be used only for packages containing updater itself or closely related
+	packages.
 abi_change::
-  The package changed its ABI (or some other interface) and some other
-  packages need to be reinstalled. If this is set to `true` and the
-  package is installed or updated, all packages that depend on it are
-  reinstalled. If it is set to a table, it lists packages that need to
-  be reinstalled. When merging `true` to a table, `true` is considered
-  to be the list of packages depending on this one.
+  The package changed its ABI (or some other interface) and some other packages
+  need to be reinstalled. If this is set to `true` and the package is installed or
+  updated, all packages that depend on it are reinstalled. If it is set to a
+  table, it lists packages that need to be reinstalled. When merging `true` to a
+  table, `true` is considered to be the list of packages depending on this one.
 abi_change_deep::
   Same as abi_change, but also reinstall packages that depends indirectly on
   package that changed its ABI. That means if some package is reinstalled because
   of change of ABI, all packages that depends on it are also reinstalled and so
   on.
-ignore::
-  Ignore listed categories of errors. This takes an array of strings,
-  each string meaning one category to ignore.
-  deps;;
-    Don't error on missing dependencies. Simply install the package
-    without satisfying the dependency.
-  validation;;
-    Install the package despite it failing validation (eg. when having
-    different checksum).
-  installation;;
-    Don't report errors of installation in this package as an error
-    and don't abort the rest of the installation process even if it is
-    in an early stage.
+
+NOTE: Originally there was also option `ignore` that allowed pass for different
+problems but most of those were not working and usage of them was questionable.
+This options is now considered as obsolete and is ignored.
 
 Export and Unexport
 ~~~~~~~~~~~~~~~~~~~
@@ -598,34 +522,6 @@ root_dir
 Root directory specified from command line or `/` if no such option
 was specified. Use this if you are accessing some files.
 
-serial
-~~~~~~
-
-The variable contains the serial number of the device. It may be `nil`
-in case it is not supported on the given device.
-
-architectures
-~~~~~~~~~~~~~
-
-Allowed package architectures (in a table).
-
-model
-~~~~~
-
-Content of `/tmp/sysinfo/model`. On non-OpenWRT systems it has to be supplied by
-`--model` argument.
-
-board_name
-~~~~~~~~~~
-
-Content of `/tmp/sysinfo/board_name`. On non-OpenWRT systems it has to be supplied
-by `--board` argument.
-
-turris_version
-~~~~~~~~~~~~~~
-
-Content of `/etc/turris-version`. Might be nil on non-Turris systems.
-
 self_version
 ~~~~~~~~~~~~
 
@@ -656,6 +552,12 @@ abi_change_deep::
 replan_string::
   Updater expects replan to be a string (if this feature isn't set than it's
   expected to be only boolean).
+relative_uri::
+  Updater supports relative URI where URI is deduced relative to script in which
+  it was defined in.
+no_returns::
+  Functions such as `Repository` and `Package` no longer return handler that can
+  be used in other calls.
 
 installed
 ~~~~~~~~~
@@ -682,6 +584,32 @@ install_time::
 The top-level table is instantiated (not generated through
 meta-tables), therefore it is possible to get the list of installed
 packages.
+
+os_release
+~~~~~~~~~~
+
+This is table with parsed content of os-release file. Path to this file is
+`etc/os-release` but relative to target root. This means that if you are running
+updater on root file system that is not current root then values in this table are
+for target not for host system.
+
+This is normal table and you can iterate trough it using `pairs` or you can
+directly access specific value by indexing it. List of standard options can be
+found https://www.freedesktop.org/software/systemd/man/os-release.html[here].
+
+The most interesting value is `os_release.VERSION` as this contains current system
+release version.
+
+This table can be empty if there was no `os-release` file.
+
+host_os_release
+~~~~~~~~~~~~~~~
+
+This is table with parsed content of os-release file for host system. Source file
+for this is always `/etc/os-release`. See variable os_release for example usage
+and expected content.
+
+Table can be empty if there was no `/etc/os-release`.
 
 Export variables to Script
 --------------------------

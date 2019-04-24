@@ -16,7 +16,7 @@ Export('l10n')
 -- This is helper function for including localization packages.
 function for_l10n(fragment)
 	for _, lang in pairs(l10n or {}) do
-		Install(fragment .. lang, {ignore = {"missing"}})
+		Install(fragment .. lang, {optional = true})
 	end
 end
 Export('for_l10n')

@@ -7,11 +7,11 @@
 /.gen/
 /.lua_coverage/
 /tests/openssl
-__pycache__
+/.uriparser
 # The desired results
 *.html
 *.so
-/src/opkg-trans/opkg-trans
+/src/pkgtransaction/pkgtransaction
 /src/pkgupdate/pkgupdate
 /src/migrator/pkgmigrate
 # Some stuff for debugging
@@ -31,7 +31,6 @@ compile_commands.json
 tests/check-compiled
 tests/luacheck-compiled
 tests/arguments
-tests/api.turris.cz.crl.pem
 testdir
 # Gitlab pages
 pages
