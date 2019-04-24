@@ -381,7 +381,7 @@ int extract_file_to_memory(char *buff, const char *arcname, const char *subarcna
 	return process_file(arcname, subarcname, filename, unpack);
 }
 
-int extract_inner_archive(const char *arcname, const char *subarcname, const char *path) {
+int upack_extract_inner_file(const char *arcname, const char *subarcname, const char *path) {
 /* 
 
 NOTE: subarcname is without `.tar.gz`, because in archives need to create directory based on their names: path/control, path/data

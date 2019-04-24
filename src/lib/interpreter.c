@@ -639,7 +639,7 @@ static int lua_extract_inner_archive(lua_State *L) {
 	const char *arc_name = luaL_checkstring(L, 1);
 	const char *subarc_name = luaL_checkstring(L, 2);
 	const char *path = luaL_checkstring(L, 3);
-	int r = extract_inner_archive(arc_name, subarc_name, path);
+	int r = upack_extract_inner_file(arc_name, subarc_name, path);
 
 	/* TODO: error handling */
 	/* TODO: return something sensible to lua? */
