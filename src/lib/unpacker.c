@@ -1,4 +1,6 @@
+
 #include "unpacker.h"
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <archive.h>
@@ -8,8 +10,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <inttypes.h>
 #include <linux/limits.h>
-
+#include <openssl/sha.h>
+#include <openssl/md5.h>
 
 static int copy_data(struct archive *ar, struct archive *aw) {
     const void *buff;
@@ -328,57 +332,59 @@ int process_file(const char *arcname, const char *subarcname, const char *filena
 	return -1;
 }
 
+int get_size(struct archive *a, struct archive_entry *entry) {
+	return archive_entry_size(entry);
+}
+
 int upack_get_file_size(const char *arcname, const char *subarcname, const char *filename) {
-	int get_size(struct archive *a, struct archive_entry *entry) {
-		return archive_entry_size(entry);
-	}
 	return process_file(arcname, subarcname, filename, get_size);
+}
+
+static int unpack_entry(struct archive *a, struct archive_entry *entry) {
+	int r;
+	struct archive *ext;
+	int flags;
+	/* Select which attributes we want to restore. */
+	flags = ARCHIVE_EXTRACT_TIME;
+	flags |= ARCHIVE_EXTRACT_PERM;
+	flags |= ARCHIVE_EXTRACT_ACL;
+	flags |= ARCHIVE_EXTRACT_FFLAGS;
+	ext = archive_write_disk_new();
+	archive_write_disk_set_options(ext, flags);
+	archive_write_disk_set_standard_lookup(ext);
+	r = archive_write_header(ext, entry);
+	if (r < ARCHIVE_OK) {
+		fprintf(stderr, "%s\n", archive_error_string(ext));
+		return -1;
+	} else if (archive_entry_size(entry) > 0) {
+		r = copy_data(a, ext);
+		if (r < ARCHIVE_OK) {
+			fprintf(stderr, "%s\n", archive_error_string(ext));
+			return -1;
+		}
+	}
+	r = archive_write_finish_entry(ext);
+	if (r < ARCHIVE_OK) {
+		fprintf(stderr, "%s\n", archive_error_string(ext));
+		return -1;
+	}
+	archive_write_close(ext);
+	archive_write_free(ext);
+	return 0;
 }
 
 /* extract file into current directory (TODO: add path?) */
 int extract_file_to_disk(const char *arcname, const char *subarcname, const char *filename) {
-	int unpack(struct archive *a, struct archive_entry *entry) {
-		int r;
-		struct archive *ext;
-		int flags;
-		/* Select which attributes we want to restore. */
-		flags = ARCHIVE_EXTRACT_TIME;
-		flags |= ARCHIVE_EXTRACT_PERM;
-		flags |= ARCHIVE_EXTRACT_ACL;
-		flags |= ARCHIVE_EXTRACT_FFLAGS;
-		ext = archive_write_disk_new();
-		archive_write_disk_set_options(ext, flags);
-		archive_write_disk_set_standard_lookup(ext);
-		r = archive_write_header(ext, entry);
-		if (r < ARCHIVE_OK) {
-			fprintf(stderr, "%s\n", archive_error_string(ext));
-			return -1;
-		} else if (archive_entry_size(entry) > 0) {
-			r = copy_data(a, ext);
-			if (r < ARCHIVE_OK) {
-				fprintf(stderr, "%s\n", archive_error_string(ext));
-				return -1;
-			}
-		}
-		r = archive_write_finish_entry(ext);
-		if (r < ARCHIVE_OK) {
-			fprintf(stderr, "%s\n", archive_error_string(ext));
-			return -1;
-		}
-		archive_write_close(ext);
-		archive_write_free(ext);
-		return 0;
-	}
-	return process_file(arcname, subarcname, filename, unpack);
+	return process_file(arcname, subarcname, filename, unpack_entry);
 }
 
-int upack_extract_file_to_memory(char *buff, const char *arcname, const char *subarcname, const char *filename, int size) {
+int upack_extract_inner_file_to_memory(char *buff, const char *arcname, const char *subarcname, const char *filename, int size) {
 	int unpack(struct archive *a, struct archive_entry *entry) {
 		archive_read_data(a, buff, size);
 		/* TODO: error checking */
 		return 0;
 	}
-	return process_file(arcname, subarcname, filename, unpack);
+	return process_file(arcname, subarcname, filename, unpack_entry);
 }
 
 int upack_extract_inner_file(const char *arcname, const char *subarcname, const char *path) {
@@ -445,6 +451,54 @@ and also append subarcname to path
 	archive_read_free(a);
 	return -1;
 }
+
+static uint8_t get_md5(const char *buffer, int len) {
+	uint8_t result[MD5_DIGEST_LENGTH];
+	MD5_CTX md5;
+	MD5_Init(&md5);
+	MD5_Update(&md5, buffer, len);
+	MD5_Final(result, &md5);
+	return result;
+}
+
+static uint8_t get_sha256(const char *buffer, int len) {
+	uint8_t result[SHA256_DIGEST_LENGTH];
+	SHA256_CTX sha256;
+	SHA256_Init(&sha256);
+	SHA256_Update(&sha256, buffer, len);
+	SHA256_Final(result, &sha256);
+	return result;
+}
+
+
+int upack_get_inner_hash(const char *arcname, const char *subarc_name, char *file, int method) {
+	/* stub */
+
+	int size = upack_get_file_size(arcname, subarc_name, file);
+	if (size > 0) {
+		char buffer[size];
+		upack_extract_inner_file_to_memory(buffer, arcname, subarc_name, file, size);
+
+		/* compute hash */
+		uint8_t result;
+		switch(method) {
+			case method_MD5: {
+				result = get_md5(buffer, size);
+				break;
+			}
+			case method_SHA256:
+				result = get_sha256(buffer, size);
+				break;
+		}
+	/* -- hash end -- */
+
+		return result;
+	} else {
+		/* error */
+		return -1;
+	}
+}
+
 
 int unpacker_test() {
 	printf("\n!!>> THIS IS A TEST!!!\n");
