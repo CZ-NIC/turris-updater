@@ -469,7 +469,6 @@ static int get_sha256(uint8_t *result, const char *buffer, int len) {
 	return 0;
 }
 
-
 int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subarc_name, char *file, int method) {
 	/* stub */
 
