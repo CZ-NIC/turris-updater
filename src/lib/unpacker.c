@@ -340,7 +340,7 @@ int upack_get_file_size(const char *arcname, const char *subarcname, const char 
 	return process_file(arcname, subarcname, filename, get_size);
 }
 
-static int unpack_entry(struct archive *a, struct archive_entry *entry) {
+static int unpack_entry_to_disk(struct archive *a, struct archive_entry *entry) {
 	int r;
 	struct archive *ext;
 	int flags;
@@ -375,16 +375,17 @@ static int unpack_entry(struct archive *a, struct archive_entry *entry) {
 
 /* extract file into current directory (TODO: add path?) */
 int extract_file_to_disk(const char *arcname, const char *subarcname, const char *filename) {
-	return process_file(arcname, subarcname, filename, unpack_entry);
+	return process_file(arcname, subarcname, filename, unpack_entry_to_disk);
 }
 
+
 int upack_extract_inner_file_to_memory(char *buff, const char *arcname, const char *subarcname, const char *filename, int size) {
-	int unpack(struct archive *a, struct archive_entry *entry) {
+	int unpack_entry_to_memory(struct archive *a, struct archive_entry *entry) {
 		archive_read_data(a, buff, size);
 		/* TODO: error checking */
 		return 0;
 	}
-	return process_file(arcname, subarcname, filename, unpack_entry);
+	return process_file(arcname, subarcname, filename, unpack_entry_to_memory);
 }
 
 int upack_extract_inner_file(const char *arcname, const char *subarcname, const char *path) {
@@ -452,26 +453,24 @@ and also append subarcname to path
 	return -1;
 }
 
-static uint8_t get_md5(const char *buffer, int len) {
-	uint8_t result[MD5_DIGEST_LENGTH];
+static int get_md5(uint8_t *result, const char *buffer, int len) {
 	MD5_CTX md5;
 	MD5_Init(&md5);
 	MD5_Update(&md5, buffer, len);
 	MD5_Final(result, &md5);
-	return result;
+	return 0;
 }
 
-static uint8_t get_sha256(const char *buffer, int len) {
-	uint8_t result[SHA256_DIGEST_LENGTH];
+static int get_sha256(uint8_t *result, const char *buffer, int len) {
 	SHA256_CTX sha256;
 	SHA256_Init(&sha256);
 	SHA256_Update(&sha256, buffer, len);
 	SHA256_Final(result, &sha256);
-	return result;
+	return 0;
 }
 
 
-int upack_get_inner_hash(const char *arcname, const char *subarc_name, char *file, int method) {
+int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subarc_name, char *file, int method) {
 	/* stub */
 
 	int size = upack_get_file_size(arcname, subarc_name, file);
@@ -480,19 +479,19 @@ int upack_get_inner_hash(const char *arcname, const char *subarc_name, char *fil
 		upack_extract_inner_file_to_memory(buffer, arcname, subarc_name, file, size);
 
 		/* compute hash */
-		uint8_t result;
+//		uint8_t result[SHA256_DIGEST_LENGTH]; //  FIXME: MD5 length?
 		switch(method) {
 			case method_MD5: {
-				result = get_md5(buffer, size);
+				get_md5(result, buffer, size);
 				break;
 			}
 			case method_SHA256:
-				result = get_sha256(buffer, size);
+				get_sha256(result, buffer, size);
 				break;
 		}
 	/* -- hash end -- */
 
-		return result;
+		return 0;
 	} else {
 		/* error */
 		return -1;

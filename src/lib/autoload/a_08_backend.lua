@@ -48,9 +48,9 @@ local ls = ls
 local md5_file = md5_file
 local sha256_file = sha256_file
 -- local test_extract = test_extract
-local extract_inner_archive = extract_inner_archive
-local get_file_size = get_file_size
-local get_file_content = get_file_content
+local upack_extract_inner_file = upack_extract_inner_file
+local upack_get_file_size = upack_get_file_size
+local upack_get_file_content = upack_get_file_content
 local DBG = DBG
 local WARN = WARN
 local ERROR = ERROR
@@ -456,14 +456,13 @@ function pkg_unpack(package_path)
 	-- We do not need temp directory, so let's just use s2dir (renamed to just dir)
 	utils.mkdirp(syscnf.pkg_unpacked_dir)
 	local dir = mkdtemp(syscnf.pkg_unpacked_dir)
-	extract_inner_archive(package_path, "control", dir)
-	extract_inner_archive(package_path, "data", dir)
+	upack_extract_inner_file(package_path, "control", dir)
+	upack_extract_inner_file(package_path, "data", dir)
 
 
-	get_file_size(package_path, "control", "conffiles")
+	upack_get_file_size(package_path, "control", "conffiles")
 
-	
-	local data = get_file_content(package_path, "control", "conffiles")
+	local data = upack_get_file_content(package_path, "control", "conffiles")
 
 	print("(((in Lua, data)))\n" .. data .. "---")
 

@@ -58,6 +58,6 @@ enum hashing_method {
  * METHOD:	MD5
  * 			SHA256
  */
-int upack_get_inner_hash(const char *arcname, const char *subarc_name, char *file, int method);
+int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subarc_name, char *file, int method);
 
 #endif

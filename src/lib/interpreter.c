@@ -633,18 +633,20 @@ static int lua_copy(lua_State *L) {
 	return 0;
 }
 
-static int lua_extract_inner_archive(lua_State *L) {
+static int lua_upack_extract_inner_file(lua_State *L) {
 	const char *arc_name = luaL_checkstring(L, 1);
 	const char *subarc_name = luaL_checkstring(L, 2);
 	const char *path = luaL_checkstring(L, 3);
-	int r = upack_extract_inner_file(arc_name, subarc_name, path);
+	int ret = upack_extract_inner_file(arc_name, subarc_name, path);
+
+	printf("\n***** extract inner file called, returned %d\n*****\n", ret);
 
 	/* TODO: error handling */
 	/* TODO: return something sensible to lua? */
 	return 0;
 }
 
-static int lua_get_file_size(lua_State *L) {
+static int lua_upack_get_file_size(lua_State *L) {
 	/* Returns -1 if file is not found in archive */
 	const char *arc_name = luaL_checkstring(L, 1);
 	const char *subarc_name = luaL_checkstring(L, 2);
@@ -656,7 +658,7 @@ static int lua_get_file_size(lua_State *L) {
 	return 1;
 }
 
-static int lua_get_file_content(lua_State *L) {
+static int lua_upack_get_file_content(lua_State *L) {
 	const char *arc_name = luaL_checkstring(L, 1);
 	const char *subarc_name = luaL_checkstring(L, 2);
 	const char *path = luaL_checkstring(L, 3);
@@ -953,9 +955,9 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_mkdir, "mkdir" },
 	{ lua_move, "move" },
 	{ lua_copy, "copy" },
-	{ lua_extract_inner_archive, "extract_inner_archive" },
-	{ lua_get_file_size, "get_file_size" },
-	{ lua_get_file_content, "get_file_content" },
+	{ lua_upack_extract_inner_file, "upack_extract_inner_file" },
+	{ lua_upack_get_file_size, "upack_get_file_size" },
+	{ lua_upack_get_file_content, "upack_get_file_content" },
 	{ lua_ls, "ls" },
 	{ lua_stat, "stat" },
 	{ lua_lstat, "lstat" },
