@@ -1,0 +1,24 @@
+Package: dep_prov
+Version: 1
+License: GPL-2.0
+Section: none
+Provides: dep
+Architecture: all
+Installed-Size: 0
+Filename: dep_prov.ipk
+MD5Sum: 8788b2811ed9ddfc3d124495ec294d89
+SHA256sum: 127c1ebf9503b6550db10e638eaf5688edf2866f0051884d0b480a94901a1a51
+Description:  Example package
+
+Package: pkg
+Version: 1
+License: GPL-2.0
+Depends: dep
+Section: none
+Architecture: all
+Installed-Size: 0
+Filename: pkg.ipk
+MD5Sum: 0db5453803a4c1909bfacb7b2f9e3841
+SHA256sum: e8a86b957a98669f8f01eaf8dd00acb25fd4794c7842f7987192e6b2812f71a1
+Description:  Example package
+

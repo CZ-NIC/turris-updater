@@ -35,6 +35,7 @@ local mkdir = mkdir
 local stat = stat
 local events_wait = events_wait
 local run_util = run_util
+local uri = require "uri"
 
 
 local print = print
@@ -43,7 +44,7 @@ local print = print
 
 module "utils"
 
--- luacheck: globals lines2set map set2arr arr2set cleanup_dirs dir_ensure mkdirp read_file write_file clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay randstr arr_prune arr_inv file_exists
+-- luacheck: globals lines2set map set2arr arr2set cleanup_dirs dir_ensure mkdirp read_file write_file clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay randstr arr_prune arr_inv file_exists uri_syste_cas uri_no_crl uri_config uri_content
 
 --[[
 Convert provided text into set of lines. Doesn't care about the order.
@@ -376,6 +377,64 @@ function file_exists(name)
 	else
 		return false
 	end
+end
+
+--[[
+This function applies given table of configuration to given uri object.
+This is here because we need bridge between old approach of using lua tables and
+approach of inherited settings in uri object.
+For full support of all fields see language documentation, section Verification.
+Any field that is not set in table is ignored (configuration is not changed).
+]]
+function uri_config(uriobj, config)
+	local function wrap(val)
+		if type(val) == "table" then
+			return val
+		elseif type(val) == "boolean" then
+			return {}
+		else
+			return {val}
+		end
+	end
+
+	if config.ca ~= nil then
+		uriobj:set_ssl_verify(config.ca)
+		uriobj:add_ca(nil)
+		for _, ca in pairs(wrap(config.ca)) do
+			uriobj:add_ca(ca)
+		end
+	end
+	if config.crl ~= nil then
+		uriobj:add_crl(nil)
+		for _, crl in pairs(wrap(config.crl)) do
+			uriobj:add_crl(crl)
+		end
+	end
+	if config.ocsp ~= nil then
+		uriobj:set_ocsp(config.ocsp)
+	end
+	if config.pubkey ~= nil then
+		uriobj:add_pubkey(nil)
+		for _, pubkey in pairs(wrap(config.pubkey)) do
+			uriobj:add_pubkey(pubkey)
+		end
+	end
+	if config.sig ~= nil then
+		uriobj:set_sig(config.sig)
+	end
+end
+
+-- Get content of given URI
+-- It returns downloaded content as first argument and uri object as second (which
+-- can be used as a parent to other uris)
+function uri_content(struri, parent, config)
+	local master = uri.new()
+	local u = master:to_buffer(struri, parent)
+	uri_config(u, config)
+	if master:download() then
+		error("URI download failed: " .. u:download_error())
+	end
+	return u:finish(), u
 end
 
 return _M
