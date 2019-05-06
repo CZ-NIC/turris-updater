@@ -436,6 +436,19 @@ static bool verify_signature_against(const struct uri* uri, const char *fcontent
 }
 
 static bool verify_signature_gz(struct uri *uri) {
+
+	printf("info:\n\ttype: %d\n\n\n", uri->output_type);
+//	printf("we are looking for: %d\n", URI_OUT_T_BUFFER);
+	if (uri->output_type == URI_OUT_T_BUFFER) {
+		printf("\tchars: '%c'-'%c'\n", uri->output_info.buf.data[0], uri->output_info.buf.data[1]);
+	}
+
+	return(true);
+
+
+// end of download file
+
+
 	DIE("GZIP content signature verification not fully implemented!"); // TODO implement and drop
 	char *fcontent = strdup("/tmp/updater-temp-gz-XXXXXX");
 	// TODO generate random name for fcontent. Do we want to do it with fdopen?
@@ -498,8 +511,25 @@ static bool verify_signature(struct uri *uri) {
 	uri->sig_uri = NULL;
 	list_pubkey_collect(uri->pubkey);
 
-	bool verified = verify_signature_plain(uri);
+	bool verified;
+
+	verified = verify_signature_plain(uri);
+	// BB debug
+	printf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n_----_----VERIFY SIGNATURE----:----:\n");
+	printf("URI:'%s'\n\n", uri->uri);
+	printf("verified: %d\n", verified);
+	verify_signature_gz(uri);
 	// TODO check if content starts with 0x1f8b and if so run verify_signature_gz
+	
+	printf("\tchars: '%c'-'%c'\n", uri->output_info.buf.data[0], uri->output_info.buf.data[1]);
+
+	if (uri->output_type == URI_OUT_T_BUFFER &&
+		uri->output_info.buf.data[0] == 0x1f &&
+		uri->output_info.buf.data[1] == 0x8b) {
+		verified = verify_signature_gz(uri);
+	} else {
+		verified = verify_signature_plain(uri);
+	}
 
 	free(uri->sig_uri_file);
 	uri->sig_uri_file = NULL;
