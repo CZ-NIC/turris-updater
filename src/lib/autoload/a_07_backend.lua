@@ -452,76 +452,17 @@ TODO:
 -- First we duplicate old functionality, to keep the rewrite simple
 function pkg_unpack(package_path)
 
-
-	-- We do not need temp directory, so let's just use s2dir (renamed to just dir)
-	utils.mkdirp(syscnf.pkg_unpacked_dir)
+	-- We do not need temp directory, so let's just use dir
 	local dir = mkdtemp(syscnf.pkg_unpacked_dir)
 	upack_extract_inner_file(package_path, "control", dir)
 	upack_extract_inner_file(package_path, "data", dir)
-
-
 	upack_get_file_size(package_path, "control", "conffiles")
-
 	local data = upack_get_file_content(package_path, "control", "conffiles")
 
 	print("(((in Lua, data)))\n" .. data .. "---")
 
 	return dir
 end
-
---[[
-function pkg_unpack(package_path)
-	INFO("a_08/pkg_unpack")
-	-- The first unpack goes into the /tmp
-	-- We assume s1dir returs sane names of directories ‒ no spaces or strange chars in them
-	local s1dir = mkdtemp()
-	-- The results go into the provided dir, or to /tmp if none was provided
-	utils.mkdirp(syscnf.pkg_unpacked_dir)
-	local s2dir = mkdtemp(syscnf.pkg_unpacked_dir)
-	-- If anything goes wrong, this is where we find the error message
-	local err
-	-- Unpack the ipk into s1dir, getting control.tar.gz and data.tar.gz
-	local function stage1()
-		events_wait(run_util(function (ecode, _, _, stderr)
-			if ecode ~= 0 then
-				err = "Stage 1 unpack failed: " .. stderr
-			end
-		end, nil, nil, cmd_timeout, cmd_kill_timeout, "tar", "-xzf", package_path, "-C", s1dir))
-		-- TODO: Sanity check debian-binary
-		return err == nil
-	end
-	-- Unpack the control.tar.gz and data.tar.gz under respective subdirs in s2dir
-	local function unpack_archive(what)
-	INFO("a_08/unpack_archive")
-		local archive = s1dir .. "/" .. what .. ".tar.gz"
-		local dir = s2dir .. "/" .. what
-		test_extract(archive, dir)
-		mkdir(dir)
-		return run_util(function (ecode, _, _, stderr)
-			if ecode ~= 0 then
-				err = "Stage 2 unpack of " .. what .. " failed: " .. stderr
-			end
-		end, nil, nil, cmd_timeout, cmd_kill_timeout, "tar", "-xzf", archive, '-C', dir)
-	end
-	local function stage2()
-		events_wait(unpack_archive("control"), unpack_archive("data"))
-		return err == nil
-	end
-	-- Try-finally like construct, make sure cleanup is called no matter what
-	local success, ok = pcall(function () return stage1() and stage2() end)
-	-- Intermediate work space, not needed by the caller
-	rmrf(s1dir)
-	if err then
-		-- Clean up the resulting directory in case of errors
-		rmrf(s2dir)
-	end
-	-- Cleanup done, call error() if anything failed
-	if not success then error(ok) end
-	if not ok then error(err) end
-	-- Everything went well. So return path to the directory where the package is unpacked
-	return s2dir
-end
-]]--
 
 --[[
 Look into the dir with unpacked package (the one containing control and data subdirs).

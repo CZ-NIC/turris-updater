@@ -469,7 +469,7 @@ static int get_sha256(uint8_t *result, const char *buffer, int len) {
 	return 0;
 }
 
-int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subarc_name, char *file, int method) {
+int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subarc_name, char *file, enum hashing_method method) {
 	/* stub */
 
 	int size = upack_get_file_size(arcname, subarc_name, file);
@@ -484,9 +484,10 @@ int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subar
 				get_md5(result, buffer, size);
 				break;
 			}
-			case method_SHA256:
+			case method_SHA256: {
 				get_sha256(result, buffer, size);
 				break;
+			}
 		}
 	/* -- hash end -- */
 
