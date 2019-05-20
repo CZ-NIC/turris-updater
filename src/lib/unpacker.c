@@ -453,6 +453,95 @@ and also append subarcname to path
 	return -1;
 }
 
+int extract_archive(const char *arcname, const char *path){
+	struct archive *a;
+	struct archive *ext;
+	struct archive_entry *entry;
+	int flags;
+	int r;
+
+	/* Select which attributes we want to restore. */
+	flags = ARCHIVE_EXTRACT_TIME;
+	flags |= ARCHIVE_EXTRACT_PERM;
+	flags |= ARCHIVE_EXTRACT_ACL;
+	flags |= ARCHIVE_EXTRACT_FFLAGS;
+
+// TODO: change path to `path`
+// TODO: check for `arcname` existence
+
+
+// check for existing dir
+	struct stat sb;
+	lstat(path, &sb);
+/*	
+	if (lstat(path, &sb) == -1) {
+		printf("error\n");
+		perror("lstat");
+		return -1;
+	}
+*/
+
+printf("Mode: %d\n", sb.st_mode);
+// TODO: support links also
+	if (!S_ISDIR(sb.st_mode)) {
+		printf("this is not dir\n");
+
+	// If path does not exists, let's create it
+		if (access(path, F_OK) != 0) {
+			printf("make dir now\n");
+			mkdir(path, 0700);
+		} else {
+			printf("This is not a dir, but something that exists, problem!\n");
+			// TODO: error
+		}
+	}
+
+
+	a = archive_read_new();
+	archive_read_support_format_all(a);
+	archive_read_support_filter_all(a);
+	ext = archive_write_disk_new();
+	archive_write_disk_set_options(ext, flags);
+	archive_write_disk_set_standard_lookup(ext);
+	if ((r = archive_read_open_filename(a, arcname, 10240)))
+		return -1;
+
+
+// move to target dir
+	r = chdir(path);
+	
+	
+	for (;;) {
+	r = archive_read_next_header(a, &entry);
+	if (r == ARCHIVE_EOF)
+		break;
+	if (r < ARCHIVE_OK)
+		fprintf(stderr, "%s\n", archive_error_string(a));
+	if (r < ARCHIVE_WARN)
+		return -1;
+	r = archive_write_header(ext, entry);
+	if (r < ARCHIVE_OK)
+		fprintf(stderr, "%s\n", archive_error_string(ext));
+	else if (archive_entry_size(entry) > 0) {
+		r = copy_data(a, ext);
+		if (r < ARCHIVE_OK)
+			fprintf(stderr, "%s\n", archive_error_string(ext));
+		if (r < ARCHIVE_WARN)
+			return -1;
+	}
+	r = archive_write_finish_entry(ext);
+	if (r < ARCHIVE_OK)
+		fprintf(stderr, "%s\n", archive_error_string(ext));
+	if (r < ARCHIVE_WARN)
+		return -1;
+	}
+	archive_read_close(a);
+	archive_read_free(a);
+	archive_write_close(ext);
+	archive_write_free(ext);
+	return 0;
+}
+
 static int get_md5(uint8_t *result, const char *buffer, int len) {
 	MD5_CTX md5;
 	MD5_Init(&md5);

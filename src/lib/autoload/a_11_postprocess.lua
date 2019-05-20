@@ -36,11 +36,19 @@ local utils = require "utils"
 local backend = require "backend"
 local requests = require "requests"
 
+local INFO = INFO
+
+
 module "postprocess"
 
 -- luacheck: globals get_repos deps_canon conflicts_canon available_packages pkg_aggregate run sort_candidates
 
 local function repo_parse(repo)
+
+INFO("\n\n\n==================repo_parse()=================\n")
+
+
+
 	repo.tp = 'parsed-repository'
 	repo.content = {}
 	local name = repo.name .. "/" .. repo.index_uri:uri()
@@ -48,6 +56,10 @@ local function repo_parse(repo)
 	local index = repo.index_uri:finish() -- TODO error?
 	if index:sub(1, 2) == string.char(0x1F, 0x8B) then -- compressed index
 		DBG("Decompressing index " .. name)
+
+INFO("\n\n\n==================repo_parse()=================\n")
+INFO(name .. "\n\n\n");
+
 		local extr = run_util(function (ecode, _, stdout, stderr)
 				if ecode ~= 0 then
 					error(utils.exception('repo broken', "Couldn't decompress " .. name .. ": " .. stderr))
@@ -94,6 +106,11 @@ local function repos_failed_download(uri_fail)
 end
 
 function get_repos()
+
+-- BB
+
+INFO("\n\n\n\n\n\n\nGET_REPOS()")
+
 	DBG("Downloading repositories indexes")
 	-- Run download
 	while true do

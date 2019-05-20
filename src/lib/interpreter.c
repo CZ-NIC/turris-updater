@@ -635,6 +635,17 @@ static int lua_copy(lua_State *L) {
 	return 0;
 }
 
+
+/*
+ * libarchive functions
+ */
+
+static int lua_upack_extract_file(lua_State *L) {
+	const char *arc_name = luaL_checkstring(L, 1);
+	const char *path = luaL_checkstring(L, 2);
+	int ret = upack_extract_file(arc_name, path);
+}
+
 static int lua_upack_extract_inner_file(lua_State *L) {
 	const char *arc_name = luaL_checkstring(L, 1);
 	const char *subarc_name = luaL_checkstring(L, 2);
