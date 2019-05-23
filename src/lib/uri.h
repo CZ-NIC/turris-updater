@@ -84,6 +84,7 @@ struct uri {
 	bool finished;
 	char *uri; // Uri string in canonical format
 
+	bool auto_unpack;
 	// HTTPS options
 	bool ssl_verify; // If SSL should be verified
 	bool ocsp; // If OCSP should be used for ceritification validity check

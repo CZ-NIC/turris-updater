@@ -453,7 +453,7 @@ and also append subarcname to path
 	return -1;
 }
 
-int extract_archive(const char *arcname, const char *path){
+int upack_extract_archive(const char *arcname, const char *path){
 	struct archive *a;
 	struct archive *ext;
 	struct archive_entry *entry;
@@ -491,8 +491,9 @@ printf("Mode: %d\n", sb.st_mode);
 			printf("make dir now\n");
 			mkdir(path, 0700);
 		} else {
-			printf("This is not a dir, but something that exists, problem!\n");
 			// TODO: error
+			printf("This is not a dir, but something that exists, problem!\n");
+			return -1;
 		}
 	}
 

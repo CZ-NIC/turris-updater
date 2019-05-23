@@ -258,6 +258,12 @@ static int lua_uri_output_path(lua_State *L) {
 	return 1;
 }
 
+static int lua_uri_set_auto_unpack(lua_State *L) {
+	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
+	uri_set_auto_unpack(uri->uri, lua_toboolean(L, 2));
+	return 0;
+}
+
 static int lua_uri_set_ssl_verify(lua_State *L) {
 	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
 	uri_set_ssl_verify(uri->uri, lua_toboolean(L, 2));
@@ -332,6 +338,7 @@ static const struct inject_func uri_meta[] = {
 	{ lua_uri_is_local, "is_local" },
 	{ lua_uri_path, "path" },
 	{ lua_uri_output_path, "output_path" },
+	{ lua_uri_set_auto_unpack, "set_auto_unpack" },
 	{ lua_uri_set_ssl_verify, "set_ssl_verify" },
 	{ lua_uri_add_ca, "add_ca" },
 	{ lua_uri_add_crl, "add_crl" },

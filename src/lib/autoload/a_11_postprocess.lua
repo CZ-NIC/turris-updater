@@ -57,7 +57,7 @@ INFO("\n\n\n==================repo_parse()=================\n")
 	if index:sub(1, 2) == string.char(0x1F, 0x8B) then -- compressed index
 		DBG("Decompressing index " .. name)
 
-INFO("\n\n\n==================repo_parse()=================\n")
+INFO("\n\n\n==================repo_parse()=in=if================\n")
 INFO(name .. "\n\n\n");
 
 		local extr = run_util(function (ecode, _, stdout, stderr)

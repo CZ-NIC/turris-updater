@@ -209,6 +209,7 @@ static struct uri *uri_new(const char *uri_str, const struct uri *parent) {
 	ret->sig_uri = NULL;
 #define SET(X, DEF) do { if (parent) ret->X = parent->X; else ret->X = DEF; } while (false);
 #define SET_LIST(X) do { SET(X, NULL); list_refup(ret->X); } while (false);
+	SET(auto_unpack, false);
 	SET(ssl_verify, true);
 	SET(ocsp, true);
 	SET_LIST(ca);
@@ -513,15 +514,11 @@ static bool verify_signature(struct uri *uri) {
 
 	bool verified;
 
-	verified = verify_signature_plain(uri);
-	// BB debug
 	printf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n_----_----VERIFY SIGNATURE----:----:\n");
 	printf("URI:'%s'\n\n", uri->uri);
-	printf("verified: %d\n", verified);
-	verify_signature_gz(uri);
-	// TODO check if content starts with 0x1f8b and if so run verify_signature_gz
-	
 	printf("\tchars: '%c'-'%c'\n", uri->output_info.buf.data[0], uri->output_info.buf.data[1]);
+
+	// TODO: check also for uri->auto_unpack, but what to do then?
 
 	if (uri->output_type == URI_OUT_T_BUFFER &&
 		uri->output_info.buf.data[0] == 0x1f &&
@@ -531,6 +528,12 @@ static bool verify_signature(struct uri *uri) {
 		verified = verify_signature_plain(uri);
 	}
 
+	
+	// BB debug
+	printf("verified: %d\n", verified);
+	
+
+
 	free(uri->sig_uri_file);
 	uri->sig_uri_file = NULL;
 	if (!verified)
@@ -539,6 +542,7 @@ static bool verify_signature(struct uri *uri) {
 }
 
 bool uri_finish(struct uri *uri) {
+	printf("\n\n\n\n\n\nuri_finish called with '%s', %d\n", uri->uri, uri->finished);
 	if (uri->finished)
 		return true; // Ignore if this is alredy finished
 	TRACE("URI finish: %s", uri->uri);
@@ -605,6 +609,12 @@ const char *uri_scheme_string(enum uri_scheme scheme) {
 
 #define CONFIG_GUARD ASSERT_MSG(!uri->download_instance && !uri->finished, \
 		"(%s) URI configuration can't be changed after uri_register_downloader and uri_finish", uri->uri)
+
+void uri_set_auto_unpack(struct uri *uri, bool unpack) {
+	CONFIG_GUARD;
+	TRACE("URI auto unpack (%s): $%s", uri->uri, STRBOOL(unpack));
+	uri->auto_unpack = unpack;
+}
 
 void uri_set_ssl_verify(struct uri *uri, bool verify) {
 	CONFIG_GUARD;

@@ -454,6 +454,8 @@ function pkg_unpack(package_path)
 
 	-- We do not need temp directory, so let's just use dir
 	local dir = mkdtemp(syscnf.pkg_unpacked_dir)
+	print("sys:" .. syscnf.pkg_unpacked_dir)
+	print("dir:" .. tostring(dir))
 	upack_extract_inner_file(package_path, "control", dir)
 	upack_extract_inner_file(package_path, "data", dir)
 	upack_get_file_size(package_path, "control", "conffiles")
