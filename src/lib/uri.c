@@ -388,6 +388,22 @@ static bool uri_finish_file(struct uri *uri) {
 
 static const char *data_param_base64 = "base64";
 
+static bool is_archive(struct uri *uri) {
+	switch (uri->output_type) {
+		case URI_OUT_T_FILE:
+		case URI_OUT_T_TEMP_FILE:
+			// TODO
+			break;
+		case URI_OUT_T_BUFFER:
+			return (
+				uri->output_info.buf.data[0] == 0x1f &&
+				uri->output_info.buf.data[1] == 0x8b
+			);
+		default:
+			DIE("Unsupported output type in is_archive. This should not happen.");
+	}
+}
+
 static bool uri_finish_data(struct uri *uri) {
 	char *start = uri->uri + 5;
 	// Parameters
@@ -439,7 +455,7 @@ static bool verify_signature_against(const struct uri* uri, const char *fcontent
 static bool verify_signature_gz(struct uri *uri) {
 
 	printf("info:\n\ttype: %d\n\n\n", uri->output_type);
-//	printf("we are looking for: %d\n", URI_OUT_T_BUFFER);
+	printf("we are looking for: %d\n", URI_OUT_T_BUFFER);
 	if (uri->output_type == URI_OUT_T_BUFFER) {
 		printf("\tchars: '%c'-'%c'\n", uri->output_info.buf.data[0], uri->output_info.buf.data[1]);
 	}
@@ -502,8 +518,8 @@ static bool verify_signature(struct uri *uri) {
 	printf("VS#1\n");
 	if (!uri->pubkey) // no keys means no verification
 		return true;
+	printf("VS#2: '%s'\n", uri->uri);
 	printf("VS#2: '%s'\n", uri->sig_uri);
-	printf("----: '%d'\n", uri_finish(uri->sig_uri));
 	ASSERT_MSG(uri->sig_uri, "Signature uri should be set if public keys are provided");
 	if (!uri_finish(uri->sig_uri)) {
 		uri_sub_errno = uri_errno;
@@ -518,15 +534,13 @@ static bool verify_signature(struct uri *uri) {
 
 	bool verified;
 
-	printf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n_----_----VERIFY SIGNATURE----:----:\n");
+	printf("n\n_----_----VERIFY SIGNATURE----:----:\n");
 	printf("URI:'%s'\n\n", uri->uri);
 	printf("\tchars: '%c'-'%c'\n", uri->output_info.buf.data[0], uri->output_info.buf.data[1]);
 
 	// TODO: check also for uri->auto_unpack, but what to do then?
-
-	if (uri->output_type == URI_OUT_T_BUFFER &&
-		uri->output_info.buf.data[0] == 0x1f &&
-		uri->output_info.buf.data[1] == 0x8b) {
+	if (is_archive(uri)) {
+		printf("magic bytes matched, calling verify signature gz\n");
 		verified = verify_signature_gz(uri);
 	} else {
 		verified = verify_signature_plain(uri);
@@ -584,7 +598,7 @@ bool uri_finish(struct uri *uri) {
 		uri->download_instance = NULL;
 	}
 	uri->finished = true;
-	printf("calling varify_signature\n");
+	printf("calling verify_signature\n");
 	return verify_signature(uri);
 }
 
@@ -776,11 +790,16 @@ bool uri_set_sig(struct uri *uri, const char *sig_uri) {
 		uri_free(uri->sig_uri);
 
 	if (!sig_uri) {
-		int len = strlen(uri->uri);
+		int pos = strlen(uri->uri) - 3;
+		char changed = '\0';
 		// Remove .gz if present, signature matches unpacked file
-		if (!strcmp(uri->uri + len - 3, ".gz"))
-			uri->uri[len - 3] = NULL;
+		if (!strcmp(uri->uri + pos, ".gz")) {
+			changed = uri->uri[pos];
+			uri->uri[pos] = '\0';
+		}
 		sig_uri = aprintf("%s.sig", uri->uri);
+		if (changed)
+			uri->uri[pos] = changed;
 	}
 	uri->sig_uri_file = strdup(TMP_TEMPLATE_SIGNATURE_FILE);
 	uri->sig_uri = uri_to_temp_file(sig_uri, uri->sig_uri_file, uri);
