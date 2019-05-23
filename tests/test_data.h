@@ -31,7 +31,9 @@ const char *get_sdir();
 #define LOREM_IPSUM_SHORT_SIZE 12
 #define HTTP_LOREM_IPSUM_SHORT ( HTTP_APPLICATION_TEST "/li.txt" )
 #define HTTP_LOREM_IPSUM ( HTTP_APPLICATION_TEST "/lorem_ipsum.txt" )
+#define HTTP_LOREM_IPSUM_GZ ( HTTP_LOREM_IPSUM ".gz" )
 #define HTTPS_LOREM_IPSUM_SHORT ( HTTPS_APPLICATION_TEST "/li.txt" )
+#define HTTPS_LOREM_IPSUM_SHORT_GZ ( HTTPS_LOREM_IPSUM_SHORT ".gz" )
 #define HTTPS_LOREM_IPSUM ( HTTPS_APPLICATION_TEST "/lorem_ipsum.txt" )
 #define FILE_LOREM_IPSUM_SHORT aprintf("%s/tests/data/lorem_ipsum_short.txt", get_sdir())
 #define FILE_LOREM_IPSUM aprintf("%s/tests/data/lorem_ipsum.txt", get_sdir())
