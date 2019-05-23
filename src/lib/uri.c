@@ -499,8 +499,11 @@ static bool verify_signature_plain(struct uri *uri) {
 }
 
 static bool verify_signature(struct uri *uri) {
+	printf("VS#1\n");
 	if (!uri->pubkey) // no keys means no verification
 		return true;
+	printf("VS#2: '%s'\n", uri->sig_uri);
+	printf("----: '%d'\n", uri_finish(uri->sig_uri));
 	ASSERT_MSG(uri->sig_uri, "Signature uri should be set if public keys are provided");
 	if (!uri_finish(uri->sig_uri)) {
 		uri_sub_errno = uri_errno;
@@ -508,6 +511,7 @@ static bool verify_signature(struct uri *uri) {
 		uri_errno = URI_E_SIG_FAIL;
 		return false;
 	}
+	printf("VS#3");
 	uri_free(uri->sig_uri);
 	uri->sig_uri = NULL;
 	list_pubkey_collect(uri->pubkey);
@@ -542,7 +546,7 @@ static bool verify_signature(struct uri *uri) {
 }
 
 bool uri_finish(struct uri *uri) {
-	printf("\n\n\n\n\n\nuri_finish called with '%s', %d\n", uri->uri, uri->finished);
+	printf("\nuri_finish called with '%s', %d\n", uri->uri, uri->finished);
 	if (uri->finished)
 		return true; // Ignore if this is alredy finished
 	TRACE("URI finish: %s", uri->uri);
@@ -580,6 +584,7 @@ bool uri_finish(struct uri *uri) {
 		uri->download_instance = NULL;
 	}
 	uri->finished = true;
+	printf("calling varify_signature\n");
 	return verify_signature(uri);
 }
 
@@ -770,8 +775,13 @@ bool uri_set_sig(struct uri *uri, const char *sig_uri) {
 	if (uri->sig_uri) // Free any previous uri
 		uri_free(uri->sig_uri);
 
-	if (!sig_uri)
+	if (!sig_uri) {
+		int len = strlen(uri->uri);
+		// Remove .gz if present, signature matches unpacked file
+		if (!strcmp(uri->uri + len - 3, ".gz"))
+			uri->uri[len - 3] = NULL;
 		sig_uri = aprintf("%s.sig", uri->uri);
+	}
 	uri->sig_uri_file = strdup(TMP_TEMPLATE_SIGNATURE_FILE);
 	uri->sig_uri = uri_to_temp_file(sig_uri, uri->sig_uri_file, uri);
 	if (!uri->sig_uri)
