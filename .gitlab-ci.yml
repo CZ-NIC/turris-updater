@@ -10,7 +10,7 @@ stages:
 .build:
   stage: build
   script:
-    - make
+    - make NO_DOC=1
 
 build-debian-stable:
   extends: .build

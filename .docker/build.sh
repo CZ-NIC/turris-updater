@@ -1,7 +1,13 @@
 #!/bin/sh
+set -e
 cd "$(dirname "$(readlink -f "$0")")"
+registry="registry.labs.nic.cz/turris/updater/updater"
 
-for file in DockerFile_*; do
-	tag="${file#DockerFile_}"
-	docker build -t "registry.labs.nic.cz/turris/updater/updater:$tag" - < "$file"
-done
+img() {
+	local file="DockerFile_$1"
+	local tag="$2"
+	shift 2
+	docker build "$@" -t "$registry:$tag" - < "$file"
+}
+
+. ./images.sh
