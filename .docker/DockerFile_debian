@@ -1,5 +1,4 @@
 # Container for compilation test against system used on build servers
-
 FROM debian:stable
 
 ENV HOME /root
@@ -8,12 +7,12 @@ RUN \
   apt-get update && \
   apt-get -y upgrade && \
   apt-get -y install --no-install-recommends \
-      ca-certificates curl git bzip2 \
-      make cmake pkg-config gcc \
-      libcurl4-openssl-dev libevent-dev libssl-dev liburiparser-dev \
-      libb64-dev uthash-dev \
-      liblua5.1-0-dev \
-      asciidoc && \
+    ca-certificates curl git bzip2 \
+    make cmake pkg-config gcc \
+    libcurl4-openssl-dev libevent-dev libssl-dev liburiparser-dev \
+    libb64-dev uthash-dev \
+    liblua5.1-0-dev \
+    && \
   apt-get clean
 
 CMD [ "bash" ]

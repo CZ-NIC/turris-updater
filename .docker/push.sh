@@ -1,6 +1,10 @@
 #!/bin/sh
+set -ex
 cd "$(dirname "$(readlink -f "$0")")"
+registry="registry.labs.nic.cz/turris/updater/updater"
 
-for file in DockerFile_*; do
-	docker push "registry.labs.nic.cz/turris/updater/updater:${file#DockerFile_}"
-done
+img() {
+	docker push "$registry:$2"
+}
+
+. ./images.sh
