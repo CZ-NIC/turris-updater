@@ -389,10 +389,18 @@ static bool uri_finish_file(struct uri *uri) {
 static const char *data_param_base64 = "base64";
 
 static bool is_archive(struct uri *uri) {
+	FILE *f;
+	char buf[2];
 	switch (uri->output_type) {
 		case URI_OUT_T_FILE:
 		case URI_OUT_T_TEMP_FILE:
-			// TODO
+			f = fopen(uri->output_info.fpath, "r");
+			fread(buf, 1, sizeof buf, f);
+			fclose(f);
+			return (
+				buf[0] == 0x1f &&
+				buf[1] == 0x8b
+			);
 			break;
 		case URI_OUT_T_BUFFER:
 			return (
@@ -515,11 +523,8 @@ static bool verify_signature_plain(struct uri *uri) {
 }
 
 static bool verify_signature(struct uri *uri) {
-	printf("VS#1\n");
 	if (!uri->pubkey) // no keys means no verification
 		return true;
-	printf("VS#2: '%s'\n", uri->uri);
-	printf("VS#2: '%s'\n", uri->sig_uri);
 	ASSERT_MSG(uri->sig_uri, "Signature uri should be set if public keys are provided");
 	if (!uri_finish(uri->sig_uri)) {
 		uri_sub_errno = uri_errno;
@@ -527,7 +532,6 @@ static bool verify_signature(struct uri *uri) {
 		uri_errno = URI_E_SIG_FAIL;
 		return false;
 	}
-	printf("VS#3");
 	uri_free(uri->sig_uri);
 	uri->sig_uri = NULL;
 	list_pubkey_collect(uri->pubkey);
@@ -536,8 +540,6 @@ static bool verify_signature(struct uri *uri) {
 
 	printf("n\n_----_----VERIFY SIGNATURE----:----:\n");
 	printf("URI:'%s'\n\n", uri->uri);
-	printf("\tchars: '%c'-'%c'\n", uri->output_info.buf.data[0], uri->output_info.buf.data[1]);
-
 	// TODO: check also for uri->auto_unpack, but what to do then?
 	if (is_archive(uri)) {
 		printf("magic bytes matched, calling verify signature gz\n");
@@ -545,12 +547,9 @@ static bool verify_signature(struct uri *uri) {
 	} else {
 		verified = verify_signature_plain(uri);
 	}
-
 	
 	// BB debug
 	printf("verified: %d\n", verified);
-	
-
 
 	free(uri->sig_uri_file);
 	uri->sig_uri_file = NULL;
