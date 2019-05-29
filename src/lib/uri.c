@@ -462,26 +462,17 @@ static bool verify_signature_against(const struct uri* uri, const char *fcontent
 
 static bool verify_signature_gz(struct uri *uri) {
 
-	printf("info:\n\ttype: %d\n\n\n", uri->output_type);
-	printf("we are looking for: %d\n", URI_OUT_T_BUFFER);
-	if (uri->output_type == URI_OUT_T_BUFFER) {
-		printf("\tchars: '%c'-'%c'\n", uri->output_info.buf.data[0], uri->output_info.buf.data[1]);
-	}
+	printf("type(%d): %d\n\n\n", URI_OUT_T_BUFFER, uri->output_type);
 
-	return(true);
-
-
-// end of download file
-
-
-	DIE("GZIP content signature verification not fully implemented!"); // TODO implement and drop
+//	DIE("GZIP content signature verification not fully implemented!"); // TODO implement and drop
 	char *fcontent = strdup("/tmp/updater-temp-gz-XXXXXX");
 	// TODO generate random name for fcontent. Do we want to do it with fdopen?
 	switch (uri->output_type) {
 		case URI_OUT_T_FILE:
 		case URI_OUT_T_TEMP_FILE:
-			// TODO extract content of file uri->output_info.path to temporally file fcontent
-			break;
+			// TODO extract content of file uri->output_info.fpath to temporally file fcontent
+			upack_gz_to_file(uri->output_info.fpath, fcontent);
+		break;
 		case URI_OUT_T_BUFFER:
 			// TODO extract buffer uri->output_info.buf.data of size
 			// uri->output_info.buf.size to temporally file fcontent.

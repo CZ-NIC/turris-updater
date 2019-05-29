@@ -484,20 +484,11 @@ int upack_extract_archive(const char *arcname, const char *path){
 	flags |= ARCHIVE_EXTRACT_ACL;
 	flags |= ARCHIVE_EXTRACT_FFLAGS;
 
-// TODO: change path to `path`
 // TODO: check for `arcname` existence
-
 
 // check for existing dir
 	struct stat sb;
 	lstat(path, &sb);
-/*	
-	if (lstat(path, &sb) == -1) {
-		printf("error\n");
-		perror("lstat");
-		return -1;
-	}
-*/
 
 printf("Mode: %d\n", sb.st_mode);
 // TODO: support links also
@@ -515,7 +506,6 @@ printf("Mode: %d\n", sb.st_mode);
 		}
 	}
 
-
 	a = archive_read_new();
 	archive_read_support_format_all(a);
 	archive_read_support_filter_all(a);
@@ -528,7 +518,6 @@ printf("Mode: %d\n", sb.st_mode);
 
 // move to target dir
 	r = chdir(path);
-	
 	
 	for (;;) {
 	r = archive_read_next_header(a, &entry);
@@ -558,6 +547,40 @@ printf("Mode: %d\n", sb.st_mode);
 	archive_read_free(a);
 	archive_write_close(ext);
 	archive_write_free(ext);
+	return 0;
+}
+
+int upack_gz_to_file(const char *arcname, const char *path){
+	struct archive *a;
+	struct archive_entry *entry;
+	int flags;
+	int r;
+
+	/* Select which attributes we want to restore. */
+	flags = ARCHIVE_EXTRACT_TIME;
+	flags |= ARCHIVE_EXTRACT_PERM;
+	flags |= ARCHIVE_EXTRACT_ACL;
+	flags |= ARCHIVE_EXTRACT_FFLAGS;
+
+	a = archive_read_new();
+	archive_read_support_format_raw(a);
+	archive_read_support_filter_gzip(a);
+	if ((r = archive_read_open_filename(a, arcname, 10240))) {
+		printf("Error: read_open %s\n", arcname);
+		return -1;
+	}
+	if ((r = archive_read_next_header(a, &entry))) {
+		printf("Error: read_next\n");
+		return -1;
+	}
+	archive_entry_set_pathname(entry, path);
+	if ((r = archive_read_extract(a, entry, flags))) {
+		printf("Error: extract\n");
+		return -1;
+	}
+
+	archive_read_close(a);
+	archive_read_free(a);
 	return 0;
 }
 
