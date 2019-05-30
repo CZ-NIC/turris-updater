@@ -466,16 +466,16 @@ static bool verify_signature_gz(struct uri *uri) {
 
 //	DIE("GZIP content signature verification not fully implemented!"); // TODO implement and drop
 	char *fcontent = strdup("/tmp/updater-temp-gz-XXXXXX");
+	mktemp(fcontent);
+	printf("tmpname: %s\n", fcontent);
 	// TODO generate random name for fcontent. Do we want to do it with fdopen?
 	switch (uri->output_type) {
 		case URI_OUT_T_FILE:
 		case URI_OUT_T_TEMP_FILE:
-			// TODO extract content of file uri->output_info.fpath to temporally file fcontent
-			upack_gz_to_file(uri->output_info.fpath, fcontent);
+			upack_gz_file_to_file(uri->output_info.fpath, fcontent);
 		break;
 		case URI_OUT_T_BUFFER:
-			// TODO extract buffer uri->output_info.buf.data of size
-			// uri->output_info.buf.size to temporally file fcontent.
+			upack_gz_buffer_to_file(uri->output_info.buf.data, uri->output_info.buf.size, fcontent);
 			break;
 		default:
 			DIE("Unsupported output type in verify_signature. This should not happen.");

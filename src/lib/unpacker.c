@@ -549,12 +549,48 @@ printf("Mode: %d\n", sb.st_mode);
 	archive_write_free(ext);
 	return 0;
 }
-
-int upack_gz_to_file(const char *arcname, const char *path){
+int upack_gz_buffer_to_file(void *buff, size_t size, const char *path){
 	struct archive *a;
 	struct archive_entry *entry;
 	int flags;
 	int r;
+
+	/* Select which attributes we want to restore. */
+	flags = ARCHIVE_EXTRACT_TIME;
+	flags |= ARCHIVE_EXTRACT_PERM;
+	flags |= ARCHIVE_EXTRACT_ACL;
+	flags |= ARCHIVE_EXTRACT_FFLAGS;
+
+	a = archive_read_new();
+	archive_read_support_format_raw(a);
+	archive_read_support_filter_gzip(a);
+
+	if ((r = archive_read_open_memory(a, buff, size))) {
+		printf("Error: read_open_memory\n");
+		return -1;
+	}
+	if ((r = archive_read_next_header(a, &entry))) {
+		printf("Error: read_next\n");
+		return -1;
+	}
+	archive_entry_set_pathname(entry, path);
+	if ((r = archive_read_extract(a, entry, flags))) {
+		printf("Error: extract\n");
+		return -1;
+	}
+
+	archive_read_close(a);
+	archive_read_free(a);
+	return 0;
+}
+
+int upack_gz_file_to_file(const char *arcname, const char *path){
+	struct archive *a;
+	struct archive_entry *entry;
+	int flags;
+	int r;
+
+	printf("Extracting %s to %s.\n", arcname, path);
 
 	/* Select which attributes we want to restore. */
 	flags = ARCHIVE_EXTRACT_TIME;
