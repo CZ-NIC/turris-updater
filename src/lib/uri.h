@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "download.h"
+#include "unpacker.h"
 #ifndef __STDC_NO_THREADS__
 #include <threads.h>
 #define THREAD_LOCAL thread_local
