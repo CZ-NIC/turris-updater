@@ -640,26 +640,20 @@ static int lua_copy(lua_State *L) {
  * libarchive functions
  */
 
+/*
 static int lua_upack_extract_archive(lua_State *L) {
 	const char *arc_name = luaL_checkstring(L, 1);
 	const char *path = luaL_checkstring(L, 2);
-	int ret = upack_extract_archive(arc_name, path);
-	printf("\n***** extract archive called, returned %d\n*****\n", ret);
-
-	/* TODO: error handling */
-	/* TODO: return something sensible to lua? */
+	upack_extract_archive(arc_name, path);
 	return 0;
 }
+*/
 
 static int lua_upack_extract_inner_file(lua_State *L) {
 	const char *arc_name = luaL_checkstring(L, 1);
 	const char *subarc_name = luaL_checkstring(L, 2);
 	const char *path = luaL_checkstring(L, 3);
-	int ret = upack_extract_inner_file(arc_name, subarc_name, path);
-
-	printf("\n***** extract inner file called, returned %d\n*****\n", ret);
-
-	/* TODO: error handling */
+	upack_extract_inner_file(arc_name, subarc_name, path);
 	/* TODO: return something sensible to lua? */
 	return 0;
 }

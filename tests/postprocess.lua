@@ -91,15 +91,11 @@ local function assert_repos(index)
 end
 
 function test_get_repos_plain()
-	print "\n\n\n\n\n\n\n\n:::::::::::::::::"
-	print "test_get_repos_plain"
 	requests.repository({}, "test1", "file://" .. sdir .. "tests/data/repo", {index="Packages"})
 	assert_repos("Packages")
 end
 
 function test_get_repos_gzip()
-	print "\n\n\n\n\n\n\n\n:::::::::::::::::"
-	print "test_get_repos_gzip"
 	requests.repository({}, "test1", "file://" .. sdir .. "tests/data/repo", {index="Packages.gz"})
 	assert_repos("Packages.gz")
 end

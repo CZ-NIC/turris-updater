@@ -390,7 +390,7 @@ static const char *data_param_base64 = "base64";
 
 static bool is_archive(struct uri *uri) {
 	FILE *f;
-	char buf[2];
+	int buf[2];
 	switch (uri->output_type) {
 		case URI_OUT_T_FILE:
 		case URI_OUT_T_TEMP_FILE:
@@ -462,7 +462,7 @@ static bool verify_signature_against(const struct uri* uri, const char *fcontent
 
 static bool verify_signature_gz(struct uri *uri) {
 	char *fcontent = strdup("/tmp/updater-temp-gz-XXXXXX");
-	mktemp(fcontent);
+	mkstemp(fcontent);
 	switch (uri->output_type) {
 		case URI_OUT_T_FILE:
 		case URI_OUT_T_TEMP_FILE:

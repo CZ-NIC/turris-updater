@@ -329,7 +329,6 @@ END_TEST
 
 // We use multiple keys here
 START_TEST(uri_sig_verify_valid) {
-	printf("\n\n\n<<<<<<testing sig>>>>>>>\n\n\n");
 	struct uri *u = uri_to_buffer(FILE_LOREM_IPSUM_SHORT, NULL);
 	ck_assert_ptr_nonnull(u);
 	ck_assert(uri_add_pubkey(u, "/dev/null/missing"));
@@ -354,7 +353,6 @@ END_TEST
 
 // Signature of if auto_unpack is set is verified against unzipped data
 START_TEST(uri_sig_verify_valid_gz) {
-	printf("\n\n\n<<<<<<testing GZ sig>>>>>>>\n\n\n");
 	struct uri *u = uri_to_buffer(FILE_LOREM_IPSUM_SHORT_GZ, NULL);
 	uri_set_auto_unpack(u, true);
 	ck_assert_ptr_nonnull(u);
