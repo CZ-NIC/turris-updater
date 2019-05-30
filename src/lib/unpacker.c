@@ -105,49 +105,6 @@ static int get_inner_archive(struct archive *arc, const char* arcname, const cha
 	return -1;
 }
 
-int _extract_file(struct archive *a, const char *filename) {
-	struct archive *ext;
-	struct archive_entry *entry;
-	char name[PATH_MAX];
-	int r;
-	int flags;
-	/* Select which attributes we want to restore. */
-	flags = ARCHIVE_EXTRACT_TIME;
-	flags |= ARCHIVE_EXTRACT_PERM;
-	flags |= ARCHIVE_EXTRACT_ACL;
-	flags |= ARCHIVE_EXTRACT_FFLAGS;
-
-	ext = archive_write_disk_new();
-	archive_write_disk_set_options(ext, flags);
-	archive_write_disk_set_standard_lookup(ext);
-
-	while (archive_read_next_header(a, &entry) == ARCHIVE_OK) {
-		const char *entry_name = archive_entry_pathname(entry);
-		sanitize_filename(name, entry_name);
-		if (strcmp(name, filename) == 0) {
-			r = archive_write_header(ext, entry);
-
-			if (r < ARCHIVE_OK) {
-				fprintf(stderr, "%s\n", archive_error_string(ext));
-				return -1;
-			} else if (archive_entry_size(entry) > 0) {
-				r = copy_data(a, ext);
-				if (r < ARCHIVE_OK) {
-					fprintf(stderr, "%s\n", archive_error_string(ext));
-					return -1;
-				}
-			}
-		}
-	}
-	r = archive_write_finish_entry(ext);
-	if (r < ARCHIVE_OK) {
-		fprintf(stderr, "%s\n", archive_error_string(ext));
-		return -1;
-	}
-	archive_write_close(ext);
-	archive_write_free(ext);
-	return 0;
-}
 
 int extract_files(struct archive *a, char *files[], int count) {
 	struct archive *ext;
@@ -174,13 +131,11 @@ int extract_files(struct archive *a, char *files[], int count) {
 			if (strcmp(name, filename) == 0) {
 				r = archive_write_header(ext, entry);
 				if (r < ARCHIVE_OK) {
-					fprintf(stderr, "%s\n", archive_error_string(ext));
-					return -1;
+					DIE("Cannot write header in extract_files.");
 				} else if (archive_entry_size(entry) > 0) {
 					r = copy_data(a, ext);
 					if (r < ARCHIVE_OK) {
-						fprintf(stderr, "%s\n", archive_error_string(ext));
-						return -1;
+						DIE("Cannot extract file in extract_files.");
 					}
 				}
 			}
@@ -190,8 +145,7 @@ int extract_files(struct archive *a, char *files[], int count) {
 	/* TODO: error checking */
 	r = archive_write_finish_entry(ext);
 	if (r < ARCHIVE_OK) {
-		fprintf(stderr, "%s\n", archive_error_string(ext));
-		return -1;
+		DIE("Cannot close archive in extract_files.");
 	}
 	archive_write_close(ext);
 	archive_write_free(ext);
@@ -226,21 +180,18 @@ int extract_all_files(struct archive *a, const char *dest) {
 	while (archive_read_next_header(a, &entry) == ARCHIVE_OK) {
 		r = archive_write_header(ext, entry);
 		if (r < ARCHIVE_OK) {
-			fprintf(stderr, "%s\n", archive_error_string(ext));
-			return -1;
+			DIE("Cannot write header in extract_all_files.");
 		} else if (archive_entry_size(entry) > 0) {
 			r = copy_data(a, ext);
 			if (r < ARCHIVE_OK) {
-				fprintf(stderr, "%s\n", archive_error_string(ext));
-				return -1;
+				DIE("Cannot extract file in extract_all_files.");
 			}
 		}
 	}
 	/* TODO: error checking */
 	r = archive_write_finish_entry(ext);
 	if (r < ARCHIVE_OK) {
-		fprintf(stderr, "%s\n", archive_error_string(ext));
-		return -1;
+		DIE("Cannot extract files in extract_all_files.");
 	}
 	archive_write_close(ext);
 	archive_write_free(ext);
@@ -268,9 +219,7 @@ int extract_to_disk(const char *arc_name, const char *subarc_name, char *files[]
 	archive_read_support_format_all(arc);
 	r = get_inner_archive(arc, arcname, subarcname);
 	if (r < ARCHIVE_OK) {
-		printf("Subarchive %s not found.\n", arcname);
-/*		fprintf(stderr, "%s\n", archive_error_string(arc)); */
-		return -1;
+		DIE("Subarchive %s not found.\n", arcname);
 	}
 	extract_files(arc, files, count);
 	archive_read_free(arc);
@@ -372,19 +321,16 @@ static int unpack_entry_to_disk(struct archive *a, struct archive_entry *entry) 
 	archive_write_disk_set_standard_lookup(ext);
 	r = archive_write_header(ext, entry);
 	if (r < ARCHIVE_OK) {
-		fprintf(stderr, "%s\n", archive_error_string(ext));
-		return -1;
+		DIE("Cannot write header in unpack_entry_to_disk.");
 	} else if (archive_entry_size(entry) > 0) {
 		r = copy_data(a, ext);
 		if (r < ARCHIVE_OK) {
-			fprintf(stderr, "%s\n", archive_error_string(ext));
-			return -1;
+			DIE("Cannot copy data in unpack_entry_to_disk.");
 		}
 	}
 	r = archive_write_finish_entry(ext);
 	if (r < ARCHIVE_OK) {
-		fprintf(stderr, "%s\n", archive_error_string(ext));
-		return -1;
+		DIE("Cannot write entry in unpack_entry_to_disk");
 	}
 	archive_write_close(ext);
 	archive_write_free(ext);
@@ -484,25 +430,17 @@ int upack_extract_archive(const char *arcname, const char *path){
 	flags |= ARCHIVE_EXTRACT_ACL;
 	flags |= ARCHIVE_EXTRACT_FFLAGS;
 
-// TODO: check for `arcname` existence
-
 // check for existing dir
 	struct stat sb;
 	lstat(path, &sb);
 
-printf("Mode: %d\n", sb.st_mode);
 // TODO: support links also
 	if (!S_ISDIR(sb.st_mode)) {
-		printf("this is not dir\n");
-
 	// If path does not exists, let's create it
 		if (access(path, F_OK) != 0) {
-			printf("make dir now\n");
 			mkdir(path, 0700);
 		} else {
-			// TODO: error
-			printf("This is not a dir, but something that exists, problem!\n");
-			return -1;
+			DIE("Cannot create dir %s in upack_extra_archive.", path);
 		}
 	}
 
@@ -515,7 +453,6 @@ printf("Mode: %d\n", sb.st_mode);
 	if ((r = archive_read_open_filename(a, arcname, 10240)))
 		return -1;
 
-
 // move to target dir
 	r = chdir(path);
 	
@@ -524,22 +461,22 @@ printf("Mode: %d\n", sb.st_mode);
 	if (r == ARCHIVE_EOF)
 		break;
 	if (r < ARCHIVE_OK)
-		fprintf(stderr, "%s\n", archive_error_string(a));
+		DIE("Cannot read next header in upack_extract_archive");
 	if (r < ARCHIVE_WARN)
 		return -1;
 	r = archive_write_header(ext, entry);
 	if (r < ARCHIVE_OK)
-		fprintf(stderr, "%s\n", archive_error_string(ext));
+		DIE("Cannot write header in upack_extract_archive");
 	else if (archive_entry_size(entry) > 0) {
 		r = copy_data(a, ext);
 		if (r < ARCHIVE_OK)
-			fprintf(stderr, "%s\n", archive_error_string(ext));
+			DIE("Cannot copy data in upack_extract_archive");
 		if (r < ARCHIVE_WARN)
 			return -1;
 	}
 	r = archive_write_finish_entry(ext);
 	if (r < ARCHIVE_OK)
-		fprintf(stderr, "%s\n", archive_error_string(ext));
+		DIE("Cannot close archive in upack_extract_archive");
 	if (r < ARCHIVE_WARN)
 		return -1;
 	}
@@ -549,8 +486,8 @@ printf("Mode: %d\n", sb.st_mode);
 	archive_write_free(ext);
 	return 0;
 }
-int upack_gz_buffer_to_file(void *buff, size_t size, const char *path){
-	struct archive *a;
+
+static int upack_gz_to_file(struct archive *a, const char *path) {
 	struct archive_entry *entry;
 	int flags;
 	int r;
@@ -561,23 +498,31 @@ int upack_gz_buffer_to_file(void *buff, size_t size, const char *path){
 	flags |= ARCHIVE_EXTRACT_ACL;
 	flags |= ARCHIVE_EXTRACT_FFLAGS;
 
+	if ((r = archive_read_next_header(a, &entry))) {
+		DIE("Cannot read next header in upack_gz_to_file.");
+	}
+	archive_entry_set_pathname(entry, path);
+	if ((r = archive_read_extract(a, entry, flags))) {
+		DIE("Cannot extract archive in upack_gz_to_file.");
+	}
+
+	return 0;
+}
+
+int upack_gz_buffer_to_file(void *buff, size_t size, const char *path){
+	struct archive *a;
+	int r;
+
 	a = archive_read_new();
 	archive_read_support_format_raw(a);
 	archive_read_support_filter_gzip(a);
 
 	if ((r = archive_read_open_memory(a, buff, size))) {
-		printf("Error: read_open_memory\n");
+		DIE("Cannot open buffer in upack_gz_buffer_to_file.");
 		return -1;
 	}
-	if ((r = archive_read_next_header(a, &entry))) {
-		printf("Error: read_next\n");
-		return -1;
-	}
-	archive_entry_set_pathname(entry, path);
-	if ((r = archive_read_extract(a, entry, flags))) {
-		printf("Error: extract\n");
-		return -1;
-	}
+
+	upack_gz_to_file(a, path);
 
 	archive_read_close(a);
 	archive_read_free(a);
@@ -586,34 +531,17 @@ int upack_gz_buffer_to_file(void *buff, size_t size, const char *path){
 
 int upack_gz_file_to_file(const char *arcname, const char *path){
 	struct archive *a;
-	struct archive_entry *entry;
-	int flags;
 	int r;
-
-	printf("Extracting %s to %s.\n", arcname, path);
-
-	/* Select which attributes we want to restore. */
-	flags = ARCHIVE_EXTRACT_TIME;
-	flags |= ARCHIVE_EXTRACT_PERM;
-	flags |= ARCHIVE_EXTRACT_ACL;
-	flags |= ARCHIVE_EXTRACT_FFLAGS;
 
 	a = archive_read_new();
 	archive_read_support_format_raw(a);
 	archive_read_support_filter_gzip(a);
 	if ((r = archive_read_open_filename(a, arcname, 10240))) {
-		printf("Error: read_open %s\n", arcname);
+		DIE("Cannot open %s in upack_gz_file_to_file.", arcname);
 		return -1;
 	}
-	if ((r = archive_read_next_header(a, &entry))) {
-		printf("Error: read_next\n");
-		return -1;
-	}
-	archive_entry_set_pathname(entry, path);
-	if ((r = archive_read_extract(a, entry, flags))) {
-		printf("Error: extract\n");
-		return -1;
-	}
+
+	upack_gz_to_file(a, path);
 
 	archive_read_close(a);
 	archive_read_free(a);
@@ -665,8 +593,3 @@ int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subar
 	}
 }
 
-
-int unpacker_test() {
-	printf("\n!!>> THIS IS A TEST!!!\n");
-	return 0;
-}
