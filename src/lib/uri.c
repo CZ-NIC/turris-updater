@@ -461,14 +461,8 @@ static bool verify_signature_against(const struct uri* uri, const char *fcontent
 }
 
 static bool verify_signature_gz(struct uri *uri) {
-
-	printf("type(%d): %d\n\n\n", URI_OUT_T_BUFFER, uri->output_type);
-
-//	DIE("GZIP content signature verification not fully implemented!"); // TODO implement and drop
 	char *fcontent = strdup("/tmp/updater-temp-gz-XXXXXX");
 	mktemp(fcontent);
-	printf("tmpname: %s\n", fcontent);
-	// TODO generate random name for fcontent. Do we want to do it with fdopen?
 	switch (uri->output_type) {
 		case URI_OUT_T_FILE:
 		case URI_OUT_T_TEMP_FILE:
@@ -528,20 +522,12 @@ static bool verify_signature(struct uri *uri) {
 	list_pubkey_collect(uri->pubkey);
 
 	bool verified;
-
-	printf("n\n_----_----VERIFY SIGNATURE----:----:\n");
-	printf("URI:'%s'\n\n", uri->uri);
 	// TODO: check also for uri->auto_unpack, but what to do then?
 	if (is_archive(uri)) {
-		printf("magic bytes matched, calling verify signature gz\n");
 		verified = verify_signature_gz(uri);
 	} else {
 		verified = verify_signature_plain(uri);
 	}
-	
-	// BB debug
-	printf("verified: %d\n", verified);
-
 	free(uri->sig_uri_file);
 	uri->sig_uri_file = NULL;
 	if (!verified)
@@ -550,7 +536,6 @@ static bool verify_signature(struct uri *uri) {
 }
 
 bool uri_finish(struct uri *uri) {
-	printf("\nuri_finish called with '%s', %d\n", uri->uri, uri->finished);
 	if (uri->finished)
 		return true; // Ignore if this is alredy finished
 	TRACE("URI finish: %s", uri->uri);
@@ -588,7 +573,6 @@ bool uri_finish(struct uri *uri) {
 		uri->download_instance = NULL;
 	}
 	uri->finished = true;
-	printf("calling verify_signature\n");
 	return verify_signature(uri);
 }
 
