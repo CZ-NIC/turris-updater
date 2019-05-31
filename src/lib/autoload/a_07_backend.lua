@@ -49,7 +49,7 @@ local md5_file = md5_file
 local sha256_file = sha256_file
 -- local test_extract = test_extract
 local upack_extract_inner_file = upack_extract_inner_file
-local upack_get_file_size = upack_get_file_size
+-- local upack_get_file_size = upack_get_file_size
 local upack_get_file_content = upack_get_file_content
 local DBG = DBG
 local WARN = WARN
@@ -446,24 +446,36 @@ into the system, control are the control files for the package manager.
 
 TODO:
 • Sanity checking of the package.
-• Less calling of external commands.
 ]]
 
--- First we duplicate old functionality, to keep the rewrite simple
-function pkg_unpack(package_path)
+local function process_conffiles(cidx, data_dir)
+	-- Get list of config files, if there are any
+	local conffiles = {}
+	if cidx then
+		for l in cidx:lines() do
+			local fname = l:match("^%s*(/.*%S)%s*")
+			if utils.file_exists(data_dir .. fname) then
+				conffiles[fname] = sha256_file(data_dir .. fname)
+			else
+				error("File " .. fname .. " does not exist.")
+			end
+		end
+		cidx:close()
+	end
+	conffiles = slashes_sanitize(conffiles)
+	return conffiles
+end
 
-	-- We do not need temp directory, so let's just use dir
+function pkg_unpack(package_path)
 	local dir = mkdtemp(syscnf.pkg_unpacked_dir)
-	print("sys:" .. syscnf.pkg_unpacked_dir)
-	print("dir:" .. tostring(dir))
 	upack_extract_inner_file(package_path, "control", dir)
 	upack_extract_inner_file(package_path, "data", dir)
-	upack_get_file_size(package_path, "control", "conffiles")
-	local data = upack_get_file_content(package_path, "control", "conffiles")
+--	local size = upack_get_file_size(package_path, "control", "conffiles")
+	local conffiles = upack_get_file_content(package_path, "control", "conffiles")
 
-	print("(((in Lua, data)))\n" .. data .. "---")
+--	print("\n\n\t-- in Lua, size: " .. size .. "\ndata:'" .. data .. "'\n")
 
-	return dir
+	return dir, conffiles
 end
 
 --[[
@@ -512,6 +524,7 @@ function pkg_examine(dir)
 	-- Get list of config files, if there are any
 	local control_dir = dir .. "/control"
 	local cidx = io.open(control_dir .. "/conffiles")
+--[[
 	local conffiles = {}
 	if cidx then
 		for l in cidx:lines() do
@@ -525,6 +538,9 @@ function pkg_examine(dir)
 		cidx:close()
 	end
 	conffiles = slashes_sanitize(conffiles)
+]]
+	conffiles = process_conffiles(cidx, data_dir)
+
 	-- Load the control file of the package and parse it
 	local control = package_postprocess(block_parse(utils.read_file(control_dir .. "/control")));
 	-- Wait for all asynchronous processes to finish

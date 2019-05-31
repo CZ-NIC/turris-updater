@@ -664,8 +664,6 @@ static int lua_upack_get_file_size(lua_State *L) {
 	const char *subarc_name = luaL_checkstring(L, 2);
 	const char *path = luaL_checkstring(L, 3);
 	int size = upack_get_file_size(arc_name, subarc_name, path);
-
-	printf("File size of %s in %d.\n", path, size);
 	lua_pushinteger(L, size);
 	return 1;
 }

@@ -36,9 +36,6 @@ local utils = require "utils"
 local backend = require "backend"
 local requests = require "requests"
 
-local INFO = INFO
-
-
 module "postprocess"
 
 -- luacheck: globals get_repos deps_canon conflicts_canon available_packages pkg_aggregate run sort_candidates
@@ -97,11 +94,6 @@ local function repos_failed_download(uri_fail)
 end
 
 function get_repos()
-
--- BB
-
-INFO("\n\n\n\n\n\n\nGET_REPOS()")
-
 	DBG("Downloading repositories indexes")
 	-- Run download
 	while true do
