@@ -1,0 +1,46 @@
+# Target system compilation environment (OpenWRT/Turris OS)
+FROM debian:stable as openwrt_env
+
+RUN \
+  apt-get update && \
+  apt-get -y upgrade && \
+  apt-get -y install --no-install-recommends \
+    ca-certificates git \
+	build-essential zlib1g-dev gawk libssl-dev subversion \
+	unzip libncurses-dev wget python file rsync \
+    && \
+  apt-get clean && \
+  useradd -m build
+USER build
+WORKDIR /home/build
+
+
+From openwrt_env as turris_os_env
+RUN \
+  git clone --branch v4.0 https://gitlab.labs.nic.cz/turris/turris-build.git && \
+  mkdir openwrt
+WORKDIR /home/build/openwrt
+
+
+FROM turris_os_env
+ARG BOARD
+
+RUN \
+  ../turris-build/compile_pkgs -f1 -j$(nproc) -e -t $BOARD prepare_tools && \
+  make -j$(nproc) IS_TTY=1 \
+    package/libb64/compile \
+    package/uthash/compile \
+    package/argp-standalone/compile \
+    package/lua/compile \
+    package/libevent2/compile \
+    package/curl/compile
+
+ENV STAGING_DIR /home/build/openwrt/staging_dir
+ENV PATH /home/build/openwrt/staging_dir/host/bin:/home/build/openwrt/staging_dir/toolchain-arm_cortex-a9+vfpv3_gcc-7.3.0_musl_eabi/bin:$PATH
+ENV CC arm-openwrt-linux-gcc
+
+WORKDIR /home/build
+
+CMD [ "bash" ]
+
+# vim: ft=dockerfile
