@@ -161,7 +161,7 @@ end
 
 local function pkg_move(status, plan, early_remove, errors_collected)
 	update_state(LS_INST)
-	INFO("Running pre-install scripts and merging packages to root file system")
+	INFO("Running pre-install and pre-rm scripts and merging packages to root file system")
 	-- Prepare table of not installed confs for config stealing
 	local installed_confs = backend.installed_confs(status)
 
@@ -199,23 +199,8 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 				-- Note: This causes reexecution of already executed preinst scripts.
 				system_reboot(true)
 			end
-		end
-		-- Ignore others, at least for now.
-	end
-	-- Remove all other files (see note in backend.collision_check)
-	if early_remove[true] then
-		backend.pkg_cleanup_files(early_remove[true], all_configs)
-	end
-	return status, errors_collected, all_configs
-end
-
-local function pkg_scripts(status, plan, removes, to_install, errors_collected, all_configs)
-	update_state(LS_POST)
-	INFO("Running post-install and post-rm scripts")
-	for _, op in ipairs(plan) do
-		if op.op == "install" then
-			script(errors_collected, op.control.Package, "postinst", "configure")
-		elseif op.op == "remove" and not to_install[op.name] and utils.arr2set(utils.multi_index(status, op.name, 'Status') or {})['installed'] then
+		elseif op.op == "remove" and utils.arr2set(utils.multi_index(status, op.name, 'Status') or {})['installed'] then
+			log_event("R", op.name)
 			utils.table_merge(all_configs, status[op.name].Conffiles or {})
 			local cfiles = status[op.name].Conffiles or {}
 			for f in pairs(cfiles) do
@@ -230,16 +215,29 @@ local function pkg_scripts(status, plan, removes, to_install, errors_collected, 
 			else
 				status[op.name] = nil
 			end
-			log_event("R", op.name)
 			script(errors_collected, op.name, "prerm", "remove")
 		end
+		-- Ignore others, at least for now.
 	end
+	-- Remove all other files (see note in backend.collision_check)
+	if early_remove[true] then
+		backend.pkg_cleanup_files(early_remove[true], all_configs)
+	end
+	return status, errors_collected, all_configs
+end
+
+local function pkg_scripts(status, plan, removes, to_install, errors_collected, all_configs)
 	-- Clean up the files from removed or upgraded packages
 	INFO("Removing packages and leftover files")
 	update_state(LS_REM)
 	backend.pkg_cleanup_files(removes, all_configs)
+	-- Run post install and remove scripts
+	update_state(LS_POST)
+	INFO("Running post-install and post-rm scripts")
 	for _, op in ipairs(plan) do
-		if op.op == "remove" and not to_install[op.name] then
+		if op.op == "install" then
+			script(errors_collected, op.control.Package, "postinst", "configure")
+		elseif op.op == "remove" and not to_install[op.name] then
 			script(errors_collected, op.name, "postrm", "remove")
 		end
 	end

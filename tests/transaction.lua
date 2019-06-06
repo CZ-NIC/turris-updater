@@ -279,6 +279,14 @@ function test_perform_ok()
 			p = {"pkg_dir/data", {d = true}, {f = true}, {c = "12345678901234567890123456789012"}}
 		},
 		{
+			f = "backend.pkg_config_info",
+			p = {"remconf", { remconf = "12345678901234567890123456789012" } }
+		},
+		{
+			f = "backend.script_run",
+			p = {"pkg-rem", "prerm", "remove"}
+		},
+		{
 			f = "journal.write",
 			p = {
 				journal.MOVED,
@@ -289,32 +297,19 @@ function test_perform_ok()
 						Version = "1",
 						files = { f = true },
 						Status = {"install", "user", "installed"}
-					},
-					["pkg-rem"] = {
-						Package = "pkg-rem",
-						Conffiles = { remconf = "12345678901234567890123456789012" },
-						Status = {"install", "user", "installed"}
 					}
 				},
 				{},
-				{c = "12345678901234567890123456789012"}
+				{c = "12345678901234567890123456789012", remconf = "12345678901234567890123456789012"}
 			}
-		},
-		{
-			f = "backend.script_run",
-			p = {"pkg-name", "postinst", "configure"}
-		},
-		{
-			f = "backend.pkg_config_info",
-			p = {"remconf", { remconf = "12345678901234567890123456789012" } }
-		},
-		{
-			f = "backend.script_run",
-			p = {"pkg-rem", "prerm", "remove"}
 		},
 		{
 			f = "backend.pkg_cleanup_files",
 			p = {{d2 = true}, {c = "12345678901234567890123456789012", remconf = "12345678901234567890123456789012"}}
+		},
+		{
+			f = "backend.script_run",
+			p = {"pkg-name", "postinst", "configure"}
 		},
 		{
 			f = "backend.script_run",
