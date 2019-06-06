@@ -20,9 +20,9 @@ build-debian-unstable:
   extends: .build
   image: registry.labs.nic.cz/turris/updater/updater:tests
 
-#build-debian-alpine:
-#  extends: .build
-#  image: registry.labs.nic.cz/turris/updater/updater:alpine
+build-alpine:
+  extends: .build
+  image: registry.labs.nic.cz/turris/updater/updater:alpine
 
 ## Test stage ####################################################################
 .test:
