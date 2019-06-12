@@ -41,12 +41,12 @@ local LST_PKG_SCRIPT = LST_PKG_SCRIPT
 local events_wait = events_wait
 local stat = stat
 local lstat = lstat
-local mkdir = mkdir
 local move = move
 local copy = copy
 local ls = ls
 local md5_file = md5_file
 local sha256_file = sha256_file
+local upack_extract_inner_file = upack_extract_inner_file
 local DBG = DBG
 local WARN = WARN
 local ERROR = ERROR
@@ -417,15 +417,6 @@ function status_dump(status)
 	end
 end
 
-local function rmrf(dir)
-	-- TODO: Would it be better to remove from within our code, without calling rm?
-	events_wait(run_util(function (ecode, _, _, stderr)
-		if ecode ~= 0 then
-			WARN("Failed to clean up work directory ", dir, ": ", stderr)
-		end
-	end, nil, nil, cmd_timeout, cmd_kill_timeout, "rm", "-rf", dir))
-end
-
 --[[
 Take the .ipk package and unpack it into a temporary location somewhere under
 pkg_unpacked_dir.
@@ -436,55 +427,31 @@ into the system, control are the control files for the package manager.
 
 TODO:
 • Sanity checking of the package.
-• Less calling of external commands.
 ]]
+
+local function process_conffiles(cidx, data_dir)
+	-- Get list of config files, if there are any
+	local conffiles = {}
+	if cidx then
+		for l in cidx:lines() do
+			local fname = l:match("^%s*(/.*%S)%s*")
+			if utils.file_exists(data_dir .. fname) then
+				conffiles[fname] = sha256_file(data_dir .. fname)
+			else
+				error("File " .. fname .. " does not exist.")
+			end
+		end
+		cidx:close()
+	end
+	conffiles = slashes_sanitize(conffiles)
+	return conffiles
+end
+
 function pkg_unpack(package_path)
-	-- The first unpack goes into the /tmp
-	-- We assume s1dir returs sane names of directories ‒ no spaces or strange chars in them
-	local s1dir = mkdtemp()
-	-- The results go into the provided dir, or to /tmp if none was provided
-	utils.mkdirp(syscnf.pkg_unpacked_dir)
-	local s2dir = mkdtemp(syscnf.pkg_unpacked_dir)
-	-- If anything goes wrong, this is where we find the error message
-	local err
-	-- Unpack the ipk into s1dir, getting control.tar.gz and data.tar.gz
-	local function stage1()
-		events_wait(run_util(function (ecode, _, _, stderr)
-			if ecode ~= 0 then
-				err = "Stage 1 unpack failed: " .. stderr
-			end
-		end, nil, nil, cmd_timeout, cmd_kill_timeout, "tar", "-xzf", package_path, "-C", s1dir))
-		-- TODO: Sanity check debian-binary
-		return err == nil
-	end
-	-- Unpack the control.tar.gz and data.tar.gz under respective subdirs in s2dir
-	local function unpack_archive(what)
-		local archive = s1dir .. "/" .. what .. ".tar.gz"
-		local dir = s2dir .. "/" .. what
-		mkdir(dir)
-		return run_util(function (ecode, _, _, stderr)
-			if ecode ~= 0 then
-				err = "Stage 2 unpack of " .. what .. " failed: " .. stderr
-			end
-		end, nil, nil, cmd_timeout, cmd_kill_timeout, "tar", "-xzf", archive, '-C', dir)
-	end
-	local function stage2()
-		events_wait(unpack_archive("control"), unpack_archive("data"))
-		return err == nil
-	end
-	-- Try-finally like construct, make sure cleanup is called no matter what
-	local success, ok = pcall(function () return stage1() and stage2() end)
-	-- Intermediate work space, not needed by the caller
-	rmrf(s1dir)
-	if err then
-		-- Clean up the resulting directory in case of errors
-		rmrf(s2dir)
-	end
-	-- Cleanup done, call error() if anything failed
-	if not success then error(ok) end
-	if not ok then error(err) end
-	-- Everything went well. So return path to the directory where the package is unpacked
-	return s2dir
+	local dir = mkdtemp(syscnf.pkg_unpacked_dir)
+	upack_extract_inner_file(package_path, "control", dir)
+	upack_extract_inner_file(package_path, "data", dir)
+	return dir
 end
 
 --[[
@@ -533,19 +500,8 @@ function pkg_examine(dir)
 	-- Get list of config files, if there are any
 	local control_dir = dir .. "/control"
 	local cidx = io.open(control_dir .. "/conffiles")
-	local conffiles = {}
-	if cidx then
-		for l in cidx:lines() do
-			local fname = l:match("^%s*(/.*%S)%s*")
-			if utils.file_exists(data_dir .. fname) then
-				conffiles[fname] = sha256_file(data_dir .. fname)
-			else
-				error("File " .. fname .. " does not exist.")
-			end
-		end
-		cidx:close()
-	end
-	conffiles = slashes_sanitize(conffiles)
+	local conffiles = process_conffiles(cidx, data_dir)
+
 	-- Load the control file of the package and parse it
 	local control = package_postprocess(block_parse(utils.read_file(control_dir .. "/control")));
 	-- Wait for all asynchronous processes to finish
