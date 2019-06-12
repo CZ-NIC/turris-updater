@@ -47,10 +47,8 @@ local copy = copy
 local ls = ls
 local md5_file = md5_file
 local sha256_file = sha256_file
--- local test_extract = test_extract
 local upack_extract_inner_file = upack_extract_inner_file
--- local upack_get_file_size = upack_get_file_size
-local upack_get_file_content = upack_get_file_content
+-- local upack_get_file_content = upack_get_file_content
 local DBG = DBG
 local WARN = WARN
 local ERROR = ERROR
@@ -470,12 +468,8 @@ function pkg_unpack(package_path)
 	local dir = mkdtemp(syscnf.pkg_unpacked_dir)
 	upack_extract_inner_file(package_path, "control", dir)
 	upack_extract_inner_file(package_path, "data", dir)
---	local size = upack_get_file_size(package_path, "control", "conffiles")
-	local conffiles = upack_get_file_content(package_path, "control", "conffiles")
-
---	print("\n\n\t-- in Lua, size: " .. size .. "\ndata:'" .. data .. "'\n")
-
-	return dir, conffiles
+--	local conffiles = upack_get_file_content(package_path, "control", "conffiles")
+	return dir --, conffiles
 end
 
 --[[
@@ -524,22 +518,7 @@ function pkg_examine(dir)
 	-- Get list of config files, if there are any
 	local control_dir = dir .. "/control"
 	local cidx = io.open(control_dir .. "/conffiles")
---[[
-	local conffiles = {}
-	if cidx then
-		for l in cidx:lines() do
-			local fname = l:match("^%s*(/.*%S)%s*")
-			if utils.file_exists(data_dir .. fname) then
-				conffiles[fname] = sha256_file(data_dir .. fname)
-			else
-				error("File " .. fname .. " does not exist.")
-			end
-		end
-		cidx:close()
-	end
-	conffiles = slashes_sanitize(conffiles)
-]]
-	conffiles = process_conffiles(cidx, data_dir)
+	local conffiles = process_conffiles(cidx, data_dir)
 
 	-- Load the control file of the package and parse it
 	local control = package_postprocess(block_parse(utils.read_file(control_dir .. "/control")));

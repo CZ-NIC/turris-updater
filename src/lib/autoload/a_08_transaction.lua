@@ -95,38 +95,9 @@ local function pkg_unpack(operations, status)
 				WARN("Package " .. op.name .. " is not installed. Can't remove")
 			end
 		elseif op.op == "install" then
-			print("calling upkg_unpack")
-			local pkg_dir, bb_conffiles = backend.pkg_unpack(op.file)
-		--	local pkg_dir = backend.pkg_unpack(op.file)
-			print("pkg_unpack called")
+			local pkg_dir = backend.pkg_unpack(op.file)
 			table.insert(dir_cleanups, pkg_dir)
 			local files, dirs, configs, control = backend.pkg_examine(pkg_dir)
-
-print("-------------------------------------------------------------------------")
-			print("BB:" .. tostring(bb_conffiles))
-			print("OR:" .. tostring(configs))
-
-print(">>")
-			if (type(bb_conffiles) == "table") then
-				for k, v in pairs(bb_conffiles) do
-					print ("BB: " .. k " - " .. v)
-				end
-			end
-
-print(">>")
-
-			if (type(configs) == "table") then
-				for k, v in pairs(configs) do
-					print ("BB: " .. k .. " - " .. v)
-				end
-			end
-
-			if (bb_conffiles == configs) then
-				print ("BB: conffiles passed")
-			else
-				print ("BB: conffiles failed")
-			end
-
 			to_remove[control.Package] = true
 			to_install[control.Package] = files
 			--[[
