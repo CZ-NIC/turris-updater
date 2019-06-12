@@ -209,6 +209,7 @@ static struct uri *uri_new(const char *uri_str, const struct uri *parent) {
 	ret->sig_uri = NULL;
 #define SET(X, DEF) do { if (parent) ret->X = parent->X; else ret->X = DEF; } while (false);
 #define SET_LIST(X) do { SET(X, NULL); list_refup(ret->X); } while (false);
+	SET(auto_unpack, false);
 	SET(ssl_verify, true);
 	SET(ocsp, true);
 	SET_LIST(ca);
@@ -387,6 +388,30 @@ static bool uri_finish_file(struct uri *uri) {
 
 static const char *data_param_base64 = "base64";
 
+static bool is_archive(struct uri *uri) {
+	FILE *f;
+	int buf[2];
+	switch (uri->output_type) {
+		case URI_OUT_T_FILE:
+		case URI_OUT_T_TEMP_FILE:
+			f = fopen(uri->output_info.fpath, "r");
+			fread(buf, 1, sizeof buf, f);
+			fclose(f);
+			return (
+				buf[0] == 0x1f &&
+				buf[1] == 0x8b
+			);
+			break;
+		case URI_OUT_T_BUFFER:
+			return (
+				uri->output_info.buf.data[0] == 0x1f &&
+				uri->output_info.buf.data[1] == 0x8b
+			);
+		default:
+			DIE("Unsupported output type in is_archive. This should not happen.");
+	}
+}
+
 static bool uri_finish_data(struct uri *uri) {
 	char *start = uri->uri + 5;
 	// Parameters
@@ -436,17 +461,15 @@ static bool verify_signature_against(const struct uri* uri, const char *fcontent
 }
 
 static bool verify_signature_gz(struct uri *uri) {
-	DIE("GZIP content signature verification not fully implemented!"); // TODO implement and drop
 	char *fcontent = strdup("/tmp/updater-temp-gz-XXXXXX");
-	// TODO generate random name for fcontent. Do we want to do it with fdopen?
+	mkstemp(fcontent);
 	switch (uri->output_type) {
 		case URI_OUT_T_FILE:
 		case URI_OUT_T_TEMP_FILE:
-			// TODO extract content of file uri->output_info.path to temporally file fcontent
-			break;
+			upack_gz_file_to_file(uri->output_info.fpath, fcontent);
+		break;
 		case URI_OUT_T_BUFFER:
-			// TODO extract buffer uri->output_info.buf.data of size
-			// uri->output_info.buf.size to temporally file fcontent.
+			upack_gz_buffer_to_file(uri->output_info.buf.data, uri->output_info.buf.size, fcontent);
 			break;
 		default:
 			DIE("Unsupported output type in verify_signature. This should not happen.");
@@ -498,9 +521,13 @@ static bool verify_signature(struct uri *uri) {
 	uri->sig_uri = NULL;
 	list_pubkey_collect(uri->pubkey);
 
-	bool verified = verify_signature_plain(uri);
-	// TODO check if content starts with 0x1f8b and if so run verify_signature_gz
-
+	bool verified;
+	// TODO: check also for uri->auto_unpack, but what to do then?
+	if (is_archive(uri)) {
+		verified = verify_signature_gz(uri);
+	} else {
+		verified = verify_signature_plain(uri);
+	}
 	free(uri->sig_uri_file);
 	uri->sig_uri_file = NULL;
 	if (!verified)
@@ -575,6 +602,12 @@ const char *uri_scheme_string(enum uri_scheme scheme) {
 
 #define CONFIG_GUARD ASSERT_MSG(!uri->download_instance && !uri->finished, \
 		"(%s) URI configuration can't be changed after uri_register_downloader and uri_finish", uri->uri)
+
+void uri_set_auto_unpack(struct uri *uri, bool unpack) {
+	CONFIG_GUARD;
+	TRACE("URI auto unpack (%s): $%s", uri->uri, STRBOOL(unpack));
+	uri->auto_unpack = unpack;
+}
 
 void uri_set_ssl_verify(struct uri *uri, bool verify) {
 	CONFIG_GUARD;
@@ -730,8 +763,18 @@ bool uri_set_sig(struct uri *uri, const char *sig_uri) {
 	if (uri->sig_uri) // Free any previous uri
 		uri_free(uri->sig_uri);
 
-	if (!sig_uri)
+	if (!sig_uri) {
+		int pos = strlen(uri->uri) - 3;
+		char changed = '\0';
+		// Remove .gz if present, signature matches unpacked file
+		if (!strcmp(uri->uri + pos, ".gz")) {
+			changed = uri->uri[pos];
+			uri->uri[pos] = '\0';
+		}
 		sig_uri = aprintf("%s.sig", uri->uri);
+		if (changed)
+			uri->uri[pos] = changed;
+	}
 	uri->sig_uri_file = strdup(TMP_TEMPLATE_SIGNATURE_FILE);
 	uri->sig_uri = uri_to_temp_file(sig_uri, uri->sig_uri_file, uri);
 	if (!uri->sig_uri)

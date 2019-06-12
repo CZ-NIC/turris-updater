@@ -48,6 +48,11 @@ int upack_get_file_size(const char *arcname, const char *subarcname, const char 
 int upack_extract_inner_file_to_memory(char *buff, const char *arcname, const char *subarcname, const char *filename, int size);
 
 int test_extract(const char *arc_name, const char *subarc_name, char *files[], int count);
+int upack_gz_file_to_file(const char *arcname, const char *path);
+
+int upack_gz_buffer_to_file(void *buff, size_t size, const char *path);
+
+//int upack_gz_to_file(const char *arcname, const char *path);
 
 enum hashing_method {
 	method_MD5,
@@ -58,6 +63,6 @@ enum hashing_method {
  * METHOD:	MD5
  * 			SHA256
  */
-int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subarc_name, char *file, int method);
+int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subarc_name, char *file, enum hashing_method method);
 
 #endif

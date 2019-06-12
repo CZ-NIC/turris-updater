@@ -37,11 +37,6 @@ local events_wait = events_wait
 local run_util = run_util
 local uri = require "uri"
 
-
-local print = print
-
-
-
 module "utils"
 
 -- luacheck: globals lines2set map set2arr arr2set cleanup_dirs dir_ensure mkdirp read_file write_file clone shallow_copy table_merge arr_append exception multi_index private filter_best strip table_overlay randstr arr_prune arr_inv file_exists uri_syste_cas uri_no_crl uri_config uri_content
@@ -112,9 +107,6 @@ end
 
 -- Run rm -rf on all dirs in the provided table
 function cleanup_dirs(dirs)
-
-	print("cleanup " .. type(dirs))
-
 	if next(dirs) then
 		events_wait(run_util(function (ecode, _, _, stderr)
 			if ecode ~= 0 then
