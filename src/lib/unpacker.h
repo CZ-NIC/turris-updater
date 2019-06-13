@@ -22,24 +22,15 @@
 #include <archive.h>
 #include <archive_entry.h>
 
-int unpacker_test();
 /*
- *
- */
-/*int extract_file(struct archive *a, const char *filename);*/
-
-/*
- *
- */
-int extract_files(struct archive *a, char *files[], int count);
-
-/*
- *
+ * Extract files provided in `files` from archive `subarc_name` that is part 
+ * of archive `arc_name` to disk. `count` is number of files in `files`
  */
 int extract_to_disk(const char *arc_name, const char *subarc_name, char *files[], int count);
 
 /*
- * Extract file from inner archive to disk
+ * Extract specific file `path` from archive `subarc_name` that is part 
+ * of archive `arc_name` to disk
  */
 int upack_extract_inner_file(const char* arcname, const char* subarcname, const char *path);
 

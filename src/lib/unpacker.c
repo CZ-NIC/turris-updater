@@ -105,8 +105,7 @@ static int get_inner_archive(struct archive *arc, const char* arcname, const cha
 	return -1;
 }
 
-
-int extract_files(struct archive *a, char *files[], int count) {
+static int extract_files(struct archive *a, char *files[], int count) {
 	struct archive *ext;
 	struct archive_entry *entry;
 	int r, flags;
@@ -208,10 +207,8 @@ int extract_to_disk(const char *arc_name, const char *subarc_name, char *files[]
 	int r;
 	char arcname[PATH_MAX];
 	char subarcname[PATH_MAX];
-/*	char filename[PATH_MAX];*/
 	struct archive *arc;
 
-/* TODO: Should sanitization be here? */
 	sanitize_filename(arcname, arc_name);
 	sanitize_filename(arcname, subarc_name);
 	arc = archive_read_new();
