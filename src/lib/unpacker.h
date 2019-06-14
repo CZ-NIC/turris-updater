@@ -22,38 +22,52 @@
 #include <archive.h>
 #include <archive_entry.h>
 
-/*
- * Extract files provided in `files` from archive `subarc_name` that is part 
- * of archive `arc_name` to disk. `count` is number of files in `files`
- */
-int extract_to_disk(const char *arc_name, const char *subarc_name, char *files[], int count);
-
-/*
- * Extract specific file `path` from archive `subarc_name` that is part 
- * of archive `arc_name` to disk
- */
-int upack_extract_inner_file(const char* arcname, const char* subarcname, const char *path);
-
-int upack_get_file_size(const char *arcname, const char *subarcname, const char *filename);
-
-int upack_extract_inner_file_to_memory(char *buff, const char *arcname, const char *subarcname, const char *filename, int size);
-
-int test_extract(const char *arc_name, const char *subarc_name, char *files[], int count);
-int upack_gz_file_to_file(const char *arcname, const char *path);
-
-int upack_gz_buffer_to_file(void *buff, size_t size, const char *path);
-
-//int upack_gz_to_file(const char *arcname, const char *path);
-
 enum hashing_method {
 	method_MD5,
 	method_SHA256
 };
 
 /*
- * METHOD:	MD5
- * 			SHA256
+ * Extract files provided in `files` from archive `subarc_name` that is part 
+ * of archive `arc_name` to disk. `count` is number of files in `files`
  */
-int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subarc_name, char *file, enum hashing_method method);
+int extract_to_disk(const char *arcname, const char *subarcname, char *files[], int count);
+
+/*
+ * Extract specific file `path` from archive `subarcname` that is part 
+ * of archive `arc_name` to disk
+ */
+int upack_extract_inner_file(const char* arcname, const char* subarcname, const char *filename);
+
+/*
+ *	Return size of file in subarchive. Needed for preallocating buffer
+ *	when extracting file to memory
+ */
+int upack_get_file_size(const char *arcname, const char *subarcname, const char *filename);
+
+/*
+ * Extract file `filename` of size `size` from archive `subarcname` that 
+ * is part of archive `arcname` to preallocated memory buffer `buff`
+ */
+int upack_extract_inner_file_to_memory(char *buff, const char *arcname, const char *subarcname, const char *filename, int size);
+
+/*
+ * Get hash of file `file` from archive `subarc_name` that is part of archive
+ * `arcname`. Supported hashing methods are MD5 and SHA256.
+ */
+
+int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subarcname, char *file, enum hashing_method method);
+
+/*
+ * Extract gzipped file `arcname` to `path`
+ */
+
+int upack_gz_file_to_file(const char *arcname, const char *path);
+
+/*
+ * Extrach gzipped file `file` of size `size` to provided `buff` buffer
+ */
+
+int upack_gz_buffer_to_file(void *buff, size_t size, const char *path);
 
 #endif

@@ -105,7 +105,7 @@ static int get_inner_archive(struct archive *arc, const char* arcname, const cha
 	return -1;
 }
 
-static int extract_files(struct archive *a, char *files[], int count) {
+int extract_files(struct archive *a, char *files[], int count) {
 	struct archive *ext;
 	struct archive_entry *entry;
 	int r, flags;
@@ -203,20 +203,20 @@ int extract_all_files(struct archive *a, const char *dest) {
 /*
  *	TODO: Support passing list of files in different format (newline separated)
  */
-int extract_to_disk(const char *arc_name, const char *subarc_name, char *files[], int count) {
+int extract_to_disk(const char *arcname, const char *subarcname, char *files[], int count) {
 	int r;
-	char arcname[PATH_MAX];
-	char subarcname[PATH_MAX];
+	char arcname_snt[PATH_MAX];
+	char subarcname_snt[PATH_MAX];
 	struct archive *arc;
 
-	sanitize_filename(arcname, arc_name);
-	sanitize_filename(arcname, subarc_name);
+	sanitize_filename(arcname_snt, arcname);
+	sanitize_filename(arcname_snt, subarcname);
 	arc = archive_read_new();
 	archive_read_support_filter_all(arc);
 	archive_read_support_format_all(arc);
-	r = get_inner_archive(arc, arcname, subarcname);
+	r = get_inner_archive(arc, arcname_snt, subarcname_snt);
 	if (r < ARCHIVE_OK) {
-		DIE("Subarchive %s not found.\n", arcname);
+		DIE("Subarchive %s not found.\n", arcname_snt);
 	}
 	extract_files(arc, files, count);
 	archive_read_free(arc);
@@ -224,7 +224,7 @@ int extract_to_disk(const char *arc_name, const char *subarc_name, char *files[]
 }
 
 /*
- * do some action to file in subarchive
+ * Do some action to file in subarchive
  * pass action as function that takes archive_entry
  * filename is sanitized automatically
  */
@@ -233,16 +233,15 @@ int process_file(const char *arcname, const char *subarcname, const char *filena
 	struct archive *sa;		/* sub archive */
 	struct archive_entry *entry;
 	struct archive_entry *subentry;
-	char name[PATH_MAX];
-	char subarc_name[PATH_MAX];
-	char file_name[PATH_MAX];
+	char entry_name_snt[PATH_MAX];
+	char subarcname_snt[PATH_MAX];
+	char filename_snt[PATH_MAX];
 	int r, size;
 
 	/* Prepend ./ and append .tar.gz to subarchive name */
-	sanitize_filename(subarc_name, subarcname);
-	strcat(subarc_name, ".tar.gz");
-
-	sanitize_filename(file_name, filename);
+	sanitize_filename(filename_snt, filename);
+	sanitize_filename(subarcname_snt, subarcname);
+	strcat(subarcname_snt, ".tar.gz");
 
 	/* Prepare main archive */
 	a = archive_read_new();
@@ -257,8 +256,8 @@ int process_file(const char *arcname, const char *subarcname, const char *filena
 	while (archive_read_next_header(a, &entry) == ARCHIVE_OK) {
 		/* check if we have right file */
 		const char *entry_name = archive_entry_pathname(entry);
-		sanitize_filename(name, entry_name);
-		if (strcmp(name, subarc_name) == 0) {
+		sanitize_filename(entry_name_snt, entry_name);
+		if (strcmp(entry_name_snt, subarcname) == 0) {
 			/* prepare subarchive */
 			size = archive_entry_size(entry);
 			char *buff = malloc(size);
@@ -279,7 +278,7 @@ int process_file(const char *arcname, const char *subarcname, const char *filena
 			while (archive_read_next_header(sa, &subentry) == ARCHIVE_OK) {
 				/* check if we have right file */
 				const char *subentry_name = archive_entry_pathname(subentry);
-				if (strcmp(file_name, subentry_name) == 0) {
+				if (strcmp(filename_snt, subentry_name) == 0) {
 					r = action(sa, subentry);
 					archive_read_free(sa);
 					return r;
@@ -349,7 +348,7 @@ int upack_extract_inner_file_to_memory(char *buff, const char *arcname, const ch
 	return process_file(arcname, subarcname, filename, unpack_entry_to_memory);
 }
 
-int upack_extract_inner_file(const char *arcname, const char *subarcname, const char *path) {
+int upack_extract_inner_file(const char *arcname, const char *subarcname, const char *filename) {
 /*
 
 NOTE: subarcname is without `.tar.gz`, because in archives we need to create 
@@ -362,14 +361,13 @@ and also append subarcname to path
 	struct archive *a;		/* main archive */
 	struct archive *arc;	/* sub archive */
 	struct archive_entry *entry;
-	char name[PATH_MAX];
-	char subarc_name[PATH_MAX];
-	char full_path[PATH_MAX];
+	char entry_name_snt[PATH_MAX];
+	char subarcname_snt[PATH_MAX];
 	int r, size;
 
 	/* Prepend ./ and append .tar.gz to subarchive name */
-	sanitize_filename(subarc_name, subarcname);
-	strcat(subarc_name, ".tar.gz");
+	sanitize_filename(subarcname_snt, subarcname);
+	strcat(subarcname_snt, ".tar.gz");
 
 	/* Prepare main archive */
 	a = archive_read_new();
@@ -384,8 +382,8 @@ and also append subarcname to path
 	while (archive_read_next_header(a, &entry) == ARCHIVE_OK) {
 		/* check if we have right file */
 		const char *entry_name = archive_entry_pathname(entry);
-		sanitize_filename(name, entry_name);
-		if (strcmp(name, subarc_name) == 0) {
+		sanitize_filename(entry_name_snt, entry_name);
+		if (strcmp(entry_name_snt, subarcname_snt) == 0) {
 			/* prepare subarchive */
 			size = archive_entry_size(entry);
 			char *buff = malloc(size);
@@ -402,9 +400,8 @@ and also append subarcname to path
 			if (r != ARCHIVE_OK) {
 				return -1;
 			}
-			strcpy(full_path, path);
-			strcat(full_path, "/");
-			strcat(full_path, subarcname);
+			char *full_path;
+			full_path = aprintf("%s/%s", filename, subarcname);
 			extract_all_files(arc, full_path);
 			archive_read_free(arc);
 			return 0;
@@ -562,12 +559,12 @@ static int get_sha256(uint8_t *result, const char *buffer, int len) {
 	return 0;
 }
 
-int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subarc_name, char *file, enum hashing_method method) {
+int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subarcname, char *file, enum hashing_method method) {
 
-	int size = upack_get_file_size(arcname, subarc_name, file);
+	int size = upack_get_file_size(arcname, subarcname, file);
 	if (size > 0) {
 		char buffer[size];
-		upack_extract_inner_file_to_memory(buffer, arcname, subarc_name, file, size);
+		upack_extract_inner_file_to_memory(buffer, arcname, subarcname, file, size);
 
 		/* compute hash */
 		switch(method) {
