@@ -456,7 +456,7 @@ function pkg_unpack(package_path)
 	local s1dir = mkdtemp()
 	utils.mkdirp(syscnf.pkg_unpacked_dir)
 	local s2dir = mkdtemp(syscnf.pkg_unpacked_dir)
-	print("s1dir: " .. tostring(s1dir) .. "\ns2dir: " .. tostring(s2dir) .. "\nerr: " .. err)
+	print("s1dir: " .. tostring(s1dir) .. "\ns2dir: " .. tostring(s2dir))
 
 	upack_extract_inner_file(package_path, "control", dir)
 	upack_extract_inner_file(package_path, "data", dir)
