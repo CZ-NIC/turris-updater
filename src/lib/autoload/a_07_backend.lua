@@ -54,7 +54,7 @@ local syscnf = require "syscnf"
 local utils = require "utils"
 local locks = require "locks"
 
-local INFO = INFO
+local print = print
 
 module "backend"
 
@@ -451,7 +451,14 @@ end
 
 function pkg_unpack(package_path)
 	local dir,err = mkdtemp(syscnf.pkg_unpacked_dir)
-	INFO("\n\n============\nBB: dir:" .. tostring(dir) .. "\nerr: " .. tostring(err) .. "\n")
+	print("\n\n============\nBB: dir:" .. tostring(dir) .. "\nerr: " .. tostring(err) .. "\n")
+
+	local s1dir = mkdtemp()
+	utils mkdirp(syscnf.pkg_unpacked_dir)
+	local s2dir = mkdtemp(syscnf.pkg_unpacked_dir)
+	local err
+	printf("s1dir: " .. tostring(s1dir) .. "\ns2dir: " .. tostring(s2dir) .. "\nerr: " .. err)
+
 	upack_extract_inner_file(package_path, "control", dir)
 	upack_extract_inner_file(package_path, "data", dir)
 	return dir
