@@ -54,6 +54,8 @@ local syscnf = require "syscnf"
 local utils = require "utils"
 local locks = require "locks"
 
+local INFO = INFO
+
 module "backend"
 
 -- Variables that we want to access from outside (ex. for testing purposes)
@@ -448,7 +450,8 @@ local function process_conffiles(cidx, data_dir)
 end
 
 function pkg_unpack(package_path)
-	local dir = mkdtemp(syscnf.pkg_unpacked_dir)
+	local dir,err = mkdtemp(syscnf.pkg_unpacked_dir)
+	INFO("\n\n============\nBB: dir:" .. dir .. "\nerr: " .. tostring(err) .. "\n")
 	upack_extract_inner_file(package_path, "control", dir)
 	upack_extract_inner_file(package_path, "data", dir)
 	return dir
