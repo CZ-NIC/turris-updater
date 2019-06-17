@@ -451,7 +451,7 @@ end
 
 function pkg_unpack(package_path)
 	local dir,err = mkdtemp(syscnf.pkg_unpacked_dir)
-	INFO("\n\n============\nBB: dir:" .. dir .. "\nerr: " .. tostring(err) .. "\n")
+	INFO("\n\n============\nBB: dir:" .. tostring(dir) .. "\nerr: " .. tostring(err) .. "\n")
 	upack_extract_inner_file(package_path, "control", dir)
 	upack_extract_inner_file(package_path, "data", dir)
 	return dir
