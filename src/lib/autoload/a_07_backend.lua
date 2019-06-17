@@ -454,7 +454,7 @@ function pkg_unpack(package_path)
 	print("\n\n============\nBB: dir:" .. tostring(dir) .. "\nerr: " .. tostring(err) .. "\n")
 
 	local s1dir = mkdtemp()
-	utils mkdirp(syscnf.pkg_unpacked_dir)
+	utils.mkdirp(syscnf.pkg_unpacked_dir)
 	local s2dir = mkdtemp(syscnf.pkg_unpacked_dir)
 	local err
 	printf("s1dir: " .. tostring(s1dir) .. "\ns2dir: " .. tostring(s2dir) .. "\nerr: " .. err)
