@@ -351,6 +351,17 @@ START_TEST(uri_sig_verify_invalid) {
 }
 END_TEST
 
+// Signature of if auto_unpack is set is verified against unzipped data
+START_TEST(uri_sig_verify_valid_gz) {
+	struct uri *u = uri_to_buffer(FILE_LOREM_IPSUM_SHORT_GZ, NULL);
+	uri_set_auto_unpack(u, true);
+	ck_assert_ptr_nonnull(u);
+	ck_assert(uri_add_pubkey(u, USIGN_KEY_1_PUB));
+	ck_assert(uri_finish(u));
+	uri_free(u);
+}
+END_TEST
+
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Uri");
 	TCase *uri = tcase_create("uri");
@@ -373,6 +384,7 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(uri, uri_cert_no_ca_verify);
 	tcase_add_test(uri, uri_sig_verify_valid);
 	tcase_add_test(uri, uri_sig_verify_invalid);
+	tcase_add_test(uri, uri_sig_verify_valid_gz);
 	suite_add_tcase(result, uri);
 	return result;
 }

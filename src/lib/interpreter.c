@@ -28,6 +28,7 @@
 #include "syscnf.h"
 #include "uri_lua.h"
 #include "picosat.h"
+#include "unpacker.h"
 
 #include <lua.h>
 #include <lualib.h>
@@ -634,6 +635,44 @@ static int lua_copy(lua_State *L) {
 	return 0;
 }
 
+
+/*
+ * libarchive functions
+ */
+
+/*
+static int lua_upack_extract_archive(lua_State *L) {
+	const char *arc_name = luaL_checkstring(L, 1);
+	const char *path = luaL_checkstring(L, 2);
+	upack_extract_archive(arc_name, path);
+	return 0;
+}
+*/
+
+static int lua_upack_extract_inner_file(lua_State *L) {
+	const char *arc_name = luaL_checkstring(L, 1);
+	const char *subarc_name = luaL_checkstring(L, 2);
+	const char *path = luaL_checkstring(L, 3);
+	upack_extract_inner_file(arc_name, subarc_name, path);
+	/* TODO: return something sensible to lua? */
+	return 0;
+}
+
+static int lua_upack_get_file_content(lua_State *L) {
+	const char *arc_name = luaL_checkstring(L, 1);
+	const char *subarc_name = luaL_checkstring(L, 2);
+	const char *path = luaL_checkstring(L, 3);
+	int size = upack_get_file_size(arc_name, subarc_name, path);
+	if (size > 0) {
+		char buffer[size];
+		upack_extract_inner_file_to_memory(buffer, arc_name, subarc_name, path, size);
+		lua_pushlstring(L, buffer, size);
+	} else {
+		lua_pushlstring(L, "", 0);
+	}
+	return 1;
+}
+
 static const char *stat2str(const struct stat *buf) {
 	switch (buf->st_mode & S_IFMT) {
 		case S_IFSOCK:
@@ -916,6 +955,8 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_mkdir, "mkdir" },
 	{ lua_move, "move" },
 	{ lua_copy, "copy" },
+	{ lua_upack_extract_inner_file, "upack_extract_inner_file" },
+	{ lua_upack_get_file_content, "upack_get_file_content" },
 	{ lua_ls, "ls" },
 	{ lua_stat, "stat" },
 	{ lua_lstat, "lstat" },
