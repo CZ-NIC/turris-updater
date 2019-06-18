@@ -54,8 +54,6 @@ local syscnf = require "syscnf"
 local utils = require "utils"
 local locks = require "locks"
 
-local print = print
-
 module "backend"
 
 -- Variables that we want to access from outside (ex. for testing purposes)
