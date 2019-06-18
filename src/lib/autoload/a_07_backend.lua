@@ -450,17 +450,12 @@ local function process_conffiles(cidx, data_dir)
 end
 
 function pkg_unpack(package_path)
-	local dir,err = mkdtemp(syscnf.pkg_unpacked_dir)
-	print("\n\n============\nBB: dir:" .. tostring(dir) .. "\nerr: " .. tostring(err) .. "\n")
-
-	local s1dir = mkdtemp()
 	utils.mkdirp(syscnf.pkg_unpacked_dir)
 	local s2dir = mkdtemp(syscnf.pkg_unpacked_dir)
 	print("s1dir: " .. tostring(s1dir) .. "\ns2dir: " .. tostring(s2dir))
 
 	upack_extract_inner_file(package_path, "control", s2dir)
 	upack_extract_inner_file(package_path, "data", s2dir)
-	rmrf(s1dir)
 	return dir
 end
 
