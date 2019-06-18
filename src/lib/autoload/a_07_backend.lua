@@ -458,8 +458,9 @@ function pkg_unpack(package_path)
 	local s2dir = mkdtemp(syscnf.pkg_unpacked_dir)
 	print("s1dir: " .. tostring(s1dir) .. "\ns2dir: " .. tostring(s2dir))
 
-	upack_extract_inner_file(package_path, "control", dir)
-	upack_extract_inner_file(package_path, "data", dir)
+	upack_extract_inner_file(package_path, "control", s2dir)
+	upack_extract_inner_file(package_path, "data", s2dir)
+	rmrf(s1dir)
 	return dir
 end
 
