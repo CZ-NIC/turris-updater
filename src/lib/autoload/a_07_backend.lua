@@ -448,7 +448,9 @@ local function process_conffiles(cidx, data_dir)
 end
 
 function pkg_unpack(package_path)
+	utils.mkdirp(syscnf.pkg_unpacked_dir)
 	local dir = mkdtemp(syscnf.pkg_unpacked_dir)
+
 	upack_extract_inner_file(package_path, "control", dir)
 	upack_extract_inner_file(package_path, "data", dir)
 	return dir
