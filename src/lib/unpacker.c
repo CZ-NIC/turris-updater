@@ -52,7 +52,7 @@ static int copy_data(struct archive *ar, struct archive *aw) {
 			return r;
 		r = archive_write_data_block(aw, buff, size, offset);
 		if (r != ARCHIVE_OK) {
-			printf("WARN: archive_write_data_block()");
+			DIE("ERROR: Cannot write archive data in copy_data()");
 			return r;
 		}
 	}
