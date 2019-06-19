@@ -390,26 +390,22 @@ static const char *data_param_base64 = "base64";
 
 static bool is_archive(struct uri *uri) {
 	FILE *f;
-	int buf[2];
+	uint16_t result;
+	uint16_t magic = 0x1f8b; /* GZIP magic number */
 	switch (uri->output_type) {
 		case URI_OUT_T_FILE:
 		case URI_OUT_T_TEMP_FILE:
 			f = fopen(uri->output_info.fpath, "r");
-			fread(buf, 1, sizeof buf, f);
+			result = (getc(f) << 8) + getc(f);
 			fclose(f);
-			return (
-				buf[0] == 0x1f &&
-				buf[1] == 0x8b
-			);
 			break;
 		case URI_OUT_T_BUFFER:
-			return (
-				uri->output_info.buf.data[0] == 0x1f &&
-				uri->output_info.buf.data[1] == 0x8b
-			);
-		default:
+			result = (uri->output_info.buf.data[0] << 8) + uri->output_info.buf.data[1];
+			break;
+	default:
 			DIE("Unsupported output type in is_archive. This should not happen.");
 	}
+	return magic == result;
 }
 
 static bool uri_finish_data(struct uri *uri) {
