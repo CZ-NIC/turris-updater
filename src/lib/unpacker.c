@@ -562,7 +562,11 @@ int get_sha256(uint8_t *result, const char *buffer, int len) {
 int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subarcname, char *file, enum unpacker_hmethod method) {
 
 	int size = upack_get_file_size(arcname, subarcname, file);
-	if (size > 0) {
+	if (size <= 0) {
+		/* error */
+		DIE("File in upack_get_inner_hash does not exist");
+		return -1;
+	} else {
 		char buffer[size];
 		upack_extract_inner_file_to_memory(buffer, arcname, subarcname, file, size);
 
@@ -577,12 +581,7 @@ int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subar
 				break;
 			}
 		}
-	/* -- hash end -- */
-
 		return 0;
-	} else {
-		/* error */
-		return -1;
 	}
 }
 
