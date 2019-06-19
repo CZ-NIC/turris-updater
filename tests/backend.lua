@@ -362,6 +362,11 @@ function test_pkg_unpack()
 		["/etc/config/updater"] = "12345678901234567890123456789012"
 	})
 	-- The original directory disappeared.
+	print("BB: IN TEST, path: " .. path)
+	local lsp = ls(path)
+	for k,v in pairs(lsp) do
+		print(k .. ":" .. v)
+	end
 	assert_table_equal({
 		["control"] = "d"
 	}, ls(path))

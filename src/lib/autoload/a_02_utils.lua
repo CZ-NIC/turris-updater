@@ -34,7 +34,9 @@ local events_wait = events_wait
 local run_util = run_util
 local INFO = INFO
 local print = print
+local tostring = tostring
 
+local ls = ls
 local dir = require "posix.dirent".dir
 local isdir = require "posix.sys.stat".S_ISDIR
 local stat = require "posix.sys.stat".stat
@@ -123,7 +125,28 @@ function cleanup_dirs(dirs)
 			end
 		end, nil, nil, -1, -1, "rm", "-rf", unpack(dirs)));
 ]]
-		rmdir(unpack(dirs))
+		for _, dir in pairs(dirs) do
+--			rmdir(unpack(dirs))
+			local ret, err, errnum = rmdir(dir)
+			print("rmdir returned: " .. tostring(ret) .. tostring(err) .. tostring(errnum))
+			local ret, err, errnum = rmrf(dir)
+		end
+	end
+end
+
+
+function rmrf(dir)
+	print("BB:TODO rmrf(): " .. dir)
+	local fs = stat(dir)
+	print("stat:" .. tostring(fs))
+	if (fs ~= nil) then do
+		local files = ls(dir)
+		for file, filetype in pairs(files) do
+	--		if (filetype = "f") then rm(file) else
+	--		if (filetype = "d") then rmrf(file) end
+			print("File: '" .. file .. "' (" .. filetype .. ")")
+		end
+		rmdir(dir)
 	end
 end
 
