@@ -55,7 +55,7 @@ static int copy_data(struct archive *ar, struct archive *aw) {
 /* 
  * Insert ./ when missing
  */
-static char * sanitize_filename(char *dst, const char *src) {
+static char *sanitize_filename(char *dst, const char *src) {
 	int r;
 	r = strncmp("./", src, 2);
 	if (r != 0) {
@@ -559,7 +559,7 @@ static int get_sha256(uint8_t *result, const char *buffer, int len) {
 	return 0;
 }
 
-int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subarcname, char *file, enum hashing_method method) {
+int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subarcname, char *file, enum unpacker_hmethod method) {
 
 	int size = upack_get_file_size(arcname, subarcname, file);
 	if (size > 0) {
@@ -568,11 +568,11 @@ int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subar
 
 		/* compute hash */
 		switch(method) {
-			case method_MD5: {
+			case UNPACKER_HMETHOD_MD5: {
 				get_md5(result, buffer, size);
 				break;
 			}
-			case method_SHA256: {
+			case UNPACKER_HMETHOD_SHA256: {
 				get_sha256(result, buffer, size);
 				break;
 			}

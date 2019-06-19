@@ -22,9 +22,9 @@
 #include <archive.h>
 #include <archive_entry.h>
 
-enum hashing_method {
-	method_MD5,
-	method_SHA256
+enum unpacker_hmethod {
+	UNPACKER_HMETHOD_MD5,
+	UNPACKER_HMETHOD_SHA256,
 };
 
 /*
@@ -56,7 +56,7 @@ int upack_extract_inner_file_to_memory(char *buff, const char *arcname, const ch
  * `arcname`. Supported hashing methods are MD5 and SHA256.
  */
 
-int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subarcname, char *file, enum hashing_method method);
+int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subarcname, char *file, enum unpacker_hmethod method);
 
 /*
  * Extract gzipped file `arcname` to `path`
