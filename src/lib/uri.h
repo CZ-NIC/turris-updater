@@ -183,8 +183,8 @@ const char *uri_scheme_string(enum uri_scheme);
 
 // Set if packed files should be unpacked automatically
 // uri: URI object system CA to be set to
-// verify: boolean value setting if verification should or should not be done
-// In default this is enabled.
+// unpack: boolean value setting if unpacking should or should not be done
+// In default this is disabled.
 void uri_set_auto_unpack(struct uri *uri, bool unpack) __attribute__((nonnull(1)));
 // HTTPS configurations //
 // Set if SSL certification verification should be done
