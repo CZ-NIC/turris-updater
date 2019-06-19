@@ -55,19 +55,16 @@ int upack_extract_inner_file_to_memory(char *buff, const char *arcname, const ch
  * Get hash of file `file` from archive `subarc_name` that is part of archive
  * `arcname`. Supported hashing methods are MD5 and SHA256.
  */
-
 int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subarcname, char *file, enum unpacker_hmethod method);
 
 /*
  * Extract gzipped file `arcname` to `path`
  */
-
 int upack_gz_file_to_file(const char *arcname, const char *path);
 
 /*
  * Extrach gzipped file `file` of size `size` to provided `buff` buffer
  */
-
 int upack_gz_buffer_to_file(void *buff, size_t size, const char *path);
 
 #endif
