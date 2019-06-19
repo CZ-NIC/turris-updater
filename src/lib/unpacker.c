@@ -543,7 +543,7 @@ int upack_gz_file_to_file(const char *arcname, const char *path){
 	return 0;
 }
 
-static int get_md5(uint8_t *result, const char *buffer, int len) {
+int get_md5(uint8_t *result, const char *buffer, int len) {
 	MD5_CTX md5;
 	MD5_Init(&md5);
 	MD5_Update(&md5, buffer, len);
@@ -551,7 +551,7 @@ static int get_md5(uint8_t *result, const char *buffer, int len) {
 	return 0;
 }
 
-static int get_sha256(uint8_t *result, const char *buffer, int len) {
+int get_sha256(uint8_t *result, const char *buffer, int len) {
 	SHA256_CTX sha256;
 	SHA256_Init(&sha256);
 	SHA256_Update(&sha256, buffer, len);

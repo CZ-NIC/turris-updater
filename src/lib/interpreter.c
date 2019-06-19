@@ -843,10 +843,7 @@ static int lua_md5(lua_State *L) {
 	size_t len;
 	const char *buffer = luaL_checklstring(L, 1, &len);
 	uint8_t result[MD5_DIGEST_LENGTH];
-	MD5_CTX md5;
-	MD5_Init(&md5);
-	MD5_Update(&md5, buffer, len);
-	MD5_Final(result, &md5);
+	get_md5(result, buffer, len);
 	push_hex(L, result, sizeof result);
 	return 1;
 }
@@ -872,10 +869,7 @@ static int lua_sha256(lua_State *L) {
 	size_t len;
 	const char *buffer = luaL_checklstring(L, 1, &len);
 	uint8_t result[SHA256_DIGEST_LENGTH];
-	SHA256_CTX sha256;
-	SHA256_Init(&sha256);
-	SHA256_Update(&sha256, buffer, len);
-	SHA256_Final(result, &sha256);
+	get_sha256(result, buffer, len);
 	push_hex(L, result, sizeof result);
 	return 1;
 }

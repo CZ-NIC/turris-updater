@@ -58,6 +58,16 @@ int upack_extract_inner_file_to_memory(char *buff, const char *arcname, const ch
 int upack_get_inner_hash(uint8_t *result, const char *arcname, const char *subarcname, char *file, enum unpacker_hmethod method);
 
 /*
+ * Get MD5 hash of `buffer` with size `len` and'put result into `result`
+ */
+int get_md5(uint8_t *result, const char *buffer, int len);
+
+/*
+ * Get SHA256 hash of `buffer` with size `len` and'put result into `result`
+ */
+int get_sha256(uint8_t *result, const char *buffer, int len);
+
+/*
  * Extract gzipped file `arcname` to `path`
  */
 int upack_gz_file_to_file(const char *arcname, const char *path);
