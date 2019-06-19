@@ -33,6 +33,12 @@
 #include <openssl/sha.h>
 #include <openssl/md5.h>
 
+int default_flags = 
+	ARCHIVE_EXTRACT_TIME |
+	ARCHIVE_EXTRACT_PERM |
+	ARCHIVE_EXTRACT_ACL |
+	ARCHIVE_EXTRACT_FFLAGS;
+
 static int copy_data(struct archive *ar, struct archive *aw) {
     const void *buff;
     size_t size;
@@ -108,15 +114,10 @@ static int get_inner_archive(struct archive *arc, const char* arcname, const cha
 int extract_files(struct archive *a, char *files[], int count) {
 	struct archive *ext;
 	struct archive_entry *entry;
-	int r, flags;
+	int r;
 	char filename[PATH_MAX];
 	char name[PATH_MAX];
-	/* Select which attributes we want to restore. */
-	flags = ARCHIVE_EXTRACT_TIME;
-	flags |= ARCHIVE_EXTRACT_PERM;
-	flags |= ARCHIVE_EXTRACT_ACL;
-	flags |= ARCHIVE_EXTRACT_FFLAGS;
-
+	int flags = default_flags;
 	ext = archive_write_disk_new();
 	archive_write_disk_set_options(ext, flags);
 	archive_write_disk_set_standard_lookup(ext);
@@ -156,21 +157,13 @@ int extract_all_files(struct archive *a, const char *dest) {
 
 	struct archive *ext;
 	struct archive_entry *entry;
-	int r, cur_dir, flags;
+	int r, cur_dir;
+	int flags = default_flags;
 	/* Save original path and create and switch to destination*/
-/*	char *path = get_current_dir_name();*/
 	getcwd(path, PATH_MAX);
 	cur_dir = open(".", O_RDONLY);
 	mkdir(dest, 0777); /* TODO: what mode to use here? */
 	chdir(dest);
-	/* TODO: error checking */
-
-	/* Select which attributes we want to restore. */
-	flags = ARCHIVE_EXTRACT_TIME;
-	flags |= ARCHIVE_EXTRACT_PERM;
-	flags |= ARCHIVE_EXTRACT_ACL;
-	flags |= ARCHIVE_EXTRACT_FFLAGS;
-
 	/* Start writing to disk */
 	ext = archive_write_disk_new();
 	archive_write_disk_set_options(ext, flags);
@@ -306,12 +299,7 @@ int upack_get_file_size(const char *arcname, const char *subarcname, const char 
 static int unpack_entry_to_disk(struct archive *a, struct archive_entry *entry) {
 	int r;
 	struct archive *ext;
-	int flags;
-	/* Select which attributes we want to restore. */
-	flags = ARCHIVE_EXTRACT_TIME;
-	flags |= ARCHIVE_EXTRACT_PERM;
-	flags |= ARCHIVE_EXTRACT_ACL;
-	flags |= ARCHIVE_EXTRACT_FFLAGS;
+	int flags = default_flags;
 	ext = archive_write_disk_new();
 	archive_write_disk_set_options(ext, flags);
 	archive_write_disk_set_standard_lookup(ext);
@@ -416,15 +404,8 @@ int upack_extract_archive(const char *arcname, const char *path){
 	struct archive *a;
 	struct archive *ext;
 	struct archive_entry *entry;
-	int flags;
 	int r;
-
-	/* Select which attributes we want to restore. */
-	flags = ARCHIVE_EXTRACT_TIME;
-	flags |= ARCHIVE_EXTRACT_PERM;
-	flags |= ARCHIVE_EXTRACT_ACL;
-	flags |= ARCHIVE_EXTRACT_FFLAGS;
-
+	int flags = default_flags;
 // check for existing dir
 	struct stat sb;
 	lstat(path, &sb);
@@ -484,15 +465,8 @@ int upack_extract_archive(const char *arcname, const char *path){
 
 static int upack_gz_to_file(struct archive *a, const char *path) {
 	struct archive_entry *entry;
-	int flags;
 	int r;
-
-	/* Select which attributes we want to restore. */
-	flags = ARCHIVE_EXTRACT_TIME;
-	flags |= ARCHIVE_EXTRACT_PERM;
-	flags |= ARCHIVE_EXTRACT_ACL;
-	flags |= ARCHIVE_EXTRACT_FFLAGS;
-
+	int flags = default_flags;
 	if ((r = archive_read_next_header(a, &entry))) {
 		DIE("Cannot read next header in upack_gz_to_file.");
 	}
@@ -500,7 +474,6 @@ static int upack_gz_to_file(struct archive *a, const char *path) {
 	if ((r = archive_read_extract(a, entry, flags))) {
 		DIE("Cannot extract archive in upack_gz_to_file.");
 	}
-
 	return 0;
 }
 
