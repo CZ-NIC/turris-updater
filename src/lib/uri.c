@@ -389,10 +389,10 @@ static bool uri_finish_file(struct uri *uri) {
 static const char *data_param_base64 = "base64";
 
 static bool is_archive(struct uri *uri) {
-	FILE *f;
 	uint16_t result;
 	uint16_t magic = 0x1f8b; /* GZIP magic number */
 	switch (uri->output_type) {
+		FILE *f;
 		case URI_OUT_T_FILE:
 		case URI_OUT_T_TEMP_FILE:
 			f = fopen(uri->output_info.fpath, "r");
