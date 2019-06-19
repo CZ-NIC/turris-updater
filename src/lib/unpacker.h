@@ -1,5 +1,5 @@
 /*
- * Copyright 2016, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+ * Copyright 2019, CZ.NIC z.s.p.o. (http://www.nic.cz/)
  *
  * This file is part of the turris updater.
  *
