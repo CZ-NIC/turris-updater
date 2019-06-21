@@ -13,6 +13,7 @@ C_TESTS := \
 	subprocess \
 	download \
 	uri \
+	unpacker \
 	interpreter
 
 LUA_TESTS := \
