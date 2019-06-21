@@ -17,24 +17,59 @@
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "ctest.h"
-#include "../src/lib/uri.h"
+#include "../src/lib/unpacker.h"
 #include "test_data.h"
 
 static void test_unpacker_test() {
 	printf("hello world\n");
 }
 
-// Testing URI parsing
+// Testing
 START_TEST(unpacker_test) {
 	test_unpacker_test();
 }
 END_TEST
+
+static void test_get_md5(char *file_path, char *hash_path) {
+	char *stored_hash = readfile(hash_path);
+	char *computed_hash[16];
+	char *content = readfile(file_path);
+	get_md5(computed_hash, content, lengthof(content));
+	int ret = strncmp(stored_hash, computed_hash, 16);
+	ck_assert_int_eq(ret, 0);
+}
+
+static void test_get_sha256(char *file_path, char *hash_path) {
+	char *stored_hash = readfile(hash_path);
+	char *computed_hash[32];
+	char *content = readfile(file_path);
+	get_sha256(computed_hash, content, lengthof(content));
+	int ret = strncmp(stored_hash, computed_hash, 16);
+	ck_assert_int_eq(ret, 0);
+}
+// Testing hashing
+
+START_TEST(unpacker_hashing) {
+	test_get_md5("data/lorem_ipsum_short.txt", "data/lorem_ipsum_short.txt.md5");
+	test_get_sha256("data/lorem_ipsum_short.txt", "data/lorem_ipsum_short.txt.sha256");
+}
+END_TEST
+
+static void test_unpack_file(char *packed_path, char *unpacked_path) {
+	FILE *f;
+	f = open(unpacked_path);
+//	ck_assert_str_eq(unpacked, file_content);
+}
+
+
+
 
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Unpacker");
 	TCase *unpacker = tcase_create("unpacker");
 	tcase_set_timeout(unpacker, 30);
 	tcase_add_test(unpacker, unpacker_test);
+	tcase_add_test(unpacker, unpacker_hashing);
 	suite_add_tcase(result, unpacker);
 	return result;
 }
