@@ -32,20 +32,20 @@ START_TEST(unpacker_test) {
 END_TEST
 
 static void test_get_md5(char *file_path, char *hash_path) {
+	uint8_t computed_hash[16];
 	char *stored_hash = readfile(hash_path);
-	char computed_hash[16];
 	char *content = readfile(file_path);
 	get_md5(computed_hash, content, lengthof(content));
-	int ret = strncmp(stored_hash, computed_hash, 16);
+	int ret = strncmp(stored_hash, (char *)computed_hash, 16);
 	ck_assert_int_eq(ret, 0);
 }
 
 static void test_get_sha256(char *file_path, char *hash_path) {
+	uint8_t computed_hash[32];
 	char *stored_hash = readfile(hash_path);
-	char *computed_hash[32];
 	char *content = readfile(file_path);
 	get_sha256(computed_hash, content, lengthof(content));
-	int ret = strncmp(stored_hash, computed_hash, 16);
+	int ret = strncmp(stored_hash, (char *)computed_hash, 16);
 	ck_assert_int_eq(ret, 0);
 }
 // Testing hashing
@@ -54,6 +54,8 @@ START_TEST(unpacker_hashing) {
 	// TODO: make sure that we are in right dir?
 	test_get_md5("tests/data/lorem_ipsum_short.txt", "tests/data/lorem_ipsum_short.txt.md5");
 	test_get_sha256("tests/data/lorem_ipsum_short.txt", "tests/data/lorem_ipsum_short.txt.sha256");
+	test_get_md5("tests/data/lorem_ipsum.txt", "tests/data/lorem_ipsum.txt.md5");
+	test_get_sha256("tests/data/lorem_ipsum.txt", "tests/data/lorem_ipsum.txt.sha256");
 }
 END_TEST
 
