@@ -39,8 +39,12 @@ const char *get_sdir();
 #define HTTPS_LOREM_IPSUM_GZ ( HTTPS_LOREM_IPSUM ".gz" )
 #define FILE_LOREM_IPSUM_SHORT aprintf("%s/tests/data/lorem_ipsum_short.txt", get_sdir())
 #define FILE_LOREM_IPSUM_SHORT_GZ aprintf("%s/tests/data/lorem_ipsum_short.txt.gz", get_sdir())
+#define FILE_LOREM_IPSUM_SHORT_MD5 aprintf("%s/tests/data/lorem_ipsum_short.txt.md5", get_sdir())
+#define FILE_LOREM_IPSUM_SHORT_SHA256 aprintf("%s/tests/data/lorem_ipsum_short.txt.sha256", get_sdir())
 #define FILE_LOREM_IPSUM aprintf("%s/tests/data/lorem_ipsum.txt", get_sdir())
 #define FILE_LOREM_IPSUM_GZ aprintf("%s/tests/data/lorem_ipsum.txt.gz", get_sdir())
+#define FILE_LOREM_IPSUM_MD5 aprintf("%s/tests/data/lorem_ipsum.txt.md5", get_sdir())
+#define FILE_LOREM_IPSUM_SHA256 aprintf("%s/tests/data/lorem_ipsum.txt.sha256", get_sdir())
 
 // Signatures
 #define USIGN_KEY_1_PUB (aprintf("%s/tests/data/usign.key1.pub", get_sdir()))

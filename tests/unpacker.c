@@ -20,6 +20,7 @@
 #include "../src/lib/unpacker.h"
 #include "test_data.h"
 #include <unistd.h>
+#include <stdio.h>
 
 static void test_unpacker_test() {
 	printf("hello world\n");
@@ -51,24 +52,28 @@ static void test_get_sha256(char *file_path, char *hash_path) {
 // Testing hashing
 
 START_TEST(unpacker_hashing) {
-	// TODO: make sure that we are in right dir?
-	test_get_md5("tests/data/lorem_ipsum_short.txt", "tests/data/lorem_ipsum_short.txt.md5");
-	test_get_sha256("tests/data/lorem_ipsum_short.txt", "tests/data/lorem_ipsum_short.txt.sha256");
-	test_get_md5("tests/data/lorem_ipsum.txt", "tests/data/lorem_ipsum.txt.md5");
-	test_get_sha256("tests/data/lorem_ipsum.txt", "tests/data/lorem_ipsum.txt.sha256");
+	test_get_md5(FILE_LOREM_IPSUM_SHORT, FILE_LOREM_IPSUM_SHORT_MD5);
+	test_get_sha256(FILE_LOREM_IPSUM_SHORT, FILE_LOREM_IPSUM_SHORT_SHA256);
+	test_get_md5(FILE_LOREM_IPSUM, FILE_LOREM_IPSUM_MD5);
+	test_get_sha256(FILE_LOREM_IPSUM, FILE_LOREM_IPSUM_SHA256);
 }
 END_TEST
 
 
-/*
+
 static void test_unpack_file(char *packed_path, char *unpacked_path) {
 	FILE *f;
-	f = open(unpacked_path);
+//	f = fopen(unpacked_path);
+	
 //	ck_assert_str_eq(unpacked, file_content);
 }
+
+/*
+START_TEST(unpacker_unpacking) {
+//	test_unpack_file(LOREM_IPSUM_SHORT);
+}
+END_TEST
 */
-
-
 
 
 Suite *gen_test_suite(void) {
