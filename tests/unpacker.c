@@ -21,6 +21,7 @@
 #include "test_data.h"
 #include <unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 static void test_unpacker_test() {
 	printf("hello world\n");
@@ -62,18 +63,19 @@ END_TEST
 
 
 static void test_unpack_file(char *packed_path, char *unpacked_path) {
-	FILE *f;
-//	f = fopen(unpacked_path);
-	
-//	ck_assert_str_eq(unpacked, file_content);
+	char *unpacked_file = readfile(unpacked_path);
+	char *out_file = aprintf("%s/tempfile", get_tmpdir());
+	upack_gz_file_to_file(packed_path, out_file);
+	char *unpacked_data = readfile(out_file);
+	ck_assert_str_eq(unpacked_file, unpacked_data);
 }
 
-/*
-START_TEST(unpacker_unpacking) {
-//	test_unpack_file(LOREM_IPSUM_SHORT);
+START_TEST(unpacker_unpacking_to_file) {
+	test_unpack_file(FILE_LOREM_IPSUM_SHORT_GZ, FILE_LOREM_IPSUM_SHORT);
+	test_unpack_file(FILE_LOREM_IPSUM_GZ, FILE_LOREM_IPSUM);
 }
 END_TEST
-*/
+
 
 
 Suite *gen_test_suite(void) {
@@ -82,6 +84,7 @@ Suite *gen_test_suite(void) {
 	tcase_set_timeout(unpacker, 30);
 	tcase_add_test(unpacker, unpacker_test);
 	tcase_add_test(unpacker, unpacker_hashing);
+	tcase_add_test(unpacker, unpacker_unpacking_to_file);
 	suite_add_tcase(result, unpacker);
 	return result;
 }
