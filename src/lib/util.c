@@ -263,3 +263,9 @@ char *printf_into(char *dst, const char *msg, ...) {
 	va_end(args);
 	return dst;
 }
+
+int lengthof(const char *string) {
+	int i = 0;
+	for (; string[i] != '\0'; i++) {};
+	return i;
+}

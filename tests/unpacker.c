@@ -19,6 +19,7 @@
 #include "ctest.h"
 #include "../src/lib/unpacker.h"
 #include "test_data.h"
+#include <unistd.h>
 
 static void test_unpacker_test() {
 	printf("hello world\n");
@@ -32,7 +33,7 @@ END_TEST
 
 static void test_get_md5(char *file_path, char *hash_path) {
 	char *stored_hash = readfile(hash_path);
-	char *computed_hash[16];
+	char computed_hash[16];
 	char *content = readfile(file_path);
 	get_md5(computed_hash, content, lengthof(content));
 	int ret = strncmp(stored_hash, computed_hash, 16);
@@ -50,16 +51,20 @@ static void test_get_sha256(char *file_path, char *hash_path) {
 // Testing hashing
 
 START_TEST(unpacker_hashing) {
-	test_get_md5("data/lorem_ipsum_short.txt", "data/lorem_ipsum_short.txt.md5");
-	test_get_sha256("data/lorem_ipsum_short.txt", "data/lorem_ipsum_short.txt.sha256");
+	// TODO: make sure that we are in right dir?
+	test_get_md5("tests/data/lorem_ipsum_short.txt", "tests/data/lorem_ipsum_short.txt.md5");
+	test_get_sha256("tests/data/lorem_ipsum_short.txt", "tests/data/lorem_ipsum_short.txt.sha256");
 }
 END_TEST
 
+
+/*
 static void test_unpack_file(char *packed_path, char *unpacked_path) {
 	FILE *f;
 	f = open(unpacked_path);
 //	ck_assert_str_eq(unpacked, file_content);
 }
+*/
 
 
 
