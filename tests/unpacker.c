@@ -60,9 +60,7 @@ START_TEST(unpacker_hashing) {
 }
 END_TEST
 
-
-
-static void test_unpack_file(char *packed_path, char *unpacked_path) {
+static void test_unpack_to_file(char *packed_path, char *unpacked_path) {
 	char *unpacked_file = readfile(unpacked_path);
 	char *out_file = aprintf("%s/tempfile", get_tmpdir());
 	upack_gz_file_to_file(packed_path, out_file);
@@ -71,12 +69,29 @@ static void test_unpack_file(char *packed_path, char *unpacked_path) {
 }
 
 START_TEST(unpacker_unpacking_to_file) {
-	test_unpack_file(FILE_LOREM_IPSUM_SHORT_GZ, FILE_LOREM_IPSUM_SHORT);
-	test_unpack_file(FILE_LOREM_IPSUM_GZ, FILE_LOREM_IPSUM);
+	test_unpack_to_file(FILE_LOREM_IPSUM_SHORT_GZ, FILE_LOREM_IPSUM_SHORT);
+	test_unpack_to_file(FILE_LOREM_IPSUM_GZ, FILE_LOREM_IPSUM);
 }
 END_TEST
 
+static void test_unpack_to_buffer(char *packed_path, char *unpacked_path) {
+	printf("test unpacking to buffer\n");
+	char *unpacked_file = readfile(unpacked_path);
+	upack_gz_file_to_buffer(packed_path);
 
+/*
+
+
+	char *unpacked_data = readfile(out_file);
+	ck_assert_str_eq(unpacked_file, unpacked_data);
+*/
+}
+
+START_TEST(unpacker_unpacking_to_buffer) {
+	test_unpack_to_buffer(FILE_LOREM_IPSUM_SHORT_GZ, FILE_LOREM_IPSUM_SHORT);
+	test_unpack_to_buffer(FILE_LOREM_IPSUM_GZ, FILE_LOREM_IPSUM);
+}
+END_TEST
 
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Unpacker");
@@ -85,6 +100,7 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(unpacker, unpacker_test);
 	tcase_add_test(unpacker, unpacker_hashing);
 	tcase_add_test(unpacker, unpacker_unpacking_to_file);
+	tcase_add_test(unpacker, unpacker_unpacking_to_buffer);
 	suite_add_tcase(result, unpacker);
 	return result;
 }
