@@ -84,7 +84,7 @@ static int get_inner_archive(struct archive *arc, const char* arcname, const cha
 	a = archive_read_new();
 	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
-	r = archive_read_open_filename(a, arcname, 10240);
+	r = archive_read_open_filename(a, arcname, UNPACKER_BUFFER_SIZE);
 	if (r != ARCHIVE_OK) {
 		return 1;
 	}
@@ -240,7 +240,7 @@ int process_file(const char *arcname, const char *subarcname, const char *filena
 	a = archive_read_new();
 	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
-	r = archive_read_open_filename(a, arcname, 10240);
+	r = archive_read_open_filename(a, arcname, UNPACKER_BUFFER_SIZE);
 	if (r != ARCHIVE_OK) {
 		return 1;
 	}
@@ -361,7 +361,7 @@ and also append subarcname to path
 	a = archive_read_new();
 	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
-	r = archive_read_open_filename(a, arcname, 10240);
+	r = archive_read_open_filename(a, arcname, UNPACKER_BUFFER_SIZE);
 	if (r != ARCHIVE_OK) {
 		return 1;
 	}
@@ -426,7 +426,7 @@ int upack_extract_archive(const char *arcname, const char *path){
 	ext = archive_write_disk_new();
 	archive_write_disk_set_options(ext, flags);
 	archive_write_disk_set_standard_lookup(ext);
-	if ((r = archive_read_open_filename(a, arcname, 10240)))
+	if ((r = archive_read_open_filename(a, arcname, UNPACKER_BUFFER_SIZE)))
 		return -1;
 
 // move to target dir
@@ -502,7 +502,7 @@ static int upack_gz_to_buffer(struct archive *a) {
 	printf("upack gz to buffer\n");
 	struct archive_entry *entry;
 	int r;
-//	int flags = default_flags;
+	int flags = default_flags;
 	if ((r = archive_read_next_header(a, &entry))) {
 		DIE("Cannot read next header in upack_gz_to_file.");
 	}
@@ -537,7 +537,7 @@ int upack_gz_file_to_file(const char *arcname, const char *path){
 	struct archive *a = archive_read_new();
 	archive_read_support_format_raw(a);
 	archive_read_support_filter_gzip(a);
-	if ((r = archive_read_open_filename(a, arcname, 10240))) {
+	if ((r = archive_read_open_filename(a, arcname, UNPACKER_BUFFER_SIZE))) {
 		DIE("Cannot open %s in upack_gz_file_to_file.", arcname);
 		return -1;
 	}
@@ -547,22 +547,80 @@ int upack_gz_file_to_file(const char *arcname, const char *path){
 	return 0;
 }
 
-// TODO: return buffer
-int upack_gz_file_to_buffer(const char *arcname){
-	printf("upack gz file to buffer\n");
+int upack_get_arc_size(const char *arcname){
 	int r;
+	ssize_t size;
+	ssize_t total_size = 0;
+	char *buff[UNPACKER_BUFFER_SIZE];
 	struct archive *a = archive_read_new();
+	struct archive_entry *ae;
 	archive_read_support_format_raw(a);
 	archive_read_support_filter_gzip(a);
-	if ((r = archive_read_open_filename(a, arcname, 10240))) {
+	if ((r = archive_read_open_filename(a, arcname, UNPACKER_BUFFER_SIZE))) {
 		DIE("Cannot open %s in upack_gz_file_to_file.", arcname);
 		return -1;
 	}
-	upack_gz_to_buffer(a);
+
+	r = archive_read_next_header(a, &ae);
+	if (r != ARCHIVE_OK) {
+		printf("errororr\n");
+	}
+
+	for (;;) {
+		size = archive_read_data(a, buff, UNPACKER_BUFFER_SIZE);
+		total_size += size;
+		if (size < 0) {
+			printf("problem, size is %d\n", size);
+			break;
+		}
+		if (size == 0)
+			break;
+	}
+	archive_read_close(a);
+	archive_read_free(a);
+	return total_size;
+}
+
+// TODO: return buffer
+int upack_gz_file_to_buffer(char *out_buffer, const char *arcname){
+	printf("upack gz file '%s' to buffer\n", arcname);
+	int r;
+	ssize_t size;
+	char *buff[UNPACKER_BUFFER_SIZE];
+	struct archive *a = archive_read_new();
+	struct archive_entry *ae;
+	archive_read_support_format_raw(a);
+	archive_read_support_filter_gzip(a);
+	if ((r = archive_read_open_filename(a, arcname, UNPACKER_BUFFER_SIZE))) {
+		DIE("Cannot open %s in upack_gz_file_to_file.", arcname);
+		return -1;
+	}
+
+	r = archive_read_next_header(a, &ae);
+	if (r != ARCHIVE_OK) {
+		printf("errororr\n");
+	}
+
+	int pos = 0;
+
+	for (;;) {
+		size = archive_read_data(a, buff, UNPACKER_BUFFER_SIZE);
+		if (size < 0) {
+			printf("problem, size is %d\n", size);
+			break;
+		}
+		if (size == 0)
+			break;
+	//	write(out_buffer, buff, size);
+		strcat(out_buffer, buff);
+		pos += size;
+		out_buffer[pos] = '\0';
+	}
 	archive_read_close(a);
 	archive_read_free(a);
 	return 0;
 }
+
 int get_md5(uint8_t *result, const char *buffer, int len) {
 	MD5_CTX md5;
 	MD5_Init(&md5);

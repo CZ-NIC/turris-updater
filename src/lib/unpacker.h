@@ -22,6 +22,8 @@
 #include <archive.h>
 #include <archive_entry.h>
 
+#define UNPACKER_BUFFER_SIZE 16384
+
 enum unpacker_hmethod {
 	UNPACKER_HMETHOD_MD5,
 	UNPACKER_HMETHOD_SHA256,
@@ -73,8 +75,18 @@ int get_sha256(uint8_t *result, const char *buffer, int len);
 int upack_gz_file_to_file(const char *arcname, const char *path);
 
 /*
- * Extrach gzipped file `file` of size `size` to provided `buff` buffer
+ * Extract gzipped file `arcname` to provided `out_buffer` buffer
+ */
+int upack_gz_file_to_buffer(char *out_buffer, const char *arcname);
+
+/*
+ * Extract gzipped file `file` of size `size` to provided `buff` buffer
  */
 int upack_gz_buffer_to_file(void *buff, size_t size, const char *path);
+
+/*
+ *
+ */
+int upack_get_arc_size(const char *arcname);
 
 #endif

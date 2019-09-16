@@ -83,22 +83,34 @@ END_TEST
 static void test_unpack_to_buffer(char *packed_path, char *unpacked_path) {
 	printf("test unpacking to buffer\n");
 	char *unpacked_file = readfile(unpacked_path);
-	upack_gz_file_to_buffer(packed_path);
+
+	int size = upack_get_arc_size(packed_path);
+	printf("Size of arc %s is %d\n", packed_path, size);
+//	char *unpacked_data = calloc(1, size);
+	char *unpacked_data[size];
+	unpacked_data[0] = '\0';
+
+	upack_gz_file_to_buffer(unpacked_data, packed_path);
+
+
+	printf("===Result===\n%s\n", unpacked_data);
+
 
 /*
-
-
 	char *unpacked_data = readfile(out_file);
 	ck_assert_str_eq(unpacked_file, unpacked_data);
 */
+
+
+//	free(unpacked_file);
 }
-/*
+
 START_TEST(unpacker_unpacking_to_buffer) {
 	test_unpack_to_buffer(FILE_LOREM_IPSUM_SHORT_GZ, FILE_LOREM_IPSUM_SHORT);
 	test_unpack_to_buffer(FILE_LOREM_IPSUM_GZ, FILE_LOREM_IPSUM);
 }
 END_TEST
-*/
+
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Unpacker");
 	TCase *unpacker = tcase_create("unpacker");
@@ -106,7 +118,7 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(unpacker, unpacker_test);
 	tcase_add_test(unpacker, unpacker_hashing);
 	tcase_add_test(unpacker, unpacker_unpacking_to_file);
-//	tcase_add_test(unpacker, unpacker_unpacking_to_buffer);
+	tcase_add_test(unpacker, unpacker_unpacking_to_buffer);
 	suite_add_tcase(result, unpacker);
 	return result;
 }
