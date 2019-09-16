@@ -490,7 +490,7 @@ static int unpack_data(struct archive *ar) {
 			return ARCHIVE_OK;
 		if (r != ARCHIVE_OK)
 			return r;
-		printf("size: %d, offset: %d\n", size, offset);
+		printf("size: %zu, offset: %ld\n", size, offset);
 		if (r != ARCHIVE_OK) {
 			DIE("ERROR: Cannot write archive data in copy_data()");
 			return r;
@@ -502,7 +502,7 @@ static int upack_gz_to_buffer(struct archive *a) {
 	printf("upack gz to buffer\n");
 	struct archive_entry *entry;
 	int r;
-	int flags = default_flags;
+//	int flags = default_flags;
 	if ((r = archive_read_next_header(a, &entry))) {
 		DIE("Cannot read next header in upack_gz_to_file.");
 	}
