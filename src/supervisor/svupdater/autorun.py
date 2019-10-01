@@ -22,8 +22,9 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-from uci import UciExceptionNotFound
+from uci import Uci, UciExceptionNotFound
 from euci import EUci
+
 
 def enabled():
     """Returns True if updater can be automatically started by various system
@@ -93,3 +94,14 @@ def set_auto_approve_time(approve_time):
             uci.set_integer('updater', 'approvals', 'auto_grant_seconds', approve_time * 3600)
         else:
             uci.delete('updater', 'autorun', 'auto_approve_time')
+
+
+def get_os_branch_or_version():
+    """Get OS branch or version from uci."""
+    with Uci() as uci:
+        try:
+            branch = uci.get("updater", "override", "branch")
+        except (UciExceptionNotFound, KeyError):
+            branch = "deploy"
+
+        return {"mode": "branch", "value": branch}
