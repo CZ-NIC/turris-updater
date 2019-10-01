@@ -25,6 +25,7 @@
 from uci import UciExceptionNotFound
 from euci import EUci
 
+
 def enabled():
     """Returns True if updater can be automatically started by various system
     utils. This includes automatic periodic execution, after-boot recovery and
