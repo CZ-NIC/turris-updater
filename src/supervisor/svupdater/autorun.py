@@ -22,8 +22,9 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-from uci import UciExceptionNotFound
+from uci import Uci, UciExceptionNotFound
 from euci import EUci
+
 
 def enabled():
     """Returns True if updater can be automatically started by various system
