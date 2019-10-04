@@ -94,14 +94,3 @@ def set_auto_approve_time(approve_time):
             uci.set_integer('updater', 'approvals', 'auto_grant_seconds', approve_time * 3600)
         else:
             uci.delete('updater', 'autorun', 'auto_approve_time')
-
-
-def get_os_branch_or_version():
-    """Get OS branch or version from uci."""
-    with Uci() as uci:
-        try:
-            branch = uci.get("updater", "override", "branch")
-        except (UciExceptionNotFound, KeyError):
-            branch = "deploy"
-
-        return {"mode": "branch", "value": branch}
