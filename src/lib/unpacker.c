@@ -21,6 +21,7 @@
 #include "logging.h"
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
 #include <archive.h>
 #include <archive_entry.h>
 #include <fcntl.h>
@@ -586,7 +587,13 @@ int upack_gz_file_to_buffer(char *out_buffer, const char *arcname){
 	printf("upack gz file '%s' to buffer\n", arcname);
 	int r;
 	ssize_t size;
-	char *buff[UNPACKER_BUFFER_SIZE];
+
+
+	char buff[UNPACKER_BUFFER_SIZE];
+
+//	char *buff = malloc(UNPACKER_BUFFER_SIZE);
+
+
 	struct archive *a = archive_read_new();
 	struct archive_entry *ae;
 	archive_read_support_format_raw(a);
@@ -606,17 +613,80 @@ int upack_gz_file_to_buffer(char *out_buffer, const char *arcname){
 	for (;;) {
 		size = archive_read_data(a, buff, UNPACKER_BUFFER_SIZE);
 		if (size < 0) {
-			printf("problem, size is %d\n", size);
+			printf("problem, size is %ld\n", size);
 			break;
 		}
 		if (size == 0)
 			break;
 	//	write(out_buffer, buff, size);
-		printf("len: %d\n", strlen(buff));
+
+		printf("---------------------------\n");	
+		printf("%s\n", buff);
+//		printf("len: %ld\n", strlen(buff));
 		strcat(out_buffer, buff);
 		pos += size;
 		out_buffer[pos] = '\0';
 	}
+	archive_read_close(a);
+	archive_read_free(a);
+	return 0;
+}
+
+int new_upack_gz_file_to_buffer(char *out_buffer, const char *arcname){
+/*
+ * TODO: create FD in memory, see https://stackoverflow.com/questions/12081720/in-linux-how-to-create-a-file-descriptor-for-a-memory-region#12106166
+ *
+ *		then write to it using `write(fd, buff, size)`
+ *
+ *		this should work fine (or not, with my luck)
+ *
+ */
+	printf("upack gz file '%s' to buffer\n", arcname);
+
+	int r;
+	ssize_t size;
+	char buff[UNPACKER_BUFFER_SIZE];
+	struct archive *a = archive_read_new();
+	struct archive_entry *ae;
+
+	int fd;
+	fd = shm_open("test_memory_archive", O_CREAT, 0777);
+	ftruncate(fd, 100000); //FIXME: just some testing number
+
+	archive_read_support_format_raw(a);
+	archive_read_support_filter_gzip(a);
+
+	if ((r = archive_read_open_filename(a, arcname, UNPACKER_BUFFER_SIZE))) {
+		DIE("Cannot open %s in upack_gz_file_to_file.", arcname);
+		return -1;
+	}
+
+	r = archive_read_next_header(a, &ae);
+	if (r != ARCHIVE_OK) {
+		printf("errororr\n");
+	}
+
+	int pos = 0;
+
+	for (;;) {
+		size = archive_read_data(a, buff, UNPACKER_BUFFER_SIZE);
+		if (size < 0) {
+			printf("problem, size is %ld\n", size);
+			break;
+		}
+		if (size == 0)
+			break;
+
+// Here will be the code!
+ 		write(fd, buff, size);
+
+		pos += size;
+		out_buffer[pos] = '\0';
+	}
+
+
+	close(fd);
+
 	archive_read_close(a);
 	archive_read_free(a);
 	return 0;

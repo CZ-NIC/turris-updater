@@ -96,8 +96,8 @@ static void test_unpack_to_buffer(char *packed_path, char *unpacked_path) {
 	int size = upack_get_arc_size(packed_path);
 	printf("Size of arc %s is %d\n", packed_path, size);
 	char *unpacked_data = (char*) malloc(size + 1);
-//	unpacked_data[0] = '\0';
-	upack_gz_file_to_buffer(unpacked_data, packed_path);
+	unpacked_data[0] = '\0';
+	new_upack_gz_file_to_buffer(unpacked_data, packed_path);
 
 	int window_size = 1024;
 
