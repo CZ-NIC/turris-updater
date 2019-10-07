@@ -612,6 +612,7 @@ int upack_gz_file_to_buffer(char *out_buffer, const char *arcname){
 		if (size == 0)
 			break;
 	//	write(out_buffer, buff, size);
+		printf("len: %d\n", strlen(buff));
 		strcat(out_buffer, buff);
 		pos += size;
 		out_buffer[pos] = '\0';
