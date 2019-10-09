@@ -8,5 +8,7 @@ def get_os_branch_or_version():
             branch = uci.get("updater", "override", "branch")
         except (UciExceptionNotFound, KeyError):
             branch = "deploy"
+        # TOS 3.x can only switch between branches, therefore mode is fixed on branch
+        mode = "branch"
 
-        return {"mode": "branch", "value": branch}
+        return mode, branch
