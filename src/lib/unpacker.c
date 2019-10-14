@@ -503,7 +503,7 @@ static int upack_gz_to_buffer(struct archive *a) {
 	printf("upack gz to buffer\n");
 	struct archive_entry *entry;
 	int r;
-	int flags = default_flags;
+//	int flags = default_flags;
 	if ((r = archive_read_next_header(a, &entry))) {
 		DIE("Cannot read next header in upack_gz_to_file.");
 	}
@@ -550,7 +550,6 @@ int upack_gz_file_to_file(const char *arcname, const char *path){
 
 int upack_get_arc_size(const char *arcname){
 	int r;
-	ssize_t size;
 	ssize_t total_size = 0;
 	char *buff[UNPACKER_BUFFER_SIZE];
 	struct archive *a = archive_read_new();
@@ -568,10 +567,11 @@ int upack_get_arc_size(const char *arcname){
 	}
 
 	for (;;) {
+		ssize_t size;
 		size = archive_read_data(a, buff, UNPACKER_BUFFER_SIZE);
 		total_size += size;
 		if (size < 0) {
-			printf("problem, size is %d\n", size);
+			printf("problem, size is %ld\n", size);
 			break;
 		}
 		if (size == 0)
@@ -586,14 +586,9 @@ int upack_get_arc_size(const char *arcname){
 int upack_gz_file_to_buffer(char *out_buffer, const char *arcname){
 	printf("upack gz file '%s' to buffer\n", arcname);
 	int r;
-	ssize_t size;
-
-
 	char buff[UNPACKER_BUFFER_SIZE];
 
 //	char *buff = malloc(UNPACKER_BUFFER_SIZE);
-
-
 	struct archive *a = archive_read_new();
 	struct archive_entry *ae;
 	archive_read_support_format_raw(a);
@@ -611,6 +606,7 @@ int upack_gz_file_to_buffer(char *out_buffer, const char *arcname){
 	int pos = 0;
 
 	for (;;) {
+		ssize_t size;
 		size = archive_read_data(a, buff, UNPACKER_BUFFER_SIZE);
 		if (size < 0) {
 			printf("problem, size is %ld\n", size);
@@ -644,7 +640,6 @@ int new_upack_gz_file_to_buffer(char *out_buffer, const char *arcname){
 	printf("upack gz file '%s' to buffer\n", arcname);
 
 	int r;
-	ssize_t size;
 	char buff[UNPACKER_BUFFER_SIZE];
 	struct archive *a = archive_read_new();
 	struct archive_entry *ae;
@@ -669,6 +664,7 @@ int new_upack_gz_file_to_buffer(char *out_buffer, const char *arcname){
 	int pos = 0;
 
 	for (;;) {
+		ssize_t size;
 		size = archive_read_data(a, buff, UNPACKER_BUFFER_SIZE);
 		if (size < 0) {
 			printf("problem, size is %ld\n", size);
