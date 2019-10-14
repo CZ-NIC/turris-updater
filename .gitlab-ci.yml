@@ -1,4 +1,4 @@
-image: registry.labs.nic.cz/turris/updater
+image: registry.labs.nic.cz/turris/updater/updater
 
 stages:
   - test
