@@ -80,6 +80,9 @@ char *printf_into(char *dst, const char *msg, ...) __attribute__((format(printf,
 // Like printf, but allocates the data on the stack with alloca and returns. It uses the arguments multiple times, so beware of side effects.
 #define aprintf(...) printf_into(alloca(printf_len(__VA_ARGS__)), __VA_ARGS__)
 
+// Return size of string
+int lengthof(const char *string);
+
 // GCC 7+ reports fall troughs but previous versions doesn't understand attribute
 // for it so we have this macro to not put it in place if it's not needed.
 #if  __GNUC__ >= 7

@@ -30,11 +30,21 @@ const char *get_sdir();
 #define LOREM_IPSUM_SHORT "lorem ipsum\n"
 #define LOREM_IPSUM_SHORT_SIZE 12
 #define HTTP_LOREM_IPSUM_SHORT ( HTTP_APPLICATION_TEST "/li.txt" )
+#define HTTP_LOREM_IPSUM_SHORT_GZ ( HTTP_LOREM_IPSUM_SHORT ".gz" )
 #define HTTP_LOREM_IPSUM ( HTTP_APPLICATION_TEST "/lorem_ipsum.txt" )
+#define HTTP_LOREM_IPSUM_GZ ( HTTP_LOREM_IPSUM ".gz" )
 #define HTTPS_LOREM_IPSUM_SHORT ( HTTPS_APPLICATION_TEST "/li.txt" )
+#define HTTPS_LOREM_IPSUM_SHORT_GZ ( HTTPS_LOREM_IPSUM_SHORT ".gz" )
 #define HTTPS_LOREM_IPSUM ( HTTPS_APPLICATION_TEST "/lorem_ipsum.txt" )
+#define HTTPS_LOREM_IPSUM_GZ ( HTTPS_LOREM_IPSUM ".gz" )
 #define FILE_LOREM_IPSUM_SHORT aprintf("%s/tests/data/lorem_ipsum_short.txt", get_sdir())
+#define FILE_LOREM_IPSUM_SHORT_GZ aprintf("%s/tests/data/lorem_ipsum_short.txt.gz", get_sdir())
+#define FILE_LOREM_IPSUM_SHORT_MD5 aprintf("%s/tests/data/lorem_ipsum_short.txt.md5", get_sdir())
+#define FILE_LOREM_IPSUM_SHORT_SHA256 aprintf("%s/tests/data/lorem_ipsum_short.txt.sha256", get_sdir())
 #define FILE_LOREM_IPSUM aprintf("%s/tests/data/lorem_ipsum.txt", get_sdir())
+#define FILE_LOREM_IPSUM_GZ aprintf("%s/tests/data/lorem_ipsum.txt.gz", get_sdir())
+#define FILE_LOREM_IPSUM_MD5 aprintf("%s/tests/data/lorem_ipsum.txt.md5", get_sdir())
+#define FILE_LOREM_IPSUM_SHA256 aprintf("%s/tests/data/lorem_ipsum.txt.sha256", get_sdir())
 
 // Signatures
 #define USIGN_KEY_1_PUB (aprintf("%s/tests/data/usign.key1.pub", get_sdir()))
