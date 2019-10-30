@@ -1,7 +1,7 @@
 AC_INIT([updater-ng], [63.1.2], [tech.support@turris.cz])
 AC_CONFIG_MACRO_DIRS([m4])
 
-AM_INIT_AUTOMAKE([foreign silent-rules subdir-objects -Wall])
+AM_INIT_AUTOMAKE([foreign silent-rules subdir-objects -Wall -Wno-portability])
 AM_SILENT_RULES([yes])
 
 AC_PROG_CC

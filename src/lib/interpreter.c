@@ -1135,8 +1135,8 @@ const char *interpreter_include(struct interpreter *interpreter, const char *cod
 
 const char *interpreter_autoload(struct interpreter *interpreter) {
 #define LOAD(SCRIPT) do { \
-			TRACE("Including module %s", name); \
-			const char *err = interpreter_include(interpreter, (const char *) SCRIPT##_lua, lua_##SCRIPT##_len, #SCRIPT); \
+			TRACE("Including module %s", #SCRIPT); \
+			const char *err = interpreter_include(interpreter, (const char *) lua_##SCRIPT, lua_##SCRIPT##_len, #SCRIPT); \
 			if (err) \
 				return err; \
 		} while(false);

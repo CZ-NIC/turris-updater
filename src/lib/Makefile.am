@@ -16,7 +16,7 @@ libupdater_la_SOURCES = \
 	multiwrite.c \
 	logging.c \
 	picosat-965/picosat.c
-LUA_SOURCES = \
+LUA_FILES = \
 	stacktraceplus.lua \
 	utils.lua \
 	testing.lua \
@@ -45,7 +45,9 @@ libupdater_la_LDFLAGS = \
 	$(LIBURIPARSER_LIBS) \
 	-lb64 -ldl
 
-interpreter.$(OBJEXT): $(patsubst %,lua/%.h,$(LUA_SOURCES))
+LUA_FILES_H := $(patsubst %,lua/%.h,$(LUA_FILES))
+CLEANFILES = $(LUA_FILES_H)
+$(filter interpreter,$(am_libupdater_la_OBJECTS)): $(LUA_FILES_H)
 
 lua/%.lua.h: lua/%.lua
 	$(AM_V_GEN)$(XXDI) "lua_$*" "$<" "$@"
