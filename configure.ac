@@ -34,6 +34,7 @@ AC_CONFIG_FILES([
  src/Makefile
  src/lib/Makefile
  src/pkgupdate/Makefile
+ src/pkgtransaction/Makefile
 ])
 
 AC_OUTPUT

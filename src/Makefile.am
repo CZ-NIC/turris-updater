@@ -1,2 +1,1 @@
-SUBDIRS = lib pkgupdate
-#SUBDIRS = lib pkgupdate pkgtransaction
+SUBDIRS = lib pkgupdate pkgtransaction
