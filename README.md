@@ -27,11 +27,13 @@ Coverage info generation:
 * lcov
 
 Dependencies for tests:
-* perl common::sense
-* check
+* check (>=0.11)
+
+Additional dependencies for testing:
 * cppcheck
 * luacheck
 * valgrind
+* perl (with `common::sense` module) for Lua coverage
 
 Running tests
 -------------

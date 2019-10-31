@@ -18,13 +18,13 @@
  */
 #ifndef UPDATER_TEST_DATA_H
 #define UPDATER_TEST_DATA_H
-#include "../src/lib/util.h"
+#include <util.h>
 
 // Returns path to temporally directory used to run tests
 const char *get_tmpdir();
 
-// Returns path to source directory
-const char *get_sdir();
+// Returns path to directory with test data
+const char *get_datadir();
 
 // Creates template for mktemp and mkdtemp style of functions for path in tmpdir.
 char *tmpdir_template(const char *identifier);
@@ -40,25 +40,25 @@ char *tmpdir_template(const char *identifier);
 #define HTTP_LOREM_IPSUM ( HTTP_APPLICATION_TEST "/lorem_ipsum.txt" )
 #define HTTPS_LOREM_IPSUM_SHORT ( HTTPS_APPLICATION_TEST "/li.txt" )
 #define HTTPS_LOREM_IPSUM ( HTTPS_APPLICATION_TEST "/lorem_ipsum.txt" )
-#define FILE_LOREM_IPSUM_SHORT aprintf("%s/tests/data/lorem_ipsum_short.txt", get_sdir())
+#define FILE_LOREM_IPSUM_SHORT aprintf("%s/lorem_ipsum_short.txt", get_datadir())
 #define FILE_LOREM_IPSUM_SHORT_GZ aprintf("%s.gz", FILE_LOREM_IPSUM_SHORT)
 #define FILE_LOREM_IPSUM_SHORT_XZ aprintf("%s.xz", FILE_LOREM_IPSUM_SHORT)
-#define FILE_LOREM_IPSUM aprintf("%s/tests/data/lorem_ipsum.txt", get_sdir())
+#define FILE_LOREM_IPSUM aprintf("%s/lorem_ipsum.txt", get_datadir())
 #define FILE_LOREM_IPSUM_GZ aprintf("%s.gz", FILE_LOREM_IPSUM)
 
 // Signatures
-#define USIGN_KEY_1_PUB (aprintf("%s/tests/data/usign.key1.pub", get_sdir()))
-#define USIGN_KEY_2_PUB (aprintf("%s/tests/data/usign.key2.pub", get_sdir()))
-#define SIG_1_LOREM_IPSUM (aprintf("%s/tests/data/lorem_ipsum.txt.sig", get_sdir()))
-#define SIG_2_LOREM_IPSUM (aprintf("%s/tests/data/lorem_ipsum.txt.sig2", get_sdir()))
-#define SIG_1_LOREM_IPSUM_SHORT (aprintf("%s/tests/data/lorem_ipsum_short.txt.sig", get_sdir()))
-#define SIG_2_LOREM_IPSUM_SHORT (aprintf("%s/tests/data/lorem_ipsum_short.txt.sig2", get_sdir()))
+#define USIGN_KEY_1_PUB (aprintf("%s/usign.key1.pub", get_datadir()))
+#define USIGN_KEY_2_PUB (aprintf("%s/usign.key2.pub", get_datadir()))
+#define SIG_1_LOREM_IPSUM (aprintf("%s/lorem_ipsum.txt.sig", get_datadir()))
+#define SIG_2_LOREM_IPSUM (aprintf("%s/lorem_ipsum.txt.sig2", get_datadir()))
+#define SIG_1_LOREM_IPSUM_SHORT (aprintf("%s/lorem_ipsum_short.txt.sig", get_datadir()))
+#define SIG_2_LOREM_IPSUM_SHORT (aprintf("%s/lorem_ipsum_short.txt.sig2", get_datadir()))
 
 // Certificates
-#define FILE_LETS_ENCRYPT_ROOTS aprintf("%s/tests/data/lets_encrypt_roots.pem", get_sdir())
-#define URI_FILE_LETS_ENCRYPT_ROOTS aprintf("file://%s/tests/data/lets_encrypt_roots.pem", get_sdir())
-#define FILE_OPENTRUST_CA_G1 aprintf("%s/tests/data/opentrust_ca_g1.pem", get_sdir())
-#define URI_FILE_OPENTRUST_CA_G1 aprintf("file://%s/tests/data/opentrust_ca_g1.pem", get_sdir())
+#define FILE_LETS_ENCRYPT_ROOTS aprintf("%s/lets_encrypt_roots.pem", get_datadir())
+#define URI_FILE_LETS_ENCRYPT_ROOTS aprintf("file://%s/lets_encrypt_roots.pem", get_datadir())
+#define FILE_OPENTRUST_CA_G1 aprintf("%s/opentrust_ca_g1.pem", get_datadir())
+#define URI_FILE_OPENTRUST_CA_G1 aprintf("file://%s/opentrust_ca_g1.pem", get_datadir())
 
 // Unpack_package
 #define UNPACK_PACKAGE_VALID_IPK aprintf("%s/tests/data/unpack_package/valid.ipk", get_sdir())

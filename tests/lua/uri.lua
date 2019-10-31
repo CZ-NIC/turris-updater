@@ -22,13 +22,13 @@ local uri = require "uri"
 local utils = require "utils"
 local os = os
 
-local dir = os.getenv("S") or "."
+local datadir = os.getenv("DATADIR") or "../data"
 local tmpdir = os.getenv("TMPDIR") or "/tmp"
 
 local lorem_ipsum = "lorem ipsum\n"
 local https_lorem_ipsum = "https://applications-test.turris.cz/li.txt"
-local ca_lets_encrypts = "file://" .. dir .. "/tests/data/lets_encrypt_roots.pem"
-local ca_opentrust_g1 = "file://" .. dir .. "/tests/data/opentrust_ca_g1.pem"
+local ca_lets_encrypts = "file://" .. datadir .. "/lets_encrypt_roots.pem"
+local ca_opentrust_g1 = "file://" .. datadir .. "/opentrust_ca_g1.pem"
 
 module("uri-tests", package.seeall, lunit.testcase)
 

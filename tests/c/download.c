@@ -17,12 +17,14 @@
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "ctest.h"
+#include <download.h>
+#include <syscnf.h>
+#include "test_data.h"
+
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "../src/lib/download.h"
-#include "../src/lib/syscnf.h"
-#include "test_data.h"
+
 
 START_TEST(downloader_empty) {
 	struct downloader *d = downloader_new(1);

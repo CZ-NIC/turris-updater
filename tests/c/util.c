@@ -17,8 +17,9 @@
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "ctest.h"
+#include <util.h>
+
 #include <stdbool.h>
-#include "../src/lib/util.h"
 
 #define BASE64_PLAIN "Hello\n"
 #define BASE64_ENCOD "SGVsbG8K"

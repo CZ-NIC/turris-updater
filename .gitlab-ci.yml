@@ -10,7 +10,9 @@ stages:
 .build:
   stage: build
   script:
-    - make NO_DOC=1
+    - ./bootstrap
+    - ./configure
+    - make
 
 build-debian-stable:
   extends: .build
@@ -30,12 +32,15 @@ build-alpine:
 .test:
   stage: test
   image: registry.labs.nic.cz/turris/updater/updater:tests
+  before_script:
+      - ./bootstrap
+      - ./configure
 
 # Unit tests #
-unit-tests:
+unit-c-tests:
   extends: .test
   script:
-    - make test
+    - make
 
 unit-valgrind-tests:
   extends: .test

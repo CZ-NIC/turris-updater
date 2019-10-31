@@ -1,0 +1,4 @@
+# Test binaries
+lunit-launch
+# Generated header files
+*.lua.h

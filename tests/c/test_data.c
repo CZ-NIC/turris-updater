@@ -1,5 +1,5 @@
 /*
- * Copyright 2016, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+ * Copyright 2018-2019, CZ.NIC z.s.p.o. (http://www.nic.cz/)
  *
  * This file is part of the turris updater.
  *
@@ -16,22 +16,31 @@
  * You should have received a copy of the GNU General Public License
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include "test_data.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <logging.h>
 
-#include "ctest.h"
-#include "../src/lib/logging.h"
 
-int main(void) {
-	const char *suppress_log = getenv("SUPPRESS_LOG");
-	if (suppress_log && strcmp("1", suppress_log) == 0)
-		log_stderr_level(LL_DIE);
-	else
-		log_stderr_level(LL_UNKNOWN);
-	Suite *suite = gen_test_suite();
-	SRunner *runner = srunner_create(suite);
+const char *get_tmpdir() {
+	const char *tmpdir = getenv("TMPDIR");
+	if (!tmpdir)
+		return "/tmp";
+	return tmpdir;
+}
 
-	srunner_run_all(runner, CK_NORMAL);
-	int failed = srunner_ntests_failed(runner);
+const char *get_datadir() {
+	const char *datadir = getenv("DATADIR");
+	if (!datadir)
+		return "./../data";
+	return datadir;
+}
 
-	srunner_free(runner);
-	return !!failed;
+char *tmpdir_template(const char *identifier) {
+	char *path;
+	ASSERT(asprintf(&path, "%s/%s_XXXXXX", get_tmpdir(), identifier) != -1);
+	return path;
 }

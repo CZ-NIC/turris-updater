@@ -31,7 +31,7 @@ print <<END;
 #include <stdint.h>
 
 
-static const unsigned int $var_name\_len = $len_data;
+static const size_t $var_name\_len = $len_data;
 
 END
 

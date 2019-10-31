@@ -27,7 +27,7 @@ local tmp_dirs = {}
 
 -- Test work with working directory
 function test_dirs()
-	local top = os.getenv("S") or "."
+	local top = os.getenv("TOP_SRCDIR") or "../.."
 	chdir(top)
 	chdir("tests")
 	local dir = getcwd()
