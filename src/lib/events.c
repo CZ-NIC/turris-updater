@@ -564,6 +564,8 @@ struct wait_id run_command_a(struct events *events, command_callback_t callback,
 
 #ifdef BUSYBOX_EMBED
 
+#include "busybox_exec.h"
+
 const char run_util_tmp_template[] = "/tmp/updater-busybox-XXXXXX";
 const char run_util_busybox_name[] = "busybox";
 // Path of extracted busybox.
@@ -571,8 +573,6 @@ const char run_util_busybox_name[] = "busybox";
 // this way two additional bytes in array, one is used for '\0' and second one for '/'
 char run_util_busybox[sizeof(run_util_tmp_template) + sizeof(run_util_busybox_name)];
 int run_util_init_counter; // Reference counter
-
-extern struct file_index_element busybox_exec[];
 
 static void run_util_init(void) {
 	run_util_init_counter++;
@@ -587,9 +587,9 @@ static void run_util_init(void) {
 	int f;
 	ASSERT_MSG((f = open(run_util_busybox, O_WRONLY | O_CREAT, S_IXUSR | S_IRUSR)) != -1, "Busybox file open failed: %s", strerror(errno));
 	size_t written = 0;
-	while (written < busybox_exec[0].size) {
+	while (written < busybox_exec_len) {
 		int wrtn;
-		ASSERT_MSG((wrtn = write(f, busybox_exec[0].data, busybox_exec[0].size)) != -1 || errno == EINTR, "Busybox write failed: %s", strerror(errno));
+		ASSERT_MSG((wrtn = write(f, busybox_exec, busybox_exec_len)) != -1 || errno == EINTR, "Busybox write failed: %s", strerror(errno));
 		if (wrtn == -1)
 			wrtn = 0;
 		written += wrtn;

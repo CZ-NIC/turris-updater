@@ -8,6 +8,15 @@ AC_PROG_CC
 AM_PROG_AR
 LT_INIT
 
+AC_ARG_WITH([embed-busybox], [AC_HELP_STRING([--with-embed-busybox=BUSYBOX], [Embed given busybox binary])])
+AM_CONDITIONAL([BUSYBOX_EMBED], [test -n "$with_embed_busybox"])
+AC_SUBST([BUSYBOX_EMBED], [$with_embed_busybox])
+AS_IF([test -n "$with_embed_busybox"],
+  [
+   AC_CHECK_FILE([$with_embed_busybox],,[AC_MSG_ERROR([Invalid argument for --with-embed-busybox])])
+   AC_DEFINE_UNQUOTED([BUSYBOX_EMBED], [$with_embed_busybox], [Embded Busybox])
+  ])
+
 PKG_CHECK_MODULES([LUA], [lua5.1])
 PKG_CHECK_MODULES([LIBEVENT], [libevent >= 2.0])
 PKG_CHECK_MODULES([LIBCURL], [libcurl])
