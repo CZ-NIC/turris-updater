@@ -18,8 +18,8 @@
  */
 
 #include "ctest.h"
-#include "../src/lib/events.h"
-#include "../src/lib/util.h"
+#include <events.h>
+#include <util.h>
 
 #include <unistd.h>
 #include <stdint.h>

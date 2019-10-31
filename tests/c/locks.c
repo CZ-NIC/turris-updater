@@ -17,10 +17,10 @@
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../src/lib/interpreter.h"
-#include "../src/lib/util.h"
-#include "../src/lib/logging.h"
-#include "../src/lib/events.h"
+#include <interpreter.h>
+#include <util.h>
+#include <logging.h>
+#include <events.h>
 
 #include <string.h>
 #include <unistd.h>
