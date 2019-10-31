@@ -45,9 +45,11 @@ libupdater_la_LDFLAGS = \
 	$(LIBURIPARSER_LIBS) \
 	-lb64 -ldl
 
+FILTER_OUT = $(foreach v,$(2),$(if $(findstring $(1),$(v)),,$(v)))
+
 LUA_FILES_H := $(patsubst %,lua/%.h,$(LUA_FILES))
 CLEANFILES = $(LUA_FILES_H)
-$(filter interpreter,$(am_libupdater_la_OBJECTS)): $(LUA_FILES_H)
+$(call FILTER_OUT,interpreter,$(libupdater_la_OBJECTS)): $(LUA_FILES_H)
 
 lua/%.lua.h: lua/%.lua
 	$(AM_V_GEN)$(XXDI) "lua_$*" "$<" "$@"
