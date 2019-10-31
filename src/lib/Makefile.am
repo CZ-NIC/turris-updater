@@ -45,11 +45,14 @@ libupdater_la_LDFLAGS = \
 	$(LIBURIPARSER_LIBS) \
 	-lb64 -ldl
 
-FILTER_OUT = $(foreach v,$(2),$(if $(findstring $(1),$(v)),,$(v)))
+FILTER = $(foreach v,$(2),$(if $(findstring $(1),$(v)),$(v)))
+
+# picosat-964 files are of external origin so we are not interested in warnings
+$(call FILTER,picosat-965/,$(libupdater_la_OBJECTS)): CFLAGS+=-w
 
 LUA_FILES_H := $(patsubst %,lua/%.h,$(LUA_FILES))
 CLEANFILES = $(LUA_FILES_H)
-$(call FILTER_OUT,interpreter,$(libupdater_la_OBJECTS)): $(LUA_FILES_H)
+$(call FILTER,interpreter,$(libupdater_la_OBJECTS)): $(LUA_FILES_H)
 
 lua/%.lua.h: lua/%.lua
 	$(AM_V_GEN)$(XXDI) "lua_$*" "$<" "$@"
