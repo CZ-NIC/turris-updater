@@ -1,12 +1,12 @@
 TESTS = \
+	download \
 	events \
-	util \
-	syscnf \
+	interpreter \
 	multiwrite \
 	subprocess \
-	download \
+	syscnf \
 	uri \
-	interpreter
+	util
 
 check_PROGRAMS = $(TESTS)
 AM_CFLAGS = -I../../src/lib
@@ -16,3 +16,5 @@ check_LTLIBRARIES = libctest.la
 libctest_la_SOURCES = ctest.c test_data.c
 libctest_la_CFLAGS = $(CHECK_FLAGS) $(AM_CFLAGS)
 libctest_la_LIBADD = ../../src/lib/libupdater.la $(CHECK_LIBS)
+
+# TODO missing usign!!!

@@ -89,7 +89,7 @@ START_TEST(tilde_paths) {
 END_TEST
 
 void sysinfo_setup_omnia() {
-	set_root_dir(aprintf("%s/tests/data/sysinfo_root/omnia", get_sdir()));
+	set_root_dir(aprintf("%s/sysinfo_root/omnia", get_datadir()));
 	system_detect();
 }
 
@@ -102,7 +102,7 @@ START_TEST(os_release_omnia) {
 END_TEST
 
 void sysinfo_setup_mox() {
-	set_root_dir(aprintf("%s/tests/data/sysinfo_root/mox", get_sdir()));
+	set_root_dir(aprintf("%s/sysinfo_root/mox", get_datadir()));
 	system_detect();
 }
 

@@ -1,0 +1,13 @@
+# General test logging and output
+*.log
+*.trs
+
+# Test binaries
+download
+events
+interpreter
+multiwrite
+subprocess
+syscnf
+uri
+util
