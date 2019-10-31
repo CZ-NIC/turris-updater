@@ -60,7 +60,7 @@ lua/%.lua.h: lua/%.lua
 if BUSYBOX_EMBED
 
 CLEANFILES += busybox_exec.h
-$(call FILTER_OUT,events,$(libupdater_la_OBJECTS)): busybox_exec.h
+$(call FILTER,events,$(libupdater_la_OBJECTS)): busybox_exec.h
 
 busybox_exec.h: $(BUSYBOX_EMBED)
 	$(AM_V_GEN)$(XXDI) busybox_exec "$<" "$@"
