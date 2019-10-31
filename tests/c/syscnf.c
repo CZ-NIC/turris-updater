@@ -17,12 +17,13 @@
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "ctest.h"
+#include <syscnf.h>
+#include <util.h>
+#include "test_data.h"
+
 #include <unistd.h>
 #include <sys/types.h>
 #include <pwd.h>
-#include "test_data.h"
-#include "../src/lib/syscnf.h"
-#include "../src/lib/util.h"
 
 #define SUFFIX_STATUS_FILE "usr/lib/opkg/status"
 #define SUFFIX_INFO_DIR "usr/lib/opkg/info/"

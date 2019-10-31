@@ -18,7 +18,7 @@
  */
 
 #include "ctest.h"
-#include "../src/lib/logging.h"
+#include <logging.h>
 
 int main(void) {
 	const char *suppress_log = getenv("SUPPRESS_LOG");
