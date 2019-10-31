@@ -29,12 +29,16 @@ AS_IF([test -z "$PERL"], [AC_MSG_ERROR([Missing perl interpreter])])
 AC_PATH_PROG([XXDI], [xxdi.pl],, [$ac_abs_confdir/utils])
 AS_IF([test -z "$XXDI"], [AC_MSG_ERROR([Not able to locate xxdi.pl])])
 
+PKG_CHECK_MODULES([CHECK], [check >= 0.11])
+
 AC_CONFIG_FILES([
  Makefile
  src/Makefile
  src/lib/Makefile
  src/pkgupdate/Makefile
  src/pkgtransaction/Makefile
+ tests/Makefile
+ tests/c/Makefile
 ])
 
 AC_OUTPUT

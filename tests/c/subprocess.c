@@ -17,13 +17,14 @@
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "ctest.h"
+#include <subprocess.h>
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <string.h>
 #include <fcntl.h>
-#include "../src/lib/subprocess.h"
 
 START_TEST(exit_code) {
 	ck_assert(subprocv(-1, "true", NULL) == 0);

@@ -18,7 +18,7 @@
  */
 #ifndef UPDATER_TEST_DATA_H
 #define UPDATER_TEST_DATA_H
-#include "../src/lib/util.h"
+#include <util.h>
 
 const char *get_tmpdir();
 const char *get_sdir();

@@ -17,7 +17,7 @@
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "ctest.h"
-#include "../src/lib/uri.h"
+#include <uri.h>
 #include "test_data.h"
 
 #define FIXED_OUT_FILE aprintf("%s/updater-uri-output-file.", get_tmpdir())

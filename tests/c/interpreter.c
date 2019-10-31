@@ -18,9 +18,9 @@
  */
 
 #include "ctest.h"
-#include "../src/lib/interpreter.h"
-#include "../src/lib/util.h"
-#include "../src/lib/events.h"
+#include <interpreter.h>
+#include <util.h>
+#include <events.h>
 
 #include <stdbool.h>
 #include <stdint.h>
