@@ -20,7 +20,7 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 require 'lunit'
 local sc = require "syscnf"
 
-local sdir = os.getenv("S") or "."
+local datadir = os.getenv("DATADIR") or "../data"
 
 module("syscnf-tests", package.seeall, lunit.testcase)
 
@@ -35,7 +35,7 @@ function test_set_root_dir()
 end
 
 function test_os_release()
-	sc.set_root_dir(sdir .. "/tests/data/sysinfo_root/mox")
+	sc.set_root_dir(datadir .. "/sysinfo_root/mox")
 	sc.system_detect()
 	local osr = sc.os_release()
 	assert_equal("TurrisOS", osr.NAME);

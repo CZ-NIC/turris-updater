@@ -17,18 +17,21 @@
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "test_data.h"
+#define _GNU_SOURCE
 #include <stdlib.h>
+#include <stdio.h>
+
 
 const char *get_tmpdir() {
 	const char *tmpdir = getenv("TMPDIR");
 	if (!tmpdir)
-		tmpdir = "/tmp";
+		return "/tmp";
 	return tmpdir;
 }
 
-const char *get_sdir() {
-	const char *sdir = getenv("S");
-	if (!sdir)
-		sdir = ".";
-	return sdir;
+const char *get_datadir() {
+	const char *datadir = getenv("DATADIR");
+	if (!datadir)
+		return "./../data";
+	return datadir;
 }

@@ -42,4 +42,22 @@ AC_CONFIG_FILES([
  src/pkgtransaction/Makefile
 ])
 
+dnl Tests can be disabled so users does need all dependencies
+AC_ARG_ENABLE([tests], AS_HELP_STRING([--disable-tests], [Disable tests]))
+AS_IF([test "x$enable_tests" != "xno"], [
+
+  PKG_CHECK_MODULES([CHECK], [check >= 0.11])
+  AX_PROG_PERL_MODULES([common::sense], , AC_MSG_WARN(Perl modules File::Slurp is required))
+
+  AC_CONFIG_FILES([
+   tests/Makefile
+   tests/c/Makefile
+   tests/lua/Makefile
+   tests/system/Makefile
+   tests/system/pkgtransaction/Makefile
+   tests/system/pkgupdate/Makefile
+  ])
+
+])
+
 AC_OUTPUT

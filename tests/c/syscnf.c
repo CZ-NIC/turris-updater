@@ -17,12 +17,13 @@
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "ctest.h"
+#include <syscnf.h>
+#include <util.h>
+#include "test_data.h"
+
 #include <unistd.h>
 #include <sys/types.h>
 #include <pwd.h>
-#include "test_data.h"
-#include "../src/lib/syscnf.h"
-#include "../src/lib/util.h"
 
 #define SUFFIX_STATUS_FILE "usr/lib/opkg/status"
 #define SUFFIX_INFO_DIR "usr/lib/opkg/info/"
@@ -88,7 +89,7 @@ START_TEST(tilde_paths) {
 END_TEST
 
 void sysinfo_setup_omnia() {
-	set_root_dir(aprintf("%s/tests/data/sysinfo_root/omnia", get_sdir()));
+	set_root_dir(aprintf("%s/sysinfo_root/omnia", get_datadir()));
 	system_detect();
 }
 
@@ -101,7 +102,7 @@ START_TEST(os_release_omnia) {
 END_TEST
 
 void sysinfo_setup_mox() {
-	set_root_dir(aprintf("%s/tests/data/sysinfo_root/mox", get_sdir()));
+	set_root_dir(aprintf("%s/sysinfo_root/mox", get_datadir()));
 	system_detect();
 }
 

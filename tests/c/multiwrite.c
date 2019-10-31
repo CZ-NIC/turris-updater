@@ -17,9 +17,10 @@
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "ctest.h"
+#include <multiwrite.h>
+#include <util.h>
+
 #include <string.h>
-#include "../src/lib/multiwrite.h"
-#include "../src/lib/util.h"
 
 static const char *lorem_ipsum[] = {
 	"Lorem\n",
