@@ -56,3 +56,13 @@ $(call FILTER,interpreter,$(libupdater_la_OBJECTS)): $(LUA_FILES_H)
 
 lua/%.lua.h: lua/%.lua
 	$(AM_V_GEN)$(XXDI) "lua_$*" "$<" "$@"
+
+if BUSYBOX_EMBED
+
+CLEANFILES += busybox_exec.h
+$(call FILTER,events,$(libupdater_la_OBJECTS)): busybox_exec.h
+
+busybox_exec.h: $(BUSYBOX_EMBED)
+	$(AM_V_GEN)$(XXDI) busybox_exec "$<" "$@"
+
+endif
