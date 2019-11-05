@@ -8,6 +8,9 @@ TESTS = \
 	uri \
 	interpreter
 
+# TODO TMPDIR?
+AM_TESTS_ENVIRONMENT = export S="$(top_srcdir)";
+
 check_PROGRAMS = $(TESTS)
 AM_CFLAGS = -I../../src/lib
 LDADD = libctest.la

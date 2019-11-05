@@ -15,7 +15,11 @@ TESTS = \
 	uri.lua \
 	picosat.lua \
 	updater.lua
-LOG_COMPILER = ./lunit-launch
+
+# TODO TMPDIR?
+AM_TESTS_ENVIRONMENT = export DATADIR="$(srcdir)/../data";
+LOG_COMPILER = $(srcdir)/lunit-launch
+AM_LOG_FLAGS =
 
 check_PROGRAMS = lunit-launch
 lunit_launch_SOURCES = lunit-launch.c
@@ -32,8 +36,5 @@ $(call FILTER,lunit-launch,$(lunit_launch_OBJECTS)): $(LUA_FILES_H)
 lunit-launch.lua.h: lunit-launch.lua
 	$(AM_V_GEN)$(XXDI) lunit_launch "$<" "$@"
 
-lunit.lua.h: lunit/lunit
-	$(AM_V_GEN)$(XXDI) lunit "$<" "$@"
-
-lunit-console.lua.h: lunit/lunit-console.lua
-	$(AM_V_GEN)$(XXDI) lunit_console "$<" "$@"
+lunit.lua.h lunit-console.lua.h: %.lua.h: lunit/%.lua
+	$(AM_V_GEN)$(XXDI) "$(subst -,_,$*)" "$<" "$@"

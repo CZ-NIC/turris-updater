@@ -21,26 +21,17 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-static char *tmpdir;
-static char *datadir;
 
-// TODO some better location for TMPDIR?
 const char *get_tmpdir() {
-	if (!tmpdir) {
-		const char *env_tmpdir = getenv("TMPDIR");
-		if (!env_tmpdir)
-			env_tmpdir = "/tmp";
-		asprintf(&tmpdir, "%s", env_tmpdir);
-	}
-	return tmpdir;
+	const char *tmpdir = getenv("TMPDIR");
+	if (!tmpdir)
+		return "/tmp";
+	return tmpdir
 }
 
 const char *get_datadir() {
-	if (!datadir) {
-		const char *srcdir = getenv("srcdir");
-		if (!srcdir)
-			srcdir = ".";
-		asprintf(&datadir, "%s/../data", srcdir);
-	}
-	return datadir;
+	const char *datadir = getenv("DATADIR");
+	if (!srcdir)
+		return "./../data";
+	return datadir
 }
