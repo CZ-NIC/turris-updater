@@ -24,6 +24,7 @@
 static char *tmpdir;
 static char *datadir;
 
+// TODO some better location for TMPDIR?
 const char *get_tmpdir() {
 	if (!tmpdir) {
 		const char *env_tmpdir = getenv("TMPDIR");

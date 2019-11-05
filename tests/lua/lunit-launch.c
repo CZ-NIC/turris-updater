@@ -19,61 +19,57 @@
 
 #include "../../src/lib/interpreter.h"
 #include "../../src/lib/logging.h"
-#include "../../src/lib/embed_types.h"
 #include "../../src/lib/events.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
-// From the embed files, lua modules to run lunit.
-extern struct file_index_element lunit_modules[];
+#include "lunit.lua.h"
+#include "lunit-console.lua.h"
+#include "lunit-launch.lua.h"
 
 // Our own fake require that loads the thing from embedded file
-void require(struct interpreter *interpreter, const char *name) {
-	char *index = strdup(name);
-	for (char *i = index; *i; i ++)
-		if (*i == '-')
-			*i = '_';
-	const struct file_index_element *elem = index_element_find(lunit_modules, index);
-	free(index);
-	ASSERT(elem);
-	const char *error = interpreter_include(interpreter, (const char *) elem->data, elem->size, name);
+void require(struct interpreter *interpreter, const char *name, const uint8_t *data, size_t size) {
+	const char *error = interpreter_include(interpreter, (const char *) data, size, name);
 	ASSERT_MSG(!error, "%s", error);
 }
 
-int main(int argc __attribute__((unused)), char *argv[]) {
+int main(int argc, char *argv[]) {
+	if (argc != 2) {
+		fprintf(stderr, "Usage: %s TEST_SCRIPT", argv[0]);
+		exit(1);
+	}
+
 	const char *suppress_log = getenv("SUPPRESS_LOG");
 	if (suppress_log && strcmp("1", suppress_log) == 0)
 		log_stderr_level(LL_DIE);
 	else
 		log_stderr_level(LL_UNKNOWN);
+
 	// Get the interpreter
 	struct events *events = events_new();
 	struct interpreter *interpreter = interpreter_create(events);
 	const char *error = interpreter_autoload(interpreter);
 	ASSERT_MSG(!error, "%s", error);
+
 	// Load the lunit modules
-	require(interpreter, "lunit");
-	require(interpreter, "lunit-console");
+	require(interpreter, "lunit", lunit, lunit_len);
+	require(interpreter, "lunit-console", lunit_console, lunit_console_len);
 	// Our own bit of code to run the lunit
-	require(interpreter, "launch");
-	// Go through the tests and run each of them.
-	int total_errors = 0, total_failures = 0;
-	for (char **arg = argv + 1; *arg; arg ++) {
-		const char *error = interpreter_call(interpreter, "loadfile", NULL, "s", *arg);
-		ASSERT_MSG(!error, "Error loading test %s: %s", *arg, error);
-		size_t results;
-		error = interpreter_call(interpreter, "launch", &results, "s", *arg);
-		ASSERT_MSG(!error, "Error running test %s: %s", *arg, error);
-		ASSERT(results == 2);
-		int errors, failed;
-		ASSERT(interpreter_collect_results(interpreter, "ii", &errors, &failed) == -1);
-		total_errors += errors;
-		total_failures += failed;
-	}
+	require(interpreter, "launch", lunit_launch, lunit_launch_len);
+
+	// Run tests
+	error = interpreter_call(interpreter, "loadfile", NULL, "s", argv[1]);
+	ASSERT_MSG(!error, "Error loading test %s: %s", argv[1], error);
+	size_t results;
+	error = interpreter_call(interpreter, "launch", &results, "s", argv[1]);
+	ASSERT_MSG(!error, "Error running test %s: %s", argv[1], error);
+	ASSERT(results == 2);
+	int errors, failed;
+	ASSERT(interpreter_collect_results(interpreter, "ii", &errors, &failed) == -1);
+
 	interpreter_destroy(interpreter);
 	events_destroy(events);
-	printf("Total of %d errors and %d failures\n", total_errors, total_failures);
-	return (total_errors || total_failures) ? 1 : 0;
+	return (errors || failed) ? 1 : 0;
 }

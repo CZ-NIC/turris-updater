@@ -39,6 +39,8 @@ AC_CONFIG_FILES([
  src/pkgtransaction/Makefile
  tests/Makefile
  tests/c/Makefile
+ tests/lua/Makefile
+ tests/system/Makefile
 ])
 
 AC_OUTPUT

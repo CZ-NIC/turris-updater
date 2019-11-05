@@ -1,5 +1,5 @@
 [submodule "tests/lua/lunit-launch/lunit"]
-	path = tests/lua/lunit-launch/lunit
+	path = tests/lua/lunit
 	url = http://repo.or.cz/lunit.git
 [submodule "tests/usign"]
 	path = tests/usign

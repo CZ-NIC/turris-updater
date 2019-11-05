@@ -1,0 +1,8 @@
+# General test logging and output
+*.log
+*.trs
+
+# Test binaries
+lunit-launch
+# Generated header files
+*.lua.h
