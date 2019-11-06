@@ -27,7 +27,7 @@ local lines2set = utils.lines2set
 
 module("backend-tests", package.seeall, lunit.testcase)
 
-local datadir = (os.getenv("S") or ".") .. "/tests/data/"
+local datadir = (os.getenv("DATADIR") or "../data")
 local tmpdir = os.getenv("TMPDIR") or "/tmp"
 
 -- Tests for the block_parse function
@@ -259,7 +259,7 @@ Test the chain of functions ‒ unpack, examine
 ]]
 function test_pkg_unpack()
 	syscnf.set_root_dir(tmpdir)
-	local path = B.pkg_unpack(datadir .. "repo/updater.ipk")
+	local path = B.pkg_unpack(datadir .. "/repo/updater.ipk")
 	-- Make sure it is deleted on teardown
 	table.insert(tmp_dirs, path)
 	-- Check list of extracted files
@@ -876,7 +876,7 @@ end
 
 function test_script_run()
 	subprocess_kill_timeout(0) -- Run tests faster
-	syscnf.info_dir = (os.getenv("S") or ".") .. "/tests/data/scripts"
+	syscnf.info_dir = datadir .. "/scripts"
 	-- This one doesn't exist. So the call succeeds.
 	local result, stderr = B.script_run("xyz", "preinst", "install")
 	assert(result)
@@ -911,7 +911,7 @@ function test_config_modified()
 	-- If a file doesn't exist, it returns nil
 	assert_nil(B.config_modified("/file/does/not/exist", "12345678901234567890123456789012"))
 	-- We test on a non-config file, but it the same.
-	local file = (os.getenv("S") or ".") .. "/tests/data/repo/updater.ipk"
+	local file = datadir .. "/repo/updater.ipk"
 	assert_false(B.config_modified(file, "182171ccacfc32a9f684479509ac471a"))
 	assert(B.config_modified(file, "282171ccacfc32a9f684479509ac471b"))
 	assert_false(B.config_modified(file, "4f54362b30f53ae6862b11ff34d22a8d4510ed2b3e757b1f285dbd1033666e55"))
@@ -971,10 +971,9 @@ function test_version_match()
 	assert_false(B.version_match("1.2.3", "1.3.3"))
 end
 function setup()
-	local sdir = os.getenv("S") or "."
 	-- Use a shortened version of a real status file for tests
-	syscnf.status_file = sdir .. "/tests/data/opkg/status"
-	syscnf.info_dir = sdir .. "/tests/data/opkg/info/"
+	syscnf.status_file = datadir .. "/opkg/status"
+	syscnf.info_dir = datadir .. "/opkg/info/"
 end
 
 function teardown()

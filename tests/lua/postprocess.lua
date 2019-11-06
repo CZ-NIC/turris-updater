@@ -50,7 +50,7 @@ local example_output = {
 				Size = "2534",
 				Source = "package/network/ipv6/6in4",
 				Version = "21-2",
-				uri_raw = "file://./tests/data/repo/6in4_21-2_all.ipk"
+				uri_raw = "file://" .. datadir .. "/repo/6in4_21-2_all.ipk"
 			},
 			["6rd"] = {
 				Architecture = "all",
@@ -69,12 +69,12 @@ local example_output = {
 				Size = "4416",
 				Source = "package/network/ipv6/6rd",
 				Version = "9-2",
-				uri_raw = "file://./tests/data/repo/6rd_9-2_all.ipk"
+				uri_raw = "file://" .. datadir .. "/repo/6rd_9-2_all.ipk"
 			}
 		},
 		name = "test1",
 		priority = 50,
-		repo_uri = "file://./tests/data/repo",
+		repo_uri = "file://" .. datadir .. "/repo",
 		serial = 1,
 		tp = "parsed-repository"
 	}

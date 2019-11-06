@@ -17,7 +17,12 @@ TESTS = \
 	updater.lua
 
 # TODO TMPDIR?
-AM_TESTS_ENVIRONMENT = export DATADIR="$(srcdir)/../data";
+# TODO allow SUPPRESS_LOG modification somehow (possibly just # TESTS_ENVIRONMENT="export SUPPRESS_LOG=0;")
+# TODO some tests are failing with SUPPRESS_LOG
+AM_TESTS_ENVIRONMENT = \
+	export SUPPRESS_LOG=1; \
+	export DATADIR="$(abs_top_srcdir)/tests/data"; \
+	export TOP_SRCDIR="$(top_srcdir)";
 LOG_COMPILER = $(srcdir)/lunit-launch
 AM_LOG_FLAGS =
 

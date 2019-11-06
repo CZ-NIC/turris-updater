@@ -22,10 +22,8 @@
 
 int main(void) {
 	const char *suppress_log = getenv("SUPPRESS_LOG");
-	if (suppress_log && strcmp("1", suppress_log) == 0)
-		log_stderr_level(LL_DIE);
-	else
-		log_stderr_level(LL_UNKNOWN);
+	log_stderr_level(suppress_log && strcmp("1", suppress_log) == 0 ? LL_DIE : LL_UNKNOWN);
+
 	Suite *suite = gen_test_suite();
 	SRunner *runner = srunner_create(suite);
 
