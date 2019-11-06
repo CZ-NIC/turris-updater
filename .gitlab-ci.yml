@@ -22,6 +22,8 @@ build-debian-unstable:
 
 build-alpine:
   extends: .build
+  variables:
+      ARGP_STANDALONE: 1
   image: registry.labs.nic.cz/turris/updater/updater:alpine
 
 ## Test stage ####################################################################
