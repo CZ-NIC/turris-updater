@@ -477,25 +477,23 @@ static void subprocess_callback(void *vdata) {
 }
 
 static int lua_subprocess(lua_State *L) {
-	enum log_subproc_type type = (enum log_subproc_type)luaL_checkinteger(L, 1);
-	// TODO verify type?
-	const char *message = luaL_checkstring(L, 2);
-	int timeout = luaL_checkinteger(L, 3);
+	int cmd_index = 1;
+	enum log_subproc_type type = (enum log_subproc_type)luaL_checkinteger(L, cmd_index++);
+	if (type < 0 || type > LST_UNKNOWN)
+		return luaL_error(L, "Invalid subprocess log type provided: %d", type);
+	const char *message = luaL_checkstring(L, cmd_index++);
+	int timeout = luaL_checkinteger(L, cmd_index++);
 	struct subprocess_callback_data callback_data = {
 		.L = L,
 		.callback = NULL
 	}; // This can be on stack as we won't return while using this
-	int cmd_index = 4;
-	if (lua_isfunction(L, 4)) {
-		callback_data.callback = register_value(L, 4);
-		cmd_index++;
-	}
-	const char *cmd = luaL_checkstring(L, cmd_index);
-	const char *args[lua_gettop(L) - cmd_index - 1];
-	for (int i = cmd_index + 1; i <= lua_gettop(L); i++) {
-		args[i - cmd_index - 1] = luaL_checkstring(L, i);
-	}
-	args[lua_gettop(L) - cmd_index] = NULL;
+	if (lua_isfunction(L, cmd_index))
+		callback_data.callback = register_value(L, cmd_index++);
+	const char *cmd = luaL_checkstring(L, cmd_index++);
+	const char *args[lua_gettop(L) - cmd_index + 2];
+	for (int i = 0; i <= lua_gettop(L) - cmd_index; i++)
+		args[i] = luaL_checkstring(L, cmd_index + i);
+	args[lua_gettop(L) - cmd_index + 1] = NULL;
 
 	char *output;
 	int ec = lsubproclc(type, message, &output, timeout, subprocess_callback, &callback_data, cmd, args);
