@@ -1,8 +1,5 @@
 #!/bin/bash
-
-set -e
-
-# Copyright 2016, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+# Copyright 2016-2020, CZ.NIC z.s.p.o. (http://www.nic.cz/)
 #
 # This file is part of the turris updater.
 #
@@ -25,33 +22,31 @@ set -e
 # - Either set environment variables S and O, as in the makefiles,
 #   or run it from the top level build directory with build-inside-sources.
 # - Optionally, set LAUNCHER variable (for valgrind or something)
-
 set -e
 
 : ${O:=$(pwd)}
-: ${S:=$(pwd)}
+TEST="$1"
+
 export TMPDIR="$O/testdir"
 mkdir -p "$TMPDIR"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' SIGHUP SIGINT SIGQUIT SIGABRT SIGALRM SIGTERM SIGILL SIGPIPE EXIT
 export ROOT_DIR="$TMP_DIR"/root
-DEFINITION="$2"
-DATA_DIR="$S"/tests/data
 
 # Prepare the root directory for the run
-cp -ar "$DEFINITION"/input "$TMP_DIR"/root
+cp -ar "$TEST"/input "$TMP_DIR"/root
 # Drop the .keep files, they are a hack for git to preserve directories
-cp -ar "$DEFINITION"/output "$TMP_DIR"/output
-if [ -f "$DEFINITION"/setup ] ; then
-	. "$DEFINITION"/setup
+cp -ar "$TEST"/output "$TMP_DIR"/output
+if [ -f "$TEST"/setup ] ; then
+	. "$TEST"/setup
 fi
 find "$TMP_DIR" -type f -name .keep -exec rm {} \;
 # Launch it
 export COVERAGEDIR="$O/.lua_coverage"
-eval $LAUNCHER "$O"/bin/"$1" $(cat "$DEFINITION"/params)
+eval $LAUNCHER "$UPDATER_EXEC" $(cat "$TEST"/params)
 # Do we need to de-randomize the output somehow?
-if [ -f "$DEFINITION"/cleanup ] ; then
-	. "$DEFINITION"/cleanup
+if [ -f "$TEST"/cleanup ] ; then
+	. "$TEST"/cleanup
 fi
 # Check it did what it should have
 diff -u -N -r "$TMP_DIR"/output "$ROOT_DIR"
