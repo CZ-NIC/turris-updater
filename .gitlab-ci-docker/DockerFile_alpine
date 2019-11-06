@@ -10,12 +10,14 @@ RUN \
   apk add \
       ca-certificates curl git coreutils \
       make cmake pkgconf gcc perl \
-      musl-dev argp-standalone \
+      libtool automake autoconf \
+      musl-dev \
       curl-dev libevent-dev uriparser-dev \
       uthash-dev \
       lua5.1-dev \
       asciidoc bash
 
+# libb64
 RUN \
   wget "https://sourceforge.net/projects/libb64/files/libb64-1.2.1.zip" && \
   unzip "libb64-1.2.1.zip" && rm "libb64-1.2.1.zip" && \
@@ -24,6 +26,18 @@ RUN \
   cp src/libb64.a /usr/lib/ && \
   cp -r include/b64 /usr/include/ && \
   cd .. && rm -rf "libb64-1.2.1"
+
+# argp-standalone with -fPIC
+RUN \
+  wget "http://www.lysator.liu.se/~nisse/misc/argp-standalone-1.3.tar.gz" && \
+  tar -xzf "argp-standalone-1.3.tar.gz" && rm "argp-standalone-1.3.tar.gz" && \
+  cd "argp-standalone-1.3" && \
+  wget https://git.alpinelinux.org/aports/plain/main/argp-standalone/001-throw-in-funcdef.patch && \
+  wget https://git.alpinelinux.org/aports/plain/main/argp-standalone/gnu89-inline.patch && \
+  patch <001-throw-in-funcdef.patch && patch <gnu89-inline.patch && \
+  CFLAGS=-fPIC ./configure && make && \
+  cp argp.h /usr/include && cp libargp.a /usr/lib/ && \
+  cd .. && rm -rf "argp-standalone-1.3"
 
 
 CMD [ "bash" ]
