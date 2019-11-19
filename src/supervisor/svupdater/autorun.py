@@ -22,8 +22,7 @@
 # LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-from uci import UciExceptionNotFound
-from euci import EUci
+from euci import EUci, UciExceptionNotFound
 
 
 def enabled():
@@ -33,11 +32,7 @@ def enabled():
     Relevant uci configuration is: updater.autorun.enable
     """
     with EUci() as uci:
-        try:
-            # TODO use EUci instead of this retype (as this is not perfect)
-            return not uci.get_boolean("updater", "override", "disable")
-        except UciExceptionNotFound:
-            return False  # No option means disabled
+        return not uci.get("updater", "override", "disable", dtype=bool, default=False)
 
 
 def set_enabled(enabled):
@@ -46,7 +41,7 @@ def set_enabled(enabled):
     """
     with EUci() as uci:
         uci.set('updater', 'override', 'override')
-        uci.set_boolean('updater', 'override', 'disable', not enabled)
+        uci.set('updater', 'override', 'disable', not enabled)
 
 
 def approvals():
@@ -54,11 +49,7 @@ def approvals():
     Relevant uci configuration is: updater.autorun.approvals
     """
     with EUci() as uci:
-        try:
-            # TODO use EUci instead of this retype (as this is not perfect)
-            return uci.get_boolean("updater", "approvals", "need")
-        except UciExceptionNotFound:
-            return False  # No option means disabled
+        return uci.get("updater", "approvals", "need", dtype=bool, default=False)
 
 
 def set_approvals(enabled):
@@ -67,7 +58,7 @@ def set_approvals(enabled):
     """
     with EUci() as uci:
         uci.set('updater', 'approvals', 'approvals')
-        uci.set_boolean('updater', 'approvals', 'need', enabled)
+        uci.set('updater', 'approvals', 'need', enabled)
 
 
 def auto_approve_time():
@@ -76,11 +67,8 @@ def auto_approve_time():
     This is releavant to uci config: updater.autorun.auto_approve_time
     """
     with EUci() as uci:
-        try:
-            value = uci.get_integer("updater", "approvals", "auto_grant_seconds")
-            return value // 3600 if value > 0 else None
-        except UciExceptionNotFound:
-            return 0
+        value = uci.get("updater", "approvals", "auto_grant_seconds", dtype=int, default=0)
+        return value // 3600 if value > 0 else None
 
 
 def set_auto_approve_time(approve_time):
@@ -91,6 +79,6 @@ def set_auto_approve_time(approve_time):
     with EUci() as uci:
         if approve_time > 0:
             uci.set('updater', 'approvals', 'approvals')
-            uci.set_integer('updater', 'approvals', 'auto_grant_seconds', approve_time * 3600)
+            uci.set('updater', 'approvals', 'auto_grant_seconds', approve_time * 3600)
         else:
             uci.delete('updater', 'autorun', 'auto_approve_time')

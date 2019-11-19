@@ -25,7 +25,7 @@
 import os
 import json
 import gettext
-from uci import Uci, UciExceptionNotFound
+from euci import EUci, UciExceptionNotFound
 from .const import USERLISTS_FILE
 from .exceptions import ExceptionUpdaterNoSuchList
 
@@ -62,14 +62,10 @@ def userlists(lang=None):
                     "message": trans.gettext(lst['description']) if 'description' in lst else None,
                     "enabled": False,
                     "hidden": not visible
-                    }
+                }
 
-    with Uci() as uci:
-        try:
-            lists = uci.get("updater", "pkglists", "lists")
-        except (UciExceptionNotFound, KeyError):
-            # If we fail to get that section then just ignore
-            return result
+    with EUci() as uci:
+        lists = uci.get("updater", "pkglists", "lists", list=True, default=[])
     for lst in lists:
         if lst in result:
             result[lst]['enabled'] = True
@@ -95,16 +91,16 @@ def update_userlists(lists):
                 "Can't enable unknown package list:" + str(lst))
 
     # Set
-    with Uci() as uci:
+    with EUci() as uci:
         uci.set('updater', 'pkglists', 'pkglists')
-        uci.set('updater', 'pkglists', 'lists', tuple(lists))
+        uci.set('updater', 'pkglists', 'lists', lists)
 
 
 def pkglists(lang=None):
-    "4.x backport"
+    """4.x backport"""
     return userlists(lang)
 
 
 def update_pkglists(lists):
-    "4.x backport"
+    """4.x backport"""
     update_userlists(lists)
