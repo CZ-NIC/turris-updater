@@ -25,7 +25,7 @@
 import os
 import json
 import gettext
-from euci import EUci, UciExceptionNotFound
+from euci import EUci
 from .const import USERLISTS_FILE
 from .exceptions import ExceptionUpdaterNoSuchList
 

@@ -1,4 +1,4 @@
-from euci import EUci, UciExceptionNotFound
+from euci import EUci
 
 
 def get_os_branch_or_version():

@@ -23,7 +23,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 import os
-from euci import EUci, UciExceptionNotFound
+from euci import EUci
 from .const import L10N_FILE
 from .exceptions import ExceptionUpdaterNoSuchLang
 
