@@ -316,7 +316,11 @@ function pkg_aggregate()
 						if not available_packages[p] then
 							available_packages[p] = {candidates = {}, modifiers = {}}
 						end
-						table.insert(available_packages[p].candidates, candidate)
+						if p == name then
+							WARN("Package provides itself, ignoring: " .. name)
+						else
+							table.insert(available_packages[p].candidates, candidate)
+						end
 					end
 				end
 			end
