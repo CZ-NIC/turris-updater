@@ -347,7 +347,7 @@ local function build_plan(pkgs, requests, sat, satmap)
 	local function pkg_plan(plan_pkg, ignore_missing, ignore_missing_pkg, parent_str)
 		local name = plan_pkg.name or plan_pkg -- it can be object of type "package" or "dep-package" or string containing name of package group
 		if not sat[satmap.pkg2sat[name]] then -- This package group is not selected, so we ignore it.
-			-- Note: In special case when package provides its own dependency package group might not be selected and so we should at least return enpty table
+			-- Note: In special case when package provides its own dependency package group might not be selected and so we should at least return empty table
 			return {}
 		end
 		local missing_pkg = satmap.missing[plan_pkg] or satmap.missing[name]
@@ -397,14 +397,18 @@ local function build_plan(pkgs, requests, sat, satmap)
 				end
 			end
 		end
-		if not next(candidates) and not utils.multi_index(pkg, 'modifier', 'virtual') then return end -- If no candidates, then we have nothing to be planned. Exception is if this is virtual package.
+		if not next(candidates) and not utils.multi_index(pkg, 'modifier', 'virtual') then
+			return -- If no candidates, then we have nothing to be planned. Exception is if this is virtual package.
+		end
 		-- Recursively add all packages this package depends on --
 		inwstack[name] = #wstack + 1 -- Signal that we are working on this package group.
 		table.insert(wstack, name)
 		for _, p in pkg_dep_iterate(utils.multi_index(pkg, 'modifier', 'deps') or {}) do -- plan package group dependencies
 			pkg_plan(p, ignore_missing or utils.multi_index(pkg, 'modifier', 'optional'), false, "Package " .. name .. " requires package")
 		end
-		if not next(candidates) then return end -- We have no candidate, but we passed previous check because it's virtual
+		if not next(candidates) then
+			return -- We have no candidate, but we passed previous check because it's virtual
+		end
 		local r = {}
 		local no_pkg_candidate = true
 		for _, candidate in pairs(candidates) do -- Now plan candidate's dependencies and packages that provides this package

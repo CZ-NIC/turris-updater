@@ -24,7 +24,6 @@ local error = error
 local pcall = pcall
 local next = next
 local type = type
-local assert = assert
 local table = table
 local string = string
 local events_wait = events_wait
@@ -331,10 +330,6 @@ function pkg_aggregate()
 			available_packages[pkg.name] = {candidates = {}, modifiers = {}}
 		end
 		local pkg_group = available_packages[pkg.name]
-		if pkg.candidate then
-			assert(pkg.content) -- candidate can be there only from content option
-			table.insert(pkg_group.candidates, pkg.candidate)
-		end
 		table.insert(pkg_group.modifiers, pkg)
 	end
 	for name, pkg_group in pairs(available_packages) do
@@ -365,15 +360,6 @@ function pkg_aggregate()
 			candidates and the deps could differ.
 			]]
 			table.insert(modifier.deps, m.deps or {})
-			-- Check if theres no candidate for virtual package
-			if m.virtual then
-				for _, candidate in ipairs(pkg_group.candidates or {}) do
-					-- We have to ignore candidates provided by some other package
-					if name == candidate.Package then
-						error(utils.exception("inconsistent", "Candidate exists for virtual package " .. name))
-					end
-				end
-			end
 			-- Take a single value or a list from the source and merge it into a set in the destination
 			local function set_merge(name)
 				local src = m[name]
@@ -421,6 +407,10 @@ function pkg_aggregate()
 			end
 			modifier.virtual = modifier.virtual or m.virtual
 		end
+		if modifier.virtual then
+			-- virtual packages ignore all candidates
+			pkg_group.candidates = {}
+		end
 		-- Canonize dependencies
 		modifier.deps = deps_canon(modifier.deps)
 		for _, candidate in ipairs(pkg_group.candidates or {}) do
@@ -434,9 +424,7 @@ function pkg_aggregate()
 		-- We merged them together, they are no longer needed separately
 		pkg_group.modifiers = nil
 		-- Sort candidates
-		if pkg_group.candidates then
-			sort_candidates(name, pkg_group.candidates)
-		end
+		sort_candidates(name, pkg_group.candidates or {})
 	end
 end
 

@@ -53,7 +53,8 @@ local updater_features = utils.arr2set({
 	'abi_change_deep',
 	'replan_string',
 	'relative_uri',
-	'no_returns'
+	'no_returns',
+    'no-error-virtual'
 })
 
 -- Available functions and "constants" from global environment

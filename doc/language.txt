@@ -373,7 +373,8 @@ The options are:
 
 virtual::
   If set to any value, the package is virtual. If a real package of the same name
-  exists, an error is reported.
+  exists then it is silently ignored. Note that this means that installed package
+  that is marked as virtual would be removed from system by updater.
 deps::
   Additional dependencies for the package. The dependencies are merged together as
   if all the sources were put into a table (eg. all of them must be fulfilled).
@@ -558,6 +559,10 @@ relative_uri::
 no_returns::
   Functions such as `Repository` and `Package` no longer return handler that can
   be used in other calls.
+no_error_virtual::
+  Virtual for package with candidate no longer results in an error. Instead
+  virtual just makes all candidates not to be installed while requests for that
+  package fulfilled.
 
 installed
 ~~~~~~~~~

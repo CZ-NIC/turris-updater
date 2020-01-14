@@ -292,7 +292,7 @@ function test_pkg_merge_virtual()
 			modifier = {name = "pkg"}
 		},
 		virt = {
-			candidates = {{Package = "pkg", Version = "1", Provides="virt", repo = requests.known_repositories["test1"]}},
+			candidates = {},
 			modifier = {
 				name = "virt",
 				virtual = true
@@ -321,8 +321,23 @@ function test_pkg_merge_virtual_with_candidate()
 			virtual = true
 		}
 	}
-	common_pkg_merge({})
-	assert_exception(function() postprocess.pkg_aggregate() end, "inconsistent")
+	-- Build the expected data structure
+	local exp = {
+		pkg = {
+			candidates = {{Package = "pkg", Version = "1", Provides="virt", repo = requests.known_repositories["test1"]}},
+			modifier = {name = "pkg"}
+		},
+		virt = {
+			candidates = {},
+			modifier = {
+				name = "virt",
+				virtual = true
+			},
+		}
+	}
+	common_pkg_merge(exp)
+	postprocess.pkg_aggregate()
+	assert_table_equal(exp, postprocess.available_packages)
 end
 
 function test_deps_canon()
