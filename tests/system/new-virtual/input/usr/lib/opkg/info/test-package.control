@@ -1,0 +1,9 @@
+Package: test-package
+Version: 1
+License: GPL-2.0
+Section: none
+Provides: virtual-package
+Architecture: all
+Installed-Size: 0
+Description:  Example package
+

@@ -24,7 +24,8 @@ UPD_SYS_TESTS := \
 	conflicts \
 	postinst \
 	reboot-recover-update \
-	reinstall-all
+	reinstall-all \
+	new-virtual
 
 .PHONY: test-sys valgrind-sys check
 

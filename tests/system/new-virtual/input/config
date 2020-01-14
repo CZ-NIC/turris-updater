@@ -1,0 +1,3 @@
+Repository("test", "file://%ROOT_DIR%/repo")
+Install("test-package", "virtual-package")
+Package("virtual-package", { virtual = true })
