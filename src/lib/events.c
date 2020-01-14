@@ -114,6 +114,15 @@ static void download_timer_cb(int fd, short kind, void *userp);
 #define ASSERT_CURL(X) ASSERT((X) == CURLE_OK)
 #define ASSERT_CURLM(X) ASSERT((X) == CURLM_OK)
 
+#ifdef BUSYBOX_EMBED
+/*
+ * Function used for initialization of run_util functions (exports busybox to /tmp
+ * It is using reference counting, so for last call to run_util_clean it also
+ * cleans variables and files needed by run_util.
+ */
+static void run_util_init(void);
+#endif
+
 struct events *events_new(void) {
 	// We do a lot of writing to pipes and stuff. We don't want to be killed by a SIGPIPE from these, we shall handle errors of writing.
 	ASSERT_MSG(sigaction(SIGPIPE, &(struct sigaction) {
@@ -141,6 +150,10 @@ struct events *events_new(void) {
 	CURLM_SETOPT(CURLMOPT_TIMERDATA, result);
 #undef CURLM_SETOPT
 	result->curl_timer = evtimer_new(result->base, download_timer_cb, result);
+
+#ifdef BUSYBOX_EMBED
+	run_util_init();
+#endif
 
 	return result;
 }
@@ -549,7 +562,83 @@ struct wait_id run_command_a(struct events *events, command_callback_t callback,
 	}
 }
 
-// These are system paths where we can find standard tools
+#ifdef BUSYBOX_EMBED
+
+const char run_util_tmp_template[] = "/tmp/updater-busybox-XXXXXX";
+const char run_util_busybox_name[] = "busybox";
+// Path of extracted busybox.
+// sizeof returns whole size of array (so including '\0'). Using two sizeof creates
+// this way two additional bytes in array, one is used for '\0' and second one for '/'
+char run_util_busybox[sizeof(run_util_tmp_template) + sizeof(run_util_busybox_name)];
+int run_util_init_counter; // Reference counter
+
+extern struct file_index_element busybox_exec[];
+
+static void run_util_init(void) {
+	run_util_init_counter++;
+	if (run_util_init_counter > 1)
+		return;
+	strcpy(run_util_busybox, run_util_tmp_template); // Copy string from constant template to used string
+	// Busybox executable have to be named as busybox otherwise it doesn't work as expected. So we put it to temporally directory
+	ASSERT(mkdtemp(run_util_busybox)); // mkdtemp edits run_util_busybox (replaces XXXXXX).
+	run_util_busybox[sizeof(run_util_tmp_template) - 1] = '/'; // We append slash replacing \0
+	strcpy(run_util_busybox + sizeof(run_util_tmp_template), run_util_busybox_name); // Copy busybox executable name to string.
+	DBG("Dumping busybox to: %s", run_util_busybox);
+	int f;
+	ASSERT_MSG((f = open(run_util_busybox, O_WRONLY | O_CREAT, S_IXUSR | S_IRUSR)) != -1, "Busybox file open failed: %s", strerror(errno));
+	size_t written = 0;
+	while (written < busybox_exec[0].size) {
+		int wrtn;
+		ASSERT_MSG((wrtn = write(f, busybox_exec[0].data, busybox_exec[0].size)) != -1 || errno == EINTR, "Busybox write failed: %s", strerror(errno));
+		if (wrtn == -1)
+			wrtn = 0;
+		written += wrtn;
+	}
+	ASSERT(!close(f));
+}
+
+static void run_util_clean(void) {
+	run_util_init_counter--;
+	if (run_util_init_counter > 0)
+		return;
+	DBG("Removing temporally busybox from: %s", run_util_busybox);
+	if (remove(run_util_busybox)) {
+		WARN("Busybox cleanup failed: %s", strerror(errno));
+	} else if (rmdir(dirname(run_util_busybox))) {
+		WARN("Busybox directory cleanup failed: %s", strerror(errno));
+	}
+}
+
+struct wait_id run_util_a(struct events* events, command_callback_t callback, post_fork_callback_t post_fork, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, const char *function, const char **params) {
+	size_t params_count = 1; // One more to also count NULL terminator
+	for (const char **p = params; *p != NULL; p++)
+		params_count++;
+	const char *new_params[params_count + 1]; // One more for busybox function
+	new_params[0] = function;
+	memcpy(new_params + 1, params, params_count * sizeof *params); // Copies terminating NULL as well
+	return run_command_a(events, callback, post_fork, data, input_size, input, term_timeout, kill_timeout, run_util_busybox, new_params);
+}
+
+struct wait_id run_util(struct events* events, command_callback_t callback, post_fork_callback_t post_fork, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, const char *function, ...) {
+	size_t param_count = 1; // One more for terminating NULL
+	va_list args;
+	va_start(args, function);
+	while (va_arg(args, const char *) != NULL)
+		param_count ++;
+	va_end(args);
+	const char *params[param_count + 1]; // One more for busybox function
+	params[0] = function;
+	size_t i = 1;
+	va_start(args, function);
+	while((params[i ++] = va_arg(args, const char *)) != NULL) // Copies the terminating NULL as well.
+		;
+	va_end(args);
+	return run_command_a(events, callback, post_fork, data, input_size, input, term_timeout, kill_timeout, run_util_busybox, params);
+}
+
+#else /* BUSYBOX_EMBED */
+
+// When we are not using busybox these are system paths where we can find those tools
 struct {
 	const char *fnc, *cmd;
 } run_util_command[] = {
@@ -585,6 +674,8 @@ struct wait_id run_util(struct events* events, command_callback_t callback, post
 struct wait_id run_util_a(struct events* events, command_callback_t callback, post_fork_callback_t post_fork, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, const char *function, const char **params) {
 	return run_command_a(events, callback, post_fork, data, input_size, input, term_timeout, kill_timeout, run_util_get_cmd(function), params);
 }
+
+#endif /* BUSYBOX_EMBED */
 
 static ssize_t download_index_lookup(struct events *events, uint64_t id) {
 	for (size_t i = 0; i < events->download_count; i++) {
@@ -975,4 +1066,7 @@ void events_destroy(struct events *events) {
 	free(events->downloads);
 	free(events->pending);
 	free(events);
+#ifdef BUSYBOX_EMBED
+	run_util_clean();
+#endif
 }

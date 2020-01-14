@@ -12,6 +12,11 @@ $(O)/.gen/src/lib/lautoload.embedlist: SUFFIX := .lua
 $(O)/.gen/src/lib/lcoverage.embedlist: $(S)/src/lib/coverage.lua
 $(O)/.gen/src/lib/lcoverage.embedlist: SUFFIX := .lua
 
+ifdef BUSYBOX_EXEC
+# We have to ignore this if not provided to avoid error
+$(O)/.gen/src/lib/busybox_exec.embedlist:$(BUSYBOX_EXEC)
+endif
+
 libupdater_MODULES := \
 	arguments \
 	inject \
@@ -32,6 +37,9 @@ libupdater_MODULES := \
 	logging
 ifdef COV
 libupdater_MODULES += lcoverage.embed
+endif
+ifdef BUSYBOX_EXEC
+libupdater_MODULES += busybox_exec.embed
 endif
 
 libupdater_MODULES_3RDPARTY := picosat-965/picosat
