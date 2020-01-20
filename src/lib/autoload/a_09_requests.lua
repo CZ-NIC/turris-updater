@@ -35,13 +35,14 @@ local assert = assert
 local table = table
 local utils = require "utils"
 local uri = require "uri"
+local opmode = opmode
 local DBG = DBG
 local WARN = WARN
 local ERROR = ERROR
 
 module "requests"
 
--- luacheck: globals known_packages known_repositories repositories_uri_master repo_serial repository content_requests install uninstall script package
+-- luacheck: globals known_packages known_repositories repositories_uri_master repo_serial repository content_requests install uninstall mode script package
 
 -- Verifications fields are same for script, repository and package. Lets define them here once and then just append.
 local allowed_extras_verification = {
@@ -359,6 +360,22 @@ local allowed_uninstall_extras = {
 
 function uninstall(_, ...)
 	return content_request("uninstall", allowed_uninstall_extras, ...)
+end
+
+local known_modes = {
+	["reinstall_all"] = true,
+	["no_removal"] = true,
+	["optional_installs"] = true,
+}
+
+function mode(_, ...)
+	for _, md in pairs({...}) do
+		if known_modes[md] then
+			opmode:set(md)
+		else
+			WARN("Ignoring request for unknown mode: " .. md)
+		end
+	end
 end
 
 local allowed_script_extras = {

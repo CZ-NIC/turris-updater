@@ -433,6 +433,32 @@ NOTE: Originally there was also option `ignore` that allowed pass for different
 problems but most of those were not working and usage of them was questionable.
 This options is now considered as obsolete and is ignored.
 
+Mode
+~~~~
+
+  Mode("mode", "mode")
+
+Updater supports various modifications to standard execution. Such modification
+can be requested by this command as well as some of them being accessible directly
+as arguments to *pkgupdate* command.
+
+Supported modes:
+
+reinstall_all::
+  Consider all packages as not being installed. Such consideration leads to full
+  system reinstall by updater. This is handy if versions of packages might be same
+  but content of installed package don't. This is effectively like if all
+  `Install` calls would have extra `reinstall = true`.
+no_removal::
+  Do not remove not required packages in this run from system. This has exception
+  and those are conflicting packages with to be installed packages.
+optional_installs::
+  Behave like if all `Install` requests would have extra `optional = true`. This
+  means that any install request that is not satisfied is just ignored. You can
+  use this in combination with `no_removal` to update system when some of the
+  repositories are not at the moment available without needing to tweak
+  configuration nor remove those packages.
+
 Export and Unexport
 ~~~~~~~~~~~~~~~~~~~
 

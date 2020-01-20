@@ -2,6 +2,7 @@
 #include "../lib/arguments.h"
 #include "../lib/util.h"
 #include "../lib/logging.h"
+#include "../lib/opmode.h"
 
 const char *argp_program_version = "pkgupdate " UPDATER_VERSION;
 static const char usage_doc[] = "[SCRIPT]";
@@ -44,7 +45,7 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 			opts->batch = true;
 			break;
 		case OPT_REINSTALL_ALL:
-			opts->reinstall_all = true;
+			opmode_set(OPMODE_REINSTALL_ALL);
 			break;
 		case OPT_ASK_APPROVAL:
 			opts->approval_file = arg;

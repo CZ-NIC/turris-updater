@@ -34,7 +34,8 @@ libupdater_MODULES := \
 	util \
 	syscnf \
 	multiwrite \
-	logging
+	logging \
+	opmode
 ifdef COV
 libupdater_MODULES += lcoverage.embed
 endif

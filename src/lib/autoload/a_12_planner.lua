@@ -31,6 +31,7 @@ local DBG = DBG
 local TRACE = TRACE
 local WARN = WARN
 local picosat = picosat
+local opmode = opmode
 local utils = require "utils"
 local backend = require "backend"
 local requests = require "requests"
@@ -266,7 +267,7 @@ local function sat_build(sat, pkgs, requests)
 	}
 	-- Go trough requests and add them to SAT
 	for _, req in ipairs(requests) do
-		if not pkgs[req.package.name] and not req.optional then
+		if not pkgs[req.package.name] and not req.optional and not opmode.optional_installs then
 			error(utils.exception('inconsistent', "Requested package " .. req.package.name .. " doesn't exists."))
 		end
 		local req_var = sat:var()
@@ -282,16 +283,6 @@ local function sat_build(sat, pkgs, requests)
 		state.req2sat[req] = req_var
 	end
 	return state
-end
-
-
-local planned_action = 'require'
-function set_reinstall_all(enable)
-	if enable then
-		planned_action = 'reinstall'
-	else
-		planned_action = 'require'
-	end
 end
 
 -- Iterate trough all packages in given dependency tree.
@@ -431,12 +422,15 @@ local function build_plan(pkgs, requests, sat, satmap)
 		-- And finally plan it --
 		planned[name] = #plan + 1
 		r = {
-			action = planned_action,
+			action = 'require',
 			package = candidates[1],
 			modifier = (pkg or {}).modifier or {},
 			critical = false,
 			name = name
 		}
+		if opmode.reinstall_all then
+			r.action = 'reinstall'
+		end
 		plan[#plan + 1] = r
 		return {r}
 	end
@@ -452,7 +446,7 @@ local function build_plan(pkgs, requests, sat, satmap)
 	for _, req in pairs(requests) do
 		if sat[satmap.req2sat[req]] then -- Plan only if we can satisfy given request
 			if req.tp == "install" then -- And if it is install request, uninstall requests are resolved by not being planned.
-				local pln = pkg_plan(req.package, false, req.optional, 'Requested package')
+				local pln = pkg_plan(req.package, false, req.optional or opmode.optional_installs, 'Requested package')
 				-- Note that if pln is nil than we ignored missing package. We have to compute with that here
 				if pln then
 					if req.reinstall then
@@ -757,7 +751,7 @@ function filter_required(status, requests, allow_replan)
 			end
 		end
 	end
-	if not replan then
+	if not replan and not opmode.no_removal then
 		-- We don't remove unused packages just yet if we do immediate replan, we do it after the replanning.
 		utils.arr_append(result, check_removal(status, unused))
 	end

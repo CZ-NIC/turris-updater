@@ -54,7 +54,7 @@ local updater_features = utils.arr2set({
 	'replan_string',
 	'relative_uri',
 	'no_returns',
-    'no-error-virtual'
+    'no_error_virtual'
 })
 
 -- Available functions and "constants" from global environment
@@ -180,6 +180,10 @@ local funcs = {
 		Script = {
 			mode = "wrap",
 			value = requests.script
+		},
+		Mode = {
+			mode = "wrap",
+			value = requests.mode
 		},
 		Unexport = {
 			mode = "wrap",

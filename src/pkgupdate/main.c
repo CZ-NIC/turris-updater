@@ -23,6 +23,7 @@
 #include <errno.h>
 #include <time.h>
 #include "../lib/syscnf.h"
+#include "../lib/opmode.h"
 #include "../lib/events.h"
 #include "../lib/interpreter.h"
 #include "../lib/util.h"
@@ -110,7 +111,6 @@ int main(int argc, char *argv[]) {
 	// Parse the arguments
 	struct opts opts = {
 		.batch = false,
-		.reinstall_all = false,
 		.approval_file = NULL,
 		.approve = NULL,
 		.approve_cnt = 0,
@@ -135,12 +135,10 @@ int main(int argc, char *argv[]) {
 	bool trans_ok = true;
 	size_t result_count;
 	// Set some configuration
-	if (opts.no_replan || opts.reinstall_all) {
+	if (opts.no_replan || opmode(OPMODE_REINSTALL_ALL)) {
 		err = interpreter_call(interpreter, "updater.disable_replan", NULL, "");
 		ASSERT_MSG(!err, "%s", err);
 	}
-	err = interpreter_call(interpreter, "planner.set_reinstall_all", NULL, "b", opts.reinstall_all);
-	ASSERT_MSG(!err, "%s", err);
 	// Check if we should recover previous execution first if so do
 	if (journal_exists(root_dir())) {
 		INFO("Detected existing journal. Trying to recover it.");
