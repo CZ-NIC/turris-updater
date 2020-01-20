@@ -312,7 +312,7 @@ function pkg_aggregate()
 				end
 				table.insert(available_packages[name].candidates, candidate)
 				if candidate.Provides then -- Add this candidate to package it provides
-					for p in candidate.Provides:gmatch("[^,	]+") do
+					for p in candidate.Provides:gmatch("[^, ]+") do
 						if not available_packages[p] then
 							available_packages[p] = {candidates = {}, modifiers = {}}
 						end
