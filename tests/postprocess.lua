@@ -168,9 +168,9 @@ function test_pkg_merge()
 		["test1"] = {
 			content = {
 				xyz = {Package = "xyz", Version = "1"},
-				abc = {Package = "abc", Version = "2", Depends = "cde", Conflicts = "xyz"},
+				abc = {Package = "abc", Version = "2", Depends = "cde, ijk", Conflicts = "xyz"},
 				cde = {Package = "cde", Version = "1"},
-				fgh = {Package = "fgh", Version = "1", Provides = "cde"}
+				fgh = {Package = "fgh", Version = "1", Provides = "cde, ijk"}
 			},
 			tp = "parsed-repository"
 		},
@@ -214,8 +214,8 @@ function test_pkg_merge()
 	local exp = {
 		abc = {
 			candidates = {
-				{Package = "abc", Depends = "cde", Conflicts = "xyz", Version = "2", deps = {
-						tp = "dep-and", sub = { "cde", { tp = "dep-not", sub = {
+				{Package = "abc", Depends = "cde, ijk", Conflicts = "xyz", Version = "2", deps = {
+						tp = "dep-and", sub = { "cde", "ijk", { tp = "dep-not", sub = {
 							{ tp = "dep-package", name = "xyz", version = "~.*" }
 					}}}}, repo = requests.known_repositories["test1"]},
 				{Package = "abc", Version = "1", repo = requests.known_repositories["test2-a"]}
@@ -225,13 +225,17 @@ function test_pkg_merge()
 		cde = {
 			candidates = {
 				{Package = "cde", Version = "1", repo = requests.known_repositories["test1"]},
-				{Package = "fgh", Version = "1", Provides = "cde", repo = requests.known_repositories["test1"]}
+				{Package = "fgh", Version = "1", Provides = "cde, ijk", repo = requests.known_repositories["test1"]}
 			},
 			modifier = {name = "cde"}
 		},
 		fgh = {
-			candidates = {{Package = "fgh", Version = "1", Provides = "cde", repo = requests.known_repositories["test1"]}},
+			candidates = {{Package = "fgh", Version = "1", Provides = "cde, ijk", repo = requests.known_repositories["test1"]}},
 			modifier = {name = "fgh"}
+		},
+		ijk = {
+			candidates = {{Package = "fgh", Version = "1", Provides = "cde, ijk", repo = requests.known_repositories["test1"]}},
+			modifier = {name = "ijk"}
 		},
 		another = {
 			candidates = {{Package = "another", Version = "4", repo = requests.known_repositories["test2-b"]}},
