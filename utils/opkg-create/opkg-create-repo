@@ -1,8 +1,8 @@
 #!/bin/bash
 # Usage: Just start this script in directory where you have all your packages
 
-# At beginning remove previous Packages.gz
-if [ -f Packages.gz ]; then rm Packages.gz; fi
+# At beginning remove previous Packages
+if [ -f Packages ]; then rm Packages; fi
 
 touch Packages
 for PKG in `ls *.ipk`; do
@@ -19,5 +19,3 @@ for PKG in `ls *.ipk`; do
 
 	rm control
 done
-
-gzip Packages
