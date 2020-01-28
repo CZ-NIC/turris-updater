@@ -272,7 +272,7 @@ function test_perform_ok()
 		},
 		{
 			f = "backend.script_run",
-			p = {"pkg-name", "preinst", "upgrade", "0"}
+			p = {"pkg-name", "preinst", true, "upgrade", "0"}
 		},
 		{
 			f = "backend.pkg_merge_files",
@@ -284,7 +284,7 @@ function test_perform_ok()
 		},
 		{
 			f = "backend.script_run",
-			p = {"pkg-rem", "prerm", "remove"}
+			p = {"pkg-rem", "prerm", false, "remove"}
 		},
 		{
 			f = "journal.write",
@@ -309,11 +309,11 @@ function test_perform_ok()
 		},
 		{
 			f = "backend.script_run",
-			p = {"pkg-name", "postinst", "configure"}
+			p = {"pkg-name", "postinst", true, "configure"}
 		},
 		{
 			f = "backend.script_run",
-			p = {"pkg-rem", "postrm", "remove"}
+			p = {"pkg-rem", "postrm", false, "remove"}
 		},
 		{
 			f = "journal.write",

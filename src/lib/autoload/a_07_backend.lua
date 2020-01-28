@@ -996,9 +996,10 @@ If the script doesn't exist, true is returned (and no stderr is provided).
 
 - pkg_name: Name of the package.
 - script_name: Suffix of the script (eg. 'control')
+- is_upgrade: Boolean value to set PKG_UPGRADE environment variable
 - More parameters: Parameters to pass to the script.
 ]]
-function script_run(pkg_name, script_name, ...)
+function script_run(pkg_name, script_name, is_upgrade, ...)
 	local fname = pkg_name .. "." .. script_name
 	local fname_full = syscnf.info_dir:gsub('^../', getcwd() .. "/../"):gsub('^./', getcwd() .. "/") .. "/" .. fname
 	local ftype, perm = stat(fname_full)
@@ -1012,6 +1013,7 @@ function script_run(pkg_name, script_name, ...)
 				local dir = syscnf.root_dir:gsub('^/+$', '')
 				setenv("PKG_ROOT", dir)
 				setenv("IPKG_INSTROOT", dir)
+				setenv("PKG_UPGRADE", is_upgrade and "1" or "0")
 				chdir(syscnf.root_dir)
 			end,
 			fname_full, ...)

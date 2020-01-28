@@ -4,4 +4,5 @@ set -e
 
 echo "$@" >&2
 env | grep "^PKG_ROOT=" >&2
+env | grep "^PKG_UPGRADE=" >&2
 false

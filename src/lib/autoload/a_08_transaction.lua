@@ -58,8 +58,8 @@ module "transaction"
 -- luacheck: globals perform recover perform_queue recover_pretty queue_remove queue_install queue_install_downloaded cleanup_actions
 
 -- Wrap the call to the maintainer script, and store any possible errors for later use
-local function script(errors_collected, name, suffix, ...)
-	local ok, stderr = backend.script_run(name, suffix, ...)
+local function script(errors_collected, name, suffix, is_upgrade, ...)
+	local ok, stderr = backend.script_run(name, suffix, is_upgrade, ...)
 	if not ok then
 		errors_collected[name] = errors_collected[name] or {}
 		errors_collected[name][suffix] = stderr
@@ -182,9 +182,9 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 			backend.pkg_merge_control(op.dir .. "/control", op.control.Package, op.control.files)
 			if utils.multi_index(status, op.control.Package, "Status", 3) == "installed" then
 				-- There's a previous version. So this is an upgrade.
-				script(errors_collected, op.control.Package, "preinst", "upgrade", status[op.control.Package].Version)
+				script(errors_collected, op.control.Package, "preinst", true, "upgrade", status[op.control.Package].Version)
 			else
-				script(errors_collected, op.control.Package, "preinst", "install", op.control.Version)
+				script(errors_collected, op.control.Package, "preinst", false, "install", op.control.Version)
 			end
 			if early_remove[op.control.Package] then
 				backend.pkg_cleanup_files(early_remove[op.control.Package], all_configs)
@@ -215,7 +215,7 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 			else
 				status[op.name] = nil
 			end
-			script(errors_collected, op.name, "prerm", "remove")
+			script(errors_collected, op.name, "prerm", false, "remove")
 		end
 		-- Ignore others, at least for now.
 	end
@@ -236,9 +236,10 @@ local function pkg_scripts(status, plan, removes, to_install, errors_collected, 
 	INFO("Running post-install and post-rm scripts")
 	for _, op in ipairs(plan) do
 		if op.op == "install" then
-			script(errors_collected, op.control.Package, "postinst", "configure")
+			local is_upgrade = utils.multi_index(status, op.control.Package, "Status", 3) == "installed"
+			script(errors_collected, op.control.Package, "postinst", is_upgrade, "configure")
 		elseif op.op == "remove" and not to_install[op.name] then
-			script(errors_collected, op.name, "postrm", "remove")
+			script(errors_collected, op.name, "postrm", false, "remove")
 		end
 	end
 	return status, errors_collected
