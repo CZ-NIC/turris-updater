@@ -1,0 +1,4 @@
+Repository("test", "file://%ROOT_DIR%/repo")
+Install("test-package")
+Install("missing-package")
+Mode("optional_installs")

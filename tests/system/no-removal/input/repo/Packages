@@ -1,0 +1,11 @@
+Package: test-package
+Version: 1
+License: GPL-2.0
+Section: none
+Architecture: all
+Installed-Size: 0
+Filename: test-package.ipk
+MD5Sum: 4292887e668cf52e9c1a29595dc7404e
+SHA256sum: f5af0e34364df67309ca92c4ee4a374eea12223d69e38759fea518c533d55feb
+Description:  Test package
+

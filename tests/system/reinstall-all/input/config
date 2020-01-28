@@ -1,2 +1,3 @@
 Repository("test", "./repo")
 Install("test-package")
+Mode("reinstall_all")
