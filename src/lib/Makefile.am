@@ -1,39 +1,43 @@
-noinst_LTLIBRARIES = libupdater.la
+lib_LTLIBRARIES += libupdater.la
+
 libupdater_la_SOURCES = \
-	arguments.c \
-	download.c \
-	embed_types.c \
-	events.c \
-	inject.c \
-	interpreter.c \
-	journal.c \
-	locks.c \
-	logging.c \
-	multiwrite.c \
-	opmode.c \
-	picosat.c \
-	subprocess.c \
-	syscnf.c \
-	uri.c \
-	uri_lua.c \
-	util.c \
-	picosat-965/picosat.c
-LUA_FILES = \
-	backend.lua \
-	cleanup.lua \
-	dumper.lua \
-	logging.lua \
-	planner.lua \
-	postprocess.lua \
-	requests.lua \
-	sandbox.lua \
-	stacktraceplus.lua \
-	testing.lua \
-	transaction.lua \
-	updater.lua \
-	utils.lua
+	%reldir%/arguments.c \
+	%reldir%/download.c \
+	%reldir%/embed_types.c \
+	%reldir%/events.c \
+	%reldir%/inject.c \
+	%reldir%/interpreter.c \
+	%reldir%/journal.c \
+	%reldir%/locks.c \
+	%reldir%/logging.c \
+	%reldir%/multiwrite.c \
+	%reldir%/opmode.c \
+	%reldir%/picosat.c \
+	%reldir%/subprocess.c \
+	%reldir%/syscnf.c \
+	%reldir%/uri.c \
+	%reldir%/uri_lua.c \
+	%reldir%/util.c \
+	%reldir%/picosat-965/picosat.c
+
+LIBUPDATER_LUA_FILES = \
+	%reldir%/lua/backend.lua \
+	%reldir%/lua/cleanup.lua \
+	%reldir%/lua/dumper.lua \
+	%reldir%/lua/logging.lua \
+	%reldir%/lua/planner.lua \
+	%reldir%/lua/postprocess.lua \
+	%reldir%/lua/requests.lua \
+	%reldir%/lua/sandbox.lua \
+	%reldir%/lua/stacktraceplus.lua \
+	%reldir%/lua/testing.lua \
+	%reldir%/lua/transaction.lua \
+	%reldir%/lua/updater.lua \
+	%reldir%/lua/utils.lua
+
 
 libupdater_la_CFLAGS = \
+	-iquote "$(builddir)/%reldir%" \
 	$(LUA_CFLAGS) \
 	$(LIBEVENT_CFLAGS) \
 	$(LIBCURL_CLAGS) \
@@ -47,24 +51,27 @@ libupdater_la_LDFLAGS = \
 	$(LIBURIPARSER_LIBS) \
 	-lb64 -ldl
 
-FILTER = $(foreach v,$(2),$(if $(findstring $(1),$(v)),$(v)))
+##################################################################################
 
 # picosat-964 files are of external origin so we are not interested in warnings
-$(call FILTER,picosat-965/,$(libupdater_la_OBJECTS)): CFLAGS+=-w
+$(call FILTER,picosat-965/,$(libupdater_la_OBJECTS)): CFLAGS+=-w -DNGETRUSAGE -DTRACE
 
-LUA_FILES_H := $(patsubst %,lua/%.h,$(LUA_FILES))
-CLEANFILES = $(LUA_FILES_H)
+LUA_FILES_H := $(patsubst %,$(builddir)/%.h,$(LIBUPDATER_LUA_FILES))
+CLEANFILES += $(LUA_FILES_H)
+# interpreter.c includes all Lua files so add them as dependency
 $(call FILTER,interpreter,$(libupdater_la_OBJECTS)): $(LUA_FILES_H)
 
-lua/%.lua.h: lua/%.lua
-	$(AM_V_GEN)$(XXDI) "lua_$*" "$<" "$@"
+$(builddir)/%reldir%/%.lua.h: $(builddir)/%reldir%/%.lua
+	$(AM_V_GEN)$(MKDIR_P) "$(@D)"
+	$(AM_V_GEN)$(XXDI) "lua_$(notdir $*)" "$<" "$@"
+
 
 if BUSYBOX_EMBED
 
-CLEANFILES += busybox_exec.h
-$(call FILTER,events,$(libupdater_la_OBJECTS)): busybox_exec.h
+CLEANFILES += $(builddir)/%reldir%/busybox_exec.h
+$(call FILTER,events,$(libupdater_la_OBJECTS)): $(builddir)/%reldir%/busybox_exec.h
 
-busybox_exec.h: $(BUSYBOX_EMBED)
+$(builddir)/%reldir%/busybox_exec.h: $(BUSYBOX_EMBED)
 	$(AM_V_GEN)$(XXDI) busybox_exec "$<" "$@"
 
 endif

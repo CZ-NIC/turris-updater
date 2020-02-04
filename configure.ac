@@ -5,8 +5,13 @@ AM_INIT_AUTOMAKE([foreign silent-rules subdir-objects -Wall -Wno-portability])
 AM_SILENT_RULES([yes])
 
 AC_PROG_CC
+AC_GNU_SOURCE
 AM_PROG_AR
 LT_INIT
+
+
+AX_CHECK_COMPILE_FLAG([-std=c11], , AC_MSG_ERROR([Compiler with C11 standard support is required]))
+AX_APPEND_FLAG([-std=c11])
 
 AC_ARG_WITH([embed-busybox], [AC_HELP_STRING([--with-embed-busybox=BUSYBOX], [Embed given busybox binary])])
 AM_CONDITIONAL([BUSYBOX_EMBED], [test -n "$with_embed_busybox"])
@@ -34,30 +39,19 @@ AX_PROG_PERL_MODULES([File::Slurp], , AC_MSG_ERROR(Perl modules File::Slurp is r
 AC_PATH_PROG([XXDI], [xxdi.pl],, [$ac_abs_confdir/utils])
 AS_IF([test -z "$XXDI"], [AC_MSG_ERROR([Not able to locate xxdi.pl])])
 
-AC_CONFIG_FILES([
- Makefile
- src/Makefile
- src/lib/Makefile
- src/pkgupdate/Makefile
- src/pkgtransaction/Makefile
-])
+dnl Documentation
+AC_ARG_ENABLE([docs], AC_HELP_STRING([--disable-docs], [Disable documentation]))
+AM_CONDITIONAL([ENABLE_DOCS], [test "x$enable_docs" != "xno"])
 
-dnl Tests can be disabled so users does need all dependencies
-AC_ARG_ENABLE([tests], AS_HELP_STRING([--disable-tests], [Disable tests]))
+dnl Tests
+AC_ARG_ENABLE([tests], AC_HELP_STRING([--disable-tests], [Disable tests]))
+AM_CONDITIONAL([ENABLE_TESTS], [test "x$enable_tests" != "xno"])
 AS_IF([test "x$enable_tests" != "xno"], [
-
   PKG_CHECK_MODULES([CHECK], [check >= 0.11])
   AX_PROG_PERL_MODULES([common::sense], , AC_MSG_WARN(Perl modules File::Slurp is required))
-
-  AC_CONFIG_FILES([
-   tests/Makefile
-   tests/c/Makefile
-   tests/lua/Makefile
-   tests/system/Makefile
-   tests/system/pkgtransaction/Makefile
-   tests/system/pkgupdate/Makefile
-  ])
-
 ])
+
+
+AC_CONFIG_FILES([Makefile])
 
 AC_OUTPUT

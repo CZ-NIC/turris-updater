@@ -17,7 +17,6 @@
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "test_data.h"
-#define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
 

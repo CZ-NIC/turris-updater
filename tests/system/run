@@ -25,7 +25,8 @@
 set -e
 
 : ${O:=$(pwd)}
-TEST="$1"
+UPDATER_EXEC="$1"
+TEST="$2"
 
 export TMPDIR="$O/testdir"
 mkdir -p "$TMPDIR"
@@ -43,7 +44,7 @@ fi
 find "$TMP_DIR" -type f -name .keep -exec rm {} \;
 # Launch it
 export COVERAGEDIR="$O/.lua_coverage"
-eval $LAUNCHER "$UPDATER_EXEC" $(cat "$TEST"/params)
+eval $LAUNCHER "$UPDATER_EXEC" -e TRACE $(cat "$TEST"/params)
 # Do we need to de-randomize the output somehow?
 if [ -f "$TEST"/cleanup ] ; then
 	. "$TEST"/cleanup

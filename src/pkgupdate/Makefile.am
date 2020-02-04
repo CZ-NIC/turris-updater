@@ -1,3 +1,10 @@
-bin_PROGRAMS = pkgupdate
-pkgupdate_SOURCES = main.c arguments.c
-pkgupdate_LDADD = $(top_builddir)/src/lib/libupdater.la
+bin_PROGRAMS += pkgupdate
+
+pkgupdate_SOURCES = \
+	%reldir%/main.c \
+	%reldir%/arguments.c
+
+pkgupdate_CFLAGS = \
+	$(libupdater_la_CFLAGS)
+
+pkgupdate_LDADD = libupdater.la

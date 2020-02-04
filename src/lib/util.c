@@ -17,8 +17,6 @@
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define _GNU_SOURCE
-
 #include "util.h"
 #include "logging.h"
 #include "subprocess.h"

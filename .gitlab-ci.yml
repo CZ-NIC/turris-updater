@@ -11,8 +11,13 @@ stages:
   stage: build
   script:
     - ./bootstrap
-    - ./configure --disable-tests
+    - ./configure --disable-tests --disable-docs
     - make
+  artifacts:
+    when: on_failure
+    expire_in: 1 week
+    paths:
+    - config.log
 
 build-debian-stable:
   extends: .build
@@ -24,8 +29,6 @@ build-debian-unstable:
 
 build-alpine:
   extends: .build
-  variables:
-      ARGP_STANDALONE: 1
   image: registry.labs.nic.cz/turris/updater/updater:alpine
 
 ## Test stage ####################################################################
@@ -35,40 +38,21 @@ build-alpine:
   before_script:
       - ./bootstrap
       - ./configure
+  artifacts:
+    expire_in: 1 week
+    paths:
+    - test-suite*.log
+    - tests/*/*.log
+    - tests/*/*.trs
 
-# Unit tests #
-unit-c-tests:
+check:
   extends: .test
   script:
-    - make
+    - make check
 
-unit-valgrind-tests:
-  extends: .test
-  retry: 2
-  script:
-    - make OPENSSL_PURITY=y valgrind
-
-# System integration tests #
-system-tests:
-  extends: .test
-  script:
-    - make test-sys
-
-system-valgrind-tests:
-  extends: .test
-  script:
-    - make OPENSSL_PURITY=y valgrind-sys
-
-# Static checkers #
-cppcheck:
-  extends: .test
-  script:
-    - make cppcheck
-
-luacheck:
-  extends: .test
-  script:
-    - make luacheck
+# TODO valgrind test
+# TODO luacheck
+# TODO cppcheck
 
 ## Pages stage ###################################################################
 pages:

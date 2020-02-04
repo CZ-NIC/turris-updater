@@ -23,7 +23,7 @@ my $indata = slurp($ARGV[1]);
 my $len_data = length($indata);
 my $num_digits_per_line = 12;
 
-open(*STDOUT, '>', $ARGV[2]);
+open(*STDOUT, '>', $ARGV[2]) or die "Couldn't open output $ARGV[2]: $!\n";
 binmode STDOUT;
 
 print <<END;
