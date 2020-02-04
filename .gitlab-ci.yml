@@ -11,7 +11,7 @@ stages:
   stage: build
   script:
     - ./bootstrap
-    - ./configure
+    - ./configure --disable-tests
     - make
 
 build-debian-stable:

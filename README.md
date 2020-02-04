@@ -7,7 +7,6 @@ configuration scripts.
 Dependencies
 ------------
 Binary dependencies:
-* C compiler (gcc preferred) with C11 support
 * Lua 5.1
 * libcurl
 * libevent2
@@ -15,6 +14,14 @@ Binary dependencies:
 * uthash
 * liburiparser
 * (argp-standalone on non-glibc systems)
+
+Build dependencies:
+* C compiler (gcc preferred) with C11 support
+* autoconf
+* autoconf-archive
+* automake
+* libtool
+* perl (with `File::Slurp` module)
 
 Runtime dependencies:
 * usign (for signatures validation)

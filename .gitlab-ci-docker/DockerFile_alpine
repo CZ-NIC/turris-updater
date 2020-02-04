@@ -1,7 +1,7 @@
 # Container for compilation test against musl system
 # We choose AlpineLinux because OpenWRT compiler is not as easy to setup
 
-FROM troyfontaine/alpinelinux:latest
+FROM alpine:3.11
 
 ENV HOME /root
 
@@ -9,8 +9,8 @@ RUN \
   apk update upgrade && \
   apk add \
       ca-certificates curl git coreutils \
-      make cmake pkgconf gcc perl \
-      libtool automake autoconf \
+      make cmake pkgconf gcc perl perl-file-slurp \
+      libtool automake autoconf autoconf-archive \
       musl-dev \
       curl-dev libevent-dev uriparser-dev \
       uthash-dev \
