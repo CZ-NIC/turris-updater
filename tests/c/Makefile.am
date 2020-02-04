@@ -1,25 +1,51 @@
-include $(srcdir)/../usign.mk
+TESTS += \
+	%reldir%/archive \
+	%reldir%/util \
+	%reldir%/syscnf \
+	%reldir%/multiwrite \
+	%reldir%/path_utils \
+	%reldir%/subprocess \
+	%reldir%/download \
+	%reldir%/uri \
+	%reldir%/interpreter
 
-TESTS = \
-	util \
-	syscnf \
-	multiwrite \
-	subprocess \
-	download \
-	uri \
-	interpreter
+check_PROGRAMS += \
+	%reldir%/archive \
+	%reldir%/util \
+	%reldir%/syscnf \
+	%reldir%/multiwrite \
+	%reldir%/path_utils \
+	%reldir%/subprocess \
+	%reldir%/download \
+	%reldir%/uri \
+	%reldir%/interpreter
+%canon_reldir%_archive_LDADD = %reldir%/libctest.la
+%canon_reldir%_util_LDADD = %reldir%/libctest.la
+%canon_reldir%_syscnf_LDADD = %reldir%/libctest.la
+%canon_reldir%_multiwrite_LDADD = %reldir%/libctest.la
+%canon_reldir%_path_utils_LDADD = %reldir%/libctest.la
+%canon_reldir%_subprocess_LDADD = %reldir%/libctest.la
+%canon_reldir%_download_LDADD = %reldir%/libctest.la
+%canon_reldir%_uri_LDADD = %reldir%/libctest.la
+%canon_reldir%_interpreter_LDADD = %reldir%/libctest.la
+%canon_reldir%_archive_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)
+%canon_reldir%_util_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)
+%canon_reldir%_syscnf_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)
+%canon_reldir%_multiwrite_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)
+%canon_reldir%_path_utils_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)
+%canon_reldir%_subprocess_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)
+%canon_reldir%_download_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)
+%canon_reldir%_uri_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)
+%canon_reldir%_interpreter_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)
+# TODO possibly integrate all tests to single binary or solve this LDADD somehow
 
-# TODO TMPDIR?
-AM_TESTS_ENVIRONMENT = \
-	export SUPPRESS_LOG=1; \
-	export DATADIR="$(abs_top_srcdir)/tests/data"; \
-	$(TESTS_ENV_USIGN)
-
-check_PROGRAMS = $(TESTS)
-AM_CFLAGS = -I$(top_builddir)/src/lib
-LDADD = libctest.la
-
-check_LTLIBRARIES = libctest.la
-libctest_la_SOURCES = ctest.c test_data.c
-libctest_la_CFLAGS = $(CHECK_FLAGS) $(AM_CFLAGS)
-libctest_la_LIBADD = $(top_builddir)/src/lib/libupdater.la $(CHECK_LIBS)
+check_LTLIBRARIES += %reldir%/libctest.la
+%canon_reldir%_libctest_la_SOURCES = \
+	%reldir%/ctest.c \
+	%reldir%/test_data.c
+%canon_reldir%_libctest_la_CFLAGS = \
+	-I $(srcdir)/src/lib \
+	$(CHECK_FLAGS)
+%canon_reldir%_libctest_la_LIBADD = \
+	libupdater.la \
+	$(CHECK_LIBS)

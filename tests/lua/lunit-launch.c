@@ -40,9 +40,7 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Usage: %s TEST_SCRIPT", argv[0]);
 		exit(1);
 	}
-
-	const char *suppress_log = getenv("SUPPRESS_LOG");
-	log_stderr_level(suppress_log && strcmp("1", suppress_log) == 0 ? LL_DIE : LL_UNKNOWN);
+	log_stderr_level(LL_TRACE);
 
 	// Get the interpreter
 	struct events *events = events_new();

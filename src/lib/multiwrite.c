@@ -17,8 +17,6 @@
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define _GNU_SOURCE
-
 #include "multiwrite.h"
 #include <stdio.h>
 #include <unistd.h>

@@ -19,9 +19,6 @@
 #ifndef UPDATER_SUBPROCESS_H
 #define UPDATER_SUBPROCESS_H
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
 #include <stdarg.h>
 #include <stdio.h>
 #include "logging.h"

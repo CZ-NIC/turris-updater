@@ -49,7 +49,9 @@ function test_output()
 	local ok, out = subprocess(LST_HOOK, "Test: echo", 1000, "echo", "hello")
 	assert_equal(0, ok)
 	assert_equal("hello\n", fix_out(out))
+end
 
+function test_output_stderr()
 	local ok, out = subprocess(LST_HOOK, "Test: echo stderr", 1000, "sh", "-c", "echo hello >&2")
 	assert_equal(0, ok)
 	assert_equal("hello\n", fix_out(out))

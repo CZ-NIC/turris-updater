@@ -1,48 +1,42 @@
-include $(srcdir)/../usign.mk
+TESTS += \
+	%reldir%/backend.lua \
+	%reldir%/events.lua \
+	%reldir%/subprocess.lua \
+	%reldir%/interpreter.lua \
+	%reldir%/journal.lua \
+	%reldir%/planner.lua \
+	%reldir%/postprocess.lua \
+	%reldir%/requests.lua \
+	%reldir%/sandbox.lua \
+	%reldir%/transaction.lua \
+	%reldir%/utils.lua \
+	%reldir%/syscnf.lua \
+	%reldir%/cleanup.lua \
+	%reldir%/uri.lua \
+	%reldir%/picosat.lua \
+	%reldir%/updater.lua
 
-TESTS = \
-	backend.lua \
-	events.lua \
-	subprocess.lua \
-	interpreter.lua \
-	journal.lua \
-	planner.lua \
-	postprocess.lua \
-	requests.lua \
-	sandbox.lua \
-	transaction.lua \
-	utils.lua \
-	syscnf.lua \
-	cleanup.lua \
-	uri.lua \
-	picosat.lua \
-	updater.lua
+LUA_LOG_COMPILER = $(builddir)/%reldir%/lunit-launch
 
-# TODO TMPDIR?
-# TODO allow SUPPRESS_LOG modification somehow (possibly just # TESTS_ENVIRONMENT="export SUPPRESS_LOG=0;")
-# TODO some tests are failing with SUPPRESS_LOG
-AM_TESTS_ENVIRONMENT = \
-	export SUPPRESS_LOG=1; \
-	export DATADIR="$(abs_top_srcdir)/tests/data"; \
-	export TOP_SRCDIR="$(top_srcdir)"; \
-	$(TESTS_ENV_USIGN)
-LOG_COMPILER = $(srcdir)/lunit-launch
-AM_LOG_FLAGS =
-
-check_PROGRAMS = lunit-launch
-lunit_launch_SOURCES = lunit-launch.c
-lunit_launch_CFLAGS =
-lunit_launch_LDADD = ../../src/lib/libupdater.la
+check_PROGRAMS += %reldir%/lunit-launch
+%canon_reldir%_lunit_launch_SOURCES = \
+	%reldir%/lunit-launch.c
+%canon_reldir%_lunit_launch_CFLAGS = \
+	-I $(srcdir)/src/lib \
+	-I $(builddir)/tests/lua \
+	$(libpkgupdater_la_CFLAGS)
+%canon_reldir%_lunit_launch_LDADD = libupdater.la
 
 
-FILTER = $(foreach v,$(2),$(if $(findstring $(1),$(v)),$(v)))
+LUNIT_LUA_FILES_H = \
+	%reldir%/lunit-launch.lua.h \
+	%reldir%/lunit.lua.h \
+	%reldir%/lunit-console.lua.h
+CLEANFILES += $(LUNIT_LUA_FILES_H)
+$(call FILTER,lunit-launch,$(%canon_reldir%_lunit_launch_OBJECTS)): $(LUNIT_LUA_FILES_H)
 
-LUA_FILES_H = lunit-launch.lua.h lunit.lua.h lunit-console.lua.h
-CLEANFILES = $(LUA_FILES_H)
-$(call FILTER,lunit-launch,$(lunit_launch_OBJECTS)): $(LUA_FILES_H)
-
-lunit-launch.lua.h: lunit-launch.lua
+%reldir%/lunit-launch.lua.h: $(srcdir)/%reldir%/lunit-launch.lua
 	$(AM_V_GEN)$(XXDI) lunit_launch "$<" "$@"
 
-lunit.lua.h lunit-console.lua.h: %.lua.h: lunit/%.lua
-	$(AM_V_GEN)$(XXDI) "$(subst -,_,$*)" "$<" "$@"
+%reldir%/%.lua.h: $(srcdir)/%reldir%/lunit/%.lua
+	$(AM_V_GEN)$(XXDI) "$(subst -,_,$(notdir $*))" "$<" "$@"

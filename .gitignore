@@ -5,9 +5,10 @@
 *.a
 *.la
 *.lo
-/src/pkgtransaction/pkgtransaction
-/src/pkgupdate/pkgupdate
-/src/migrator/pkgmigrate
+libupdater.la
+pkgtransaction
+pkgupdate
+.libs
 # Some stuff for debugging
 /.coverage.info
 /coverage/
@@ -16,6 +17,7 @@ core
 vgcore.*
 massif.out.*
 # Test stuff
+test-suite*.log
 tests/check-compiled
 tests/luacheck-compiled
 tests/arguments

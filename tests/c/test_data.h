@@ -61,7 +61,7 @@ char *tmpdir_template(const char *identifier);
 #define URI_FILE_OPENTRUST_CA_G1 aprintf("file://%s/opentrust_ca_g1.pem", get_datadir())
 
 // Unpack_package
-#define UNPACK_PACKAGE_VALID_IPK aprintf("%s/tests/data/unpack_package/valid.ipk", get_sdir())
-#define UNPACK_PACKAGE_VALID_DIR aprintf("%s/tests/data/unpack_package/valid", get_sdir())
+#define UNPACK_PACKAGE_VALID_IPK aprintf("%s/unpack_package/valid.ipk", get_datadir())
+#define UNPACK_PACKAGE_VALID_DIR aprintf("%s/unpack_package/valid", get_datadir())
 
 #endif
