@@ -75,3 +75,7 @@ $(builddir)/%reldir%/busybox_exec.h: $(BUSYBOX_EMBED)
 	$(AM_V_GEN)$(XXDI) busybox_exec "$<" "$@"
 
 endif
+
+lint_sources += \
+	$(filter-out %/picosat.c,$(libupdater_la_SOURCES)) \
+	$(filter-out %/dumper.lua %/stacktraceplus.lua,$(LIBUPDATER_LUA_FILES))

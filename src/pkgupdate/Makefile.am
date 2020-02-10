@@ -8,3 +8,5 @@ pkgupdate_CFLAGS = \
 	$(libupdater_la_CFLAGS)
 
 pkgupdate_LDADD = libupdater.la
+
+lint_sources += $(pkgupdate_SOURCES)
