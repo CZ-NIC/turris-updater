@@ -42,13 +42,15 @@ libupdater_la_CFLAGS = \
 	$(LIBEVENT_CFLAGS) \
 	$(LIBCURL_CLAGS) \
 	$(LIBCRYPTO_CFLAGS) \
-	$(LIBURIPARSER_CFLAGS)
+	$(LIBURIPARSER_CFLAGS) \
+	$(CODE_COVERAGE_CFLAGS)
 libupdater_la_LDFLAGS = \
 	$(LUA_LIBS) \
 	$(LIBEVENT_LIBS) \
 	$(LIBCURL_LIBS) \
 	$(LIBCRYPTO_LIBS) \
 	$(LIBURIPARSER_LIBS) \
+	$(CODE_COVERAGE_LIBS) \
 	-lb64 -ldl
 
 ##################################################################################

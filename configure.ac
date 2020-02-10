@@ -60,6 +60,9 @@ AS_IF([test "x$enable_linters" != "xno"], [
   AC_PATH_PROG([CPPCHECK], [cppcheck])
 ])
 
+dnl Coverage
+AX_CODE_COVERAGE
+
 
 AC_CONFIG_FILES([Makefile])
 

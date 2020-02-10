@@ -66,24 +66,3 @@ lint-lua:
   extends: .test
   script:
     - make lint-lua
-
-## Pages stage ###################################################################
-pages:
-  stage: pages
-  image: registry.labs.nic.cz/turris/updater/updater:tests
-  script:
-  - rm -rf public
-  - mkdir public
-  - make COV=y
-  - make COV=y test test-sys
-  - make COV=y coverage
-  - markdown .doc_index.md > public/index.html
-  - utils/gendocindex.sh | markdown > public/docindex.html
-  - cp -r docs public/docs
-  - cp -r coverage public/coverage
-  artifacts:
-    when: on_success
-    paths:
-    - public
-  only:
-  - master
