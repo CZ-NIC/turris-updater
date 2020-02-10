@@ -51,9 +51,12 @@ check:
   script:
     - make check
 
-# TODO valgrind test
-# TODO luacheck
-# TODO cppcheck
+valgrind-memcheck:
+  extends: .test
+  script:
+    - make check-valgrind-memcheck
+
+# TODO possibly run sgcheck?
 
 ## Pages stage ###################################################################
 pages:

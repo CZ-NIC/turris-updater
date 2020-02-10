@@ -51,6 +51,7 @@ AS_IF([test "x$enable_tests" != "xno"], [
   PKG_CHECK_MODULES([CHECK], [check >= 0.11])
   AX_PROG_PERL_MODULES([common::sense], , AC_MSG_WARN(Perl modules File::Slurp is required))
 ])
+AX_VALGRIND_CHECK
 
 
 AC_CONFIG_FILES([Makefile])
