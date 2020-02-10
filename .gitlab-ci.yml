@@ -58,6 +58,16 @@ valgrind-memcheck:
 
 # TODO possibly run sgcheck?
 
+lint-c:
+  extends: .test
+  script:
+    - make lint-c
+
+lint-lua:
+  extends: .test
+  script:
+    - make lint-lua
+
 ## Pages stage ###################################################################
 pages:
   stage: pages
