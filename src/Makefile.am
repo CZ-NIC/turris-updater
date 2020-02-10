@@ -1,4 +1,3 @@
-
 bin_PROGRAMS =
 lib_LTLIBRARIES =
 lint_sources =

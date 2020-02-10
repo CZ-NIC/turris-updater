@@ -1,3 +1,10 @@
 #!/bin/sh
+
+# Directory used for m4 macros of autoconf
 mkdir -p m4
+
+# On old versions of autoconf-archive this file is not present so fake it
+[ -f aminclude_static.am ] ||  echo "# dummy" > aminclude_static.am
+
+# And finally autoreconf
 autoreconf --install --symlink

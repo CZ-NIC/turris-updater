@@ -49,6 +49,7 @@ autom4te.cache
 /install-sh
 /missing
 /stamp-h1
+/aminclude_static.am
 # https://www.gnu.org/software/libtool/
 /ltmain.sh
 /libtool
