@@ -424,14 +424,14 @@ static void command_check_complete(struct watched_command *command) {
 
 static void command_terminated_callback(struct wait_id id, void *data, pid_t pid, int status) {
 	// cppcheck-suppress shadowVar ;; (just ignore)
-	struct watched_command *command = data;
-	ASSERT(command->pid == pid);
-	ASSERT(memcmp(&command->child, &id, sizeof id) == 0);
+	struct watched_command *cmd = data;
+	ASSERT(cmd->pid == pid);
+	ASSERT(memcmp(&cmd->child, &id, sizeof id) == 0);
 	// It is no longer running.
-	command->status = status;
-	command->running = false;
+	cmd->status = status;
+	cmd->running = false;
 	// Check that outputs are gathered and if so, call the callback
-	command_check_complete(command);
+	command_check_complete(cmd);
 }
 
 static struct event *command_timeout_schedule(struct events *events, int timeout, event_callback_fn callback, struct watched_command *command) {
@@ -451,20 +451,20 @@ static void command_event(struct bufferevent *buffer, short events __attribute__
 	 * is output of the command) and close it.
 	 */
 	// cppcheck-suppress shadowVar ;; (just ignore)
-	struct watched_command *command = data;
+	struct watched_command *cmd = data;
 	struct bufferevent **buffer_var = NULL;
 	char **result = NULL;
 	size_t *result_size = NULL;
-	if (command->input_buffer == buffer)
-		buffer_var = &command->input_buffer;
-	else if (command->output_buffer == buffer) {
-		buffer_var = &command->output_buffer;
-		result = &command->output;
-		result_size = &command->output_size;
-	} else if (command->error_buffer) {
-		buffer_var = &command->error_buffer;
-		result = &command->error;
-		result_size = &command->error_size;
+	if (cmd->input_buffer == buffer)
+		buffer_var = &cmd->input_buffer;
+	else if (cmd->output_buffer == buffer) {
+		buffer_var = &cmd->output_buffer;
+		result = &cmd->output;
+		result_size = &cmd->output_size;
+	} else if (cmd->error_buffer) {
+		buffer_var = &cmd->error_buffer;
+		result = &cmd->error;
+		result_size = &cmd->error_size;
 	} else
 		DIE("Buffer not recognized");
 	if (result) {
@@ -480,16 +480,16 @@ static void command_event(struct bufferevent *buffer, short events __attribute__
 	*buffer_var = NULL;
 	if (result)
 		// Is this the last one?
-		command_check_complete(command);
+		command_check_complete(cmd);
 }
 
 static void command_write(struct bufferevent *buffer, void *data) {
 	// Everything is written. Free the bufferevent & close the socket.
 	// cppcheck-suppress shadowVar ;; (just ignore)
-	struct watched_command *command = data;
-	ASSERT(command->input_buffer == buffer);
+	struct watched_command *cmd = data;
+	ASSERT(cmd->input_buffer == buffer);
 	bufferevent_free(buffer);
-	command->input_buffer = NULL;
+	cmd->input_buffer = NULL;
 }
 
 static struct bufferevent *output_setup(struct event_base *base, int fd, struct watched_command *command) {
@@ -518,30 +518,30 @@ static struct wait_id register_command(struct events *events, command_callback_t
 	ASSERT_MSG(fcntl(err_pipe[0], F_SETFD, (long)FD_CLOEXEC) != -1, "Failed to set close on exec on commands stderr pipe: %s", strerror(errno));
 	nonblock(err_pipe[0]);
 	// cppcheck-suppress shadowVar ;; (just ignore)
-	struct watched_command *command = malloc(sizeof *command);
-	*command = (struct watched_command) {
+	struct watched_command *cmd = malloc(sizeof *cmd);
+	*cmd = (struct watched_command) {
 		.events = events,
 		.callback = callback,
 		.data = data,
 		.running = true,
-		.child = watch_child(events, command_terminated_callback, command, child),
+		.child = watch_child(events, command_terminated_callback, cmd, child),
 		.pid = child,
-		.term_timeout = command_timeout_schedule(events, term_timeout, command_send_term, command),
-		.kill_timeout = command_timeout_schedule(events, kill_timeout, command_send_kill, command),
-		.output_buffer = output_setup(events->base, out_pipe[0], command),
-		.error_buffer = output_setup(events->base, err_pipe[0], command)
+		.term_timeout = command_timeout_schedule(events, term_timeout, command_send_term, cmd),
+		.kill_timeout = command_timeout_schedule(events, kill_timeout, command_send_kill, cmd),
+		.output_buffer = output_setup(events->base, out_pipe[0], cmd),
+		.error_buffer = output_setup(events->base, err_pipe[0], cmd)
 	};
 	if (input && !input_size)
 		input_size = strlen(input);
 	if (input) {
-		command->input_buffer = bufferevent_socket_new(events->base, in_pipe[1], BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
-		bufferevent_setcb(command->input_buffer, NULL, command_write, command_event, command);
-		bufferevent_write(command->input_buffer, input, input_size);
+		cmd->input_buffer = bufferevent_socket_new(events->base, in_pipe[1], BEV_OPT_CLOSE_ON_FREE | BEV_OPT_DEFER_CALLBACKS);
+		bufferevent_setcb(cmd->input_buffer, NULL, command_write, command_event, cmd);
+		bufferevent_write(cmd->input_buffer, input, input_size);
 	} else
 		ASSERT(close(in_pipe[1]) != -1);
 	ENSURE_FREE(commands, command_count, command_alloc);
-	events->commands[events->command_count ++] = command;
-	return command_id(command);
+	events->commands[events->command_count ++] = cmd;
+	return command_id(cmd);
 }
 
 struct wait_id run_command_a(struct events *events, command_callback_t callback, post_fork_callback_t post_fork, void *data, size_t input_size, const char *input, int term_timeout, int kill_timeout, const char *command, const char **params) {
@@ -970,10 +970,10 @@ void events_wait(struct events *events, size_t nid, struct wait_id *ids) {
 				}
 				case WT_COMMAND: {
 					// cppcheck-suppress shadowVar ;; (just ignore)
-					struct watched_command *command = command_lookup(events, id.pointers.command, id.pid);
-					ASSERT(command);
+					struct watched_command *cmd = command_lookup(events, id.pointers.command, id.pid);
+					ASSERT(cmd);
 					enum command_kill_status ks;
-					switch (command->signal_sent) {
+					switch (cmd->signal_sent) {
 						case SIGTERM:
 							ks = CK_TERMED;
 							break;
@@ -981,11 +981,11 @@ void events_wait(struct events *events, size_t nid, struct wait_id *ids) {
 							ks = CK_KILLED;
 							break;
 						default:
-							ks = WIFSIGNALED(command->status) ? CK_SIGNAL_OTHER : CK_TERMINATED;
+							ks = WIFSIGNALED(cmd->status) ? CK_SIGNAL_OTHER : CK_TERMINATED;
 							break;
 					}
-					command->callback(id, command->data, command->status, ks, command->output_size, command->output, command->error_size, command->error);
-					command_free(command);
+					cmd->callback(id, cmd->data, cmd->status, ks, cmd->output_size, cmd->output, cmd->error_size, cmd->error);
+					command_free(cmd);
 					break;
 				}
 				case WT_DOWNLOAD: {
