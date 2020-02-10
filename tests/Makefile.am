@@ -1,6 +1,4 @@
-# TODO solve valgrind tests execution somehow
 # TODO coverage somehow
-# TODO for valgrind runs we should optionally build purity openssl
 
 TESTS =
 check_PROGRAMS =
@@ -34,6 +32,23 @@ AM_TESTS_ENVIRONMENT = \
 	export PATH="$$PATH:$(usign_build_dir)";
 
 TEST_EXTENSIONS = .lua .sys_trans .sys_update
+
+VALGRIND_memcheck_FLAGS = \
+	--leak-check=full \
+	--show-leak-kinds=definite,indirect,possible \
+	--track-fds=yes \
+	--track-origins=yes \
+	--trace-children=no \
+	--child-silent-after-fork=yes
+@VALGRIND_CHECK_RULES@
+
+# Rules generated for valgrind are for some reason called *-am. This is just an alias
+check-valgrind: check-valgrind-am
+define check_valgrind_rule
+check-valgrind-$(1): check-valgrind-$(1)-am
+endef
+$(foreach tool,$(valgrind_tools),$(eval $(call check_valgrind_rule,$(tool))))
+
 
 if ENABLE_TESTS
 include $(srcdir)/%reldir%/c/Makefile.am
