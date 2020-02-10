@@ -38,6 +38,9 @@ build-alpine:
   before_script:
       - ./bootstrap
       - ./configure
+
+.test-check:
+  extends: .test
   artifacts:
     expire_in: 1 week
     paths:
@@ -46,12 +49,12 @@ build-alpine:
     - tests/*/*.trs
 
 check:
-  extends: .test
+  extends: .test-check
   script:
     - make check
 
 valgrind-memcheck:
-  extends: .test
+  extends: .test-check
   script:
     - make check-valgrind-memcheck
 
