@@ -13,6 +13,7 @@ RUN \
       libtool automake autoconf autoconf-archive \
       musl-dev \
       curl-dev libevent-dev uriparser-dev \
+      libarchive-dev \
       uthash-dev \
       lua5.1-dev \
       asciidoc bash
