@@ -68,11 +68,10 @@ static struct os_release_data *osr = NULL;
 static struct os_release_data *osr_host = NULL;
 
 
-void set_path(enum e_paths tp, const char *value) {
-	if (paths[tp])
-		free(paths[tp]);
-	if (value)
-		asprintf(&paths[tp], "%s%s", value, default_paths[tp]);
+static void set_path(enum e_paths tp, const char *prefix) {
+	free(paths[tp]);
+	if (prefix)
+		asprintf(&paths[tp], "%s%s", prefix, default_paths[tp]);
 	else
 		paths[tp] = NULL;
 }
