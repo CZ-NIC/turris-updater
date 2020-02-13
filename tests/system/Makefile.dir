@@ -27,7 +27,9 @@ UPD_SYS_TESTS := \
 	reinstall-all \
 	new-virtual \
 	optional-installs \
-	no-removal
+	no-removal \
+	install-condition \
+	install-condition-false
 
 .PHONY: test-sys valgrind-sys check
 
