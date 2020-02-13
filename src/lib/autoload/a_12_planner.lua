@@ -273,12 +273,18 @@ local function sat_build(sat, pkgs, requests)
 		local req_var = sat:var()
 		TRACE("SAT add request for " .. req.package.name .. " var:" .. tostring(req_var))
 		local target_var = sat_dep(state, req.package, req.version, req.repository)
-		if req.tp == 'install' then
-			sat:clause(-req_var, target_var) -- implies true
-		elseif req.tp == 'uninstall' then
-			sat:clause(-req_var, -target_var) -- implies false
-		else
+		if req.tp == 'uninstall' then
+			-- variable is implied negated (as false)
+			target_var = -target_var
+		elseif req.tp ~= 'install' then
 			error(utils.exception('bad value', "Unknown type " .. tostring(req.tp)))
+		end
+		if req.condition then
+			local cond_var = sat_dep_traverse(state, req_var, req.condition)
+			TRACE("SAT request condition var:" .. tostring(cond_var))
+			sat:clause(-req_var, target_var, -cond_var)
+		else
+			sat:clause(-req_var, target_var)
 		end
 		state.req2sat[req] = req_var
 	end

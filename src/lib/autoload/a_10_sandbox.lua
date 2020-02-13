@@ -54,7 +54,8 @@ local updater_features = utils.arr2set({
 	'replan_string',
 	'relative_uri',
 	'no_returns',
-    'no_error_virtual'
+	'no_error_virtual',
+	'request_condition'
 })
 
 -- Available functions and "constants" from global environment

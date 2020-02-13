@@ -317,6 +317,9 @@ local function content_request(cmd, allowed, ...)
 				end
 			end
 		end
+		if extras.condition then
+			extra_check_deps(cmd, "condition", extras.condition)
+		end
 		extra_annul_ignore(extras, 'Install extra option "ignore" is obsolete and should not be used. Use "optional" instead.', true) -- Note: this is applicable only to Install
 		for _, pkg_name in ipairs(batch) do
 			DBG("Request " .. cmd .. " of " .. pkg_name)
@@ -347,6 +350,7 @@ local allowed_install_extras = {
 	["reinstall"] = utils.arr2set({"boolean"}),
 	["critical"] = utils.arr2set({"boolean"}),
 	["optional"] = utils.arr2set({"boolean"}),
+	["condition"] = utils.arr2set({"string", "table"}),
 	["ignore"] = utils.arr2set({"table"}), -- obsolete
 }
 
@@ -355,7 +359,8 @@ function install(_, ...)
 end
 
 local allowed_uninstall_extras = {
-	["priority"] = utils.arr2set({"number"})
+	["priority"] = utils.arr2set({"number"}),
+	["condition"] = utils.arr2set({"string", "table"}),
 }
 
 function uninstall(_, ...)

@@ -24,12 +24,15 @@ We provide several kinds of variables:
   case of multiple repositories, a package can have multiple
   candidates ‒ multiple versions or source repositories. We are
   interested in the final values of these variables.
-* Request variables. In case the configuration specifies a certain
-  version or versions of a package to install, we add a variable for
-  such request (and add corresponding dependencies on the candidates).
-  In case of installation request by a name only we use the package
-  name variable directly. We do similar thing for
-  version-dependencies.
+* Request condition variables. Thesy are used as an alternative to not
+  fulfill request. Either this variable has to be false, that means
+  condition is not fulfilled, or appropriate request target has to be
+  true. Not fulfilling requect condition removes any restrains on request
+  target.
+* Request variables. This variable implies corresponding package group
+  specific package candidates (depending if requests was for specific
+  version of package). If request condition is provided then it implies
+  that either package or not condition would be fulfilled.
 * Auxiliary variables. As there may be complex dependencies, it is
   easier to use something like Tseytin transformation ‒ have a
   „result“ variable for each `Or`, `And` and `Not` operator.

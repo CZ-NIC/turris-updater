@@ -278,43 +278,24 @@ NOTE: There is also obsoleted extra option `ignore`. This should not be used and
 any value set to it is effectively considered to be same as setting `optional` to
 `true`.
 
-Uninstall
-~~~~~~~~~
-
-  Uninstall("package", "package", { extra }, "package", "package", { extra })
-
-This command takes multiple package names. It ensures none of the
-packages is installed.
-
-TIP: This is not needed most cases, since unneeded packages are removed
-automatically.
-
-Extra options modify the packages preceding them, but only up to the
-previous extra options block. Therefore, the first two packages in the
-example are modified by the first extra options block, the third and
-fourth by the second block.
-
-priority::
-  In case of colliding requirements (the same package is required by
-  an ``Install`` command or as a dependency of something), the
-  requirement with the higher priority wins. In case of a draw, an
-  error is reported. The priority defaults to 50 and must be between 0
-  and 100.
-
 Install
 ~~~~~~~
 
   Install("package", "package", { extra }, "package", "package", { extra })
 
-This command is the opposite of `Uninstall`. It requires that a
-package be present in the system.
+This command takes multiple package names. It requires that given packages are to
+be present in the system.
 
 The resolving of extra options acts the same as with `Uninstall`.
 
 Available extra options:
 
 priority::
-  Acts the same as with `Uninstall`.
+  In case of colliding requirements (the same package is required by
+  an ``Uninstall`` command or as a dependency of something), the
+  requirement with the higher priority wins. In case of a draw, an
+  error is reported. The priority defaults to 50 and must be between 0
+  and 100.
 version::
   Limits the considered versions. This may be a single string or a
   table with multiple strings. If there are multiple, each is
@@ -347,6 +328,13 @@ optional::
   Set this to `true` to not fail if packages is not available from any configured
   repository. Be aware that this has implications if form of possible removed
   packages from system.
+condition::
+  Conditional install request. This is dependency description for this request.
+  Requested package is not requested to be installed if condition is fulfilled and
+  not requested if not fulfilled. This allows you to install packages if some
+  other package is installed as well without introducing real dependency. This is
+  handy for preventing circular dependencies. Note that this field is not
+  considered when packages are sorted for install/removal.
 
 IMPORTANT: Package may be required to be installed or uninstalled multiple times
 (for example by multiple scripts). All such requirements are tried to be met (eg.
@@ -355,6 +343,28 @@ by unifying the version options, etc).
 NOTE: There is also obsoleted but still working option `ignore` which if set to
 any boolean true value it is considered as if `optional` extra option would be
 set to `true`.
+
+Uninstall
+~~~~~~~~~
+
+  Uninstall("package", "package", { extra }, "package", "package", { extra })
+
+This command is the opposite of `Install`. This command takes multiple package
+names. It ensures none of the packages is installed.
+
+TIP: This is not needed most cases, since unneeded packages are removed
+automatically.
+
+Extra options modify the packages preceding them, but only up to the
+previous extra options block. Therefore, the first two packages in the
+example are modified by the first extra options block, the third and
+fourth by the second block.
+
+priority::
+  Acts the same as with `Install`.
+condition::
+  Acts the same as with `Install` with difference that condition fulfilment causes
+  package to be requested as removed and not installed.
 
 Package
 ~~~~~~~
@@ -589,6 +599,8 @@ no_error_virtual::
   Virtual for package with candidate no longer results in an error. Instead
   virtual just makes all candidates not to be installed while requests for that
   package fulfilled.
+request_condition::
+  `Install` and `Uninstall` requests support `condition` extra field.
 
 installed
 ~~~~~~~~~

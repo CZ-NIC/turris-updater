@@ -207,7 +207,7 @@ end
 Create negative dependencies from Conflicts field.
 Argument conflicts is expected to contain string with names of packages.
 If generated dependencies don't have explicit version limitation than we use
-'~.*'. This sould match every version. Specifying it that way we ignore
+'~.*'. This should match every version. Specifying it that way we ignore
 candidates from other packages (added using Provides). This is required as
 'Conflicts' shouldn't affect packages with different name.
 ]]
@@ -215,7 +215,7 @@ function conflicts_canon(conflicts)
 	if type(conflicts) ~= "string" and type(conflicts) ~= "nil" then
 		error(utils.exception('bad value', 'Bad conflicts type ' .. type(conflicts)))
 	end
-	-- Firts canonize as dependency
+	-- First canonize as dependency
 	local dep = deps_canon(conflicts)
 	if type(dep) == "string" then
 		dep = { tp = "dep-not", sub = {{ tp = "dep-package", name = dep, version = "~.*" }} }
@@ -428,9 +428,21 @@ function pkg_aggregate()
 	end
 end
 
+--[[
+Canonize request variables
+This is effectively here only to support if extra argument that should be
+canonized as dependency.
+]]
+local function canon_requests(all_requests)
+	for _, req in pairs(all_requests) do
+		req.condition = deps_canon(req.condition)
+	end
+end
+
 function run()
 	get_repos()
 	pkg_aggregate()
+	canon_requests(requests.content_requests)
 end
 
 return _M
