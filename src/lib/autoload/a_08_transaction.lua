@@ -194,6 +194,7 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 			end
 			local did_merge = backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.old_configs)
 			status[op.control.Package] = op.control
+			backend.pkg_update_alternatives(status, op.control.Package)
 			if op.reboot_immediate and did_merge then -- we reboot only if we did merge, if files were already merged then we already rebooted.
 				-- We can't exit this function, so it could finish from journal after reboot. We stuck execution here.
 				-- Note: This causes reexecution of already executed preinst scripts.
@@ -209,13 +210,16 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 					cfiles[f] = nil
 				end
 			end
+			script(errors_collected, op.name, "prerm", false, "remove")
+			backend.pkg_remove_alternatives(status, op.name)
 			if next(cfiles) then
 				-- Keep the package info there, with the relevant modified configs
 				status[op.name].Status = {"install", "user", "not-installed"}
+				-- Nil alternatives as those are removed and should not be considered
+				status[op.name].Alternatives = nil
 			else
 				status[op.name] = nil
 			end
-			script(errors_collected, op.name, "prerm", false, "remove")
 		end
 		-- Ignore others, at least for now.
 	end

@@ -633,6 +633,15 @@ static int lua_copy(lua_State *L) {
 	return 0;
 }
 
+static int lua_symlink(lua_State *L) {
+	const char *target = luaL_checkstring(L, 1);
+	const char *path = luaL_checkstring(L, 2);
+	if (symlink(target, path) == 0)
+		return 0;
+	lua_pushfstring(L, "Failed to create link '%s' with target '%s': %s", path, target, strerror(errno));
+	return lua_error(L);
+}
+
 static const char *stat2str(const struct stat *buf) {
 	switch (buf->st_mode & S_IFMT) {
 		case S_IFSOCK:
@@ -915,6 +924,7 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_mkdir, "mkdir" },
 	{ lua_move, "move" },
 	{ lua_copy, "copy" },
+	{ lua_symlink, "symlink" },
 	{ lua_ls, "ls" },
 	{ lua_stat, "stat" },
 	{ lua_lstat, "lstat" },

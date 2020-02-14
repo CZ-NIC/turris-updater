@@ -21,6 +21,7 @@ local error = error
 local type = type
 local pairs = pairs
 local ipairs = ipairs
+local tonumber = tonumber
 local pcall = pcall
 local require = require
 local next = next
@@ -44,6 +45,7 @@ local lstat = lstat
 local mkdir = mkdir
 local move = move
 local copy = copy
+local symlink = symlink
 local ls = ls
 local md5_file = md5_file
 local sha256_file = sha256_file
@@ -60,7 +62,7 @@ module "backend"
 -- luacheck: globals cmd_timeout cmd_kill_timeout
 -- Functions that we want to access from outside (ex. for testing purposes)
 -- luacheck: globals block_parse block_split block_dump_ordered pkg_status_dump package_postprocess status_parse get_parent config_modified
--- luacheck: globals repo_parse status_dump pkg_unpack pkg_examine collision_check installed_confs steal_configs pkg_merge_files pkg_merge_control pkg_config_info pkg_cleanup_files script_run control_cleanup version_cmp version_match run_state user_path_move get_nonconf_files get_changed_files
+-- luacheck: globals repo_parse status_dump pkg_unpack pkg_examine collision_check installed_confs steal_configs pkg_merge_files pkg_merge_control pkg_config_info pkg_cleanup_files pkg_update_alternatives pkg_remove_alternatives script_run control_cleanup version_cmp version_match run_state user_path_move get_nonconf_files get_changed_files
 
 --[[
 Configuration of the module. It is supported (yet unlikely to be needed) to modify
@@ -984,6 +986,81 @@ function pkg_cleanup_files(files, rm_configs)
 					end
 				end
 			end
+		end
+	end
+end
+
+local function user_path_symlink(target, path)
+	local dir = path:gsub("/[^/]+/?$", "")
+	if not utils.dir_ensure(dir) then
+		user_path_move(dir)
+		utils.dir_ensure(dir)
+	end
+
+	local ftype, _ = lstat(path)
+	if ftype ~= 'l' then
+		user_path_move(path)
+	else
+		os.remove(path)
+	end
+
+	DBG("Creating alternative link: " .. path .. " -> " .. target)
+	symlink(target, path)
+end
+
+--[[
+Helper function to go trough all alternatives and locate the best one
+Returns package name with alternative of highest priority and target.
+]]
+local function choose_alternative(status, path, skip_package)
+	local best, best_target
+	local best_priority = -1
+	for name, pkg in pairs(status) do
+		if name ~= skip_package and pkg.Alternatives then
+			for alt in pkg.Alternatives:gmatch('[^,]+') do
+				local priority, pth, target = alt:match('(%d+):([^:]+):(.+)')
+				if path == pth then
+					priority = tonumber(priority)
+					if target and priority and priority >= best_priority then
+						best = name
+						best_target = target
+						best_priority = priority
+					end
+				end
+			end
+		end
+	end
+	return best, best_target
+end
+
+--[[
+Alternatives are comma separated list with priority and symbolic link description
+One alternative is defines as: PRIORITY:PATH:TARGET
+Where PRIORITY is integer priority, PATH is link path and TARGET is link target.
+]]
+function pkg_update_alternatives(status, pkg_name)
+	for alt in (utils.multi_index(status, pkg_name, "Alternatives") or ""):gmatch('[^,]+') do
+		local path, target = alt:match('%d+:([^:]+):(.+)')
+		local best, _ = choose_alternative(status, path)
+		if best == pkg_name then
+			user_path_symlink(target, syscnf.root_dir .. path)
+		end
+	end
+end
+
+--[[
+This removes given alternative from system and ensures that if it is an
+appropriate alternative that we are going to remove it.
+]]
+function pkg_remove_alternatives(status, pkg_name)
+	for alt in (utils.multi_index(status, pkg_name, "Alternatives") or ""):gmatch('[^,]+') do
+		local path = alt:match('%d+:([^:]+):.+')
+		local best, target = choose_alternative(status, path, pkg_name)
+		if best then
+			user_path_symlink(target, syscnf.root_dir .. path, "f")
+		else
+			-- There is no better alternative so remove link
+			os.remove(syscnf.root_dir .. path)
 		end
 	end
 end

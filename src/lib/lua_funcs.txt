@@ -301,6 +301,12 @@ move(old, new)::
   Move a file from the old location to the new. It tries to cope with
   paths on different devices.
 
+copy(old, new)::
+  Copy a file from the old location to the new.
+
+symlink(target, path)::
+  Create symlink with given target in given path.
+
 ls(directory)::
   Return a table with file names under the given directory (acts like
   shell's `ls -a`, omitting the `.` and `..` entries). Value of
