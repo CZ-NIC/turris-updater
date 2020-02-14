@@ -1,0 +1,36 @@
+Package: high-package
+Version: 1
+License: GPL-2.0
+Section: none
+Alternatives: 300:/bin/test:/bin/high.sh
+Architecture: all
+Installed-Size: 0
+Filename: high-package.ipk
+MD5Sum: ae48a0f7c64a4228cb5a8e2ccecee695
+SHA256sum: cc4bf273e3102968dd4f04862a8ad4b21690c69506cdd79f5aee2fca8503799f
+Description:  High priority package
+
+Package: low-package
+Version: 1
+License: GPL-2.0
+Section: none
+Alternatives: 100:/bin/test:/bin/low.sh
+Architecture: all
+Installed-Size: 0
+Filename: low-package.ipk
+MD5Sum: c7424afea6341d16c687772918a6b681
+SHA256sum: 2c001efb78523059f5adddceef09dc4520e2ed9834a6b3bb1e7f37313fed004e
+Description:  Low priority package
+
+Package: remove-package
+Version: 1
+License: GPL-2.0
+Section: none
+Architecture: all
+Alternatives: 400:/bin/remove:/bin/remove.sh
+Installed-Size: 0
+Filename: remove-package.ipk
+MD5Sum: e44e450a5dbb417180ad57a7fad1a3dc
+SHA256sum: fc9247fc057735a986efd57414bbb341a1af36bb825863fd8e97e8c1f9c5c2e0
+Description:  To be removed package
+

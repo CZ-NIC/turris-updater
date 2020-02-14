@@ -1,0 +1,9 @@
+Package: high-package
+Version: 1
+License: GPL-2.0
+Section: none
+Alternatives: 300:/bin/test:/bin/high.sh
+Architecture: all
+Installed-Size: 0
+Description:  High priority package
+

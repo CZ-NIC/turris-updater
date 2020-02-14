@@ -1,0 +1,9 @@
+Package: low-package
+Version: 1
+License: GPL-2.0
+Section: none
+Alternatives: 100:/bin/test:/bin/low.sh
+Architecture: all
+Installed-Size: 0
+Description:  Low priority package
+

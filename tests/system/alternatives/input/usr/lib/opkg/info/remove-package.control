@@ -1,0 +1,9 @@
+Package: remove-package
+Version: 1
+License: GPL-2.0
+Section: none
+Architecture: all
+Alternatives: 400:/bin/remove:/bin/remove.sh
+Installed-Size: 0
+Description:  To be removed package
+
