@@ -22,15 +22,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "download.h"
-#ifndef __STDC_NO_THREADS__
-#include <threads.h>
-#define THREAD_LOCAL thread_local
-#else
-#warning Your LIBC does not provide threads.h. Updater should work but you should update nonetheless
-#define THREAD_LOCAL
-#endif
+#include "util.h"
 
 struct uri;
+typedef struct uri* Uri;
 
 enum uri_error {
 	URI_E_INVALID_URI, // Parsed URI was deemed as invalid
@@ -113,7 +108,7 @@ struct uri {
 // output_path: path to file where content will be stored in
 // Returns URI object or NULL on error.
 // Possible errors: URI_E_INVALID_URI, URI_E_UNKNOWN_SCHEME
-struct uri *uri_to_file(const char *uri, const char *output_path,
+Uri uri_to_file(const char *uri, const char *output_path,
 		const struct uri *parent) __attribute__((nonnull(1, 2)));
 // Create new URI object which content will be stored in temporally file
 // uri: URI string
@@ -121,7 +116,7 @@ struct uri *uri_to_file(const char *uri, const char *output_path,
 // output_template: path to file where content will be stored in
 // Returns URI object or NULL on error.
 // Possible errors: URI_E_INVALID_URI, URI_E_UNKNOWN_SCHEME
-struct uri *uri_to_temp_file(const char *uri, char *output_template,
+Uri uri_to_temp_file(const char *uri, char *output_template,
 		const struct uri *parent) __attribute__((nonnull(1, 2)));
 // Create new URI object which content will be stored in buffer in program
 // uri: URI string
@@ -129,25 +124,25 @@ struct uri *uri_to_temp_file(const char *uri, char *output_template,
 //   for no inheritence.
 // Returns URI object or NULL on error.
 // Possible errors: URI_E_INVALID_URI, URI_E_UNKNOWN_SCHEME
-struct uri *uri_to_buffer(const char *uri, const struct uri *parent) __attribute__((nonnull(1)));
+Uri uri_to_buffer(const char *uri, const struct uri *parent) __attribute__((nonnull(1)));
 
 // Free URI object
-void uri_free(struct uri *uri) __attribute__((nonnull));
+void uri_free(Uri) __attribute__((nonnull));
 
 // Check if given URI is local or remote (if downloader is needed or not)
-bool uri_is_local(const struct uri *uri) __attribute__((nonnull));
+bool uri_is_local(const Uri uri) __attribute__((nonnull));
 
 // Returns Unix path from URI. This can be used only on URI of URI_S_FILE type.
 // Returned pointer points to malloc allocated memory and should be freed by
 // caller.
-char *uri_path(const struct uri *uri) __attribute__((nonnull));
+char *uri_path(const Uri uri) __attribute__((nonnull));
 
 // Register given URI to downloader to be downloaded
 // uri: URI object downloader is registered to
 // downloader: Downloader object
 // Returns true on success or false on error.
 // Possible errors: URI_E_SIG_FAIL, URI_E_OUTPUT_OPEN_FAIL
-bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) __attribute__((nonnull(1, 2)));
+bool uri_downloader_register(Uri uri, struct  downloader *downloader) __attribute__((nonnull(1, 2)));
 
 // Ensure that URI is received and stored to appropriate place (file or buffer)
 // For remote ones call this after downloder_register and downloader_run.
@@ -156,7 +151,7 @@ bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) __
 // Possible errors: URI_E_UNFINISHED_DOWNLOAD, URI_E_DOWNLOAD_FAILED,
 // URI_E_OUTPUT_OPEN_FAIL, URI_E_FILE_INPUT_ERROR, URI_E_OUTPUT_WRITE_FAIL,
 // URI_E_VERIFY_FAIL, URI_E_SIG_FAIL
-bool uri_finish(struct uri *uri) __attribute__((nonnull));
+bool uri_finish(Uri uri) __attribute__((nonnull));
 
 // Get buffer/content of URI
 // Note that this can be called only once. Provided buffer has to be freed by
@@ -165,7 +160,7 @@ bool uri_finish(struct uri *uri) __attribute__((nonnull));
 // uri: URI object
 // buffer: Pointer to pointer where address to first byte of buffer is set to
 // len: Pointer to variable where size of buffer wiil be set to
-void uri_take_buffer(struct uri *uri, uint8_t **buffer, size_t *len) __attribute__((nonnull(1, 2, 3)));
+void uri_take_buffer(Uri uri, uint8_t **buffer, size_t *len) __attribute__((nonnull(1, 2, 3)));
 
 // Build error message of URI retrieval failure.
 // Returns string with error message.
@@ -174,7 +169,7 @@ const char *uri_error_msg(enum uri_error);
 // Returns pointer to error string for URI that reported URI_E_DOWNLOAD_FAILED
 // when uri_finish was called.
 // Returned string is valid until uri object is freed.
-const char *uri_download_error(struct uri *uri) __attribute((nonnull));
+const char *uri_download_error(Uri uri) __attribute((nonnull));
 
 // Returns name of scheme
 const char *uri_scheme_string(enum uri_scheme);
@@ -185,7 +180,7 @@ const char *uri_scheme_string(enum uri_scheme);
 // verify: boolean value setting if verification should or should not be done
 // In default this is enabled.
 // This setting is inherited.
-void uri_set_ssl_verify(struct uri *uri, bool verify) __attribute__((nonnull(1)));
+void uri_set_ssl_verify(Uri uri, bool verify) __attribute__((nonnull(1)));
 // Set certification authority to be used
 // uri: URI object CA to be set to
 // ca_uri: URI to local CA to be added to list of CAs for SSL verification. You
@@ -194,7 +189,7 @@ void uri_set_ssl_verify(struct uri *uri, bool verify) __attribute__((nonnull(1))
 // In default system CAs are used.
 // This setting is inherited.
 // Possible errors: URI_E_NONLOCAL and all errors by uri_to_buffer
-bool uri_add_ca(struct uri *uri, const char *ca_uri) __attribute__((nonnull(1)));
+bool uri_add_ca(Uri uri, const char *ca_uri) __attribute__((nonnull(1)));
 // Set URI to CRL that is used if CA verification is used
 // uri: URI object CRLs to be set to
 // crl_uri: URI to local CRL to be added to list of CRLs for SSL verification. You
@@ -203,13 +198,13 @@ bool uri_add_ca(struct uri *uri, const char *ca_uri) __attribute__((nonnull(1)))
 // In default CRL verification is disabled.
 // This setting is inherited.
 // Possible errors: URI_E_NONLOCAL and all errors by uri_to_buffer
-bool uri_add_crl(struct uri *uri, const char *crl_uri) __attribute__((nonnull(1)));
+bool uri_add_crl(Uri uri, const char *crl_uri) __attribute__((nonnull(1)));
 // Set URI OCSP verification
 // uri: URI object OCSP to be set to
 // enabled: If OCSP should be used
 // In default OCSP is enabled.
 // This setting is inherited.
-void uri_set_ocsp(struct uri *uri, bool enabled) __attribute__((nonnull(1)));
+void uri_set_ocsp(Uri uri, bool enabled) __attribute__((nonnull(1)));
 // HTTP/HTTPS configuration //
 // Set public key verification
 // uri: URI object public keys are set to
@@ -217,7 +212,7 @@ void uri_set_ocsp(struct uri *uri, bool enabled) __attribute__((nonnull(1)));
 //   to drop all added URIs and that way to disable signature verification.
 //This setting is inherited.
 // Possible errors: URI_E_NONLOCAL and all errors by uri_to_temp_file
-bool uri_add_pubkey(struct uri *uri, const char *pubkey_uri) __attribute__((nonnull(1)));
+bool uri_add_pubkey(Uri uri, const char *pubkey_uri) __attribute__((nonnull(1)));
 // Set URI to signature to be used.
 // uri: URI object signature URI to be set to
 // sig_uri: string URI to signature. This signature is received with same
@@ -231,6 +226,6 @@ bool uri_add_pubkey(struct uri *uri, const char *pubkey_uri) __attribute__((nonn
 // last command of all.
 // This option is not inherited!
 // Possible errors: all errors by uri_to_temp_file
-bool uri_set_sig(struct uri *uri, const char *sig_uri) __attribute__((nonnull(1)));
+bool uri_set_sig(Uri uri, const char *sig_uri) __attribute__((nonnull(1)));
 
 #endif

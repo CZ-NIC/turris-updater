@@ -27,6 +27,7 @@
 #include <stdbool.h>
 #include <alloca.h>
 #include <unistd.h>
+#include <threads.h>
 
 // Writes given text to file. Be aware that no information about failure is given.
 bool dump2file (const char *file, const char *text) __attribute__((nonnull,nonnull));
@@ -86,6 +87,16 @@ char *printf_into(char *dst, const char *msg, ...) __attribute__((format(printf,
 #define FALLTROUGH  __attribute__((fallthrough))
 #else
 #define FALLTROUGH
+#endif
+
+// threads.h was introduced in C11 but we are not running on threads so it is not
+// hard dependency for us. On the other hands we should warn about this.
+#ifndef __STDC_NO_THREADS__
+#include <threads.h>
+#define THREAD_LOCAL thread_local
+#else
+#warning Your LIBC does not provide threads.h. Updater should work but you should update nonetheless
+#define THREAD_LOCAL
 #endif
 
 #endif
