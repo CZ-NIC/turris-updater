@@ -14,6 +14,7 @@ Binary dependencies:
 * libb64
 * uthash
 * liburiparser
+* libarchive
 * (argp-standalone on non-glibc systems)
 
 Runtime dependencies:

@@ -263,3 +263,67 @@ char *printf_into(char *dst, const char *msg, ...) {
 	va_end(args);
 	return dst;
 }
+
+
+struct file_read_data {
+	const void *data;
+	size_t pos, len;
+	bool free_on_close;
+};
+
+static ssize_t file_data_read(void *cookie, char *buf, size_t size) {
+	struct file_read_data *frd = cookie;
+	size_t to_copy = (frd->len - frd->pos) > size ? size : frd->len - frd->pos;
+	memcpy(buf, frd->data, to_copy);
+	frd->pos += to_copy;
+	return to_copy;
+}
+
+int file_data_seek(void *cookie, off64_t *offset, int whence) {
+	struct file_read_data *frd = cookie;
+	off64_t new_offset;
+	switch (whence) {
+		case SEEK_SET:
+			new_offset = *offset;
+			break;
+		case SEEK_CUR:
+			new_offset = *offset + frd->pos;
+			break;
+		case SEEK_END:
+			new_offset = *offset + frd->len;
+			break;
+		default:
+			return -1;
+	};
+	if (new_offset < 0 || new_offset > (off64_t)frd->len)
+		return -1;
+
+	frd->pos = new_offset;
+	*offset = new_offset;
+	return 0;
+}
+
+int file_data_close(void *cookie) {
+	struct file_read_data *frd = cookie;
+	if (frd->free_on_close)
+		free((void*)frd->data);
+	free(frd);
+	return 0;
+}
+
+const cookie_io_functions_t file_read_data_funcs = {
+	.read = file_data_read,
+	.seek = file_data_seek,
+	.close = file_data_close,
+};
+
+FILE *file_read_data(const void *data, size_t len, bool free_on_close) {
+	struct file_read_data *cookie = malloc(sizeof *cookie);
+	*cookie = (struct file_read_data){
+		.data = data,
+		.pos = 0,
+		.len = len,
+		.free_on_close = free_on_close
+	};
+	return fopencookie(cookie, "r", file_read_data_funcs);
+}

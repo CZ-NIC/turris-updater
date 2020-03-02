@@ -99,6 +99,26 @@ START_TEST(cleanup_by_data) {
 }
 END_TEST
 
+START_TEST(file_read_data_string) {
+	const char *data = "Test data to be read";
+	size_t data_len = strlen(data);
+
+	FILE *f = file_read_data(data, data_len, false);
+	ck_assert_ptr_nonnull(f);
+
+	ck_assert(!fseek(f, 0, SEEK_END));
+	ck_assert_int_eq(data_len, ftell(f));
+	rewind(f);
+
+	char *buff = malloc(data_len * sizeof *buff);
+	ck_assert_int_eq(data_len, fread(buff, 1, data_len, f));
+	ck_assert_mem_eq(data, buff, data_len);
+
+	fclose(f);
+	free(buff);
+}
+END_TEST
+
 
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Util");
@@ -109,6 +129,7 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(util, cleanup_multi);
 	tcase_add_test(util, cleanup_single);
 	tcase_add_test(util, cleanup_by_data);
+	tcase_add_test(util, file_read_data_string);
 	suite_add_tcase(result, util);
 	return result;
 }

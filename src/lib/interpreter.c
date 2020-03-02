@@ -28,6 +28,7 @@
 #include "syscnf.h"
 #include "opmode.h"
 #include "uri_lua.h"
+#include "archive.h"
 #include "picosat.h"
 
 #include <lua.h>
@@ -1035,6 +1036,7 @@ struct interpreter *interpreter_create(struct events *events) {
 	syscnf_mod_init(L);
 	opmode_mod_init(L);
 	uri_mod_init(L);
+	archive_mod_init(L);
 	picosat_mod_init(L);
 #ifdef COVERAGE
 	interpreter_load_coverage(result);

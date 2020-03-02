@@ -26,11 +26,10 @@ local next = next
 local type = type
 local table = table
 local string = string
-local events_wait = events_wait
-local run_util = run_util
 local DBG = DBG
 local WARN = WARN
 local ERROR = ERROR
+local archive = archive
 local utils = require "utils"
 local backend = require "backend"
 local requests = require "requests"
@@ -47,14 +46,7 @@ local function repo_parse(repo)
 	local index = repo.index_uri:finish() -- TODO error?
 	if index:sub(1, 2) == string.char(0x1F, 0x8B) then -- compressed index
 		DBG("Decompressing index " .. name)
-		local extr = run_util(function (ecode, _, stdout, stderr)
-				if ecode ~= 0 then
-					error(utils.exception('repo broken', "Couldn't decompress " .. name .. ": " .. stderr))
-				end
-				index = stdout
-			end
-			, nil, index, -1, -1, 'gzip', '-dc')
-		events_wait(extr)
+		index = archive.decompress(index)
 	end
 	-- Parse index
 	DBG("Parsing index " .. name)

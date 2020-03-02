@@ -35,6 +35,7 @@ libupdater_MODULES := \
 	syscnf \
 	multiwrite \
 	logging \
+	archive \
 	opmode
 ifdef COV
 libupdater_MODULES += lcoverage.embed
@@ -45,7 +46,7 @@ endif
 
 libupdater_MODULES_3RDPARTY := picosat-965/picosat
 
-libupdater_PKG_CONFIGS := $(LUA_NAME) libevent libcurl libcrypto
+libupdater_PKG_CONFIGS := $(LUA_NAME) libevent libcurl libcrypto libarchive
 # Workaround, lua.pc doesn't containd -ldl, even when it uses dlopen
 libupdater_SO_LIBS += dl b64
 ifneq ($(ARGP_STANDALONE),)
