@@ -80,6 +80,12 @@ char *printf_into(char *dst, const char *msg, ...) __attribute__((format(printf,
 // Like printf, but allocates the data on the stack with alloca and returns. It uses the arguments multiple times, so beware of side effects.
 #define aprintf(...) printf_into(alloca(printf_len(__VA_ARGS__)), __VA_ARGS__)
 
+// Provides FILE that can be used to read provided data
+// data: pointer to data to read
+// len: size of data to read
+// free_on_close: if free() should be called on data on FILE close
+FILE *file_read_data(const void *data, size_t len, bool free_on_close);
+
 // GCC 7+ reports fall troughs but previous versions doesn't understand attribute
 // for it so we have this macro to not put it in place if it's not needed.
 #if  __GNUC__ >= 7
