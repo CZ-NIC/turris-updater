@@ -18,3 +18,11 @@ sed -n 's/^Alternatives://p' /usr/lib/opkg/info/*.control | \
 	while IFS=: read PRIO TRG SRC; do
 		ln -sf "$SRC" "$TRG"
 	done
+
+for applet in $(busybox --list); do
+	for prefix in /bin /sbin /usr/bin /usr/sbin; do
+		if [ -L "$prefix/$applet" ]; then
+			[ -x "$prefix/$applet" ] || ln -sf /bin/busybox "$prefix/$applet"
+		fi
+	done
+done
