@@ -13,8 +13,8 @@ fi
 
 sed -n 's/^Alternatives://p' /usr/lib/opkg/info/*.control | \
 	tr , '\n' | \
-	sed 's/^\ \([^:]*\):\([^:]*\):/\2:\1:/' | \
-	sort | \
-	while IFS=: read TRG PRIO SRC; do
+	sed 's/^\ \([^:]*\):\([^:]*\):/\1:\2:/' | \
+	sort -n | \
+	while IFS=: read PRIO TRG SRC; do
 		ln -sf "$SRC" "$TRG"
 	done
