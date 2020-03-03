@@ -22,13 +22,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "download.h"
-#ifndef __STDC_NO_THREADS__
-#include <threads.h>
-#define THREAD_LOCAL thread_local
-#else
-#warning Your LIBC does not provide threads.h. Updater should work but you should update nonetheless
-#define THREAD_LOCAL
-#endif
+#include "util.h"
 
 struct uri;
 
