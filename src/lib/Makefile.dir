@@ -36,6 +36,7 @@ libupdater_MODULES := \
 	multiwrite \
 	logging \
 	archive \
+	path_utils \
 	opmode
 ifdef COV
 libupdater_MODULES += lcoverage.embed
