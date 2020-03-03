@@ -13,6 +13,7 @@ C_TESTS := \
 	download \
 	uri \
 	archive \
+	path_utils \
 	interpreter
 
 LUA_TESTS := \
