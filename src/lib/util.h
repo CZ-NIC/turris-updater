@@ -94,4 +94,14 @@ FILE *file_read_data(const void *data, size_t len, bool free_on_close);
 #define FALLTROUGH
 #endif
 
+// For possible future support we use thread_local but we still support compilers
+// without it.
+#ifndef __STDC_NO_THREADS__
+#include <threads.h>
+#define THREAD_LOCAL thread_local
+#else
+#warning Your LIBC does not provide threads.h. Updater should work but you should update nonetheless
+#define THREAD_LOCAL
+#endif
+
 #endif
