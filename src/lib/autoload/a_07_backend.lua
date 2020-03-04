@@ -42,13 +42,13 @@ local LST_PKG_SCRIPT = LST_PKG_SCRIPT
 local events_wait = events_wait
 local stat = stat
 local lstat = lstat
-local mkdir = mkdir
 local move = move
 local copy = copy
 local symlink = symlink
 local ls = ls
 local md5_file = md5_file
 local sha256_file = sha256_file
+local archive = archive
 local DBG = DBG
 local WARN = WARN
 local ERROR = ERROR
@@ -419,74 +419,22 @@ function status_dump(status)
 	end
 end
 
-local function rmrf(dir)
-	-- TODO: Would it be better to remove from within our code, without calling rm?
-	events_wait(run_util(function (ecode, _, _, stderr)
-		if ecode ~= 0 then
-			WARN("Failed to clean up work directory ", dir, ": ", stderr)
-		end
-	end, nil, nil, cmd_timeout, cmd_kill_timeout, "rm", "-rf", dir))
-end
-
 --[[
 Take the .ipk package and unpack it into a temporary location somewhere under
 pkg_unpacked_dir.
 
-It returns a path to a subdirectory of tmp_dir, where the package is unpacked.
+It returns a path to a subdirectory where the package is unpacked.
 There are two further subdirectories, control and data. Data are the files to be merged
 into the system, control are the control files for the package manager.
 
 TODO:
 • Sanity checking of the package.
-• Less calling of external commands.
 ]]
 function pkg_unpack(package_path)
-	-- The first unpack goes into the /tmp
-	-- We assume s1dir returs sane names of directories ‒ no spaces or strange chars in them
-	local s1dir = mkdtemp()
-	-- The results go into the provided dir, or to /tmp if none was provided
 	utils.mkdirp(syscnf.pkg_unpacked_dir)
-	local s2dir = mkdtemp(syscnf.pkg_unpacked_dir)
-	-- If anything goes wrong, this is where we find the error message
-	local err
-	-- Unpack the ipk into s1dir, getting control.tar.gz and data.tar.gz
-	local function stage1()
-		events_wait(run_util(function (ecode, _, _, stderr)
-			if ecode ~= 0 then
-				err = "Stage 1 unpack failed: " .. stderr
-			end
-		end, nil, nil, cmd_timeout, cmd_kill_timeout, "tar", "-xzf", package_path, "-C", s1dir))
-		-- TODO: Sanity check debian-binary
-		return err == nil
-	end
-	-- Unpack the control.tar.gz and data.tar.gz under respective subdirs in s2dir
-	local function unpack_archive(what)
-		local archive = s1dir .. "/" .. what .. ".tar.gz"
-		local dir = s2dir .. "/" .. what
-		mkdir(dir)
-		return run_util(function (ecode, _, _, stderr)
-			if ecode ~= 0 then
-				err = "Stage 2 unpack of " .. what .. " failed: " .. stderr
-			end
-		end, nil, nil, cmd_timeout, cmd_kill_timeout, "tar", "-xzf", archive, '-C', dir)
-	end
-	local function stage2()
-		events_wait(unpack_archive("control"), unpack_archive("data"))
-		return err == nil
-	end
-	-- Try-finally like construct, make sure cleanup is called no matter what
-	local success, ok = pcall(function () return stage1() and stage2() end)
-	-- Intermediate work space, not needed by the caller
-	rmrf(s1dir)
-	if err then
-		-- Clean up the resulting directory in case of errors
-		rmrf(s2dir)
-	end
-	-- Cleanup done, call error() if anything failed
-	if not success then error(ok) end
-	if not ok then error(err) end
-	-- Everything went well. So return path to the directory where the package is unpacked
-	return s2dir
+	local sdir = mkdtemp(syscnf.pkg_unpacked_dir)
+	archive.unpack_package(package_path, sdir)
+	return sdir
 end
 
 --[[

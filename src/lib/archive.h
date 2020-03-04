@@ -26,12 +26,17 @@
 #include <stdbool.h>
 #include <lua.h>
 
+char *archive_error();
+
 // Close provided FILE on fclose of provided FILE
 #define ARCHIVE_AUTOCLOSE (1 << 0)
 
 // TODO attributes
 FILE *decompress(FILE *f, int flags) __attribute__((nonnull));
 
+
+bool unpack_package(const char *package, const char *dir_path)
+	__attribute__((nonnull));
 
 // Create unpack module and inject it into the lua state
 void archive_mod_init(lua_State *L) __attribute__((nonnull));
