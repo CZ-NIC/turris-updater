@@ -16,8 +16,13 @@
  * You should have received a copy of the GNU General Public License
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include "test_data.h"
+#include <stdio.h>
 #include <stdlib.h>
+#include "../src/lib/logging.h"
 
 const char *get_tmpdir() {
 	const char *tmpdir = getenv("TMPDIR");
@@ -31,4 +36,10 @@ const char *get_sdir() {
 	if (!sdir)
 		sdir = ".";
 	return sdir;
+}
+
+char *tmpdir_template(const char *identifier) {
+	char *path;
+	ASSERT(asprintf(&path, "%s/%s_XXXXXX", get_tmpdir(), identifier) != -1);
+	return path;
 }
