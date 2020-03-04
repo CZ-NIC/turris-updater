@@ -27,8 +27,11 @@
 #include <libgen.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <lauxlib.h>
+#include <lualib.h>
 #include "logging.h"
 #include "util.h"
+#include "inject.h"
 
 static THREAD_LOCAL const char *last_operation;
 static THREAD_LOCAL int stderrno;
@@ -115,4 +118,30 @@ char *path_utils_error() {
 	asprintf(&error_string, "%s failed for path: %s: %s",
 			last_operation, err_path, strerror(stderrno));
 	return error_string;
+}
+
+// Lua interface /////////////////////////////////////////////////////////////////
+
+static int lua_rmrf(lua_State *L) {
+	const char *path = luaL_checkstring(L, 1);
+
+	if (!remove_recursive(path)) {
+		lua_pushstring(L, path_utils_error());
+		return 1;
+	}
+
+	return 0;
+}
+
+static const struct inject_func funcs[] = {
+	{ lua_rmrf, "rmrf" },
+};
+
+void path_utils_mod_init(lua_State *L) {
+	TRACE("path_utils module init");
+	lua_newtable(L);
+	inject_func_n(L, "path_utils", funcs, sizeof funcs / sizeof *funcs);
+	lua_pushvalue(L, -1);
+	lua_setmetatable(L, -2);
+	inject_module(L, "path_utils");
 }

@@ -19,6 +19,7 @@
 #ifndef UPDATER_PATH_UTILS_H
 #define UPDATER_PATH_UTILS_H
 #include <stdbool.h>
+#include <lua.h>
 
 // Make sure that path does not exist and if so remove it recursively
 // path: path to be recursively removed
@@ -34,5 +35,9 @@ bool mkdir_p(const char *path) __attribute__((nonnull));
 
 // Returns error message for latest error.
 char *path_utils_error();
+
+
+// Create path_utils module and inject it into the lua state
+void path_utils_mod_init(lua_State *L) __attribute__((nonnull));
 
 #endif
