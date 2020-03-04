@@ -20,8 +20,15 @@
 #define UPDATER_TEST_DATA_H
 #include "../src/lib/util.h"
 
+// Returns path to temporally directory used to run tests
 const char *get_tmpdir();
+
+// Returns path to source directory
 const char *get_sdir();
+
+// Creates template for mktemp and mkdtemp style of functions for path in tmpdir.
+char *tmpdir_template(const char *identifier);
+
 
 #define HTTP_APPLICATION_TEST "http://applications-test.turris.cz"
 #define HTTPS_APPLICATION_TEST "https://applications-test.turris.cz"
@@ -52,5 +59,9 @@ const char *get_sdir();
 #define URI_FILE_LETS_ENCRYPT_ROOTS aprintf("file://%s/tests/data/lets_encrypt_roots.pem", get_sdir())
 #define FILE_OPENTRUST_CA_G1 aprintf("%s/tests/data/opentrust_ca_g1.pem", get_sdir())
 #define URI_FILE_OPENTRUST_CA_G1 aprintf("file://%s/tests/data/opentrust_ca_g1.pem", get_sdir())
+
+// Unpack_package
+#define UNPACK_PACKAGE_VALID_IPK aprintf("%s/tests/data/unpack_package/valid.ipk", get_sdir())
+#define UNPACK_PACKAGE_VALID_DIR aprintf("%s/tests/data/unpack_package/valid", get_sdir())
 
 #endif

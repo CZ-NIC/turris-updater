@@ -16,11 +16,22 @@
  * You should have received a copy of the GNU General Public License
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include "ctest.h"
 #include "test_data.h"
-#include "../src/lib/archive.h"
+#include <stdio.h>
 #include <string.h>
 #include <errno.h>
+#include <dirent.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include "../src/lib/archive.h"
+#include "../src/lib/util.h"
+#include "../src/lib/path_utils.h"
 
 START_TEST(decompress_buffer) {
 	// This was generated using shell command
@@ -113,6 +124,63 @@ START_TEST(decompress_lorem_ipsum) {
 }
 END_TEST
 
+static char *updater_test_unpack_dir;
+
+static void unpack_package_setup(void) {
+	asprintf(&updater_test_unpack_dir, "%s/updater_test_unpack_package_XXXXXX", get_tmpdir());
+	mkdtemp(updater_test_unpack_dir);
+}
+
+static void unpack_package_teardown(void) {
+	remove_recursive(updater_test_unpack_dir);
+	free(updater_test_unpack_dir);
+}
+
+int _compare_tree_filter(const struct dirent *ent) {
+	return ent->d_type != DT_DIR ||
+		!(ent->d_name[0] == '.' && (ent->d_name[1] == '\0' ||
+			(ent->d_name[1] == '.' && ent->d_name[2] == '\0')));
+}
+
+static void compare_tree(const char *ref_path, const char *gen_path) {
+	struct dirent **ref_list, **gen_list;
+	int ref_num = scandir(ref_path, &ref_list, _compare_tree_filter, alphasort);
+	int gen_num = scandir(gen_path, &gen_list, _compare_tree_filter, alphasort);
+	ck_assert_int_eq(ref_num, gen_num);
+
+	for (int i = 0; i < ref_num; i++) {
+		ck_assert_str_eq(ref_list[i]->d_name, gen_list[i]->d_name);
+		ck_assert_int_eq(ref_list[i]->d_type, gen_list[i]->d_type);
+
+		char *ref_fpath = aprintf("%s/%s", ref_path, ref_list[i]->d_name);
+		char *gen_fpath = aprintf("%s/%s", gen_path, ref_list[i]->d_name);
+
+		struct stat ref_stat, gen_stat;
+		ck_assert(!lstat(ref_fpath, &ref_stat));
+		ck_assert(!lstat(gen_fpath, &gen_stat));
+		ck_assert_int_eq(ref_stat.st_dev, gen_stat.st_dev);
+		ck_assert_int_eq(ref_stat.st_mode, gen_stat.st_mode);
+		ck_assert_int_eq(ref_stat.st_uid, gen_stat.st_uid);
+		ck_assert_int_eq(ref_stat.st_rdev, gen_stat.st_rdev);
+		ck_assert_int_eq(ref_stat.st_size, gen_stat.st_size);
+
+		if (ref_list[i]->d_type == DT_DIR)
+			compare_tree(ref_fpath, gen_fpath);
+
+		free(ref_list[i]);
+		free(gen_list[i]);
+	}
+
+	free(ref_list);
+	free(gen_list);
+}
+
+START_TEST(unpack_package_valid) {
+	ck_assert(unpack_package(UNPACK_PACKAGE_VALID_IPK, updater_test_unpack_dir));
+	compare_tree(UNPACK_PACKAGE_VALID_DIR, updater_test_unpack_dir);
+}
+END_TEST
+
 
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Unpack");
@@ -123,5 +191,10 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(tcases, decompress_lorem_ipsum_short_xz);
 	tcase_add_test(tcases, decompress_lorem_ipsum);
 	suite_add_tcase(result, tcases);
+	TCase *tunpack_package = tcase_create("unpack_package");
+	tcase_add_checked_fixture(tunpack_package, unpack_package_setup,
+			unpack_package_teardown);
+	tcase_add_test(tunpack_package, unpack_package_valid);
+	suite_add_tcase(result, tunpack_package);
 	return result;
 }
