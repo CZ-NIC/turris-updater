@@ -19,7 +19,6 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 
 local pairs = pairs
 local ipairs = ipairs
-local next = next
 local error = error
 local type = type
 local setmetatable = setmetatable
@@ -30,11 +29,9 @@ local table = table
 local string = string
 local math = math
 local io = io
-local unpack = unpack
 local mkdir = mkdir
 local stat = stat
-local events_wait = events_wait
-local run_util = run_util
+local path_utils = path_utils
 local uri = require "uri"
 
 module "utils"
@@ -107,12 +104,8 @@ end
 
 -- Run rm -rf on all dirs in the provided table
 function cleanup_dirs(dirs)
-	if next(dirs) then
-		events_wait(run_util(function (ecode, _, _, stderr)
-			if ecode ~= 0 then
-				error("rm -rf failed: " .. stderr)
-			end
-		end, nil, nil, -1, -1, "rm", "-rf", unpack(dirs)));
+	for _, dir in pairs(dirs) do
+		path_utils.rmrf(dir)
 	end
 end
 

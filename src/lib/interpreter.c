@@ -29,6 +29,7 @@
 #include "opmode.h"
 #include "uri_lua.h"
 #include "archive.h"
+#include "path_utils.h"
 #include "picosat.h"
 
 #include <lua.h>
@@ -1037,6 +1038,7 @@ struct interpreter *interpreter_create(struct events *events) {
 	opmode_mod_init(L);
 	uri_mod_init(L);
 	archive_mod_init(L);
+	path_utils_mod_init(L);
 	picosat_mod_init(L);
 #ifdef COVERAGE
 	interpreter_load_coverage(result);
