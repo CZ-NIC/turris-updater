@@ -32,8 +32,10 @@ THREAD_LOCAL char *archive_err_str = NULL;
 THREAD_LOCAL int archive_err_no;
 
 static void reset_error() {
-	if (archive_err_str)
+	if (archive_err_str) {
 		free(archive_err_str);
+		archive_err_str = NULL;
+	}
 	archive_err_no = 0;
 }
 
