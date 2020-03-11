@@ -11,18 +11,13 @@ if [ ! -d /usr/lib/opkg/info ]; then
 	exit 1
 fi
 
+# Fist install all busybox applets and then overwite them with alternatives
+
+busybox --install /bin
+
 sed -n 's/^Alternatives://p' /usr/lib/opkg/info/*.control | \
 	tr , '\n' | \
-	sed 's/^\ \([^:]*\):\([^:]*\):/\1:\2:/' | \
 	sort -n | \
 	while IFS=: read PRIO TRG SRC; do
 		ln -sf "$SRC" "$TRG"
 	done
-
-for applet in $(busybox --list); do
-	for prefix in /bin /sbin /usr/bin /usr/sbin; do
-		if [ -L "$prefix/$applet" ]; then
-			[ -x "$prefix/$applet" ] || ln -sf /bin/busybox "$prefix/$applet"
-		fi
-	done
-done
