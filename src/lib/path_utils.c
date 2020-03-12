@@ -45,6 +45,11 @@ static bool preserve_error(const char *path) {
 	return false;
 }
 
+// Matches . and .. file names (used to ignore current and upper directory entry)
+static bool is_dot_dotdot(const char *name) {
+	return name[0] == '.' && (name[1] == '\0' || (name[1] == '.' && name[2] == '\0'));
+}
+
 bool remove_recursive(const char *path) {
 	last_operation = "Recursive removal";
 	stderrno = 0;
@@ -68,9 +73,8 @@ bool remove_recursive(const char *path) {
 		return preserve_error(path);
 	struct dirent *ent;
 	while ((ent = readdir(dir))) {
-		if (ent->d_name[0] == '.' && (ent->d_name[1] == '\0' ||
-					(ent->d_name[1] == '.' && ent->d_name[2] == '\0')))
-			continue; // ignore ./ and ../
+		if (is_dot_dotdot(ent->d_name))
+			continue;
 		if (ent->d_type == DT_DIR) {
 			if (!remove_recursive(aprintf("%s/%s", path, ent->d_name)))
 				return false;
@@ -113,6 +117,42 @@ bool mkdir_p(const char *path) {
 	return true;
 }
 
+static bool _fs_tree_list(const char *path, char ***list, size_t *list_len, size_t *list_size, int ftype) {
+	DIR *dir = opendir(path);
+	if (dir == NULL)
+		return preserve_error(path);
+	struct dirent *ent;
+	while ((ent = readdir(dir))) {
+		if (is_dot_dotdot(ent->d_name))
+			continue;
+		char *subpath = aprintf("%s/%s", path, ent->d_name);
+		if (_is_path_type(ent->d_type, path_type)) {
+			if (*list_len >= *list_size)
+				*list = realloc(*list, (*list_size *= 2) * sizeof *list);
+			(*list)[(*list_len)++] = strdup(subpath);
+		}
+		if (ent->d_type == DT_DIR)
+			if (!_fs_tree_list(subpath, list, list_len, list_size, ftype))
+				return false;
+	}
+	closedir(dir);
+	return true;
+}
+
+bool fs_tree_list(const char *path, char ***list, size_t *list_len, int ftype) {
+	// TODO handle if path is not a directory somehow
+	size_t size = 64;
+	*list_len = 0;
+	*list = malloc(size * sizeof *list);
+	if (!_fs_tree_list(path, list, list_len, &size, ftype)) {
+		for (size_t i = 0; i < *list_len; i++)
+			free((*list)[i]);
+		free(*list);
+		return false;
+	}
+	return true;
+}
+
 char *path_utils_error() {
 	char *error_string;
 	asprintf(&error_string, "%s failed for path: %s: %s",
@@ -133,8 +173,41 @@ static int lua_rmrf(lua_State *L) {
 	return 0;
 }
 
+static int lua_find_generic(lua_State *L, int ftype) {
+	const char *path = luaL_checkstring(L, 1);
+
+	char **dirs;
+	size_t len;
+	if (!fs_tree_list(path, &dirs, &len, ftype)) {
+		lua_pushnil(L);
+		lua_pushstring(L, path_utils_error());
+		return 2;
+	}
+
+	lua_createtable(L, len, 0);
+	for (size_t i = 0; i < len; i++) {
+		lua_pushinteger(L, lua_objlen(L, -1) + 1);
+		lua_pushstring(L, dirs[i]);
+		lua_settable(L, -3);
+		free(dirs[i]);
+	}
+	free(dirs);
+
+	return 1;
+}
+
+static int lua_find_dirs(lua_State *L) {
+	return lua_find_generic(L, DT_DIR);
+}
+
+static int lua_find_files(lua_State *L) {
+	return lua_find_generic(L, ~DT_DIR);
+}
+
 static const struct inject_func funcs[] = {
 	{ lua_rmrf, "rmrf" },
+	{ lua_find_dirs, "find_dirs" },
+	{ lua_find_files, "find_files" },
 };
 
 void path_utils_mod_init(lua_State *L) {
