@@ -117,7 +117,20 @@ bool mkdir_p(const char *path) {
 	return true;
 }
 
-static bool _fs_tree_list(const char *path, char ***list, size_t *list_len, size_t *list_size, int ftype) {
+static bool _is_path_type(unsigned char d_type, int path_type) {
+	switch (d_type) {
+		case DT_REG:
+			return PATH_T_REG & path_type;
+		case DT_DIR:
+			return PATH_T_DIR & path_type;
+		case DT_LNK:
+			return PATH_T_LNK & path_type;
+		default:
+			return PATH_T_OTHER & path_type;
+	}
+}
+
+static bool _dir_tree_list(const char *path, char ***list, size_t *list_len, size_t *list_size, int path_type) {
 	DIR *dir = opendir(path);
 	if (dir == NULL)
 		return preserve_error(path);
@@ -132,19 +145,18 @@ static bool _fs_tree_list(const char *path, char ***list, size_t *list_len, size
 			(*list)[(*list_len)++] = strdup(subpath);
 		}
 		if (ent->d_type == DT_DIR)
-			if (!_fs_tree_list(subpath, list, list_len, list_size, ftype))
+			if (!_dir_tree_list(subpath, list, list_len, list_size, path_type))
 				return false;
 	}
 	closedir(dir);
 	return true;
 }
 
-bool fs_tree_list(const char *path, char ***list, size_t *list_len, int ftype) {
-	// TODO handle if path is not a directory somehow
-	size_t size = 64;
+bool dir_tree_list(const char *path, char ***list, size_t *list_len, int path_type) {
+	size_t size = 8;
 	*list_len = 0;
 	*list = malloc(size * sizeof *list);
-	if (!_fs_tree_list(path, list, list_len, &size, ftype)) {
+	if (!_dir_tree_list(path, list, list_len, &size, path_type)) {
 		for (size_t i = 0; i < *list_len; i++)
 			free((*list)[i]);
 		free(*list);
@@ -173,18 +185,23 @@ static int lua_rmrf(lua_State *L) {
 	return 0;
 }
 
-static int lua_find_generic(lua_State *L, int ftype) {
+static int lua_find_generic(lua_State *L, int path_type) {
 	const char *path = luaL_checkstring(L, 1);
 
 	char **dirs;
 	size_t len;
-	if (!fs_tree_list(path, &dirs, &len, ftype)) {
+	if (!dir_tree_list(path, &dirs, &len, path_type)) {
 		lua_pushnil(L);
 		lua_pushstring(L, path_utils_error());
 		return 2;
 	}
 
 	lua_createtable(L, len, 0);
+	if (path_type & PATH_T_DIR) { // Root directory if type is directory to match find behavior
+		lua_pushinteger(L, 1);
+		lua_pushstring(L, "/");
+		lua_settable(L, -3);
+	}
 	for (size_t i = 0; i < len; i++) {
 		lua_pushinteger(L, lua_objlen(L, -1) + 1);
 		lua_pushstring(L, dirs[i]);
@@ -197,11 +214,11 @@ static int lua_find_generic(lua_State *L, int ftype) {
 }
 
 static int lua_find_dirs(lua_State *L) {
-	return lua_find_generic(L, DT_DIR);
+	return lua_find_generic(L, PATH_T_DIR);
 }
 
 static int lua_find_files(lua_State *L) {
-	return lua_find_generic(L, ~DT_DIR);
+	return lua_find_generic(L, ~PATH_T_DIR);
 }
 
 static const struct inject_func funcs[] = {

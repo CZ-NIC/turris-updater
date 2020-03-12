@@ -49,6 +49,7 @@ local ls = ls
 local md5_file = md5_file
 local sha256_file = sha256_file
 local archive = archive
+local path_utils = path_utils
 local DBG = DBG
 local WARN = WARN
 local ERROR = ERROR
@@ -453,33 +454,16 @@ In case of errors, it raises error()
 ]]
 function pkg_examine(dir)
 	local data_dir = dir .. "/data"
-	-- Events to wait for
-	local events = {}
-	local err = nil
-	-- Launch scans of the data directory
-	local function launch(postprocess, ...)
-		local function cback(ecode, _, stdout, stderr)
-			if ecode == 0 then
-				postprocess(stdout)
-			else
-				err = stderr
-			end
-		end
-		local event = run_util(cback, function () chdir(data_dir) end, nil, cmd_timeout, cmd_kill_timeout, ...)
-		table.insert(events, event)
-	end
-	local function find_result(text)
-		--[[
-		Split into „lines“ separated by 0-char. Then eat leading dots and, in case
-		there was only a dot, replace it by /.
-		]]
-		return utils.map(utils.lines2set(text, "%z"), function (f) return f:gsub("^%.", ""):gsub("^$", "/"), true end)
+	local function path_sanitize(paths)
+		return slashes_sanitize(utils.map(paths,
+			function (_, f) return f:sub(data_dir:len() + 1), true end))
 	end
 	local files, dirs
 	-- One for non-directories
-	launch(function (text) files = slashes_sanitize(find_result(text)) end, "find", "!", "-type", "d", "-print0")
+	files = path_sanitize(path_utils.find_files(data_dir))
 	-- One for directories
-	launch(function (text) dirs = slashes_sanitize(find_result(text)) end, "find", "-type", "d", "-print0")
+	dirs = path_sanitize(path_utils.find_dirs(data_dir))
+
 	-- Get list of config files, if there are any
 	local control_dir = dir .. "/control"
 	local cidx = io.open(control_dir .. "/conffiles")
@@ -498,12 +482,6 @@ function pkg_examine(dir)
 	conffiles = slashes_sanitize(conffiles)
 	-- Load the control file of the package and parse it
 	local control = package_postprocess(block_parse(utils.read_file(control_dir .. "/control")));
-	-- Wait for all asynchronous processes to finish
-	events_wait(unpack(events))
-	-- How well did it go?
-	if err then
-		error(err)
-	end
 	-- Complete the control structure
 	control.files = files
 	if next(conffiles) then -- Don't store empty config files
