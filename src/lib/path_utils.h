@@ -33,13 +33,18 @@ bool remove_recursive(const char *path) __attribute__((nonnull));
 // to receive error message.
 bool mkdir_p(const char *path) __attribute__((nonnull));
 
+#define PATH_T_REG (1 << 0) // regular file
+#define PATH_T_DIR (1 << 1) // directory
+#define PATH_T_LNK (1 << 2) // symbolic link
+#define PATH_T_OTHER (1 << 3)
+
 // Go trough directory and collect all paths of given type. This is effectively
 // simple implementation of coreutils find.
 // path: path to directory to go trough
 // list: point to array of strings where output is stored (to malloc allocated memory)
 // list_len: variable to store number of outputed elements in list
-// ftype: bitwise combination of types (DT_DIR, DT_REG, DT_LNG, ...)
-bool fs_tree_list(const char *path, char ***list, size_t *list_len, int ftype);
+// path_type: bitwise combination of types (PATH_T_REG, PATH_T_DIR, ...)
+bool dir_tree_list(const char *path, char ***list, size_t *list_len, int path_type);
 
 // Returns error message for latest error.
 char *path_utils_error();
