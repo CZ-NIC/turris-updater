@@ -78,7 +78,7 @@ package_template() {
 	local pkgname="$1"
 	local pkgversion="${2:-1.0}"
 	cp -r "$sroot/utils/opkg-create/template" "$pkgname"
-	sed -i "s#^Package:.*\$#Package: $pkgname#;s#^Version:.*\$#Version: $pkgversion#" "$pkgname/control"
+	sed -i "s#^Package:.*\$#Package: $pkgname#;s#^Version:.*\$#Version: $pkgversion#" "$pkgname/control/control"
 	rm "$pkgname/data/file"
 }
 
