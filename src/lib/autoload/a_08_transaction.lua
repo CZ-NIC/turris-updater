@@ -382,18 +382,14 @@ function recover()
 		status[value.type] = value.params
 	end
 	if not status[journal.UNPACKED] then
-		WARN("Tried to resume a journal transaction. There was a journal, it got interrupted before a transaction started, so nothing to resume, wiping.")
+		INFO("Tried to resume a journal transaction. There was a journal, it got interrupted before a transaction started, so nothing to resume, wiping.")
 		--[[
 		TODO: The unstarted transaction could have created
 		temporary files and directories. Clean them up.
 		]]
 		journal.finish()
 		run_state:release()
-		return {
-			["*"] = {
-				transaction = "Transaction in the journal hasn't started yet, nothing to resume"
-			}
-		}
+		return {}
 	else
 		return perform_internal(previous, status, run_state)
 	end
