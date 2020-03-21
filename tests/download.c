@@ -299,7 +299,7 @@ END_TEST
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Download");
 	TCase *down = tcase_create("download");
-	tcase_set_timeout(down, 30);
+	tcase_set_timeout(down, 120);
 	tcase_add_checked_fixture(down, system_detect, NULL); // To fill in agent with meaningful values
 	tcase_add_test(down, downloader_empty);
 	tcase_add_test(down, simple_download);
