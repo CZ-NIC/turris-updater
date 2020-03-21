@@ -140,7 +140,7 @@ static bool _dir_tree_list(const char *path, char ***list, size_t *list_len, siz
 			continue;
 		char *subpath = aprintf("%s/%s", path, ent->d_name);
 		if (_is_path_type(ent->d_type, path_type)) {
-			if (*list_size >= *list_len)
+			if (*list_len >= *list_size)
 				*list = realloc(*list, (*list_size *= 2) * sizeof *list);
 			(*list)[(*list_len)++] = strdup(subpath);
 		}
