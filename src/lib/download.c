@@ -194,8 +194,8 @@ void downloader_flush(struct downloader *d) {
 }
 
 void download_opts_def(struct download_opts *opts) {
-	opts->timeout = 120; // 2 minutes
-	opts->connect_timeout = 30; // haf of a minute
+	opts->timeout = 3600; // one hour
+	opts->connect_timeout = 60; // one minute
 	opts->retries = 3;
 	opts->follow_redirect = true;
 	opts->ssl_verify = true;
