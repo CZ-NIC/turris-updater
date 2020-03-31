@@ -30,6 +30,8 @@ const char *get_datadir();
 char *tmpdir_template(const char *identifier);
 
 
+#define TEST_STRING "Simple test string for various string operation tests."
+
 #define HTTP_APPLICATION_TEST "http://applications-test.turris.cz"
 #define HTTPS_APPLICATION_TEST "https://applications-test.turris.cz"
 

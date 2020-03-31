@@ -20,6 +20,7 @@
 #include "logging.h"
 #include "inject.h"
 #include "path_utils.h"
+#include "filebuffer.h"
 #include "util.h"
 #include <string.h>
 #include <archive.h>
@@ -292,7 +293,7 @@ static int lua_decompress(lua_State *L) {
 	size_t input_len;
 	const char *input = lua_tolstring(L, 1, &input_len);
 
-	FILE *data_f = file_read_data(input, input_len, false);
+	FILE *data_f = filebuffer_read(input, input_len, 0);
 	FILE *f = decompress(data_f, ARCHIVE_AUTOCLOSE);
 	if (f == NULL) {
 		lua_pushnil(L);

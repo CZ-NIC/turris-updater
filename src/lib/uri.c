@@ -316,13 +316,17 @@ bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
 	}
 	switch (uri->output_type) {
 		case URI_OUT_T_FILE:
-			uri->download_instance = download_file(downloader, uri->uri, uri->output_info.fpath, &opts);
+			uri->download_instance = download(downloader, uri->uri, fopen(uri->output_info.fpath, "w"), &opts);
 			break;
-		case URI_OUT_T_TEMP_FILE:
-			uri->download_instance = download_temp_file(downloader, uri->uri, uri->output_info.fpath, &opts);
+		case URI_OUT_T_TEMP_FILE: {
+			FILE *f = tmpfile();
+			// TODO uri->output_info.fpath
+			uri->download_instance = download(downloader, uri->uri, f, &opts);
 			break;
+		}
 		case URI_OUT_T_BUFFER:
-			uri->download_instance = download_data(downloader, uri->uri, &opts);
+			// TODO data pointer to store somewhere
+			uri->download_instance = download(downloader, uri->uri, filebuffer_write(NULL, FBUF_FREE_ON_CLOSE) ,  &opts);
 			break;
 	}
 	if (!uri->download_instance) {

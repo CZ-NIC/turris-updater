@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2019, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+ * Copyright 2018-2020, CZ.NIC z.s.p.o. (http://www.nic.cz/)
  *
  * This file is part of the turris updater.
  *
@@ -19,6 +19,7 @@
 #include "ctest.h"
 #include <download.h>
 #include <syscnf.h>
+#include <filebuffer.h>
 #include "test_data.h"
 
 #include <stdlib.h>
@@ -40,83 +41,18 @@ START_TEST(simple_download) {
 	struct download_opts opts;
 	download_opts_def(&opts);
 
-	struct download_i *inst = download_data(d, HTTP_LOREM_IPSUM_SHORT, &opts);
+	struct filebuffer fb;
+	FILE* f = filebuffer_write(&fb, FBUF_FREE_ON_CLOSE);
+
+	download(d, HTTP_LOREM_IPSUM_SHORT, f, &opts);
 
 	ck_assert_ptr_null(downloader_run(d));
-
-	ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, inst->out.buff->size);
-	ck_assert_str_eq(LOREM_IPSUM_SHORT, (char *)inst->out.buff->data);
-
 	downloader_free(d);
-}
-END_TEST
 
-// Test download to file. Otherwise it's same test as in case of simple_download.
-START_TEST(file_download) {
-	struct downloader *d = downloader_new(1);
-	ck_assert_ptr_null(downloader_run(d));
-	struct download_opts opts;
-	download_opts_def(&opts);
-
-	char *file = aprintf("%s/updater-download.txt", get_tmpdir());
-
-	ck_assert_ptr_nonnull(download_file(d, HTTP_LOREM_IPSUM_SHORT, file, &opts));
-
-	ck_assert_ptr_null(downloader_run(d));
-
-	char *str = readfile(file);
-	ck_assert(str);
-	ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, strlen(str));
-	ck_assert_str_eq(LOREM_IPSUM_SHORT, str);
-	free(str);
-
-	unlink(file);
-
-	downloader_free(d);
-}
-END_TEST
-
-// Test download to temporally file. We download different data to different
-// files to test that having same template we end up with two different files.
-START_TEST(temp_file_download) {
-	struct downloader *d = downloader_new(2);
-	ck_assert_ptr_null(downloader_run(d));
-	struct download_opts opts;
-	download_opts_def(&opts);
-
-	const char *tmpdir = get_tmpdir();
-	char *file1 = aprintf("%s/updater-download-temp-XXXXXX", tmpdir);
-	char *file2 = aprintf("%s/updater-download-temp-XXXXXX", tmpdir);
-
-	ck_assert_str_eq(file1, file2); // Templates are same
-
-	ck_assert_ptr_nonnull(download_temp_file(d, HTTP_LOREM_IPSUM_SHORT, file1, &opts));
-	ck_assert_ptr_nonnull(download_temp_file(d, HTTP_LOREM_IPSUM, file2, &opts));
-
-	ck_assert_str_ne(file1, file2); // Paths are not same
-
-	ck_assert_ptr_null(downloader_run(d));
-
-	char *str = readfile(file1);
-	ck_assert(str);
-	ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, strlen(str));
-	ck_assert_str_eq(LOREM_IPSUM_SHORT, str);
-	free(str);
-
-	char *lorem_ipsum_file = FILE_LOREM_IPSUM;
-	char *big_content = readfile(lorem_ipsum_file);
-	size_t big_size = strlen(big_content);
-	str = readfile(file2);
-	ck_assert(str);
-	ck_assert_uint_eq(big_size, strlen(str));
-	ck_assert_str_eq(big_content, str);
-	free(str);
-	free(big_content);
-
-	unlink(file1);
-	unlink(file2);
-
-	downloader_free(d);
+	fflush(f);
+	ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, fb.len);
+	ck_assert_mem_eq(LOREM_IPSUM_SHORT, fb.data, fb.len);
+	fclose(f);
 }
 END_TEST
 
@@ -131,12 +67,14 @@ START_TEST(multiple_downloads) {
 	download_opts_def(&opts);
 
 	const size_t cnt = 32;
-	struct download_i *insts[cnt];
+	struct filebuffer fbs[cnt];
+	FILE *fs[cnt];
 	for (size_t i = 0; i < cnt; i++) {
+		fs[i] = filebuffer_write(&fbs[i], FBUF_FREE_ON_CLOSE);
 		if (i % 2)
-			insts[i] = download_data(d, HTTP_LOREM_IPSUM_SHORT, &opts);
+			download(d, HTTP_LOREM_IPSUM_SHORT, fs[i], &opts);
 		else
-			insts[i] = download_data(d, HTTP_LOREM_IPSUM, &opts);
+			download(d, HTTP_LOREM_IPSUM, fs[i], &opts);
 	}
 
 	ck_assert_ptr_null(downloader_run(d));
@@ -146,13 +84,15 @@ START_TEST(multiple_downloads) {
 	size_t big_size = strlen(big_content);
 
 	for (size_t i = 0; i < cnt; i++) {
+		fflush(fs[i]);
 		if (i % 2) {
-			ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, insts[i]->out.buff->size);
-			ck_assert_str_eq(LOREM_IPSUM_SHORT, (char *)insts[i]->out.buff->data);
+			ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, fbs[i].len);
+			ck_assert_mem_eq(LOREM_IPSUM_SHORT, fbs[i].data, fbs[i].len);
 		} else {
-			ck_assert_uint_eq(big_size, insts[i]->out.buff->size);
-			ck_assert_str_eq(big_content, (char *)insts[i]->out.buff->data);
+			ck_assert_uint_eq(big_size, fbs[i].len);
+			ck_assert_mem_eq(big_content, fbs[i].data, fbs[i].len);
 		}
+		fclose(fs[i]);
 	}
 
 	free(big_content);
@@ -169,12 +109,18 @@ START_TEST(free_instances) {
 
 	const size_t cnt = 16;
 	struct download_i *insts[cnt];
-	for (size_t i = 0; i < cnt; i++)
-		insts[i] = download_data(d, HTTP_LOREM_IPSUM, &opts);
+	struct filebuffer fbs[cnt];
+	FILE *fs[cnt];
+	for (size_t i = 0; i < cnt; i++) {
+		fs[i] = filebuffer_write(&fbs[i], FBUF_FREE_ON_CLOSE);
+		insts[i] = download(d, HTTP_LOREM_IPSUM, fs[i], &opts);
+	}
 
 	// Free half of the instances
-	for (size_t i = 0; i < cnt; i += 2)
+	for (size_t i = 0; i < cnt; i += 2) {
 		download_i_free(insts[i]);
+		fclose(fs[i]);
+	}
 
 	ck_assert_ptr_null(downloader_run(d));
 
@@ -183,12 +129,10 @@ START_TEST(free_instances) {
 	size_t size = strlen(content);
 
 	for (size_t i = 1; i < cnt; i += 2) {
-		char *data;
-		size_t dsize;
-		download_i_collect_data(insts[i], (uint8_t**)&data, &dsize);
-		ck_assert_uint_eq(size, dsize);
-		ck_assert_str_eq(content, data);
-		free(data);
+		fflush(fs[i]);
+		ck_assert_uint_eq(size, fbs[i].len);
+		ck_assert_mem_eq(content, fbs[i].data, fbs[i].len);
+		fclose(fs[i]);
 	}
 
 	free(content);
@@ -203,11 +147,14 @@ START_TEST(invalid) {
 	struct download_opts opts;
 	download_opts_def(&opts);
 
-	struct download_i *inst = download_data(d, HTTP_APPLICATION_TEST "/invalid", &opts);
+	struct filebuffer fb;
+	FILE *f = filebuffer_write(&fb, FBUF_FREE_ON_CLOSE);
+	struct download_i *inst = download(d, HTTP_APPLICATION_TEST "/invalid", f, &opts);
 
 	ck_assert_ptr_eq(downloader_run(d), inst);
 
 	downloader_free(d);
+	fclose(f);
 }
 END_TEST
 
@@ -219,17 +166,26 @@ START_TEST(invalid_continue) {
 	download_opts_def(&opts);
 
 	const size_t cnt = 3;
-	struct download_i *insts[cnt];
-	for (size_t i = 0; i < cnt; i++)
-		insts[i] = download_data(d, HTTP_LOREM_IPSUM_SHORT, &opts);
-	struct download_i *fail_inst = download_data(d, HTTP_APPLICATION_TEST "/invalid", &opts);
+	struct filebuffer fbs[cnt];
+	FILE *fs[cnt];
+	for (size_t i = 0; i < cnt; i++) {
+		fs[i] = filebuffer_write(&fbs[i], FBUF_FREE_ON_CLOSE);
+		download(d, HTTP_LOREM_IPSUM_SHORT, fs[i], &opts);
+	}
+
+	struct filebuffer ffb;
+	FILE *ffs = filebuffer_write(&ffb, FBUF_FREE_ON_CLOSE);
+	struct download_i *fail_inst = download(d, HTTP_APPLICATION_TEST "/invalid", ffs, &opts);
 
 	ck_assert_ptr_eq(downloader_run(d), fail_inst);
 	ck_assert_ptr_null(downloader_run(d));
 
+	fclose(ffs);
 	for (size_t i = 0; i < cnt; i++) {
-		ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, insts[i]->out.buff->size);
-		ck_assert_str_eq(LOREM_IPSUM_SHORT, (char *)insts[i]->out.buff->data);
+		fflush(fs[i]);
+		ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, fbs[i].len);
+		ck_assert_mem_eq(LOREM_IPSUM_SHORT, fbs[i].data, fbs[i].len);
+		fclose(fs[i]);
 	}
 
 	downloader_free(d);
@@ -246,14 +202,18 @@ START_TEST(cert_pinning) {
 	opts.cacert_file = FILE_LETS_ENCRYPT_ROOTS;
 	opts.capath = "/dev/null";
 
-	struct download_i *inst = download_data(d, HTTP_LOREM_IPSUM_SHORT, &opts);
+	struct filebuffer fb;
+	FILE *f = filebuffer_write(&fb, FBUF_FREE_ON_CLOSE);
+	download(d, HTTP_LOREM_IPSUM_SHORT, f, &opts);
 
 	ck_assert_ptr_null(downloader_run(d));
 
-	ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, inst->out.buff->size);
-	ck_assert_str_eq(LOREM_IPSUM_SHORT, (char *)inst->out.buff->data);
+	fflush(f);
+	ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, fb.len);
+	ck_assert_mem_eq(LOREM_IPSUM_SHORT, fb.data, fb.len);
 
 	downloader_free(d);
+	fclose(f);
 }
 END_TEST
 
@@ -267,33 +227,14 @@ START_TEST(cert_invalid) {
 	opts.cacert_file = FILE_OPENTRUST_CA_G1;
 	opts.capath = "/dev/null";
 
-	struct download_i *inst = download_data(d, HTTP_LOREM_IPSUM_SHORT, &opts);
+	struct filebuffer fb;
+	FILE *f = filebuffer_write(&fb, FBUF_FREE_ON_CLOSE);
+	struct download_i *inst = download(d, HTTP_LOREM_IPSUM_SHORT, f, &opts);
 
 	ck_assert_ptr_eq(downloader_run(d), inst);
 
 	downloader_free(d);
-}
-END_TEST
-
-// Test that we are able to overtake buffer
-START_TEST(collect_data) {
-	struct downloader *d = downloader_new(1);
-	ck_assert_ptr_null(downloader_run(d));
-	struct download_opts opts;
-	download_opts_def(&opts);
-
-	struct download_i *inst = download_data(d, HTTP_LOREM_IPSUM_SHORT, &opts);
-
-	ck_assert_ptr_null(downloader_run(d));
-
-	uint8_t *data;
-	size_t size;
-	download_i_collect_data(inst, &data, &size);
-	ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, size);
-	ck_assert_str_eq(LOREM_IPSUM_SHORT, (char *)data);
-
-	free(data);
-	downloader_free(d);
+	fclose(f);
 }
 END_TEST
 
@@ -306,14 +247,11 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(down, downloader_empty);
 	tcase_add_test(down, simple_download);
 	tcase_add_test(down, multiple_downloads);
-	tcase_add_test(down, file_download);
-	tcase_add_test(down, temp_file_download);
 	tcase_add_test(down, free_instances);
 	tcase_add_test(down, invalid);
 	tcase_add_test(down, invalid_continue);
 	tcase_add_test(down, cert_pinning);
 	tcase_add_test(down, cert_invalid);
-	tcase_add_test(down, collect_data);
 	suite_add_tcase(result, down);
 	return result;
 }

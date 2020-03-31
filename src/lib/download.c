@@ -1,5 +1,5 @@
 /*
- * Copyright 2018, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+ * Copyright 2018-2020, CZ.NIC z.s.p.o. (http://www.nic.cz/)
  *
  * This file is part of the turris updater.
  *
@@ -209,44 +209,32 @@ void download_opts_def(struct download_opts *opts) {
 static size_t download_write_callback(char *ptr, size_t size, size_t nmemb, void *userd) {
 	struct download_i *inst = userd;
 	size_t rsize = size * nmemb;
-	switch (inst->out_t) {
-		case DOWN_OUT_T_FILE: {
-			size_t remb = rsize;
-			while (remb > 0) {
-				size_t ds = write(inst->out.file->fd, ptr, remb);
-				if (ds == (size_t)-1) {
-					if (errno == EINTR)
-						continue; // interrupted so try again
-					else {
-						char *url;
-						ASSERT_CURL(curl_easy_getinfo(inst->curl, CURLINFO_EFFECTIVE_URL, &url));
-						ERROR("(%s) Data write to file failed: %s", url, strerror(errno));
-						return 0; // value other then rsize signals write error to libcurl
-					}
-				}
-				remb -= ds;
-			}
-			break;
-			}
-		case DOWN_OUT_T_BUFFER:
-			inst->out.buff->data = realloc(inst->out.buff->data, inst->out.buff->size + rsize + 1);
-			memcpy(inst->out.buff->data + inst->out.buff->size, ptr, rsize);
-			inst->out.buff->size += rsize;
-			inst->out.buff->data[inst->out.buff->size] = '\0';
-			break;
+	size_t remb = rsize;
+	while (remb > 0) {
+		ssize_t ds = fwrite(ptr, 1, remb, inst->output);
+		if (ds == -1) {
+			if (errno == EINTR)
+				continue; // interrupted so try again
+			char *url;
+			ASSERT_CURL(curl_easy_getinfo(inst->curl, CURLINFO_EFFECTIVE_URL, &url));
+			ERROR("(%s) Data write failed: %s", url, strerror(errno));
+			return 0; // value other then rsize signals write error to libcurl
+		}
+		remb -= (size_t)ds;
 	}
 	return rsize;
 }
 
-static struct download_i *init_instance(struct download_i *inst,
-		struct downloader *downloader, const char *url,
-		const struct download_opts *opts, enum download_output_type type) {
+struct download_i *download(struct downloader *downloader, const char *url,
+		FILE *output, const struct download_opts *opts) {
+	struct download_i *inst = malloc(sizeof *inst);
+	inst->output = output;
+	TRACE("Download url: %s", url);
 	// TODO TRACE configured options
 	inst->done = false;
 	inst->success = false;
 	inst->retries = opts->retries;
 	inst->downloader = downloader;
-	inst->out_t = type;
 
 	inst->curl = curl_easy_init();
 	ASSERT_MSG(inst->curl, "Curl download instance creation failed");
@@ -293,50 +281,6 @@ static struct download_i *init_instance(struct download_i *inst,
 	return inst;
 }
 
-struct download_i *download_file(struct downloader *downloader, const char *url,
-		const char *output_path, const struct download_opts *opts) {
-	struct download_i *inst = malloc(sizeof *inst);
-	inst->out.file = malloc(sizeof *inst->out.file);
-	// Note: For some reason umask seems to be sometime changed. So we set here our own explicitly.
-	inst->out.file->fd = open(output_path, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-	if (inst->out.file->fd == -1) {
-		ERROR("(%s) Opening output file \"%s\" failed: %s", url, output_path, strerror(errno));
-		free(inst->out.file);
-		free(inst);
-		return NULL;
-	}
-	inst->out.file->fpath = strdup(output_path);
-	TRACE("Downloder: url %s to file %s", url, output_path);
-	return init_instance(inst, downloader, url, opts, DOWN_OUT_T_FILE);
-}
-
-struct download_i *download_temp_file(struct downloader *downloader,
-		const char *url, char *output_template,
-		const struct download_opts *opts) {
-	struct download_i *inst = malloc(sizeof *inst);
-	inst->out.file = malloc(sizeof *inst->out.file);
-	inst->out.file->fd = mkstemp(output_template);
-	if (inst->out.file->fd == -1) {
-		ERROR("(%s) Opening temporally output file \"%s\" failed: %s", url, output_template, strerror(errno));
-		free(inst->out.file);
-		free(inst);
-		return NULL;
-	}
-	inst->out.file->fpath = strdup(output_template);
-	TRACE("Downloder: url %s to temporally file %s", url, output_template);
-	return init_instance(inst, downloader, url, opts, DOWN_OUT_T_FILE);
-}
-
-struct download_i *download_data(struct downloader *downloader, const char *url,
-		const struct download_opts *opts) {
-	struct download_i *inst = malloc(sizeof *inst);
-	inst->out.buff = malloc(sizeof *inst->out.buff);
-	inst->out.buff->size = 0;
-	inst->out.buff->data = NULL;
-	TRACE("Downloder: url %s to buffer", url);
-	return init_instance(inst, downloader, url, opts, DOWN_OUT_T_BUFFER);
-}
-
 void download_i_free(struct download_i *inst) {
 	TRACE("Downloader: free instance");
 	// Remove instance from downloader
@@ -351,31 +295,5 @@ void download_i_free(struct download_i *inst) {
 	// Free instance it self
 	ASSERT_CURLM(curl_multi_remove_handle(inst->downloader->cmulti, inst->curl)); // remove download from multi handler
 	curl_easy_cleanup(inst->curl); // and clean download (also closing running connection)
-	switch (inst->out_t) {
-		case DOWN_OUT_T_FILE:
-			close(inst->out.file->fd);
-			if (!inst->done || !inst->success) // remove unfinished file
-				unlink(inst->out.file->fpath);
-			free(inst->out.file->fpath);
-			free(inst->out.file);
-			break;
-		case DOWN_OUT_T_BUFFER:
-			if (inst->out.buff->data)
-				free(inst->out.buff->data);
-			free(inst->out.buff);
-			break;
-	}
 	free(inst);
-}
-
-void download_i_collect_data(struct download_i *inst, uint8_t **data, size_t *size) {
-	if (inst->out_t == DOWN_OUT_T_BUFFER) {
-		*data = inst->out.buff->data;
-		*size = inst->out.buff->size;
-		inst->out.buff->data = NULL;
-	} else {
-		*data = NULL;
-		*size = 0;
-	}
-	download_i_free(inst);
 }

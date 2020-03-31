@@ -1,5 +1,5 @@
 /*
- * Copyright 2018, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+ * Copyright 2018-2020, CZ.NIC z.s.p.o. (http://www.nic.cz/)
  *
  * This file is part of the turris updater.
  *
@@ -53,30 +53,15 @@ struct download_opts {
 	const char *crl_file; // Path to custom CA crl
 };
 
-enum download_output_type {
-	DOWN_OUT_T_FILE,
-	DOWN_OUT_T_BUFFER
-};
-
 // Download instance. Identifier of single download.
 struct download_i {
-	bool done; // What ever is download finished
+	bool done; // If download is finished
 	bool success; // If download was successful. Not valid if done is false.
 	char error[CURL_ERROR_SIZE]; // error message if download fails
 	int retries; // Number of reties we have
 	struct downloader *downloader; // parent downloader
 
-	enum download_output_type out_t; // What output this instance utilizes
-	union {
-		struct {
-			int fd; // File descriptor
-			char *fpath; // Path to output file
-		} *file; // Used when writing to file
-		struct {
-			uint8_t *data; // Buffer for output data
-			size_t size; // Amount of downloaded data
-		} *buff; // Used when writing to buffer
-	} out; // Output data
+	FILE *output;
 
 	CURL *curl; // easy curl session
 };
@@ -103,42 +88,17 @@ void downloader_flush(struct downloader*) __attribute__((nonnull));
 // freed.
 void download_opts_def(struct download_opts *opts) __attribute__((nonnull));
 
-// Register given URL to be downloaded to file.
+// Register given URL to be downloaded.
+// downloader: 
 // url: URL data are downloaded from
-// output_path: Path where data are going to be stored (written to)
 // opts: Download options (does not have to exist during instance existence)
+// file: FILE pointer in which received data will be written
 // Returns download instance
-struct download_i *download_file(struct downloader *downloader, const char *url,
-		const char *output_path, const struct download_opts *opts)
+struct download_i *download(struct downloader *downloader, const char *url,
+		FILE *output, const struct download_opts *opts)
 	__attribute__((nonnull(1, 2, 3, 4)));
-
-// Register given URL to be downloaded to temporally file. Output file path is
-// generated using mkstemp function.
-// url: URL data are downloaded from
-// output_template: Template for path where data are going to be stored (written
-//   to). Passed string has to end with XXXXXX and is modified to contain used
-//   path. This string should be freed only after download instance is freed.
-// opts: Download options (does not have to exist during instance existence)
-// Returns download instance
-struct download_i *download_temp_file(struct downloader *downloader,
-		const char *url, char *output_template, const struct download_opts *opts)
-	__attribute__((nonnull(1, 2, 3, 4)));
-
-// Register given URL to be downloaded to internal buffer.
-// url: URL data are downloaded from
-// opts: Download options (does not have to exist during instance existence)
-// Returns download instance
-struct download_i *download_data(struct downloader *downloader, const char *url,
-		const struct download_opts *opts) __attribute__((nonnull(1, 2, 3)));
 
 // Free download instance
 void download_i_free(struct download_i*) __attribute__((nonnull));
-
-// This is same as download_i_free but where download_i_free just frees downloaded
-// buffer, this passes it to caller. Instance is freed the same way as in case of
-// download_i_free but data buffer has to be freed later by caller.
-// In other words this overtakes allocated buffer and frees rest of instance.
-// This can be called only on instance that was created by download_data.
-void download_i_collect_data(struct download_i*, uint8_t **data, size_t *size);
 
 #endif
