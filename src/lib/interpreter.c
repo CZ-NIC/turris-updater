@@ -371,61 +371,6 @@ static int lua_run_util(lua_State *L) {
 	return lua_run_generic(L, true);
 }
 
-struct lua_download_data {
-	lua_State *L;
-	char *callback;
-};
-
-static void download_callback(struct wait_id id __attribute__((unused)), void *data, int status, size_t out_size, const char *out) {
-	struct lua_download_data *d = data;
-	struct lua_State *L = d->L;
-	ASSERT(L);
-	// This may be called from C code with a dirty stack
-	luaL_checkstack(L, 4, "Not enough stack space to call download callback");
-	int handler = push_err_handler(L);
-	// Get the lua function.
-	ASSERT(d->callback);
-	extract_registry_value(L, d->callback);
-	/*
-	 * We terminated the command, we won't need it any more.
-	 * Make sure we don't leak even if the lua throws or whatever.
-	 */
-	free(d);
-	lua_pushinteger(L, status);
-	lua_pushlstring(L, out, out_size);
-	int result = lua_pcall(L, 2, 0, handler);
-	ASSERT_MSG(!result, "%s", interpreter_error_result(L));
-}
-
-static int lua_download(lua_State *L) {
-	// Flush the lua output (it seems to buffered separately)
-	do_flush(L, "stdout");
-	do_flush(L, "stderr");
-	// Extract params
-	luaL_checktype(L, 1, LUA_TFUNCTION);
-	int pcount = lua_gettop(L);
-	const char *url = luaL_checkstring(L, 2);
-	const char *cacert = NULL;
-	if (pcount >= 3 && !lua_isnil(L, 3))
-		cacert = luaL_checkstring(L, 3);
-	const char *crl = NULL;
-	if (pcount >= 4 && !lua_isnil(L, 4))
-		crl = luaL_checkstring(L, 4);
-	bool ocsp = lua_toboolean(L, 5);
-	bool ssl = lua_toboolean(L, 6);
-	// Handle the callback
-	struct lua_download_data *data = malloc(sizeof *data);
-	data->L = L;
-	data->callback = register_value(L, 1);
-	// Run the download
-	struct events *events = extract_registry(L, "events");
-	ASSERT(events);
-	struct wait_id id = download(events, download_callback, data, url, cacert, crl, ocsp, ssl);
-	// Return the ID
-	push_wid(L, &id);
-	return 1;
-}
-
 static int lua_events_wait(lua_State *L) {
 	// All the parameters here are the wait_id userdata. We need to put them into an array.
 	size_t event_count = lua_gettop(L);
@@ -925,7 +870,6 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_cleanup_unregister_handle, "cleanup_unregister_handle" },
 	{ lua_run_command, "run_command" },
 	{ lua_run_util, "run_util" },
-	{ lua_download, "download" },
 	{ lua_events_wait, "events_wait" },
 	/*
 	 * Note: watch_cancel is not provided, because it would be hell to

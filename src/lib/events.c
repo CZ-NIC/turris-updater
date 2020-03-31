@@ -68,20 +68,6 @@ struct watched_command {
 	struct bufferevent *output_buffer, *error_buffer, *input_buffer;
 };
 
-struct download_data {
-	struct events *events;
-	uint64_t id;
-	CURL *curl; // easy curl session
-	int retry;
-	char *data;
-	size_t data_len;
-	char curl_err[CURL_ERROR_SIZE];
-	struct wait_id wait_id;
-	download_callback_t callback;
-	int status;
-	void *udata;
-};
-
 struct events {
 	struct event_base *base;
 	struct watched_child *children;
@@ -91,11 +77,6 @@ struct events {
 	struct event *child_event;
 	struct watched_command **commands;
 	size_t command_count, command_alloc;
-	struct download_data **downloads;
-	size_t download_count, download_alloc;
-	CURLM *curl_multi;
-	struct event *curl_timer;
-	uint64_t download_next_id;
 	/*
 	 * The event_base_loop is unable to work recursively
 	 * (eg. running event_base_loop from within a callback from another
@@ -106,10 +87,6 @@ struct events {
 	size_t pending_alloc, pending_count;
 	struct wait_id *pending;
 };
-
-static int download_socket_cb(CURL *curl_easy, curl_socket_t s, int what, void *userp, void *socketp);
-static int download_timer_set(CURLM *curl_multi, long timeout_ms, void *userp);
-static void download_timer_cb(int fd, short kind, void *userp);
 
 #define ASSERT_CURL(X) ASSERT((X) == CURLE_OK)
 #define ASSERT_CURLM(X) ASSERT((X) == CURLM_OK)
@@ -139,17 +116,6 @@ struct events *events_new(void) {
 	};
 	ASSERT_MSG(result->base, "Failed to allocate the libevent event loop");
 	event_config_free(config);
-
-	ASSERT_MSG(!curl_global_init(CURL_GLOBAL_SSL), "Curl initialization failed");
-	ASSERT(result->curl_multi = curl_multi_init());
-#define CURLM_SETOPT(OPT, VAL) ASSERT_CURLM(curl_multi_setopt(result->curl_multi, OPT, VAL))
-	CURLM_SETOPT(CURLMOPT_MAX_TOTAL_CONNECTIONS, DOWNLOAD_SLOTS);
-	CURLM_SETOPT(CURLMOPT_SOCKETFUNCTION, download_socket_cb);
-	CURLM_SETOPT(CURLMOPT_SOCKETDATA, result);
-	CURLM_SETOPT(CURLMOPT_TIMERFUNCTION, download_timer_set);
-	CURLM_SETOPT(CURLMOPT_TIMERDATA, result);
-#undef CURLM_SETOPT
-	result->curl_timer = evtimer_new(result->base, download_timer_cb, result);
 
 #ifdef BUSYBOX_EMBED
 	run_util_init();
@@ -677,207 +643,6 @@ struct wait_id run_util_a(struct events* events, command_callback_t callback, po
 
 #endif /* BUSYBOX_EMBED */
 
-static ssize_t download_index_lookup(struct events *events, uint64_t id) {
-	for (size_t i = 0; i < events->download_count; i++) {
-		if (events->downloads[i]->id == id)
-			return i;
-	}
-
-	return -1;
-}
-
-static void download_free(struct download_data *download) {
-	// Kill this download; free the download slot and remove it from active downloads
-	ssize_t my_index = download_index_lookup(download->events, download->id);
-	// At this point should exists at least one process - this one
-	ASSERT(my_index != -1);
-	download->events->downloads[my_index] = download->events->downloads[-- download->events->download_count];
-
-	char *url;
-	curl_easy_getinfo(download->curl, CURLINFO_EFFECTIVE_URL, &url);
-	ASSERT_CURLM(curl_multi_remove_handle(download->events->curl_multi, download->curl)); // remove download from multi handler
-	curl_easy_cleanup(download->curl); // and clean download (also closing running connection)
-	free(download->data);
-	free(download);
-}
-
-static struct download_data *download_lookup(struct events *events, uint64_t id) {
-	ssize_t index = download_index_lookup(events, id);
-
-	// -1 ~ not found
-	return (index == -1) ? NULL : events->downloads[index];
-}
-
-static bool download_check_info(CURLM *curl_multi) {
-	CURLMsg *msg;
-	int msgs_left;
-	struct download_data *data;
-	char *url;
-	bool new_handle = false;
-
-	while ((msg = curl_multi_info_read(curl_multi, &msgs_left))) {
-		if (msg->msg != CURLMSG_DONE)
-			continue; // No other message types are defined in libcurl. We check just because of compatibility with possible future versions.
-		ASSERT_CURL(curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE, &data));
-		ASSERT_CURL(curl_easy_getinfo(msg->easy_handle, CURLINFO_EFFECTIVE_URL, &url));
-		if (msg->data.result == CURLE_OK) {
-			DBG("Download succesfull (%s)", url);
-			data->status = 200;
-			event_postpone(data->events, data->wait_id); // postpone call to callback
-		} else if (data->retry < DOWNLOAD_RETRY) { // retry download
-			DBG("Download failed, trying again %d (%s): %s", data->retry, url, data->curl_err);
-			data->curl = curl_easy_duphandle(msg->easy_handle);
-			ASSERT_CURLM(curl_multi_remove_handle(curl_multi, msg->easy_handle));
-			curl_easy_cleanup(msg->easy_handle);
-			ASSERT_CURLM(curl_multi_add_handle(curl_multi, data->curl));
-			data->retry++;
-			new_handle = true;
-		} else {
-			DBG("Download failed (%s): %s", url, data->curl_err);
-			data->status = 500;
-			event_postpone(data->events, data->wait_id); // postpone call to callback
-		}
-	}
-	return new_handle;
-}
-
-struct download_socket_data {
-	struct events *events;
-	struct event *ev;
-};
-
-// Event callback on action
-static void download_event_cb(int fd, short kind, void *userp) {
-	struct download_socket_data *sdata = userp;
-	int action = ((kind & EV_READ) ? CURL_CSELECT_IN : 0) | ((kind & EV_WRITE) ? CURL_CSELECT_OUT : 0);
-	int running = 0;
-	struct events *events = sdata->events; // in curl_multi_socket_action sdata can be freed so we can't expect it to exist after it
-	ASSERT_CURLM(curl_multi_socket_action(sdata->events->curl_multi, fd, action, &running)); // curl do
-	bool new_handle = download_check_info(events->curl_multi);
-	if (!new_handle && running <= 0 && evtimer_pending(events->curl_timer, NULL)) { // All transfers are done. Stop timer.
-		evtimer_del(events->curl_timer);
-	}
-}
-
-// Curl callback to set watched sockets
-static int download_socket_cb(CURL *curl_easy, curl_socket_t s, int what, void *userp, void *socketp) {
-	struct download_socket_data *data;
-	char *url;
-	ASSERT_CURL(curl_easy_getinfo(curl_easy, CURLINFO_EFFECTIVE_URL, &url));
-	ASSERT_CURL(curl_easy_getinfo(curl_easy, CURLINFO_PRIVATE, &data));
-	struct events *events = userp;
-	struct download_socket_data *sdata = socketp;
-	if (what == CURL_POLL_REMOVE) {
-		event_free(sdata->ev);
-		free(sdata);
-	} else {
-		if (!sdata) { // New socket. No data associated.
-			sdata = malloc(sizeof *sdata);
-			*sdata = (struct download_socket_data) {
-				.events = events,
-				.ev = NULL,
-			};
-			sdata->ev = 0;
-			ASSERT_CURLM(curl_multi_assign(events->curl_multi, s, sdata));
-		}
-		short kind = ((what & CURL_POLL_IN) ? EV_READ : 0) | ((what & CURL_POLL_OUT) ? EV_WRITE : 0) | EV_PERSIST;
-		if (sdata->ev) {
-			event_del(sdata->ev);
-			event_assign(sdata->ev, events->base, s, kind, download_event_cb, sdata);
-		} else
-			sdata->ev = event_new(events->base, s, kind, download_event_cb, sdata);
-		event_add(sdata->ev, NULL);
-	}
-	return 0;
-}
-
-// Curl callback to set timer
-static int download_timer_set(CURLM *curl_multi __attribute__((unused)), long timeout_ms, void *userp) {
-	struct events *events = userp;
-	struct timeval timeout;
-	timeout.tv_sec = timeout_ms / 1000;
-	timeout.tv_usec = (timeout_ms % 1000) * 1000;
-	evtimer_add(events->curl_timer, &timeout);
-	return 0;
-}
-
-// Event timer called on timer configured by curl timer callback
-static void download_timer_cb(int fd __attribute__((unused)), short kind __attribute__((unused)), void *userp) {
-	struct events *events = userp;
-	int running = 0;
-	ASSERT_CURLM(curl_multi_socket_action(events->curl_multi, CURL_SOCKET_TIMEOUT, 0, &running));
-	download_check_info(events->curl_multi);
-}
-
-// Called by libcurl to store downloaded data
-static size_t download_write_callback(char *ptr, size_t size, size_t nmemb, void *userd) {
-	struct download_data *data = userd;
-	size_t rsize = size * nmemb;
-	size_t end = data->data_len;
-	data->data_len += rsize;
-	data->data = realloc(data->data, data->data_len);
-	memcpy(data->data + end, ptr, rsize);
-	return rsize;
-}
-
-struct wait_id download(struct events *events, download_callback_t callback, void *data, const char *url, const char *cacert, const char *crl, bool ocsp, bool ssl) {
-	DBG("Downloading %s", url);
-	struct download_data *res = malloc(sizeof *res);
-	*res = (struct download_data) {
-		.events = events,
-		.id = events->download_next_id,
-		.data = NULL,
-		.retry = 1,
-		.callback = callback,
-		.udata = data,
-		.curl_err = ""
-	};
-	const char user_agent[] = "Turris Updater/" PACKAGE_VERSION;
-	res->curl = curl_easy_init();
-	ASSERT_MSG(res->curl, "Curl download instance creation failed");
-#define CURL_SETOPT(OPT, VAL) ASSERT_CURL(curl_easy_setopt(res->curl, OPT, VAL))
-	CURL_SETOPT(CURLOPT_URL, url);
-	CURL_SETOPT(CURLOPT_ACCEPT_ENCODING, ""); // Enable all supported built-in compressions
-	CURL_SETOPT(CURLOPT_TIMEOUT, 120); // Timeout after 2 minutes per try so in total with possible 2 repeats it's 6 minutes (3*2)
-	CURL_SETOPT(CURLOPT_CONNECTTIMEOUT, 30); // Timeout connection after half of a minute.
-	CURL_SETOPT(CURLOPT_FAILONERROR, 1); // If we use http and request fails (response >= 400) request also fails. TODO according to documentation this doesn't cover authentications errors. If authentication is added, this won't be enough.
-	CURL_SETOPT(CURLOPT_USERAGENT, user_agent); // We set our own User Agent, so our server knows we're not just some bot
-	if (ssl) {
-		if (cacert)
-			CURL_SETOPT(CURLOPT_CAINFO, cacert);
-		if (crl)
-			CURL_SETOPT(CURLOPT_CRLFILE, crl);
-		CURL_SETOPT(CURLOPT_SSL_VERIFYSTATUS, ocsp);
-	} else
-		CURL_SETOPT(CURLOPT_SSL_VERIFYPEER, 0L);
-	CURL_SETOPT(CURLOPT_WRITEFUNCTION, download_write_callback);
-	CURL_SETOPT(CURLOPT_WRITEDATA, res);
-	CURL_SETOPT(CURLOPT_ERRORBUFFER, res->curl_err);
-	CURL_SETOPT(CURLOPT_PRIVATE, res);
-	// TODO We might set XFERINFOFUNCTION here to use it for reporting progress of download to user.
-#undef CURL_SETOPT
-	ASSERT_CURLM(curl_multi_add_handle(events->curl_multi, res->curl));
-
-	ENSURE_FREE(downloads, download_count, download_alloc);
-	events->downloads[events->download_count++] = res;
-
-	res->wait_id = (struct wait_id) {
-		.type = WT_DOWNLOAD,
-		.id = events->download_next_id,
-		.pointers = {
-			.download = res
-		}
-	};
-
-	events->download_next_id++;
-
-	return res->wait_id;
-}
-
-void download_slot_count_set(struct events *events, size_t count) {
-	ASSERT_CURLM(curl_multi_setopt(events->curl_multi, CURLMOPT_MAX_TOTAL_CONNECTIONS, count));
-}
-
 static struct watched_command *command_lookup(struct events *events, struct watched_command *command, pid_t pid) {
 	/*
 	 * Check that such pointer is registered in the events structure
@@ -908,13 +673,6 @@ void watch_cancel(struct events *events, struct wait_id id) {
 			struct watched_command *c = command_lookup(events, id.pointers.command, id.pid);
 			if (c)
 				command_free(c);
-			break;
-		}
-		case WT_DOWNLOAD: {
-			struct download_data *d = download_lookup(events, id.id);
-			if (d) {
-				download_free(d);
-			}
 			break;
 		}
 	}
@@ -988,21 +746,6 @@ void events_wait(struct events *events, size_t nid, struct wait_id *ids) {
 					command_free(cmd);
 					break;
 				}
-				case WT_DOWNLOAD: {
-					struct download_data *data = id.pointers.download;
-					switch (data->status) {
-						case 200:
-							data->callback(data->wait_id, data->udata, 200, data->data_len, data->data);
-							break;
-						case 500:
-							data->callback(data->wait_id, data->udata, 500, strlen(data->curl_err), data->curl_err);
-							break;
-						default:
-							DIE("Unknown download status");
-					}
-					download_free(data);
-					break;
-				}
 				default:
 					DIE("Unknown pending event found");
 			}
@@ -1025,9 +768,6 @@ void events_wait(struct events *events, size_t nid, struct wait_id *ids) {
 					break;
 				case WT_COMMAND:
 					found = command_lookup(events, ids->pointers.command, ids->pid);
-					break;
-				case WT_DOWNLOAD:
-					found = download_lookup(events, ids->id);
 					break;
 			}
 			if (found)
@@ -1053,17 +793,11 @@ void events_destroy(struct events *events) {
 		ASSERT(!close(events->self_chld_read));
 		ASSERT(!close(events->self_chld_write));
 	}
-	while (events->download_count)
-		download_free(events->downloads[0]);
-	event_free(events->curl_timer);
-	curl_multi_cleanup(events->curl_multi);
-	curl_global_cleanup(); // We call this for every curl_global_init call.
 	while (events->command_count)
 		command_free(events->commands[0]);
 	event_base_free(events->base);
 	free(events->children);
 	free(events->commands);
-	free(events->downloads);
 	free(events->pending);
 	free(events);
 #ifdef BUSYBOX_EMBED
