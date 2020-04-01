@@ -34,6 +34,9 @@ typedef struct downloader* downloader_t;
 struct download_i;
 typedef struct download_i* download_i_t;
 
+// PEM used for CA certificates and CRLs
+struct download_pem;
+typedef struct download_pem* download_pem_t;
 
 // Download options (additional options configuring security and more)
 struct download_opts {
@@ -46,13 +49,14 @@ struct download_opts {
 	const char *cacert_file; // Path to custom CA certificate bundle
 	const char *capath; // Path to directory containing CA certificates
 	const char *crl_file; // Path to custom CA crl
+	const download_pem_t *pems; // NULL terminated array of PEM certificates
 };
 
 
 // Initialize new download manager
 // parallel: Number of possible parallel downloadings
 // Returns new instance of downloader
-downloader_t downloader_new(int parallel);
+downloader_t downloader_new(int parallel) __attribute__((malloc));
 
 // Free given instance of downloader
 void downloader_free(downloader_t) __attribute__((nonnull));
@@ -70,14 +74,24 @@ void downloader_flush(downloader_t) __attribute__((nonnull));
 //   are NOT freed.
 void download_opts_def(struct download_opts *opts) __attribute__((nonnull));
 
+// Initialize/load certificate in PEM format
+// pem: data with certificate in PEM format
+// len: size of data
+// Returns new download_pem_t instance.
+download_pem_t download_pem(const uint8_t *pem, size_t len)
+	__attribute__((nonnull(1),malloc));
+
+// Free download_pem_t instance
+void download_pem_free(download_pem_t) __attribute__((nonnull));
+
 // Register given URL to be downloaded.
 // downloader: downloader instance to register download to
 // url: URL data are downloaded from
 // opts: Download options (does not have to exist during instance existence)
 // file: FILE pointer in which received data will be written
-// Returns download instance
+// Returns download instance.
 download_i_t download(downloader_t, const char *url, FILE *output,
-		const struct download_opts *opts) __attribute__((nonnull));
+		const struct download_opts *opts) __attribute__((nonnull,malloc));
 
 // Free download instance
 void download_i_free(download_i_t) __attribute__((nonnull));

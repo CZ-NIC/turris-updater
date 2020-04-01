@@ -23,6 +23,8 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <string.h>
+#include <openssl/err.h>
+#include <openssl/ssl.h>
 #include "syscnf.h"
 
 // Initial size of storage buffer
@@ -53,6 +55,11 @@ struct download_i {
 	struct downloader *downloader; // parent downloader
 	FILE *output;
 	CURL *curl; // easy curl session
+};
+
+struct download_pem {
+	BIO *cbio;
+	STACK_OF(X509_INFO) *info;
 };
 
 static bool download_check_info(struct downloader *downloader) {
@@ -225,6 +232,20 @@ void download_opts_def(struct download_opts *opts) {
 	opts->cacert_file = NULL; // In default use system CAs
 	opts->capath = NULL; // In default use compiled in path (system path)
 	opts->crl_file = NULL; // In default don't check CRL
+	opts->pems = NULL;
+}
+
+download_pem_t download_pem(const uint8_t *pem, size_t len) {
+	struct download_pem *dpem = malloc(sizeof *dpem);
+	dpem->cbio = BIO_new_mem_buf(pem, len);
+	dpem->info = PEM_X509_INFO_read_bio(dpem->cbio, NULL, NULL, NULL);
+	return dpem;
+}
+
+void download_pem_free(download_pem_t dpem) {
+	sk_X509_INFO_pop_free(dpem->info, X509_INFO_free);
+	BIO_free(dpem->cbio);
+	free(dpem);
 }
 
 // Called by libcurl to store downloaded data
@@ -245,6 +266,25 @@ static size_t download_write_callback(char *ptr, size_t size, size_t nmemb, void
 		remb -= (size_t)ds;
 	}
 	return rsize;
+}
+
+static CURLcode download_sslctx(CURL *curl __attribute__((unused)), void *sslctx, void *parm) {
+	struct download_pem **pems = parm;
+	X509_STORE *cts = SSL_CTX_get_cert_store((SSL_CTX *)sslctx);
+	if (!cts)
+		return CURLE_ABORTED_BY_CALLBACK;
+
+	while (*pems) {
+		for (int i = 0; i < sk_X509_INFO_num((*pems)->info); i++) {
+			X509_INFO *itmp = sk_X509_INFO_value((*pems)->info, i);
+			if(itmp->x509)
+				X509_STORE_add_cert(cts, itmp->x509);
+			if(itmp->crl)
+				X509_STORE_add_crl(cts, itmp->crl);
+		}
+		pems++;
+	}
+	return CURLE_OK;
 }
 
 struct download_i *download(struct downloader *downloader, const char *url,
@@ -281,6 +321,10 @@ struct download_i *download(struct downloader *downloader, const char *url,
 			CURL_SETOPT(CURLOPT_CAPATH, opts->capath);
 		if (opts->crl_file)
 			CURL_SETOPT(CURLOPT_CRLFILE, opts->crl_file);
+		if (opts->pems) {
+			CURL_SETOPT(CURLOPT_SSL_CTX_FUNCTION, download_sslctx);
+			CURL_SETOPT(CURLOPT_SSL_CTX_DATA, download_sslctx);
+		}
 		CURL_SETOPT(CURLOPT_SSL_VERIFYSTATUS, opts->ocsp);
 	} else
 		CURL_SETOPT(CURLOPT_SSL_VERIFYPEER, 0L);

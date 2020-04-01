@@ -37,7 +37,6 @@ END_TEST
 // Test simple download from http with redirect to https and Let's encrypt certificate
 START_TEST(simple_download) {
 	struct downloader *d = downloader_new(1);
-	ck_assert_ptr_null(downloader_run(d));
 	struct download_opts opts;
 	download_opts_def(&opts);
 
@@ -62,7 +61,6 @@ END_TEST
 // This test requires min. 20MB of memory.
 START_TEST(multiple_downloads) {
 	struct downloader *d = downloader_new(4);
-	ck_assert_ptr_null(downloader_run(d));
 	struct download_opts opts;
 	download_opts_def(&opts);
 
@@ -103,7 +101,6 @@ END_TEST
 // Check if we can selectivelly free handlers
 START_TEST(free_instances) {
 	struct downloader *d = downloader_new(4);
-	ck_assert_ptr_null(downloader_run(d));
 	struct download_opts opts;
 	download_opts_def(&opts);
 
@@ -143,7 +140,6 @@ END_TEST
 // Test failure if we access non-existent url
 START_TEST(invalid) {
 	struct downloader *d = downloader_new(1);
-	ck_assert_ptr_null(downloader_run(d));
 	struct download_opts opts;
 	download_opts_def(&opts);
 
@@ -161,7 +157,6 @@ END_TEST
 // Test that even if one of download fail that all other will be downloaded
 START_TEST(invalid_continue) {
 	struct downloader *d = downloader_new(4);
-	ck_assert_ptr_null(downloader_run(d));
 	struct download_opts opts;
 	download_opts_def(&opts);
 
@@ -195,7 +190,6 @@ END_TEST
 // Test certification pinning
 START_TEST(cert_pinning) {
 	struct downloader *d = downloader_new(1);
-	ck_assert_ptr_null(downloader_run(d));
 	struct download_opts opts;
 	download_opts_def(&opts);
 
@@ -220,7 +214,6 @@ END_TEST
 // Test failure if we try invalid certificate
 START_TEST(cert_invalid) {
 	struct downloader *d = downloader_new(1);
-	ck_assert_ptr_null(downloader_run(d));
 	struct download_opts opts;
 	download_opts_def(&opts);
 
@@ -238,6 +231,33 @@ START_TEST(cert_invalid) {
 }
 END_TEST
 
+// Use download_pem_t for certificate instead of file
+START_TEST(pem_cert_pinning) {
+	struct downloader *d = downloader_new(1);
+	struct download_opts opts;
+	download_opts_def(&opts);
+
+	char *pem = readfile(FILE_LETS_ENCRYPT_ROOTS);
+	download_pem_t pems[] = { download_pem((uint8_t*)pem, strlen(pem)), NULL };
+	free(pem);
+	opts.capath = "/dev/null";
+
+	struct filebuffer fb;
+	FILE *f = filebuffer_write(&fb, FBUF_FREE_ON_CLOSE);
+	download(d, HTTP_LOREM_IPSUM_SHORT, f, &opts);
+
+	ck_assert_ptr_null(downloader_run(d));
+
+	fflush(f);
+	ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, fb.len);
+	ck_assert_mem_eq(LOREM_IPSUM_SHORT, fb.data, fb.len);
+
+	fclose(f);
+	download_pem_free(pems[0]);
+	downloader_free(d);
+}
+END_TEST
+
 
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Download");
@@ -252,6 +272,7 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(down, invalid_continue);
 	tcase_add_test(down, cert_pinning);
 	tcase_add_test(down, cert_invalid);
+	tcase_add_test(down, pem_cert_pinning);
 	suite_add_tcase(result, down);
 	return result;
 }
