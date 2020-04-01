@@ -499,8 +499,8 @@ bool uri_finish(struct uri *uri) {
 		}
 	} else {
 		ASSERT_MSG(uri->download_instance, "uri_downloader_register has to be called before uri_finish");
-		if (!uri->download_instance->done || !uri->download_instance->success) {
-			uri_errno = uri->download_instance->done ? URI_E_DOWNLOAD_FAILED : URI_E_UNFINISHED_DOWNLOAD;
+		if (!download_is_done(uri->download_instance) || !download_is_success(uri->download_instance)) {
+			uri_errno = download_is_done(uri->download_instance) ? URI_E_DOWNLOAD_FAILED : URI_E_UNFINISHED_DOWNLOAD;
 			return false;
 		}
 		switch (uri->output_type) {
@@ -534,9 +534,9 @@ const char *uri_error_msg(enum uri_error err) {
 
 const char *uri_download_error(struct uri *uri) {
 	ASSERT_MSG(uri->download_instance, "uri_download_error can be called only on URIs with registered downloader.");
-	ASSERT_MSG(uri->download_instance->done, "uri_download_error can be called only after downloader_run.");
-	ASSERT_MSG(!uri->download_instance->success, "uri_download_error can be called only on failed URIs.");
-	return uri->download_instance->error;
+	ASSERT_MSG(download_is_done(uri->download_instance), "uri_download_error can be called only after downloader_run.");
+	ASSERT_MSG(!download_is_success(uri->download_instance), "uri_download_error can be called only on failed URIs.");
+	return download_error(uri->download_instance);
 }
 
 const char *uri_scheme_string(enum uri_scheme scheme) {

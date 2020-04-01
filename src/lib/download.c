@@ -33,6 +33,28 @@
 #define ASSERT_CURL(X) ASSERT((X) == CURLE_OK)
 #define ASSERT_CURLM(X) ASSERT((X) == CURLM_OK)
 
+struct downloader {
+	struct event_base *ebase; // libevent base
+	CURLM *cmulti; // Curl multi instance
+	struct event *ctimer; // Timer used by curl
+
+	struct download_i **instances; // Registered instances
+	size_t i_size, i_allocated; // instances size and allocated size
+	int pending; // Number of still not downloaded instances
+	struct download_i *failed; // Latest failed instance (used internally)
+};
+
+struct download_i {
+	bool done; // If download is finished
+	bool success; // If download was successful. Not valid if done is false.
+	char error[CURL_ERROR_SIZE]; // error message if download fails
+
+	int retries; // Number of reties we have
+	struct downloader *downloader; // parent downloader
+	FILE *output;
+	CURL *curl; // easy curl session
+};
+
 static bool download_check_info(struct downloader *downloader) {
 	CURLMsg *msg;
 	int msgs_left;
@@ -296,4 +318,16 @@ void download_i_free(struct download_i *inst) {
 	ASSERT_CURLM(curl_multi_remove_handle(inst->downloader->cmulti, inst->curl)); // remove download from multi handler
 	curl_easy_cleanup(inst->curl); // and clean download (also closing running connection)
 	free(inst);
+}
+
+bool download_is_done(download_i_t inst) {
+	return inst->done;
+}
+
+bool download_is_success(download_i_t inst) {
+	return inst->success;
+}
+
+const char *download_error(download_i_t inst) {
+	return inst->error;
 }

@@ -26,19 +26,14 @@
 #include <curl/curl.h>
 #include "logging.h"
 
-struct download_i;
-
 // Download manager object
-struct downloader {
-	struct event_base *ebase; // libevent base
-	CURLM *cmulti; // Curl multi instance
-	struct event *ctimer; // Timer used by curl
+struct downloader;
+typedef struct downloader* downloader_t;
 
-	struct download_i **instances; // Registered instances
-	size_t i_size, i_allocated; // instances size and allocated size
-	int pending; // Number of still not downloaded instances
-	struct download_i *failed; // Latest failed instance (used internally)
-};
+// Download instance. Identifier of single download.
+struct download_i;
+typedef struct download_i* download_i_t;
+
 
 // Download options (additional options configuring security and more)
 struct download_opts {
@@ -53,52 +48,53 @@ struct download_opts {
 	const char *crl_file; // Path to custom CA crl
 };
 
-// Download instance. Identifier of single download.
-struct download_i {
-	bool done; // If download is finished
-	bool success; // If download was successful. Not valid if done is false.
-	char error[CURL_ERROR_SIZE]; // error message if download fails
-	int retries; // Number of reties we have
-	struct downloader *downloader; // parent downloader
-
-	FILE *output;
-
-	CURL *curl; // easy curl session
-};
-
 
 // Initialize new download manager
 // parallel: Number of possible parallel downloadings
 // Returns new instance of downloader
-struct downloader *downloader_new(int parallel);
+downloader_t downloader_new(int parallel);
 
 // Free given instance of downloader
-void downloader_free(struct downloader*) __attribute__((nonnull));
+void downloader_free(downloader_t) __attribute__((nonnull));
 
 // Run downloader and download all registered URLs
 // return: NULL on success otherwise pointer to download instance that failed.
-struct download_i *downloader_run(struct downloader*) __attribute__((nonnull));
+download_i_t downloader_run(downloader_t) __attribute__((nonnull));
 
 // Remove all download instances from downloader
-void downloader_flush(struct downloader*) __attribute__((nonnull));
+void downloader_flush(downloader_t) __attribute__((nonnull));
 
 // Set default values for download_opts
-// opts: Allocated instance of download options to be set to defaults
-// Note: strings in download_opts are set to NULL and previous values are NOT
-// freed.
+// opts: Instance of download options to be set to defaults
+// Note: strings and arrays in download_opts are set to NULL and previous values
+//   are NOT freed.
 void download_opts_def(struct download_opts *opts) __attribute__((nonnull));
 
 // Register given URL to be downloaded.
-// downloader: 
+// downloader: downloader instance to register download to
 // url: URL data are downloaded from
 // opts: Download options (does not have to exist during instance existence)
 // file: FILE pointer in which received data will be written
 // Returns download instance
-struct download_i *download(struct downloader *downloader, const char *url,
-		FILE *output, const struct download_opts *opts)
-	__attribute__((nonnull(1, 2, 3, 4)));
+download_i_t download(downloader_t, const char *url, FILE *output,
+		const struct download_opts *opts) __attribute__((nonnull));
 
 // Free download instance
-void download_i_free(struct download_i*) __attribute__((nonnull));
+void download_i_free(download_i_t) __attribute__((nonnull));
+
+// Check if given instance is completed (processed by downloader)
+// Returns true if completed and false otherwise.
+bool download_is_done(download_i_t) __attribute__((nonnull));
+
+// Check if given instance completed with success.
+// Returns true if completed and false if it failed. You can use download_error to
+// get error message. Returned value is only valid if download_is_done returns
+// true.
+bool download_is_success(download_i_t) __attribute__((nonnull));
+
+// Returns string with error message desciring failure reason.
+// Returned string is only valid if download_is_success returns false and is valid
+// till instance is not freed.
+const char *download_error(download_i_t) __attribute__((nonnull));
 
 #endif
