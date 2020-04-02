@@ -326,7 +326,7 @@ bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
 		}
 		case URI_OUT_T_BUFFER:
 			// TODO data pointer to store somewhere
-			uri->download_instance = download(downloader, uri->uri, filebuffer_write(NULL, FBUF_FREE_ON_CLOSE) ,  &opts);
+			uri->download_instance = download(downloader, uri->uri, fmemopen(NULL, 0, "wb") ,  &opts);
 			break;
 	}
 	if (!uri->download_instance) {
@@ -510,7 +510,7 @@ bool uri_finish(struct uri *uri) {
 				download_i_free(uri->download_instance);
 				break;
 			case URI_OUT_T_BUFFER:
-				download_i_collect_data(uri->download_instance, &uri->output_info.buf.data, &uri->output_info.buf.size);
+				//download_i_collect_data(uri->download_instance, &uri->output_info.buf.data, &uri->output_info.buf.size);
 				break;
 		}
 		uri->download_instance = NULL;

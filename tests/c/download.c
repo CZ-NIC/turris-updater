@@ -19,7 +19,6 @@
 #include "ctest.h"
 #include <download.h>
 #include <syscnf.h>
-#include <filebuffer.h>
 #include "test_data.h"
 
 #include <stdlib.h>
@@ -40,18 +39,19 @@ START_TEST(simple_download) {
 	struct download_opts opts;
 	download_opts_def(&opts);
 
-	struct filebuffer fb;
-	FILE* f = filebuffer_write(&fb, FBUF_FREE_ON_CLOSE);
+	char *data;
+	size_t data_len;
+	FILE* f = open_memstream(&data, &data_len);
 
 	download(d, HTTP_LOREM_IPSUM_SHORT, f, &opts);
 
 	ck_assert_ptr_null(downloader_run(d));
 	downloader_free(d);
 
-	fflush(f);
-	ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, fb.len);
-	ck_assert_mem_eq(LOREM_IPSUM_SHORT, fb.data, fb.len);
 	fclose(f);
+	ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, data_len);
+	ck_assert_mem_eq(LOREM_IPSUM_SHORT, data, data_len);
+	free(data);
 }
 END_TEST
 
@@ -65,10 +65,11 @@ START_TEST(multiple_downloads) {
 	download_opts_def(&opts);
 
 	const size_t cnt = 32;
-	struct filebuffer fbs[cnt];
+	char *data[cnt];
+	size_t data_len[cnt];
 	FILE *fs[cnt];
 	for (size_t i = 0; i < cnt; i++) {
-		fs[i] = filebuffer_write(&fbs[i], FBUF_FREE_ON_CLOSE);
+		fs[i] = open_memstream(&data[i], &data_len[i]);
 		if (i % 2)
 			download(d, HTTP_LOREM_IPSUM_SHORT, fs[i], &opts);
 		else
@@ -82,15 +83,15 @@ START_TEST(multiple_downloads) {
 	size_t big_size = strlen(big_content);
 
 	for (size_t i = 0; i < cnt; i++) {
-		fflush(fs[i]);
-		if (i % 2) {
-			ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, fbs[i].len);
-			ck_assert_mem_eq(LOREM_IPSUM_SHORT, fbs[i].data, fbs[i].len);
-		} else {
-			ck_assert_uint_eq(big_size, fbs[i].len);
-			ck_assert_mem_eq(big_content, fbs[i].data, fbs[i].len);
-		}
 		fclose(fs[i]);
+		if (i % 2) {
+			ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, data_len[i]);
+			ck_assert_mem_eq(LOREM_IPSUM_SHORT, data[i], data_len[i]);
+		} else {
+			ck_assert_uint_eq(big_size, data_len[i]);
+			ck_assert_mem_eq(big_content, data[i], data_len[i]);
+		}
+		free(data[i]);
 	}
 
 	free(big_content);
@@ -106,10 +107,11 @@ START_TEST(free_instances) {
 
 	const size_t cnt = 16;
 	struct download_i *insts[cnt];
-	struct filebuffer fbs[cnt];
+	char *data[cnt];
+	size_t data_len[cnt];
 	FILE *fs[cnt];
 	for (size_t i = 0; i < cnt; i++) {
-		fs[i] = filebuffer_write(&fbs[i], FBUF_FREE_ON_CLOSE);
+		fs[i] = open_memstream(&data[i], &data_len[i]);
 		insts[i] = download(d, HTTP_LOREM_IPSUM, fs[i], &opts);
 	}
 
@@ -117,6 +119,7 @@ START_TEST(free_instances) {
 	for (size_t i = 0; i < cnt; i += 2) {
 		download_i_free(insts[i]);
 		fclose(fs[i]);
+		free(data[i]);
 	}
 
 	ck_assert_ptr_null(downloader_run(d));
@@ -126,10 +129,10 @@ START_TEST(free_instances) {
 	size_t size = strlen(content);
 
 	for (size_t i = 1; i < cnt; i += 2) {
-		fflush(fs[i]);
-		ck_assert_uint_eq(size, fbs[i].len);
-		ck_assert_mem_eq(content, fbs[i].data, fbs[i].len);
 		fclose(fs[i]);
+		ck_assert_uint_eq(size, data_len[i]);
+		ck_assert_mem_eq(content, data[i], data_len[i]);
+		free(data[i]);
 	}
 
 	free(content);
@@ -143,8 +146,7 @@ START_TEST(invalid) {
 	struct download_opts opts;
 	download_opts_def(&opts);
 
-	struct filebuffer fb;
-	FILE *f = filebuffer_write(&fb, FBUF_FREE_ON_CLOSE);
+	FILE *f = fmemopen(NULL, BUFSIZ, "wb");
 	struct download_i *inst = download(d, HTTP_APPLICATION_TEST "/invalid", f, &opts);
 
 	ck_assert_ptr_eq(downloader_run(d), inst);
@@ -161,15 +163,15 @@ START_TEST(invalid_continue) {
 	download_opts_def(&opts);
 
 	const size_t cnt = 3;
-	struct filebuffer fbs[cnt];
+	char *data[cnt];
+	size_t data_len[cnt];
 	FILE *fs[cnt];
 	for (size_t i = 0; i < cnt; i++) {
-		fs[i] = filebuffer_write(&fbs[i], FBUF_FREE_ON_CLOSE);
+		fs[i] = open_memstream(&data[i], &data_len[i]);
 		download(d, HTTP_LOREM_IPSUM_SHORT, fs[i], &opts);
 	}
 
-	struct filebuffer ffb;
-	FILE *ffs = filebuffer_write(&ffb, FBUF_FREE_ON_CLOSE);
+	FILE *ffs = fmemopen(NULL, BUFSIZ, "wb");
 	struct download_i *fail_inst = download(d, HTTP_APPLICATION_TEST "/invalid", ffs, &opts);
 
 	ck_assert_ptr_eq(downloader_run(d), fail_inst);
@@ -177,10 +179,10 @@ START_TEST(invalid_continue) {
 
 	fclose(ffs);
 	for (size_t i = 0; i < cnt; i++) {
-		fflush(fs[i]);
-		ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, fbs[i].len);
-		ck_assert_mem_eq(LOREM_IPSUM_SHORT, fbs[i].data, fbs[i].len);
 		fclose(fs[i]);
+		ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, data_len[i]);
+		ck_assert_mem_eq(LOREM_IPSUM_SHORT, data[i], data_len[i]);
+		free(data[i]);
 	}
 
 	downloader_free(d);
@@ -196,18 +198,19 @@ START_TEST(cert_pinning) {
 	opts.cacert_file = FILE_LETS_ENCRYPT_ROOTS;
 	opts.capath = "/dev/null";
 
-	struct filebuffer fb;
-	FILE *f = filebuffer_write(&fb, FBUF_FREE_ON_CLOSE);
+	char *data;
+	size_t data_len;
+	FILE *f = open_memstream(&data, &data_len);
 	download(d, HTTP_LOREM_IPSUM_SHORT, f, &opts);
 
 	ck_assert_ptr_null(downloader_run(d));
 
-	fflush(f);
-	ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, fb.len);
-	ck_assert_mem_eq(LOREM_IPSUM_SHORT, fb.data, fb.len);
+	fclose(f);
+	ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, data_len);
+	ck_assert_mem_eq(LOREM_IPSUM_SHORT, data, data_len);
 
 	downloader_free(d);
-	fclose(f);
+	free(data);
 }
 END_TEST
 
@@ -220,8 +223,7 @@ START_TEST(cert_invalid) {
 	opts.cacert_file = FILE_OPENTRUST_CA_G1;
 	opts.capath = "/dev/null";
 
-	struct filebuffer fb;
-	FILE *f = filebuffer_write(&fb, FBUF_FREE_ON_CLOSE);
+	FILE *f = fmemopen(NULL, BUFSIZ, "wb");
 	struct download_i *inst = download(d, HTTP_LOREM_IPSUM_SHORT, f, &opts);
 
 	ck_assert_ptr_eq(downloader_run(d), inst);
@@ -242,17 +244,18 @@ START_TEST(pem_cert_pinning) {
 	free(pem);
 	opts.capath = "/dev/null";
 
-	struct filebuffer fb;
-	FILE *f = filebuffer_write(&fb, FBUF_FREE_ON_CLOSE);
+	char *data;
+	size_t data_len;
+	FILE *f = open_memstream(&data, &data_len);
 	download(d, HTTP_LOREM_IPSUM_SHORT, f, &opts);
 
 	ck_assert_ptr_null(downloader_run(d));
 
-	fflush(f);
-	ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, fb.len);
-	ck_assert_mem_eq(LOREM_IPSUM_SHORT, fb.data, fb.len);
-
 	fclose(f);
+	ck_assert_uint_eq(LOREM_IPSUM_SHORT_SIZE, data_len);
+	ck_assert_mem_eq(LOREM_IPSUM_SHORT, data, data_len);
+
+	free(data);
 	download_pem_free(pems[0]);
 	downloader_free(d);
 }

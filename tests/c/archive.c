@@ -32,7 +32,6 @@
 #include <archive.h>
 #include <util.h>
 #include <path_utils.h>
-#include <filebuffer.h>
 
 START_TEST(decompress_buffer) {
 	// This was generated using shell command
@@ -43,7 +42,7 @@ START_TEST(decompress_buffer) {
 		0x02, 0x00, 0x88, 0xb0, 0x24, 0x32, 0x02, 0x00, 0x00, 0x00
 	};
 
-	FILE *gzf = filebuffer_read(data, sizeof data, 0);
+	FILE *gzf = fmemopen(data, sizeof data, "rb");
 	ck_assert_ptr_nonnull(gzf);
 	FILE *f = decompress(gzf, 0);
 	ck_assert_ptr_nonnull(f);
