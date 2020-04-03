@@ -451,11 +451,7 @@ function test_recover_early()
 			{ type = journal.START, params = {} }
 		}
 	end)
-	assert_table_equal({
-		["*"] = {
-			transaction = "Transaction in the journal hasn't started yet, nothing to resume"
-		}
-	}, transaction.recover())
+	assert_table_equal({}, transaction.recover())
 	assert_table_equal({
 		{ f = "backend.run_state", p = {} },
 		{ f = "journal.recover", p = {} },
