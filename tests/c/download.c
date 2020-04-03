@@ -233,6 +233,26 @@ START_TEST(cert_invalid) {
 }
 END_TEST
 
+// Test failure if we provide no certificate. This checks if we configured pinning
+// correctly and fully.
+START_TEST(cert_pinning_empty) {
+	struct downloader *d = downloader_new(1);
+	struct download_opts opts;
+	download_opts_def(&opts);
+
+	opts.cacert_file = NULL;
+	opts.capath = NULL;
+
+	FILE *f = fmemopen(NULL, BUFSIZ, "wb");
+	struct download_i *inst = download(d, HTTP_LOREM_IPSUM_SHORT, f, &opts);
+
+	ck_assert_ptr_eq(downloader_run(d), inst);
+
+	downloader_free(d);
+	fclose(f);
+}
+END_TEST
+
 // Use download_pem_t for certificate instead of file
 START_TEST(pem_cert_pinning) {
 	struct downloader *d = downloader_new(1);
@@ -242,7 +262,9 @@ START_TEST(pem_cert_pinning) {
 	char *pem = readfile(FILE_LETS_ENCRYPT_ROOTS);
 	download_pem_t pems[] = { download_pem((uint8_t*)pem, strlen(pem)), NULL };
 	free(pem);
-	opts.capath = "/dev/null";
+	opts.pems = pems;
+	opts.cacert_file = NULL;
+	opts.capath = NULL;
 
 	char *data;
 	size_t data_len;
@@ -275,6 +297,7 @@ Suite *gen_test_suite(void) {
 	tcase_add_test(down, invalid_continue);
 	tcase_add_test(down, cert_pinning);
 	tcase_add_test(down, cert_invalid);
+	tcase_add_test(down, cert_pinning_empty);
 	tcase_add_test(down, pem_cert_pinning);
 	suite_add_tcase(result, down);
 	return result;

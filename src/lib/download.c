@@ -229,14 +229,15 @@ void download_opts_def(struct download_opts *opts) {
 	opts->follow_redirect = true;
 	opts->ssl_verify = true;
 	opts->ocsp = true;
-	opts->cacert_file = NULL; // In default use system CAs
-	opts->capath = NULL; // In default use compiled in path (system path)
+	opts->cacert_file = DOWNLOAD_OPT_SYSTEM_CACERT; // In default use system CAs
+	opts->capath = DOWNLOAD_OPT_SYSTEM_CAPATH; // In default use compiled in path (system path)
 	opts->crl_file = NULL; // In default don't check CRL
 	opts->pems = NULL;
 }
 
 download_pem_t download_pem(const uint8_t *pem, size_t len) {
 	struct download_pem *dpem = malloc(sizeof *dpem);
+	// TODO errors?
 	dpem->cbio = BIO_new_mem_buf(pem, len);
 	dpem->info = PEM_X509_INFO_read_bio(dpem->cbio, NULL, NULL, NULL);
 	return dpem;
@@ -315,15 +316,15 @@ struct download_i *download(struct downloader *downloader, const char *url,
 			host_os_release(OS_RELEASE_PRETTY_NAME), os_release(OS_RELEASE_PRETTY_NAME));
 	CURL_SETOPT(CURLOPT_USERAGENT, user_agent); // We set our own User Agent, so our server knows we're not just some bot
 	if (opts->ssl_verify) {
-		if (opts->cacert_file)
+		if (opts->cacert_file != DOWNLOAD_OPT_SYSTEM_CACERT)
 			CURL_SETOPT(CURLOPT_CAINFO, opts->cacert_file);
-		if (opts->capath)
+		if (opts->capath != DOWNLOAD_OPT_SYSTEM_CAPATH)
 			CURL_SETOPT(CURLOPT_CAPATH, opts->capath);
 		if (opts->crl_file)
 			CURL_SETOPT(CURLOPT_CRLFILE, opts->crl_file);
 		if (opts->pems) {
 			CURL_SETOPT(CURLOPT_SSL_CTX_FUNCTION, download_sslctx);
-			CURL_SETOPT(CURLOPT_SSL_CTX_DATA, download_sslctx);
+			CURL_SETOPT(CURLOPT_SSL_CTX_DATA, opts->pems);
 		}
 		CURL_SETOPT(CURLOPT_SSL_VERIFYSTATUS, opts->ocsp);
 	} else

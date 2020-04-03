@@ -38,6 +38,9 @@ typedef struct download_i* download_i_t;
 struct download_pem;
 typedef struct download_pem* download_pem_t;
 
+#define DOWNLOAD_OPT_SYSTEM_CACERT ((const char*)-1)
+#define DOWNLOAD_OPT_SYSTEM_CAPATH ((const char*)-1)
+
 // Download options (additional options configuring security and more)
 struct download_opts {
 	long timeout; // Download timeout (including download retries)
