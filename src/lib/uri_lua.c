@@ -107,7 +107,8 @@ static int lua_uri_master_to_file(lua_State *L) {
 	if (!lua_isnoneornil(L, 4))
 		parent = ((struct uri_lua*)luaL_checkudata(L, 4, URI_META))->uri;
 
-	struct uri *u = uri_to_file(str_uri, output_path, parent);
+	struct uri *u = uri(str_uri, parent);
+	uri_output_file(u, output_path);
 	return lua_new_uri_tail(L, urim, u, strdup(output_path));
 }
 
@@ -120,7 +121,8 @@ static int lua_uri_master_to_temp_file(lua_State *L) {
 		parent = ((struct uri_lua*)luaL_checkudata(L, 4, URI_META))->uri;
 
 	char *fpath = strdup(template);
-	struct uri *u = uri_to_temp_file(str_uri, fpath, parent);
+	struct uri *u = uri(str_uri, parent);
+	uri_output_tmpfile(u, fpath);
 	return lua_new_uri_tail(L, urim, u, fpath);
 }
 
@@ -131,7 +133,7 @@ static int lua_uri_master_to_buffer(lua_State *L) {
 	if (!lua_isnoneornil(L, 3))
 		parent = ((struct uri_lua*)luaL_checkudata(L, 3, URI_META))->uri;
 
-	struct uri *u = uri_to_buffer(str_uri, parent);
+	struct uri *u = uri(str_uri, parent);
 	return lua_new_uri_tail(L, urim, u, NULL);
 }
 
@@ -143,18 +145,19 @@ static int lua_uri_master_download(lua_State *L) {
 	while (lua_next(L, -2) != 0) {
 		lua_pop(L, 1); // pop value (just boolean true)
 		struct uri_lua *uri = luaL_checkudata(L, -1, URI_META);
-		if (!uri->uri->download_instance)
-			if (!uri_downloader_register(uri->uri, urim->downloader)) {
-				char *err;
-				if (uri_errno == URI_E_SIG_FAIL)
-					err = aprintf("Error while registering for download: %s: %s: %s: %s",
-							uri->uri->uri, uri_error_msg(uri_errno),
-							uri_sub_err_uri->uri, uri_error_msg(uri_sub_errno));
-				else
-					err = aprintf("Error while registering for download: %s: %s",
-							uri->uri->uri, uri_error_msg(uri_errno));
-				return luaL_error(L, err);
-			}
+		if (uri_download_instance(uri->uri))
+			continue;
+		if (!uri_downloader_register(uri->uri, urim->downloader)) {
+			char *err;
+			if (uri_errno == URI_E_SIG_FAIL)
+				err = aprintf("Error while registering for download: %s: %s: %s: %s",
+						uri_uri(uri->uri), uri_error_msg(uri_errno),
+						uri_uri(uri_sub_err_uri), uri_error_msg(uri_sub_errno));
+			else
+				err = aprintf("Error while registering for download: %s: %s",
+						uri_uri(uri->uri), uri_error_msg(uri_errno));
+			return luaL_error(L, err);
+		}
 	}
 
 	struct download_i *inst;
@@ -165,7 +168,7 @@ static int lua_uri_master_download(lua_State *L) {
 			while (lua_next(L, -2) != 0) {
 				lua_pop(L, 1);
 				struct uri_lua *uri = luaL_checkudata(L, -1, URI_META);
-				if (uri->uri->download_instance == inst)
+				if (uri_download_instance(uri->uri) == inst)
 					return 1; // Just return this URI object
 			}
 			// We continue as this should be failed signature and those are
@@ -203,36 +206,28 @@ static const struct inject_func uri_master_meta[] = {
 
 static int lua_uri_uri(lua_State *L) {
 	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
-	lua_pushstring(L, uri->uri->uri);
+	lua_pushstring(L, uri_uri(uri->uri));
 	return 1;
 }
 
 static int lua_uri_finish(lua_State *L) {
 	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
-	if (!uri_finish(uri->uri)) {
+	uint8_t *buf;
+	size_t len;
+	if (!uri_finish(uri->uri, &buf, &len)) {
 		if (uri_errno == URI_E_SIG_FAIL) {
 			return luaL_error(L, "Unable to finish URI (%s): %s: %s: %s",
-					uri->uri->uri, uri_error_msg(uri_errno),
-					uri_sub_err_uri->uri, uri_error_msg(uri_sub_errno));
+					uri_uri(uri->uri), uri_error_msg(uri_errno),
+					uri_uri(uri_sub_err_uri), uri_error_msg(uri_sub_errno));
 		} else
 			return luaL_error(L, "Unable to finish URI (%s): %s",
-					uri->uri->uri, uri_error_msg(uri_errno));
+					uri_uri(uri->uri), uri_error_msg(uri_errno));
 	}
-	switch (uri->uri->output_type) {
-		case URI_OUT_T_FILE:
-		case URI_OUT_T_TEMP_FILE:
-			return 0;
-		case URI_OUT_T_BUFFER:
-			{
-				uint8_t *buf;
-				size_t len;
-				uri_take_buffer(uri->uri, &buf, &len);
-				lua_pushlstring(L, (const char*)buf, len);
-				free(buf);
-				return 1;
-			}
-	}
-	return 0;
+	if (!buf)
+		return 0;
+	lua_pushlstring(L, (const char*)buf, len);
+	// free(buf); TODO how to free it?
+	return 1;
 }
 
 static int lua_uri_is_local(lua_State *L) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2019, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+ * Copyright 2018-2020, CZ.NIC z.s.p.o. (http://www.nic.cz/)
  *
  * This file is part of the turris updater.
  *
@@ -38,7 +38,7 @@ static const char *error_messages[] = {
 	[URI_E_INVALID_URI] = "URI has invalid format",
 	[URI_E_UNKNOWN_SCHEME] = "URI contains invalid or unsupported scheme",
 	[URI_E_UNFINISHED_DOWNLOAD] = "Download wasn't finished or even started",
-	[URI_E_DOWNLOAD_FAILED] = "Download failed",
+	[URI_E_DOWNLOAD_FAIL] = "Download failed",
 	[URI_E_FILE_INPUT_ERROR] = "Unable to open local file for reading",
 	[URI_E_OUTPUT_OPEN_FAIL] = "Unable to open output file for writing",
 	[URI_E_OUTPUT_WRITE_FAIL] = "Unable to write data to output",
@@ -55,6 +55,37 @@ static const char *schemes_table[] = {
 	[URI_S_UNKNOWN] = "?"
 };
 
+// This implements list of local URI handlers
+struct uri_local_list {
+	struct uri_local_list *next; // Link to (next) previous provided uri
+	unsigned ref_count; // Reference counter (counts number of usages in uri object)
+
+	struct uri *uri; // Uri object initialized by URI provided by user
+	char *path; // Used to store path to file
+};
+
+// URI representation
+struct uri {
+	enum uri_scheme scheme;
+	bool finished;
+	char *uri; // Uri string in canonical format
+
+	FILE *output;
+	uint8_t *data;
+	size_t data_len;
+
+	struct download_i *download_instance;
+
+	// HTTPS options
+	bool ssl_verify; // If SSL should be verified
+	bool ocsp; // If OCSP should be used for ceritification validity check
+	struct uri_local_list *ca; // List of all configured CAs
+	struct uri_local_list *crl; // List of all configured CRLs
+	// Signature verification
+	struct uri_local_list *pubkey; // URIs to public keys used for verification
+	char *sig_uri_file; // path to output file for signature
+	struct uri *sig_uri; // signature URI
+};
 
 static void list_ca_crl_collect(struct uri_local_list*);
 static void list_pubkey_collect(struct uri_local_list*);
@@ -197,7 +228,7 @@ static bool canonize_uri(const char *uri_str, const struct uri *parent, struct u
 	return true;
 }
 
-static struct uri *uri_new(const char *uri_str, const struct uri *parent) {
+uri_t uri(const char *uri_str, const uri_t parent) {
 	struct uri *ret = malloc(sizeof *ret);
 	ret->finished = false;
 	if (!canonize_uri(uri_str, parent, ret)) {
@@ -216,35 +247,10 @@ static struct uri *uri_new(const char *uri_str, const struct uri *parent) {
 	SET_LIST(pubkey);
 #undef SET_LIST
 #undef SET
+	ret->output = NULL;
+	ret->data = NULL;
+	ret->data_len = 0;
 	ret->download_instance = NULL;
-	return ret;
-}
-
-struct uri *uri_to_file(const char *uri, const char *output_path, const struct uri *parent) {
-	struct uri *ret = uri_new(uri, parent);
-	if (!ret)
-		return NULL;
-	ret->output_type = URI_OUT_T_FILE;
-	ret->output_info.fpath = strdup(output_path);
-	return ret;
-}
-
-struct uri *uri_to_temp_file(const char *uri, char *output_template, const struct uri *parent) {
-	struct uri *ret = uri_new(uri, parent);
-	if (!ret)
-		return NULL;
-	ret->output_type = URI_OUT_T_TEMP_FILE;
-	ret->output_info.fpath = output_template;
-	return ret;
-}
-
-struct uri *uri_to_buffer(const char *uri, const struct uri *parent) {
-	struct uri *ret = uri_new(uri, parent);
-	if (!ret)
-		return NULL;
-	ret->output_type = URI_OUT_T_BUFFER;
-	ret->output_info.buf.data = NULL;
-	ret->output_info.buf.size = 0;
 	return ret;
 }
 
@@ -260,22 +266,22 @@ void uri_free(struct uri *uri) {
 	list_dealloc(uri->ca, list_ca_crl_free);
 	list_dealloc(uri->crl, list_ca_crl_free);
 	list_dealloc(uri->pubkey, list_pubkey_free);
-	switch (uri->output_type) {
-		case URI_OUT_T_FILE:
-			free(uri->output_info.fpath);
-			break;
-		case URI_OUT_T_TEMP_FILE:
-			// Nothing to do
-			break;
-		case URI_OUT_T_BUFFER:
-			if (uri->output_info.buf.data)
-				free(uri->output_info.buf.data);
-			break;
-	}
+	if (uri->output)
+		fclose(uri->output);
+	if (uri->data)
+		free(uri->data);
 	free(uri);
 }
 
-bool uri_is_local(const struct uri *uri) {
+const char *uri_uri(const uri_t u) {
+	return u->uri;
+}
+
+enum uri_scheme uri_scheme(const uri_t u) {
+	return u->scheme;
+}
+
+bool uri_is_local(const uri_t uri) {
 	switch (uri->scheme) {
 		case URI_S_FILE:
 		case URI_S_DATA:
@@ -285,7 +291,8 @@ bool uri_is_local(const struct uri *uri) {
 	}
 }
 
-char *uri_path(const struct uri *uri) {
+char *uri_path(const uri_t uri) {
+	// TODO probably rather return error
 	ASSERT_MSG(uri->scheme == URI_S_FILE,
 			"Called uri_path on URI of scheme: %s", uri_scheme_string(uri->scheme));
 	char *path = malloc(strlen(uri->uri) - 6); // source: https://uriparser.github.io/doc/api/latest/index.html
@@ -294,12 +301,43 @@ char *uri_path(const struct uri *uri) {
 	return path;
 }
 
-bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
+#define OUTPUT_GUARD ASSERT_MSG(!u->output && !u->finished, "(%s) URI output can't be changed", u->uri)
+
+bool uri_output_file(uri_t u, const char *path) {
+	OUTPUT_GUARD;
+	u->output = fopen(path, "w+");
+	if (u->output)
+		return true;
+	uri_errno = URI_E_OUTPUT_OPEN_FAIL;
+	return false;
+}
+
+bool uri_output_tmpfile(uri_t u, char *path_template) {
+	OUTPUT_GUARD;
+	int fd = mkstemp(path_template);
+	if (fd == -1) {
+		uri_errno = URI_E_OUTPUT_OPEN_FAIL;
+		return false;
+	}
+	u->output = fdopen(fd, "w+");
+	return true;
+}
+
+#undef OUTPUT_GUARD
+
+static void ensure_output(uri_t uri) {
+	if (!uri->output)
+		uri->output = open_memstream((char**)&uri->data, &uri->data_len);
+}
+
+bool uri_downloader_register(uri_t uri, downloader_t downloader) {
 	ASSERT_MSG(!uri->download_instance && !uri->finished,
-			"uri_download_register can be called only on not yet registered uri");
+		"uri_download_register can be called only on not yet registered uri");
 	if (uri_is_local(uri))
-		return true; // Just ignore if it makes no sense to call this
+		return true; // Just ignore local URIs as we have nothing to download
+	ensure_output(uri);
 	ensure_default_signature(uri);
+
 	struct download_opts opts;
 	download_opts_def(&opts);
 	opts.ssl_verify = uri->ssl_verify;
@@ -314,26 +352,8 @@ bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
 		list_ca_crl_collect(uri->crl);
 		opts.crl_file = uri->crl->path;
 	}
-	switch (uri->output_type) {
-		case URI_OUT_T_FILE:
-			uri->download_instance = download(downloader, uri->uri, fopen(uri->output_info.fpath, "w"), &opts);
-			break;
-		case URI_OUT_T_TEMP_FILE: {
-			FILE *f = tmpfile();
-			// TODO uri->output_info.fpath
-			uri->download_instance = download(downloader, uri->uri, f, &opts);
-			break;
-		}
-		case URI_OUT_T_BUFFER:
-			// TODO data pointer to store somewhere
-			uri->download_instance = download(downloader, uri->uri, fmemopen(NULL, 0, "wb") ,  &opts);
-			break;
-	}
-	if (!uri->download_instance) {
-		// Only reason why this would fail at the moment is if file open fails
-		uri_errno = URI_E_OUTPUT_OPEN_FAIL;
-		return false;
-	}
+
+	uri->download_instance = download(downloader, uri->uri, uri->output, &opts);
 	if (uri->pubkey && !uri_downloader_register(uri->sig_uri, downloader)) {
 		uri_sub_errno = uri_errno;
 		uri_sub_err_uri = uri->sig_uri;
@@ -345,22 +365,8 @@ bool uri_downloader_register(struct uri *uri, struct  downloader *downloader) {
 	return true;
 }
 
-static FILE *uri_finish_out_f(struct uri *uri) {
-	FILE *f;
-	switch (uri->output_type) {
-		case URI_OUT_T_TEMP_FILE:
-			f = fdopen(mkstemp(uri->output_info.fpath), "w");
-			break;
-		case URI_OUT_T_FILE:
-			f = fopen(uri->output_info.fpath, "w");
-			break;
-		case URI_OUT_T_BUFFER:
-			f = open_memstream((char**)&uri->output_info.buf.data, &uri->output_info.buf.size);
-			break;
-	}
-	if (f == NULL)
-		uri_errno = URI_E_OUTPUT_OPEN_FAIL;
-	return f;
+download_i_t uri_download_instance(uri_t u) {
+	return u->download_instance;
 }
 
 static bool uri_finish_file(struct uri *uri) {
@@ -371,21 +377,16 @@ static bool uri_finish_file(struct uri *uri) {
 		uri_errno = URI_E_FILE_INPUT_ERROR;
 		return false;
 	}
-	FILE *fout = uri_finish_out_f(uri);
-	if (fout == NULL)
-		return false;
 
 	char buf[BUFSIZ];
 	ssize_t rd;
 	while ((rd = read(fdin, buf, BUFSIZ)) > 0)
-		if (fwrite(buf, sizeof(char), rd, fout) != (size_t)rd) {
+		if (fwrite(buf, sizeof(char), rd, uri->output) != (size_t)rd) {
 			close(fdin);
-			fclose(fout);
 			uri_errno = URI_E_OUTPUT_WRITE_FAIL;
 			return false;
 		}
 	close(fdin);
-	fclose(fout);
 	return true;
 }
 
@@ -403,26 +404,20 @@ static bool uri_finish_data(struct uri *uri) {
 		start = next + 1;
 	}
 
-	FILE *fout = uri_finish_out_f(uri);
-	if (fout == NULL)
-		return false;
 	if (is_base64) {
 		uint8_t *buf;
 		size_t buf_size;
 		base64_decode(start, &buf, &buf_size);
-		size_t written = fwrite(buf, 1, buf_size, fout);
+		size_t written = fwrite(buf, 1, buf_size, uri->output);
 		free(buf);
 		if (written != buf_size) {
 			uri_errno = URI_E_OUTPUT_WRITE_FAIL;
-			fclose(fout);
 			return false;
 		}
-	} else if (fputs(start, fout) <= 0) {
-		fclose(fout);
+	} else if (fputs(start, uri->output) <= 0) {
 		uri_errno = URI_E_OUTPUT_WRITE_FAIL;
 		return false;
 	}
-	fclose(fout);
 	return true;
 }
 
@@ -430,59 +425,55 @@ static bool verify_signature(struct uri *uri) {
 	if (!uri->pubkey) // no keys means no verification
 		return true;
 	ASSERT_MSG(uri->sig_uri, "Signature uri should be set if public keys are provided");
-	if (!uri_finish(uri->sig_uri)) {
+	uint8_t *signature;
+	size_t signature_len;
+	if (!uri_finish(uri->sig_uri, &signature, &signature_len)) {
 		uri_sub_errno = uri_errno;
 		uri_sub_err_uri = uri->sig_uri;
 		uri_errno = URI_E_SIG_FAIL;
 		return false;
 	}
-	uri_free(uri->sig_uri);
-	uri->sig_uri = NULL;
+
 	list_pubkey_collect(uri->pubkey);
 
-	char *fcontent;
-	switch (uri->output_type) {
-		case URI_OUT_T_FILE:
-		case URI_OUT_T_TEMP_FILE:
-			fcontent = uri->output_info.fpath; // reuse output path
-			break;
-		case URI_OUT_T_BUFFER:
-			fcontent = writetempfile((char*)uri->output_info.buf.data, uri->output_info.buf.size);
-			break;
-		default:
-			DIE("Unsupported output type in verify_signature. This should not happen.");
-	}
+	char *dataf = strdup("/tmp/updater-data-XXXXXX");
+	int datafd = mkstemp(dataf);
+	if (!uri->data) {
+		rewind(uri->output);
+		char buf[BUFSIZ];
+		size_t rd;
+		while ((rd = fread(buf, 1, BUFSIZ, uri->output)) > 0)
+			ASSERT(write(datafd, buf, rd) == (ssize_t)rd);
+	} else
+		ASSERT(write(datafd, uri->data, uri->data_len) == (ssize_t)uri->data_len);
+	close(datafd);
+
 	bool verified = false;
 	struct uri_local_list *key = uri->pubkey;
 	do {
 		verified = !lsubprocv(LST_USIGN,
 			aprintf("Verify %s (%s) against %s", uri->uri, uri->sig_uri_file, key->path),
 			NULL, 30000, "usign", "-V", "-p", key->path,
-			"-x", uri->sig_uri_file, "-m", fcontent, (void*)NULL);
+			"-x", uri->sig_uri_file, "-m", dataf, (void*)NULL);
 		key = key->next;
 	} while(key && !verified);
-	switch (uri->output_type) {
-		case URI_OUT_T_FILE:
-		case URI_OUT_T_TEMP_FILE:
-			// Nothing to do (path reused)
-			break;
-		case URI_OUT_T_BUFFER:
-			unlink(fcontent);
-			free(fcontent);
-			break;
-	}
-	free(uri->sig_uri_file);
-	uri->sig_uri_file = NULL;
+
+	unlink(dataf);
+	free(dataf);
+	uri_free(uri->sig_uri);
+	uri->sig_uri = NULL;
+
 	if (!verified)
 		uri_errno = URI_E_VERIFY_FAIL;
 	return verified;
 }
 
-bool uri_finish(struct uri *uri) {
+bool uri_finish(uri_t uri, uint8_t **data, size_t *len) {
 	if (uri->finished)
-		return true; // Ignore if this is alredy finished
+		goto tail;
 	TRACE("URI finish: %s", uri->uri);
 	if (uri_is_local(uri)) {
+		ensure_output(uri);
 		ensure_default_signature(uri);
 		switch (uri->scheme) {
 			case URI_S_FILE:
@@ -500,32 +491,23 @@ bool uri_finish(struct uri *uri) {
 	} else {
 		ASSERT_MSG(uri->download_instance, "uri_downloader_register has to be called before uri_finish");
 		if (!download_is_done(uri->download_instance) || !download_is_success(uri->download_instance)) {
-			uri_errno = download_is_done(uri->download_instance) ? URI_E_DOWNLOAD_FAILED : URI_E_UNFINISHED_DOWNLOAD;
+			uri_errno = download_is_done(uri->download_instance) ? URI_E_DOWNLOAD_FAIL : URI_E_UNFINISHED_DOWNLOAD;
 			return false;
 		}
-		switch (uri->output_type) {
-			case URI_OUT_T_FILE:
-			case URI_OUT_T_TEMP_FILE:
-				// Nothing to do (data are already in file)
-				download_i_free(uri->download_instance);
-				break;
-			case URI_OUT_T_BUFFER:
-				//download_i_collect_data(uri->download_instance, &uri->output_info.buf.data, &uri->output_info.buf.size);
-				break;
-		}
+		download_i_free(uri->download_instance);
 		uri->download_instance = NULL;
 	}
 	uri->finished = true;
-	return verify_signature(uri);
-}
-
-void uri_take_buffer(struct uri *uri, uint8_t **buffer, size_t *len) {
-	ASSERT_MSG(uri->output_type == URI_OUT_T_BUFFER, "URI is not of buffer output type: %s", uri->uri);
-	ASSERT_MSG(uri->finished, "URI has to be finished before requesting buffers: %s", uri->uri);
-	*buffer = uri->output_info.buf.data;
-	*len = uri->output_info.buf.size;
-	uri->output_info.buf.data = NULL;
-	uri->output_info.buf.size = 0;
+	if (!verify_signature(uri))
+		return false;
+	fclose(uri->output);
+	uri->output = NULL;
+tail:
+	if (data)
+		*data = uri->data;
+	if (len)
+		*len = uri->data_len;
+	return true;
 }
 
 const char *uri_error_msg(enum uri_error err) {
@@ -543,13 +525,13 @@ const char *uri_scheme_string(enum uri_scheme scheme) {
 	return schemes_table[scheme];
 }
 
-#define CONFIG_GUARD ASSERT_MSG(!uri->download_instance && !uri->finished, \
-		"(%s) URI configuration can't be changed after uri_register_downloader and uri_finish", uri->uri)
+#define CONFIG_GUARD ASSERT_MSG(!u->download_instance && !u->finished, \
+		"(%s) URI configuration can't be changed after uri_register_downloader and uri_finish", u->uri)
 
-void uri_set_ssl_verify(struct uri *uri, bool verify) {
+void uri_set_ssl_verify(uri_t u, bool verify) {
 	CONFIG_GUARD;
-	TRACE("URI ssl verify (%s): $%s", uri->uri, STRBOOL(verify));
-	uri->ssl_verify = verify;
+	TRACE("URI ssl verify (%s): $%s", u->uri, STRBOOL(verify));
+	u->ssl_verify = verify;
 }
 
 // Generate temporally file from all subsequent certificates (and CRLs)
@@ -567,13 +549,11 @@ static void list_ca_crl_collect(struct uri_local_list *list) {
 				ASSERT(mwrite_mkstemp(&mw, list->path, 0));
 				refs = list->ref_count;
 			}
-			if (uri_finish(list->uri)) {
-				uint8_t *buf;
-				size_t buf_size;
-				uri_take_buffer(list->uri, &buf, &buf_size);
+			uint8_t *buf;
+			size_t buf_size;
+			if (uri_finish(list->uri, &buf, &buf_size))
 				ASSERT(mwrite_write(&mw, buf, buf_size) == MWRITE_R_OK);
-				free(buf);
-			} else
+			else
 				DBG("Unable to get CA/CRL %s: %s", list->uri->uri, uri_error_msg(uri_errno));
 			uri_free(list->uri);
 			list->uri = NULL;
@@ -614,7 +594,7 @@ static bool list_ca_crl_add(const char *str_uri, struct uri_local_list **list, c
 		*list = NULL;
 		return true;
 	}
-	struct uri *nuri = uri_to_buffer(str_uri, NULL);
+	struct uri *nuri = uri(str_uri, NULL);
 	if (!nuri)
 		return false;
 	if (!uri_is_local(nuri)) {
@@ -629,26 +609,26 @@ static bool list_ca_crl_add(const char *str_uri, struct uri_local_list **list, c
 	return true;
 }
 
-bool uri_add_ca(struct uri *uri, const char *ca_uri) {
+bool uri_add_ca(uri_t u, const char *ca_uri) {
 	CONFIG_GUARD;
-	return list_ca_crl_add(ca_uri, &uri->ca, "CA", uri->uri);
+	return list_ca_crl_add(ca_uri, &u->ca, "CA", u->uri);
 }
 
-bool uri_add_crl(struct uri *uri, const char *crl_uri) {
+bool uri_add_crl(uri_t u, const char *crl_uri) {
 	CONFIG_GUARD;
-	return list_ca_crl_add(crl_uri, &uri->crl, "CRL", uri->uri);
+	return list_ca_crl_add(crl_uri, &u->crl, "CRL", u->uri);
 }
 
-void uri_set_ocsp(struct uri *uri, bool enabled) {
+void uri_set_ocsp(uri_t u, bool enabled) {
 	CONFIG_GUARD;
-	uri->ocsp = enabled;
-	TRACE("URI OCSP (%s): $%s", uri->uri, STRBOOL(enabled));
+	u->ocsp = enabled;
+	TRACE("URI OCSP (%s): $%s", u->uri, STRBOOL(enabled));
 }
 
 // Generate temporally file from all subsequent public keys
 static void list_pubkey_collect(struct uri_local_list *list) {
 	while (list && list->uri) {
-		if (!uri_finish(list->uri))
+		if (!uri_finish(list->uri, NULL, NULL))
 			DBG("Unable to get pubkey %s: %s", list->uri->uri, uri_error_msg(uri_errno));
 		uri_free(list->uri);
 		list->uri = NULL;
@@ -666,26 +646,27 @@ static void list_pubkey_free(struct uri_local_list *list) {
 	}
 }
 
-bool uri_add_pubkey(struct uri *uri, const char *pubkey_uri) {
+bool uri_add_pubkey(uri_t u, const char *pubkey_uri) {
 	CONFIG_GUARD;
 	if (!pubkey_uri) {
-		list_dealloc(uri->pubkey, list_pubkey_free);
-		uri->pubkey = NULL;
+		list_dealloc(u->pubkey, list_pubkey_free);
+		u->pubkey = NULL;
 		return true;
 	}
-	// TODO we can reuse file path but can't automatically remove such file on cleanup
 	char *file_path = strdup(TMP_TEMPLATE_PUBKEY_FILE);
-	struct uri *nuri = uri_to_temp_file(pubkey_uri, file_path, NULL);
+	struct uri *nuri = uri(pubkey_uri, NULL);
 	if (!nuri)
 		goto error;
 	if (!uri_is_local(nuri)) {
 		uri_errno = URI_E_NONLOCAL;
 		goto error;
 	}
-	uri->pubkey = list_add(uri->pubkey);
-	uri->pubkey->uri = nuri;
-	uri->pubkey->path = file_path;
-	TRACE("URI added pubkey (%s): %s", uri->uri, nuri->uri);
+	ASSERT(uri_output_tmpfile(nuri, file_path));
+
+	u->pubkey = list_add(u->pubkey);
+	u->pubkey->uri = nuri;
+	u->pubkey->path = file_path;
+	TRACE("URI added pubkey (%s): %s", u->uri, nuri->uri);
 	return true;
 
 error:
@@ -695,18 +676,19 @@ error:
 	return false;
 }
 
-bool uri_set_sig(struct uri *uri, const char *sig_uri) {
+bool uri_set_sig(uri_t u, const char *sig_uri) {
 	CONFIG_GUARD;
-	if (uri->sig_uri) // Free any previous uri
-		uri_free(uri->sig_uri);
+	if (u->sig_uri) // Free any previous uri
+		uri_free(u->sig_uri);
 
 	if (!sig_uri)
-		sig_uri = aprintf("%s.sig", uri->uri);
-	uri->sig_uri_file = strdup(TMP_TEMPLATE_SIGNATURE_FILE);
-	uri->sig_uri = uri_to_temp_file(sig_uri, uri->sig_uri_file, uri);
-	if (!uri->sig_uri)
+		sig_uri = aprintf("%s.sig", u->uri);
+	u->sig_uri = uri(sig_uri, u);
+	if (!u->sig_uri)
 		return false;
-	uri_add_pubkey(uri->sig_uri, NULL); // Reset public keys (verification is not possible)
-	TRACE("URI signature set (%s): %s", uri->uri, uri->sig_uri->uri);
+	uri_add_pubkey(u->sig_uri, NULL); // Reset public keys (verification is not possible)
+	u->sig_uri_file = strdup(TMP_TEMPLATE_SIGNATURE_FILE);
+	ASSERT(uri_output_tmpfile(u->sig_uri, u->sig_uri_file));
+	TRACE("URI signature set (%s): %s", u->uri, u->sig_uri->uri);
 	return true;
 }

@@ -24,17 +24,17 @@
 #define TEMP_OUT_FILE aprintf("%s/updater-uri-output-file-XXXXXX", get_tmpdir())
 
 static void test_uri_parse(const char *source, const char *parent, const char *result) {
-	struct uri *uri_parent = NULL;
+	uri_t uri_parent = NULL;
 	if (parent) {
-		uri_parent = uri_to_buffer(parent, NULL);
+		uri_parent = uri(parent, NULL);
 		ck_assert_ptr_nonnull(uri_parent);
 	}
-	struct uri *uri = uri_to_buffer(source, uri_parent);
-	ck_assert_ptr_nonnull(uri);
+	uri_t u = uri(source, uri_parent);
+	ck_assert_ptr_nonnull(u);
 	if (parent)
 		uri_free(uri_parent);
-	ck_assert_str_eq(result, uri->uri);
-	uri_free(uri);
+	ck_assert_str_eq(result, uri_uri(u));
+	uri_free(u);
 }
 
 // Testing URI parsing
@@ -79,14 +79,14 @@ START_TEST(uri_parse_relative_file) {
 }
 END_TEST
 
-static void test_uri_scheme(const char *uri, enum uri_scheme scheme) {
-	struct uri *uri_obj = uri_to_buffer(uri, NULL);
+static void test_uri_scheme(const char *u, enum uri_scheme scheme) {
+	uri_t uri_obj = uri(u, NULL);
 	ck_assert_ptr_nonnull(uri_obj);
-	ck_assert_int_eq(scheme, uri_obj->scheme);
+	ck_assert_int_eq(scheme, uri_scheme(uri_obj));
 	uri_free(uri_obj);
 }
 
-START_TEST(uri_scheme) {
+START_TEST(uri_scheme_check) {
 	test_uri_scheme("http://test", URI_S_HTTP);
 	test_uri_scheme("https://test", URI_S_HTTPS);
 	test_uri_scheme("file:///dev/null", URI_S_FILE);
@@ -96,8 +96,8 @@ START_TEST(uri_scheme) {
 }
 END_TEST
 
-static void test_uri_local(const char *uri, bool local) {
-	struct uri *uri_obj = uri_to_buffer(uri, NULL);
+static void test_uri_local(const char *u, bool local) {
+	uri_t uri_obj = uri(u, NULL);
 	ck_assert_ptr_nonnull(uri_obj);
 	ck_assert_int_eq(local, uri_is_local(uri_obj));
 	uri_free(uri_obj);
@@ -116,7 +116,7 @@ START_TEST(uri_local) {
 END_TEST
 
 START_TEST(uri_unix_path) {
-	struct uri *uri_obj = uri_to_buffer("file:///dev/null", NULL);
+	uri_t uri_obj = uri("file:///dev/null", NULL);
 	ck_assert_ptr_nonnull(uri_obj);
 	char *path = uri_path(uri_obj);
 	ck_assert_str_eq("/dev/null", path);
@@ -126,18 +126,16 @@ START_TEST(uri_unix_path) {
 END_TEST
 
 static void buffer_data_valid(const char *data_uri, const char *data) {
-	struct uri *uri = uri_to_buffer(data_uri, NULL);
-	ck_assert_ptr_nonnull(uri);
-	ck_assert(uri_finish(uri));
+	uri_t u = uri(data_uri, NULL);
+	ck_assert_ptr_nonnull(u);
 
 	uint8_t *buf;
 	size_t size;
-	uri_take_buffer(uri, &buf, &size);
-	uri_free(uri);
+	ck_assert(uri_finish(u, &buf, &size));
 
 	ck_assert_int_eq(strlen(data), size);
-	ck_assert_str_eq((char*)data, (char*)buf);
-	free(buf);
+	ck_assert_mem_eq(data, buf, size);
+	uri_free(u);
 }
 
 START_TEST(uri_to_buffer_data) {
@@ -148,69 +146,65 @@ START_TEST(uri_to_buffer_data) {
 END_TEST
 
 START_TEST(uri_to_buffer_file) {
-	struct uri *uri = uri_to_buffer(FILE_LOREM_IPSUM_SHORT, NULL);
-	ck_assert_ptr_nonnull(uri);
-	ck_assert(uri_finish(uri));
+	uri_t u = uri(FILE_LOREM_IPSUM_SHORT, NULL);
+	ck_assert_ptr_nonnull(u);
 
 	uint8_t *data;
 	size_t size;
-	uri_take_buffer(uri, &data, &size);
-	uri_free(uri);
+	ck_assert(uri_finish(u, &data, &size));
 
 	ck_assert_int_eq(LOREM_IPSUM_SHORT_SIZE, size);
-	ck_assert_str_eq(LOREM_IPSUM_SHORT, (char*)data);
-	free(data);
+	ck_assert_mem_eq(LOREM_IPSUM_SHORT, data, size);
+	uri_free(u);
 }
 END_TEST
 
 START_TEST(uri_to_buffer_http) {
-	struct uri *uri = uri_to_buffer(HTTP_LOREM_IPSUM_SHORT, NULL);
-	ck_assert_ptr_nonnull(uri);
+	uri_t u = uri(HTTP_LOREM_IPSUM_SHORT, NULL);
+	ck_assert_ptr_nonnull(u);
 
 	struct downloader *down = downloader_new(1);
-	ck_assert(uri_downloader_register(uri, down));
+	ck_assert(uri_downloader_register(u, down));
 	ck_assert_ptr_null(downloader_run(down));
-	ck_assert(uri_finish(uri));
-	downloader_free(down);
 
 	uint8_t *data;
 	size_t size;
-	uri_take_buffer(uri, &data, &size);
-	uri_free(uri);
+	ck_assert(uri_finish(u, &data, &size));
+	downloader_free(down);
 
 	ck_assert_int_eq(LOREM_IPSUM_SHORT_SIZE, size);
-	ck_assert_str_eq(LOREM_IPSUM_SHORT, (char*)data);
-	free(data);
+	ck_assert_mem_eq(LOREM_IPSUM_SHORT, data, size);
+	uri_free(u);
 }
 END_TEST
 
 START_TEST(uri_to_buffer_https) {
-	struct uri *uri = uri_to_buffer(HTTPS_LOREM_IPSUM_SHORT, NULL);
-	ck_assert_ptr_nonnull(uri);
+	uri_t u = uri(HTTPS_LOREM_IPSUM_SHORT, NULL);
+	ck_assert_ptr_nonnull(u);
 
 	struct downloader *down = downloader_new(1);
-	ck_assert(uri_downloader_register(uri, down));
+	ck_assert(uri_downloader_register(u, down));
 	ck_assert_ptr_null(downloader_run(down));
-	ck_assert(uri_finish(uri));
-	downloader_free(down);
 
 	uint8_t *data;
 	size_t size;
-	uri_take_buffer(uri, &data, &size);
-	uri_free(uri);
+	ck_assert(uri_finish(u, &data, &size));
+	downloader_free(down);
 
 	ck_assert_int_eq(LOREM_IPSUM_SHORT_SIZE, size);
-	ck_assert_str_eq(LOREM_IPSUM_SHORT, (char*)data);
-	free(data);
+	ck_assert_mem_eq(LOREM_IPSUM_SHORT, data, size);
+	uri_free(u);
 }
 END_TEST
 
 START_TEST(uri_to_file_file) {
+	uri_t u = uri(FILE_LOREM_IPSUM_SHORT, NULL);
+	ck_assert_ptr_nonnull(u);
+
 	char *outf = FIXED_OUT_FILE;
-	struct uri *uri = uri_to_file(FILE_LOREM_IPSUM_SHORT, outf, NULL);
-	ck_assert_ptr_nonnull(uri);
-	ck_assert(uri_finish(uri));
-	uri_free(uri);
+	ck_assert(uri_output_file(u, outf));
+	ck_assert(uri_finish(u, NULL, NULL));
+	uri_free(u);
 
 	char *data = readfile(outf);
 	ck_assert_int_eq(LOREM_IPSUM_SHORT_SIZE, strlen(data));
@@ -220,16 +214,18 @@ START_TEST(uri_to_file_file) {
 END_TEST
 
 START_TEST(uri_to_file_https) {
+	uri_t u = uri(HTTPS_LOREM_IPSUM_SHORT, NULL);
+	ck_assert_ptr_nonnull(u);
+
 	char *outf = FIXED_OUT_FILE;
-	struct uri *uri = uri_to_file(HTTPS_LOREM_IPSUM_SHORT, outf, NULL);
-	ck_assert_ptr_nonnull(uri);
+	ck_assert(uri_output_file(u, outf));
 
 	struct downloader *down = downloader_new(1);
-	ck_assert(uri_downloader_register(uri, down));
+	ck_assert(uri_downloader_register(u, down));
 	ck_assert_ptr_null(downloader_run(down));
-	ck_assert(uri_finish(uri));
+	ck_assert(uri_finish(u, NULL, NULL));
 	downloader_free(down);
-	uri_free(uri);
+	uri_free(u);
 
 	char *data = readfile(outf);
 	ck_assert_int_eq(LOREM_IPSUM_SHORT_SIZE, strlen(data));
@@ -240,13 +236,14 @@ END_TEST
 
 
 START_TEST(uri_to_temp_file_file) {
+	uri_t u = uri(FILE_LOREM_IPSUM_SHORT, NULL);
+	ck_assert_ptr_nonnull(u);
+
 	char *outf = TEMP_OUT_FILE;
-	struct uri *uri = uri_to_temp_file(FILE_LOREM_IPSUM_SHORT, outf, NULL);
-	ck_assert_ptr_nonnull(uri);
-	ck_assert_str_eq(TEMP_OUT_FILE, outf);
-	ck_assert(uri_finish(uri));
+	ck_assert(uri_output_tmpfile(u, outf));
 	ck_assert_str_ne(TEMP_OUT_FILE, outf);
-	uri_free(uri);
+	ck_assert(uri_finish(u, NULL, NULL));
+	uri_free(u);
 
 	char *data = readfile(outf);
 	ck_assert_int_eq(LOREM_IPSUM_SHORT_SIZE, strlen(data));
@@ -256,18 +253,19 @@ START_TEST(uri_to_temp_file_file) {
 END_TEST
 
 START_TEST(uri_to_temp_file_https) {
+	uri_t u = uri(HTTPS_LOREM_IPSUM_SHORT, NULL);
+	ck_assert_ptr_nonnull(u);
+
 	char *outf = TEMP_OUT_FILE;
-	struct uri *uri = uri_to_temp_file(HTTPS_LOREM_IPSUM_SHORT, outf, NULL);
-	ck_assert_ptr_nonnull(uri);
+	ck_assert(uri_output_tmpfile(u, outf));
+	ck_assert_str_ne(TEMP_OUT_FILE, outf);
 
 	struct downloader *down = downloader_new(1);
-	ck_assert_str_eq(TEMP_OUT_FILE, outf);
-	ck_assert(uri_downloader_register(uri, down));
-	ck_assert_str_ne(TEMP_OUT_FILE, outf);
+	ck_assert(uri_downloader_register(u, down));
 	ck_assert_ptr_null(downloader_run(down));
-	ck_assert(uri_finish(uri));
+	ck_assert(uri_finish(u, NULL, NULL));
 	downloader_free(down);
-	uri_free(uri);
+	uri_free(u);
 
 	char *data = readfile(outf);
 	ck_assert_int_eq(LOREM_IPSUM_SHORT_SIZE, strlen(data));
@@ -276,76 +274,74 @@ START_TEST(uri_to_temp_file_https) {
 }
 END_TEST
 
-void download_and_verify_lorem_ipsum_short(struct uri *uri) {
+void download_and_verify_lorem_ipsum_short(uri_t u) {
 	struct downloader *down = downloader_new(1);
-	ck_assert(uri_downloader_register(uri, down));
+	ck_assert(uri_downloader_register(u, down));
 	ck_assert_ptr_null(downloader_run(down));
-	ck_assert(uri_finish(uri));
-	downloader_free(down);
 
 	uint8_t *data;
 	size_t size;
-	uri_take_buffer(uri, &data, &size);
-	uri_free(uri);
+	ck_assert(uri_finish(u, &data, &size));
+	downloader_free(down);
 
 	ck_assert_int_eq(LOREM_IPSUM_SHORT_SIZE, size);
 	ck_assert_str_eq(LOREM_IPSUM_SHORT, (char*)data);
-	free(data);
+	uri_free(u);
 }
 
-void download_and_fail(struct uri *uri) {
+void download_and_fail(uri_t u) {
 	struct downloader *down = downloader_new(1);
-	ck_assert(uri_downloader_register(uri, down));
-	ck_assert_ptr_nonnull(uri->download_instance);
-	ck_assert_ptr_eq(uri->download_instance, downloader_run(down));
+	ck_assert(uri_downloader_register(u, down));
+	ck_assert_ptr_nonnull(uri_download_instance(u));
+	ck_assert_ptr_eq(uri_download_instance(u), downloader_run(down));
 	downloader_free(down);
-	uri_free(uri);
+	uri_free(u);
 }
 
 START_TEST(uri_cert_pinning_correct) {
-	struct uri *uri = uri_to_buffer(HTTPS_LOREM_IPSUM_SHORT, NULL);
-	ck_assert_ptr_nonnull(uri);
-	ck_assert(uri_add_ca(uri, URI_FILE_LETS_ENCRYPT_ROOTS));
-	download_and_verify_lorem_ipsum_short(uri);
+	uri_t u = uri(HTTPS_LOREM_IPSUM_SHORT, NULL);
+	ck_assert_ptr_nonnull(u);
+	ck_assert(uri_add_ca(u, URI_FILE_LETS_ENCRYPT_ROOTS));
+	download_and_verify_lorem_ipsum_short(u);
 }
 END_TEST
 
 START_TEST(uri_cert_pinning_incorrect) {
-	struct uri *uri = uri_to_buffer(HTTPS_LOREM_IPSUM_SHORT, NULL);
-	ck_assert_ptr_nonnull(uri);
-	ck_assert(uri_add_ca(uri, URI_FILE_OPENTRUST_CA_G1));
-	download_and_fail(uri);
+	uri_t u = uri(HTTPS_LOREM_IPSUM_SHORT, NULL);
+	ck_assert_ptr_nonnull(u);
+	ck_assert(uri_add_ca(u, URI_FILE_OPENTRUST_CA_G1));
+	download_and_fail(u);
 }
 END_TEST
 
 START_TEST(uri_cert_no_ca_verify) {
-	struct uri *uri = uri_to_buffer(HTTPS_LOREM_IPSUM_SHORT, NULL);
-	ck_assert_ptr_nonnull(uri);
-	ck_assert(uri_add_ca(uri, URI_FILE_OPENTRUST_CA_G1)); // Intentionally use invalid one
-	uri_set_ssl_verify(uri, false);
-	download_and_verify_lorem_ipsum_short(uri);
+	uri_t u = uri(HTTPS_LOREM_IPSUM_SHORT, NULL);
+	ck_assert_ptr_nonnull(u);
+	ck_assert(uri_add_ca(u, URI_FILE_OPENTRUST_CA_G1)); // Intentionally use invalid one
+	uri_set_ssl_verify(u, false);
+	download_and_verify_lorem_ipsum_short(u);
 }
 END_TEST
 
 // We use multiple keys here
 START_TEST(uri_sig_verify_valid) {
-	struct uri *u = uri_to_buffer(FILE_LOREM_IPSUM_SHORT, NULL);
+	uri_t u = uri(FILE_LOREM_IPSUM_SHORT, NULL);
 	ck_assert_ptr_nonnull(u);
 	ck_assert(uri_add_pubkey(u, "/dev/null/missing"));
 	ck_assert(uri_add_pubkey(u, USIGN_KEY_1_PUB));
 	ck_assert(uri_add_pubkey(u, USIGN_KEY_2_PUB));
-	ck_assert(uri_finish(u));
+	ck_assert(uri_finish(u, NULL, NULL));
 	uri_free(u);
 }
 END_TEST
 
 // This uses invalid public key
 START_TEST(uri_sig_verify_invalid) {
-	struct uri *u = uri_to_buffer(FILE_LOREM_IPSUM_SHORT, NULL);
+	uri_t u = uri(FILE_LOREM_IPSUM_SHORT, NULL);
 	ck_assert_ptr_nonnull(u);
 	ck_assert(uri_add_pubkey(u, "/dev/null/missing"));
 	ck_assert(uri_add_pubkey(u, USIGN_KEY_2_PUB));
-	ck_assert(!uri_finish(u));
+	ck_assert(!uri_finish(u, NULL, NULL));
 	ck_assert_int_eq(URI_E_VERIFY_FAIL, uri_errno);
 	uri_free(u);
 }
@@ -357,7 +353,7 @@ Suite *gen_test_suite(void) {
 	tcase_set_timeout(uri, 30);
 	tcase_add_test(uri, uri_parse);
 	tcase_add_test(uri, uri_parse_relative_file);
-	tcase_add_test(uri, uri_scheme);
+	tcase_add_test(uri, uri_scheme_check);
 	tcase_add_test(uri, uri_local);
 	tcase_add_test(uri, uri_unix_path);
 	tcase_add_test(uri, uri_to_buffer_data);
