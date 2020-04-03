@@ -152,6 +152,12 @@ static bool _dir_tree_list(const char *path, char ***list, size_t *list_len, siz
 	return true;
 }
 
+int _dir_tree_cmp(const void *a, const void *b) {
+    const char *pa = *(const char**)a;
+    const char *pb = *(const char**)b;
+    return strcmp(pa, pb);
+}
+
 bool dir_tree_list(const char *path, char ***list, size_t *list_len, int path_type) {
 	size_t size = 8;
 	*list_len = 0;
@@ -162,6 +168,7 @@ bool dir_tree_list(const char *path, char ***list, size_t *list_len, int path_ty
 		free(*list);
 		return false;
 	}
+	qsort(*list, *list_len, sizeof *list, _dir_tree_cmp);
 	return true;
 }
 
