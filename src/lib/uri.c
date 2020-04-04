@@ -468,7 +468,7 @@ static bool verify_signature(struct uri *uri) {
 	return verified;
 }
 
-bool uri_finish(uri_t uri, uint8_t **data, size_t *len) {
+bool uri_finish(uri_t uri, const uint8_t **data, size_t *len) {
 	if (uri->finished)
 		goto tail;
 	TRACE("URI finish: %s", uri->uri);

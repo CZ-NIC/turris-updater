@@ -129,7 +129,7 @@ static void buffer_data_valid(const char *data_uri, const char *data) {
 	uri_t u = uri(data_uri, NULL);
 	ck_assert_ptr_nonnull(u);
 
-	uint8_t *buf;
+	const uint8_t *buf;
 	size_t size;
 	ck_assert(uri_finish(u, &buf, &size));
 
@@ -149,7 +149,7 @@ START_TEST(uri_to_buffer_file) {
 	uri_t u = uri(FILE_LOREM_IPSUM_SHORT, NULL);
 	ck_assert_ptr_nonnull(u);
 
-	uint8_t *data;
+	const uint8_t *data;
 	size_t size;
 	ck_assert(uri_finish(u, &data, &size));
 
@@ -167,7 +167,7 @@ START_TEST(uri_to_buffer_http) {
 	ck_assert(uri_downloader_register(u, down));
 	ck_assert_ptr_null(downloader_run(down));
 
-	uint8_t *data;
+	const uint8_t *data;
 	size_t size;
 	ck_assert(uri_finish(u, &data, &size));
 	downloader_free(down);
@@ -186,7 +186,7 @@ START_TEST(uri_to_buffer_https) {
 	ck_assert(uri_downloader_register(u, down));
 	ck_assert_ptr_null(downloader_run(down));
 
-	uint8_t *data;
+	const uint8_t *data;
 	size_t size;
 	ck_assert(uri_finish(u, &data, &size));
 	downloader_free(down);
@@ -279,7 +279,7 @@ void download_and_verify_lorem_ipsum_short(uri_t u) {
 	ck_assert(uri_downloader_register(u, down));
 	ck_assert_ptr_null(downloader_run(down));
 
-	uint8_t *data;
+	const uint8_t *data;
 	size_t size;
 	ck_assert(uri_finish(u, &data, &size));
 	downloader_free(down);

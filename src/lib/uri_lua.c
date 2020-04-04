@@ -212,7 +212,7 @@ static int lua_uri_uri(lua_State *L) {
 
 static int lua_uri_finish(lua_State *L) {
 	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
-	uint8_t *buf;
+	const uint8_t *buf;
 	size_t len;
 	if (!uri_finish(uri->uri, &buf, &len)) {
 		if (uri_errno == URI_E_SIG_FAIL) {

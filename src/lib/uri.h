@@ -123,7 +123,7 @@ download_i_t uri_download_instance(uri_t uri) __attribute__((nonnull));
 // Possible errors: URI_E_UNFINISHED_DOWNLOAD, URI_E_DOWNLOAD_FAILED,
 // URI_E_OUTPUT_OPEN_FAIL, URI_E_FILE_INPUT_ERROR, URI_E_OUTPUT_WRITE_FAIL,
 // URI_E_VERIFY_FAIL, URI_E_SIG_FAIL
-bool uri_finish(uri_t uri, uint8_t **data, size_t *len) __attribute__((nonnull(1)));
+bool uri_finish(uri_t uri, const uint8_t **data, size_t *len) __attribute__((nonnull(1)));
 
 // Build error message of URI retrieval failure.
 // Returns string with error message.
