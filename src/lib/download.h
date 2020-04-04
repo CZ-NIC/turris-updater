@@ -80,7 +80,7 @@ void download_opts_def(struct download_opts *opts) __attribute__((nonnull));
 // Initialize/load certificate in PEM format
 // pem: data with certificate in PEM format
 // len: size of data
-// Returns new download_pem_t instance.
+// Returns new download_pem_t instance or NULL on error.
 download_pem_t download_pem(const uint8_t *pem, size_t len)
 	__attribute__((nonnull(1),malloc));
 

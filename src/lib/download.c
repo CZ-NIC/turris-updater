@@ -55,6 +55,7 @@ struct download_i {
 	struct downloader *downloader; // parent downloader
 	FILE *output;
 	CURL *curl; // easy curl session
+	download_pem_t *pems;
 };
 
 struct download_pem {
@@ -237,10 +238,20 @@ void download_opts_def(struct download_opts *opts) {
 
 download_pem_t download_pem(const uint8_t *pem, size_t len) {
 	struct download_pem *dpem = malloc(sizeof *dpem);
-	// TODO errors?
 	dpem->cbio = BIO_new_mem_buf(pem, len);
+	if (!dpem->cbio)
+		goto error;
 	dpem->info = PEM_X509_INFO_read_bio(dpem->cbio, NULL, NULL, NULL);
+	if (!dpem->info) {
+		BIO_free(dpem->cbio);
+		goto error;
+	}
 	return dpem;
+
+error:
+	ERROR("Initializing PEM failed: %s", ERR_error_string(ERR_get_error(), NULL)); 
+	free(dpem);
+	return NULL;
 }
 
 void download_pem_free(download_pem_t dpem) {
@@ -272,8 +283,10 @@ static size_t download_write_callback(char *ptr, size_t size, size_t nmemb, void
 static CURLcode download_sslctx(CURL *curl __attribute__((unused)), void *sslctx, void *parm) {
 	struct download_pem **pems = parm;
 	X509_STORE *cts = SSL_CTX_get_cert_store((SSL_CTX *)sslctx);
-	if (!cts)
+	if (!cts) {
+		TRACE("Failed to get cert store: %s", ERR_error_string(ERR_get_error(), NULL));
 		return CURLE_ABORTED_BY_CALLBACK;
+	}
 
 	while (*pems) {
 		for (int i = 0; i < sk_X509_INFO_num((*pems)->info); i++) {
@@ -288,6 +301,13 @@ static CURLcode download_sslctx(CURL *curl __attribute__((unused)), void *sslctx
 	return CURLE_OK;
 }
 
+static download_pem_t *pemsdup(const download_pem_t *pem) {
+	size_t len = 0;
+	while (pem[len++]);
+	download_pem_t *npem = malloc(len * sizeof *npem);
+	return memcpy(npem, pem, len * sizeof *pem);
+}
+
 struct download_i *download(struct downloader *downloader, const char *url,
 		FILE *output, const struct download_opts *opts) {
 	struct download_i *inst = malloc(sizeof *inst);
@@ -298,6 +318,7 @@ struct download_i *download(struct downloader *downloader, const char *url,
 	inst->success = false;
 	inst->retries = opts->retries;
 	inst->downloader = downloader;
+	inst->pems = NULL;
 
 	inst->curl = curl_easy_init();
 	ASSERT_MSG(inst->curl, "Curl download instance creation failed");
@@ -323,8 +344,9 @@ struct download_i *download(struct downloader *downloader, const char *url,
 		if (opts->crl_file)
 			CURL_SETOPT(CURLOPT_CRLFILE, opts->crl_file);
 		if (opts->pems) {
+			inst->pems = pemsdup(opts->pems);
 			CURL_SETOPT(CURLOPT_SSL_CTX_FUNCTION, download_sslctx);
-			CURL_SETOPT(CURLOPT_SSL_CTX_DATA, opts->pems);
+			CURL_SETOPT(CURLOPT_SSL_CTX_DATA, inst->pems);
 		}
 		CURL_SETOPT(CURLOPT_SSL_VERIFYSTATUS, opts->ocsp);
 	} else
@@ -362,6 +384,8 @@ void download_i_free(struct download_i *inst) {
 	// Free instance it self
 	ASSERT_CURLM(curl_multi_remove_handle(inst->downloader->cmulti, inst->curl)); // remove download from multi handler
 	curl_easy_cleanup(inst->curl); // and clean download (also closing running connection)
+	if (inst->pems)
+		free(inst->pems);
 	free(inst);
 }
 
