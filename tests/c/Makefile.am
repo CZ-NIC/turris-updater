@@ -2,7 +2,6 @@ TESTS += \
 	%reldir%/archive \
 	%reldir%/util \
 	%reldir%/syscnf \
-	%reldir%/multiwrite \
 	%reldir%/path_utils \
 	%reldir%/signature \
 	%reldir%/subprocess \
@@ -14,7 +13,6 @@ check_PROGRAMS += \
 	%reldir%/archive \
 	%reldir%/util \
 	%reldir%/syscnf \
-	%reldir%/multiwrite \
 	%reldir%/path_utils \
 	%reldir%/signature \
 	%reldir%/subprocess \
@@ -24,7 +22,6 @@ check_PROGRAMS += \
 %canon_reldir%_archive_LDADD = %reldir%/libctest.la
 %canon_reldir%_util_LDADD = %reldir%/libctest.la
 %canon_reldir%_syscnf_LDADD = %reldir%/libctest.la
-%canon_reldir%_multiwrite_LDADD = %reldir%/libctest.la
 %canon_reldir%_path_utils_LDADD = %reldir%/libctest.la
 %canon_reldir%_signature_LDADD = %reldir%/libctest.la
 %canon_reldir%_subprocess_LDADD = %reldir%/libctest.la
@@ -34,7 +31,6 @@ check_PROGRAMS += \
 %canon_reldir%_archive_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)
 %canon_reldir%_util_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)
 %canon_reldir%_syscnf_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)
-%canon_reldir%_multiwrite_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)
 %canon_reldir%_path_utils_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)
 %canon_reldir%_signature_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)
 %canon_reldir%_subprocess_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)

@@ -2,7 +2,6 @@
 download
 events
 interpreter
-multiwrite
 subprocess
 syscnf
 uri

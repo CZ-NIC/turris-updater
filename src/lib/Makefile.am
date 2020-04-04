@@ -11,7 +11,6 @@ libupdater_la_SOURCES = \
 	%reldir%/journal.c \
 	%reldir%/locks.c \
 	%reldir%/logging.c \
-	%reldir%/multiwrite.c \
 	%reldir%/opmode.c \
 	%reldir%/path_utils.c \
 	%reldir%/picosat.c \
