@@ -226,7 +226,7 @@ static int lua_uri_finish(lua_State *L) {
 	if (!buf)
 		return 0;
 	lua_pushlstring(L, (const char*)buf, len);
-	// free(buf); TODO how to free it?
+	// TODO we could somehow now free buffer in uri without freeing uri itself
 	return 1;
 }
 
@@ -264,9 +264,10 @@ static int lua_uri_add_ca(lua_State *L) {
 	const char *cauri = NULL;
 	if (!lua_isnoneornil(L, 2))
 		cauri = luaL_checkstring(L, 2);
-	if (!uri_add_ca(uri->uri, cauri))
+	if (!uri_add_pem(uri->uri, cauri))
 	   return luaL_error(L, "Unable to add CA (%s): %s", cauri,
 			   uri_error_msg(uri_errno));
+	uri_set_ca_pin(uri->uri, cauri);
 	return 0;
 }
 
@@ -275,7 +276,7 @@ static int lua_uri_add_crl(lua_State *L) {
 	const char *crluri = NULL;
 	if (!lua_isnoneornil(L, 2))
 		crluri = luaL_checkstring(L, 2);
-	if (!uri_add_crl(uri->uri, crluri))
+	if (!uri_add_pem(uri->uri, crluri))
 	   return luaL_error(L, "Unable to add CRL (%s): %s", crluri,
 				   uri_error_msg(uri_errno));
 	return 0;

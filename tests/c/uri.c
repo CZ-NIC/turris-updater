@@ -301,7 +301,8 @@ void download_and_fail(uri_t u) {
 START_TEST(uri_cert_pinning_correct) {
 	uri_t u = uri(HTTPS_LOREM_IPSUM_SHORT, NULL);
 	ck_assert_ptr_nonnull(u);
-	ck_assert(uri_add_ca(u, URI_FILE_LETS_ENCRYPT_ROOTS));
+	ck_assert(uri_add_pem(u, URI_FILE_LETS_ENCRYPT_ROOTS));
+	uri_set_ca_pin(u, true);
 	download_and_verify_lorem_ipsum_short(u);
 }
 END_TEST
@@ -309,7 +310,8 @@ END_TEST
 START_TEST(uri_cert_pinning_incorrect) {
 	uri_t u = uri(HTTPS_LOREM_IPSUM_SHORT, NULL);
 	ck_assert_ptr_nonnull(u);
-	ck_assert(uri_add_ca(u, URI_FILE_OPENTRUST_CA_G1));
+	ck_assert(uri_add_pem(u, URI_FILE_OPENTRUST_CA_G1));
+	uri_set_ca_pin(u, true);
 	download_and_fail(u);
 }
 END_TEST
@@ -317,7 +319,8 @@ END_TEST
 START_TEST(uri_cert_no_ca_verify) {
 	uri_t u = uri(HTTPS_LOREM_IPSUM_SHORT, NULL);
 	ck_assert_ptr_nonnull(u);
-	ck_assert(uri_add_ca(u, URI_FILE_OPENTRUST_CA_G1)); // Intentionally use invalid one
+	ck_assert(uri_add_pem(u, URI_FILE_OPENTRUST_CA_G1)); // Intentionally use invalid one
+	uri_set_ca_pin(u, true);
 	uri_set_ssl_verify(u, false);
 	download_and_verify_lorem_ipsum_short(u);
 }

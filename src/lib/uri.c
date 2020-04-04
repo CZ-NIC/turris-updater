@@ -17,17 +17,13 @@
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "uri.h"
-#include "multiwrite.h"
-#include "subprocess.h"
+#include "signature.h"
 #include <stdlib.h>
 #include <fcntl.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/mman.h>
 #include <uriparser/Uri.h>
-
-#define TMP_TEMPLATE_CA_CRL_FILE "/tmp/updater-ca-XXXXXX"
-#define TMP_TEMPLATE_PUBKEY_FILE "/tmp/updater-pubkey-XXXXXX"
-#define TMP_TEMPLATE_SIGNATURE_FILE "/tmp/updater-sig-XXXXXX"
 
 
 THREAD_LOCAL enum uri_error uri_errno = 0;
@@ -61,7 +57,10 @@ struct uri_local_list {
 	unsigned ref_count; // Reference counter (counts number of usages in uri object)
 
 	struct uri *uri; // Uri object initialized by URI provided by user
-	char *path; // Used to store path to file
+	union {
+		struct sign_pubkey *pubkey;
+		struct download_pem *pem;
+	} dt;
 };
 
 // URI representation
@@ -79,16 +78,15 @@ struct uri {
 	// HTTPS options
 	bool ssl_verify; // If SSL should be verified
 	bool ocsp; // If OCSP should be used for ceritification validity check
-	struct uri_local_list *ca; // List of all configured CAs
-	struct uri_local_list *crl; // List of all configured CRLs
+	bool ca_pin; // If system CAs should not be used (certification pinning)
+	struct uri_local_list *pem; // List of all configured CAs and CRLs (PEM)
 	// Signature verification
 	struct uri_local_list *pubkey; // URIs to public keys used for verification
-	char *sig_uri_file; // path to output file for signature
 	struct uri *sig_uri; // signature URI
 };
 
-static void list_ca_crl_collect(struct uri_local_list*);
-static void list_pubkey_collect(struct uri_local_list*);
+static struct download_pem **list_pem_collect(struct uri_local_list*, size_t level);
+static struct sign_pubkey **list_pubkey_collect(struct uri_local_list*, size_t level);
 
 // Bup reference count
 static void list_refup(struct uri_local_list *list) {
@@ -236,14 +234,13 @@ uri_t uri(const char *uri_str, const uri_t parent) {
 		return NULL;
 	}
 	TRACE("URI new (%s) (%s): %s", uri_str, parent ? parent->uri : "none", ret->uri);
-	ret->sig_uri_file = NULL;
 	ret->sig_uri = NULL;
 #define SET(X, DEF) do { if (parent) ret->X = parent->X; else ret->X = DEF; } while (false);
 #define SET_LIST(X) do { SET(X, NULL); list_refup(ret->X); } while (false);
 	SET(ssl_verify, true);
 	SET(ocsp, true);
-	SET_LIST(ca);
-	SET_LIST(crl);
+	SET(ca_pin, false);
+	SET_LIST(pem);
 	SET_LIST(pubkey);
 #undef SET_LIST
 #undef SET
@@ -254,17 +251,14 @@ uri_t uri(const char *uri_str, const uri_t parent) {
 	return ret;
 }
 
-static void list_ca_crl_free(struct uri_local_list *list);
+static void list_pem_free(struct uri_local_list *list);
 static void list_pubkey_free(struct uri_local_list *list);
 
 void uri_free(struct uri *uri) {
 	free(uri->uri);
 	if (uri->sig_uri)
 		uri_free(uri->sig_uri);
-	if (uri->sig_uri_file)
-		free(uri->sig_uri_file);
-	list_dealloc(uri->ca, list_ca_crl_free);
-	list_dealloc(uri->crl, list_ca_crl_free);
+	list_dealloc(uri->pem, list_pem_free);
 	list_dealloc(uri->pubkey, list_pubkey_free);
 	if (uri->output)
 		fclose(uri->output);
@@ -292,7 +286,6 @@ bool uri_is_local(const uri_t uri) {
 }
 
 char *uri_path(const uri_t uri) {
-	// TODO probably rather return error
 	ASSERT_MSG(uri->scheme == URI_S_FILE,
 			"Called uri_path on URI of scheme: %s", uri_scheme_string(uri->scheme));
 	char *path = malloc(strlen(uri->uri) - 6); // source: https://uriparser.github.io/doc/api/latest/index.html
@@ -342,18 +335,14 @@ bool uri_downloader_register(uri_t uri, downloader_t downloader) {
 	download_opts_def(&opts);
 	opts.ssl_verify = uri->ssl_verify;
 	opts.ocsp = uri->ocsp;
-	// TODO use instead of files: https://curl.haxx.se/libcurl/c/cacertinmem.html
-	if (uri->ca) {
-		list_ca_crl_collect(uri->ca);
-		opts.cacert_file = uri->ca->path;
-		opts.capath = "/dev/null"; // disables system CAs
+	opts.pems = list_pem_collect(uri->pem, 0);
+	if (uri->ca_pin) {
+		opts.cacert_file = NULL;
+		opts.capath = NULL;
 	}
-	if (uri->crl) {
-		list_ca_crl_collect(uri->crl);
-		opts.crl_file = uri->crl->path;
-	}
-
 	uri->download_instance = download(downloader, uri->uri, uri->output, &opts);
+	free(opts.pems);
+
 	if (uri->pubkey && !uri_downloader_register(uri->sig_uri, downloader)) {
 		uri_sub_errno = uri_errno;
 		uri_sub_err_uri = uri->sig_uri;
@@ -362,6 +351,7 @@ bool uri_downloader_register(uri_t uri, downloader_t downloader) {
 		uri->download_instance = NULL;
 		return false;
 	}
+
 	return true;
 }
 
@@ -425,41 +415,33 @@ static bool verify_signature(struct uri *uri) {
 	if (!uri->pubkey) // no keys means no verification
 		return true;
 	ASSERT_MSG(uri->sig_uri, "Signature uri should be set if public keys are provided");
-	uint8_t *signature;
-	size_t signature_len;
-	if (!uri_finish(uri->sig_uri, &signature, &signature_len)) {
+	const uint8_t *sign;
+	size_t sign_len;
+	if (!uri_finish(uri->sig_uri, &sign, &sign_len)) {
 		uri_sub_errno = uri_errno;
 		uri_sub_err_uri = uri->sig_uri;
 		uri_errno = URI_E_SIG_FAIL;
 		return false;
 	}
 
-	list_pubkey_collect(uri->pubkey);
+	struct sign_pubkey **pubkeys = list_pubkey_collect(uri->pubkey, 0);
 
-	char *dataf = strdup("/tmp/updater-data-XXXXXX");
-	int datafd = mkstemp(dataf);
-	if (!uri->data) {
-		rewind(uri->output);
-		char buf[BUFSIZ];
-		size_t rd;
-		while ((rd = fread(buf, 1, BUFSIZ, uri->output)) > 0)
-			ASSERT(write(datafd, buf, rd) == (ssize_t)rd);
-	} else
-		ASSERT(write(datafd, uri->data, uri->data_len) == (ssize_t)uri->data_len);
-	close(datafd);
+	uint8_t *data;
+	uint8_t data_len;
+	if (uri->data) {
+		data = uri->data;
+		data_len = uri->data_len;
+	} else {
+		data_len = ftell(uri->output);
+		// TODO additional error in assert?
+		ASSERT((data = mmap(NULL, data_len, PROT_READ, MAP_PRIVATE, fileno(uri->output), 0)) != MAP_FAILED);
+	}
 
-	bool verified = false;
-	struct uri_local_list *key = uri->pubkey;
-	do {
-		verified = !lsubprocv(LST_USIGN,
-			aprintf("Verify %s (%s) against %s", uri->uri, uri->sig_uri_file, key->path),
-			NULL, 30000, "usign", "-V", "-p", key->path,
-			"-x", uri->sig_uri_file, "-m", dataf, (void*)NULL);
-		key = key->next;
-	} while(key && !verified);
+	bool verified = sign_verify(data, data_len, sign, sign_len, pubkeys);
 
-	unlink(dataf);
-	free(dataf);
+	if (!uri->data)
+		munmap(data, data_len);
+	free(pubkeys);
 	uri_free(uri->sig_uri);
 	uri->sig_uri = NULL;
 
@@ -497,6 +479,7 @@ bool uri_finish(uri_t uri, const uint8_t **data, size_t *len) {
 		download_i_free(uri->download_instance);
 		uri->download_instance = NULL;
 	}
+	fflush(uri->output);
 	uri->finished = true;
 	if (!verify_signature(uri))
 		return false;
@@ -534,67 +517,48 @@ void uri_set_ssl_verify(uri_t u, bool verify) {
 	u->ssl_verify = verify;
 }
 
-// Generate temporally file from all subsequent certificates (and CRLs)
-static void list_ca_crl_collect(struct uri_local_list *list) {
-	if (!list || list->path)
-		return; // not set or already collected to file so all is done
-
-	unsigned refs = 0;
-	struct mwrite mw;
-	mwrite_init(&mw);
-	do {
-		if (list->uri) {
-			if (list->ref_count > refs) {
-				list->path = strdup(TMP_TEMPLATE_CA_CRL_FILE);
-				ASSERT(mwrite_mkstemp(&mw, list->path, 0));
-				refs = list->ref_count;
-			}
-			uint8_t *buf;
-			size_t buf_size;
-			if (uri_finish(list->uri, &buf, &buf_size))
-				ASSERT(mwrite_write(&mw, buf, buf_size) == MWRITE_R_OK);
-			else
-				DBG("Unable to get CA/CRL %s: %s", list->uri->uri, uri_error_msg(uri_errno));
-			uri_free(list->uri);
-			list->uri = NULL;
-		} else {
-			// This is already collected to file so we read file it self.
-			int fd = open(list->path, 0, O_RDONLY);
-			char *buf[BUFSIZ];
-			ssize_t cnt;
-			while((cnt = read(fd, buf, BUFSIZ)) > 0)
-				ASSERT(mwrite_write(&mw, buf, cnt) == MWRITE_R_OK);
-			close(fd);
-			break;
-		}
-		list = list->next;
-	} while (list);
-
-	if (!mwrite_close(&mw)) {
-		uri_sub_errno = URI_E_OUTPUT_WRITE_FAIL;
-		uri_sub_err_uri = NULL;
+static struct download_pem **list_pem_collect(struct uri_local_list *list, size_t level) {
+	if (!list) { // lowest level so allocate appropriate size of array
+		struct download_pem **pems = malloc((level + 1) * sizeof *pems);
+		pems[level] = NULL;
+		return pems;
 	}
+
+	if (list->uri) {
+		const uint8_t *data;
+		size_t len;
+		if (uri_finish(list->uri, &data, &len)) {
+			list->dt.pem = download_pem(data, len); // TODO error?
+		} else
+			DBG("Unable to get CA/CRL %s: %s", list->uri->uri, uri_error_msg(uri_errno));
+		uri_free(list->uri);
+		list->uri = NULL;
+	}
+
+	struct download_pem **pems = list_pem_collect(list->next,
+			list->dt.pem ? level + 1 : level);
+	if (list->dt.pem)
+		pems[level] = list->dt.pem;
+	return pems;
 }
 
 // deallocation handler for CA and CRL list
-static void list_ca_crl_free(struct uri_local_list *list) {
+static void list_pem_free(struct uri_local_list *list) {
 	if (list->uri)
 		uri_free(list->uri);
-	if (list->path) {
-		unlink(list->path);
-		free(list->path);
-	}
+	if (list->dt.pem)
+		download_pem_free(list->dt.pem);
 }
 
-// Common add function for both CA and CRL
-static bool list_ca_crl_add(const char *str_uri, struct uri_local_list **list, const char *what, const char *for_uri) {
-	if (!str_uri){
-		TRACE("URI all %ss dropped (%s)", what, for_uri);
-		list_dealloc(*list, list_ca_crl_free);
-		*list = NULL;
+bool uri_add_pem(uri_t u, const char *pem_uri) {
+	CONFIG_GUARD;
+	if (!pem_uri){
+		TRACE("URI all PEMs (CAs and CRLs) dropped (%s)", u->uri);
+		list_dealloc(u->pem, list_pem_free);
+		u->pem = NULL;
 		return true;
 	}
-	struct uri *nuri = uri(str_uri, NULL);
+	struct uri *nuri = uri(pem_uri, NULL);
 	if (!nuri)
 		return false;
 	if (!uri_is_local(nuri)) {
@@ -602,21 +566,17 @@ static bool list_ca_crl_add(const char *str_uri, struct uri_local_list **list, c
 		uri_free(nuri);
 		return false;
 	}
-	*list = list_add(*list);
-	(*list)->uri = nuri;
-	(*list)->path = NULL;
-	TRACE("URI added %s (%s): %s", what, for_uri, nuri->uri);
+	u->pem = list_add(u->pem);
+	u->pem->uri = nuri;
+	u->pem->dt.pem = NULL;
+	TRACE("URI added PEM (%s): %s", u->uri, nuri->uri);
 	return true;
 }
 
-bool uri_add_ca(uri_t u, const char *ca_uri) {
+void uri_set_ca_pin(uri_t u, bool enabled) {
 	CONFIG_GUARD;
-	return list_ca_crl_add(ca_uri, &u->ca, "CA", u->uri);
-}
-
-bool uri_add_crl(uri_t u, const char *crl_uri) {
-	CONFIG_GUARD;
-	return list_ca_crl_add(crl_uri, &u->crl, "CRL", u->uri);
+	u->ca_pin = enabled;
+	TRACE("URI CA pin (%s): $%s", u->uri, STRBOOL(enabled));
 }
 
 void uri_set_ocsp(uri_t u, bool enabled) {
@@ -625,25 +585,37 @@ void uri_set_ocsp(uri_t u, bool enabled) {
 	TRACE("URI OCSP (%s): $%s", u->uri, STRBOOL(enabled));
 }
 
-// Generate temporally file from all subsequent public keys
-static void list_pubkey_collect(struct uri_local_list *list) {
-	while (list && list->uri) {
-		if (!uri_finish(list->uri, NULL, NULL))
+static struct sign_pubkey **list_pubkey_collect(struct uri_local_list *list, size_t level) {
+	if (!list) {
+		struct sign_pubkey **pubkeys = malloc((level + 1) * sizeof *pubkeys);
+		pubkeys[level] = NULL;
+		return pubkeys;
+	}
+
+	if (list->uri) {
+		const uint8_t *data;
+		size_t len;
+		if (uri_finish(list->uri, &data, &len))
+			list->dt.pubkey = sign_pubkey(data, len); // TODO error?
+		else
 			DBG("Unable to get pubkey %s: %s", list->uri->uri, uri_error_msg(uri_errno));
 		uri_free(list->uri);
 		list->uri = NULL;
-		list = list->next;
 	}
+
+	struct sign_pubkey **pubkeys = list_pubkey_collect(list->next,
+			list->dt.pubkey ? level + 1 : level);
+	if (list->dt.pubkey)
+		pubkeys[level] = list->dt.pubkey;
+	return pubkeys;
 }
 
 // deallocation handler for pubkey list
 static void list_pubkey_free(struct uri_local_list *list) {
 	if (list->uri)
 		uri_free(list->uri);
-	if (list->path) {
-		unlink(list->path); // Intentionally ignoring error (if no file was created)
-		free(list->path);
-	}
+	if (list->dt.pubkey)
+		sign_pubkey_free(list->dt.pubkey);
 }
 
 bool uri_add_pubkey(uri_t u, const char *pubkey_uri) {
@@ -653,27 +625,20 @@ bool uri_add_pubkey(uri_t u, const char *pubkey_uri) {
 		u->pubkey = NULL;
 		return true;
 	}
-	char *file_path = strdup(TMP_TEMPLATE_PUBKEY_FILE);
 	struct uri *nuri = uri(pubkey_uri, NULL);
 	if (!nuri)
-		goto error;
+		return false;
 	if (!uri_is_local(nuri)) {
 		uri_errno = URI_E_NONLOCAL;
-		goto error;
+		uri_free(nuri);
+		return false;
 	}
-	ASSERT(uri_output_tmpfile(nuri, file_path));
 
 	u->pubkey = list_add(u->pubkey);
 	u->pubkey->uri = nuri;
-	u->pubkey->path = file_path;
+	u->pubkey->dt.pubkey = NULL;
 	TRACE("URI added pubkey (%s): %s", u->uri, nuri->uri);
 	return true;
-
-error:
-	if (nuri)
-		uri_free(nuri);
-	free(file_path);
-	return false;
 }
 
 bool uri_set_sig(uri_t u, const char *sig_uri) {
@@ -687,8 +652,6 @@ bool uri_set_sig(uri_t u, const char *sig_uri) {
 	if (!u->sig_uri)
 		return false;
 	uri_add_pubkey(u->sig_uri, NULL); // Reset public keys (verification is not possible)
-	u->sig_uri_file = strdup(TMP_TEMPLATE_SIGNATURE_FILE);
-	ASSERT(uri_output_tmpfile(u->sig_uri, u->sig_uri_file));
 	TRACE("URI signature set (%s): %s", u->uri, u->sig_uri->uri);
 	return true;
 }

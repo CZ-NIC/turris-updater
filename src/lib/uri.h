@@ -141,24 +141,22 @@ const char *uri_download_error(uri_t) __attribute((nonnull));
 // In default this is enabled.
 // This setting is inherited.
 void uri_set_ssl_verify(uri_t uri, bool verify) __attribute__((nonnull(1)));
-// Set certification authority to be used
-// uri: URI object CA to be set to
-// ca_uri: URI to local CA to be added to list of CAs for SSL verification. You
-//   can pass NULL and in such case all URIs are dropped and defaul system SSL
-//   certificate bundle is used instead.
+// Set certification authority or revocation list to be used
+// uri: URI object PEM to be set to
+// pem_uri: URI to local CA or CRL to be added to list of CAs or CRLs for SSL
+//   verification. You can pass NULL and in such case all previously added PEMs
+//   are dropped.
+// This setting is inherited.
+// Possible errors: URI_E_NONLOCAL and all errors by uri function
+bool uri_add_pem(uri_t uri, const char *pem_uri) __attribute__((nonnull(1)));
+// Set certification authority pinning. This effectivelly disables use of system
+// CAs and uses only provided ones.
+// uri: URI object certification pinning to be configured for
+// enabled: If certification pinning should be performed. On false all
+//   certificates installed in system are accepted.
 // In default system CAs are used.
 // This setting is inherited.
-// Possible errors: URI_E_NONLOCAL and all errors by uri_to_buffer
-bool uri_add_ca(uri_t uri, const char *ca_uri) __attribute__((nonnull(1)));
-// Set URI to CRL that is used if CA verification is used
-// uri: URI object CRLs to be set to
-// crl_uri: URI to local CRL to be added to list of CRLs for SSL verification. You
-//   can also pass NULL and in such case all URIs are dropped and CRL verification
-//   is disabled.
-// In default CRL verification is disabled.
-// This setting is inherited.
-// Possible errors: URI_E_NONLOCAL and all errors by uri_to_buffer
-bool uri_add_crl(uri_t uri, const char *crl_uri) __attribute__((nonnull(1)));
+void uri_set_ca_pin(uri_t uri, bool enabled) __attribute__((nonnull));
 // Set URI OCSP verification
 // uri: URI object OCSP to be set to
 // enabled: If OCSP should be used
