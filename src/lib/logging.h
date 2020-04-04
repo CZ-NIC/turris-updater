@@ -109,7 +109,6 @@ void setup_logging(enum log_level tty, enum log_level syslog);
 enum log_subproc_type {
 	LST_PKG_SCRIPT, // This is post/pre install/rm script
 	LST_HOOK, // This is updater's hook
-	LST_USIGN, // This is usign executable (this has explicitly lower logging level set to DBG)
 	LST_UNKNOWN // This terminates this enum
 };
 

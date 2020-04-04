@@ -919,7 +919,6 @@ struct {
 	{ LS_FAIL, "LS_FAIL"},
 	{ LST_PKG_SCRIPT, "LST_PKG_SCRIPT"},
 	{ LST_HOOK, "LST_HOOK"},
-	{ LST_USIGN, "LST_USIGN"},
 };
 // Various enum values that we want to inject
 
