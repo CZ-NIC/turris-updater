@@ -126,8 +126,10 @@ FILE *decompress(FILE *f, int flags) {
 	data->a = a;
 	archive_read_support_filter_all(a);
 	archive_read_support_format_raw(a);
-	if (archive_read_open_FILE(a, f) != ARCHIVE_OK)
+	if (archive_read_open_FILE(a, f) != ARCHIVE_OK) {
+		free(data);
 		return preserve_error(a, true);
+	}
 	struct archive_entry *entry; // this is dummy entry so we do not need it
 	ASSERT_MSG(archive_read_next_header(a, &entry) == ARCHIVE_OK,
 			"Reading raw format is expected to always return valid initial entry");
