@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
+#include "ctest.h"
 #include "test_data.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,4 +41,16 @@ char *tmpdir_template(const char *identifier) {
 	char *path;
 	ASSERT(asprintf(&path, "%s/%s_XXXXXX", get_tmpdir(), identifier) != -1);
 	return path;
+}
+
+char *untar_package(const char *ipk_path) {
+	char *tmppath = mkdtemp(tmpdir_template("unpack_package_valid"));
+#define SYSTEM(...) ck_assert(!system(aprintf(__VA_ARGS__)))
+	SYSTEM("tar -xzf '%s' -C '%s'", ipk_path, tmppath);
+	SYSTEM("mkdir '%s/control' '%s/data'", tmppath, tmppath);
+	SYSTEM("tar -xzf '%s/control.tar.gz' -C '%s/control'", tmppath, tmppath);
+	SYSTEM("tar -xzf '%s/data.tar.gz' -C '%s/data'", tmppath, tmppath);
+	SYSTEM("rm -f '%s/control.tar.gz' '%s/data.tar.gz' '%s/debian-binary'", tmppath, tmppath, tmppath);
+#undef SYSTEM
+	return tmppath;
 }

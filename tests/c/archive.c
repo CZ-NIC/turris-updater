@@ -127,8 +127,8 @@ END_TEST
 static char *updater_test_unpack_dir;
 
 static void unpack_package_setup(void) {
-	asprintf(&updater_test_unpack_dir, "%s/updater_test_unpack_package_XXXXXX", get_tmpdir());
-	mkdtemp(updater_test_unpack_dir);
+	ck_assert_int_le(0, asprintf(&updater_test_unpack_dir, "%s/updater_test_unpack_package_XXXXXX", get_tmpdir()));
+	ck_assert(mkdtemp(updater_test_unpack_dir));
 }
 
 static void unpack_package_teardown(void) {
@@ -175,8 +175,13 @@ static void compare_tree(const char *ref_path, const char *gen_path) {
 }
 
 START_TEST(unpack_package_valid) {
+	char *unpack = untar_package(UNPACK_PACKAGE_VALID_IPK);
+
 	ck_assert(unpack_package(UNPACK_PACKAGE_VALID_IPK, updater_test_unpack_dir));
-	compare_tree(UNPACK_PACKAGE_VALID_DIR, updater_test_unpack_dir);
+	compare_tree(unpack, updater_test_unpack_dir);
+
+	remove_recursive(unpack);
+	free(unpack);
 }
 END_TEST
 

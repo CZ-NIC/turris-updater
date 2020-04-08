@@ -18,6 +18,7 @@
  */
 #include "ctest.h"
 #include "test_data.h"
+#include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -141,68 +142,83 @@ START_TEST(dir_tree_list_empty_dir) {
 END_TEST
 
 START_TEST(dir_tree_list_unpack_dirs) {
+	char *unpack_dir = untar_package(UNPACK_PACKAGE_VALID_IPK);
+	ck_assert(unpack_dir);
+
 	char **dirs;
 	size_t len;
-	ck_assert(dir_tree_list(UNPACK_PACKAGE_VALID_DIR, &dirs, &len, PATH_T_DIR));
+	ck_assert(dir_tree_list(unpack_dir, &dirs, &len, PATH_T_DIR));
 
 	ck_assert_int_eq(8, len);
-	ck_assert_str_eq(aprintf("%s/control", UNPACK_PACKAGE_VALID_DIR), dirs[0]);
-	ck_assert_str_eq(aprintf("%s/data", UNPACK_PACKAGE_VALID_DIR), dirs[1]);
-	ck_assert_str_eq(aprintf("%s/data/bin", UNPACK_PACKAGE_VALID_DIR), dirs[2]);
-	ck_assert_str_eq(aprintf("%s/data/boot", UNPACK_PACKAGE_VALID_DIR), dirs[3]);
-	ck_assert_str_eq(aprintf("%s/data/etc", UNPACK_PACKAGE_VALID_DIR), dirs[4]);
-	ck_assert_str_eq(aprintf("%s/data/etc/config", UNPACK_PACKAGE_VALID_DIR), dirs[5]);
-	ck_assert_str_eq(aprintf("%s/data/usr", UNPACK_PACKAGE_VALID_DIR), dirs[6]);
-	ck_assert_str_eq(aprintf("%s/data/usr/bin", UNPACK_PACKAGE_VALID_DIR), dirs[7]);
+	size_t i = 0;
+	ck_assert_str_eq(aprintf("%s/control", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/data", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/data/bin", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/data/boot", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/data/etc", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/data/etc/config", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/data/usr", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/data/usr/bin", unpack_dir), dirs[i++]);
 
-	for (size_t i = 0; i < len; i++)
+	for (i = 0; i < len; i++)
 		free(dirs[i]);
 	free(dirs);
+	remove_recursive(unpack_dir);
+	free(unpack_dir);
 }
 END_TEST
 
 START_TEST(dir_tree_list_unpack_non_dirs) {
+	char *unpack_dir = untar_package(UNPACK_PACKAGE_VALID_IPK);
+	ck_assert(unpack_dir);
+
 	char **dirs;
 	size_t len;
-	ck_assert(dir_tree_list(UNPACK_PACKAGE_VALID_DIR, &dirs, &len, ~PATH_T_DIR));
+	ck_assert(dir_tree_list(unpack_dir, &dirs, &len, ~PATH_T_DIR));
 
 	ck_assert_int_eq(13, len);
 	size_t i = 0;
-	ck_assert_str_eq(aprintf("%s/control/conffiles", UNPACK_PACKAGE_VALID_DIR), dirs[i++]);
-	ck_assert_str_eq(aprintf("%s/control/control", UNPACK_PACKAGE_VALID_DIR), dirs[i++]);
-	ck_assert_str_eq(aprintf("%s/control/files-sha256", UNPACK_PACKAGE_VALID_DIR), dirs[i++]);
-	ck_assert_str_eq(aprintf("%s/control/postinst", UNPACK_PACKAGE_VALID_DIR), dirs[i++]);
-	ck_assert_str_eq(aprintf("%s/data/.rnd", UNPACK_PACKAGE_VALID_DIR), dirs[i++]);
-	ck_assert_str_eq(aprintf("%s/data/bin/test.sh", UNPACK_PACKAGE_VALID_DIR), dirs[i++]);
-	ck_assert_str_eq(aprintf("%s/data/boot.scr", UNPACK_PACKAGE_VALID_DIR), dirs[i++]);
-	ck_assert_str_eq(aprintf("%s/data/boot/boot.scr", UNPACK_PACKAGE_VALID_DIR), dirs[i++]);
-	ck_assert_str_eq(aprintf("%s/data/etc/config/foo", UNPACK_PACKAGE_VALID_DIR), dirs[i++]);
-	ck_assert_str_eq(aprintf("%s/data/usr/bin/foo", UNPACK_PACKAGE_VALID_DIR), dirs[i++]);
-	ck_assert_str_eq(aprintf("%s/data/usr/bin/foo-foo", UNPACK_PACKAGE_VALID_DIR), dirs[i++]);
-	ck_assert_str_eq(aprintf("%s/data/usr/bin/foo.dir", UNPACK_PACKAGE_VALID_DIR), dirs[i++]);
-	ck_assert_str_eq(aprintf("%s/data/usr/bin/foo.sec", UNPACK_PACKAGE_VALID_DIR), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/control/conffiles", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/control/control", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/control/files-sha256", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/control/postinst", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/data/.rnd", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/data/bin/test.sh", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/data/boot.scr", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/data/boot/boot.scr", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/data/etc/config/foo", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/data/usr/bin/foo", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/data/usr/bin/foo-foo", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/data/usr/bin/foo.dir", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/data/usr/bin/foo.sec", unpack_dir), dirs[i++]);
 
 	for (size_t i = 0; i < len; i++)
 		free(dirs[i]);
 	free(dirs);
+	remove_recursive(unpack_dir);
+	free(unpack_dir);
 }
 END_TEST
 
 START_TEST(dir_tree_list_unpack_links) {
+	char *unpack_dir = untar_package(UNPACK_PACKAGE_VALID_IPK);
+
 	char **dirs;
 	size_t len;
-	ck_assert(dir_tree_list(UNPACK_PACKAGE_VALID_DIR, &dirs, &len, PATH_T_LNK));
+	ck_assert(dir_tree_list(unpack_dir, &dirs, &len, PATH_T_LNK));
 
 	ck_assert_int_eq(4, len);
 	size_t i = 0;
-	ck_assert_str_eq(aprintf("%s/data/boot.scr", UNPACK_PACKAGE_VALID_DIR), dirs[i++]);
-	ck_assert_str_eq(aprintf("%s/data/usr/bin/foo", UNPACK_PACKAGE_VALID_DIR), dirs[i++]);
-	ck_assert_str_eq(aprintf("%s/data/usr/bin/foo.dir", UNPACK_PACKAGE_VALID_DIR), dirs[i++]);
-	ck_assert_str_eq(aprintf("%s/data/usr/bin/foo.sec", UNPACK_PACKAGE_VALID_DIR), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/data/boot.scr", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/data/usr/bin/foo", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/data/usr/bin/foo.dir", unpack_dir), dirs[i++]);
+	ck_assert_str_eq(aprintf("%s/data/usr/bin/foo.sec", unpack_dir), dirs[i++]);
 
 	for (size_t i = 0; i < len; i++)
 		free(dirs[i]);
 	free(dirs);
+	remove_recursive(unpack_dir);
+	free(unpack_dir);
 }
 END_TEST
 

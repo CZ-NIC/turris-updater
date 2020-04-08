@@ -62,6 +62,8 @@ char *tmpdir_template(const char *identifier);
 
 // Unpack_package
 #define UNPACK_PACKAGE_VALID_IPK aprintf("%s/unpack_package/valid.ipk", get_datadir())
-#define UNPACK_PACKAGE_VALID_DIR aprintf("%s/unpack_package/valid", get_datadir())
+
+// Untar package to temporally directory using tar
+char *untar_package(const char *ipk_path);
 
 #endif
