@@ -18,9 +18,6 @@
  */
 #ifndef UPDATER_ARCHIVE_H
 #define UPDATER_ARCHIVE_H
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
