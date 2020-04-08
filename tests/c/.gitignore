@@ -1,8 +1,10 @@
 # Test binaries
-download
-events
-interpreter
-subprocess
-syscnf
-uri
+archive
 util
+syscnf
+path_utils
+signature
+subprocess
+download
+uri
+interpreter
