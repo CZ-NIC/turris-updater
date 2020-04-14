@@ -20,7 +20,6 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 local next = next
 local error = error
 local ipairs = ipairs
-local pcall = pcall
 local table = table
 local WARN = WARN
 local INFO = INFO
@@ -45,7 +44,7 @@ local transaction = require "transaction"
 
 module "updater"
 
--- luacheck: globals tasks prepare no_tasks tasks_to_transaction pre_cleanup cleanup disable_replan approval_hash task_report
+-- luacheck: globals tasks prepare no_tasks package_verify tasks_to_transaction pre_cleanup cleanup disable_replan approval_hash task_report
 
 -- Prepared tasks
 tasks = {}
@@ -96,6 +95,23 @@ function no_tasks()
 	return not next(tasks)
 end
 
+function package_verify(task)
+	local verified = false
+	local function package_verify_single(func, hash)
+		if task.package[hash] == nil then return end
+		local sum = func(task.file)
+		if sum ~= task.package[hash] then
+			error(utils.exception("corruption", "The " .. hash .. " sum of " .. task.name .. " does not match"))
+		end
+		verified = true
+	end
+
+	package_verify_single(md5_file, "MD5Sum")
+	package_verify_single(sha256_file, "SHA256Sum") -- This is supported only by updater (introduced as a fault)
+	package_verify_single(sha256_file, "SHA256sum")
+	return verified
+end
+
 -- Download all packages and push tasks to transaction
 function tasks_to_transaction()
 	INFO("Downloading packages")
@@ -120,25 +136,9 @@ function tasks_to_transaction()
 	utils.mkdirp(syscnf.pkg_download_dir)
 	for _, task in ipairs(tasks) do
 		if task.action == "require" then
-			local ok, err = pcall(function() task.real_uri:finish() end)
-			if not ok then error(err) end
-			verified = false
-			if task.package.MD5Sum then
-				local sum = md5_file(task.file)
-				if sum ~= task.package.MD5Sum then
-					error(utils.exception("corruption", "The md5 sum of " .. task.name .. " does not match"))
-				end
-				verified = true
-			end
-			if task.package.SHA256sum then
-				local sum = sha256_file(task.file)
-				if sum ~= task.package.SHA256sum then
-					error(utils.exception("corruption", "The sha256 sum of " .. task.name .. " does not match"))
-				end
-				verified = true
-			end
-			if not verified then
-				WARN("Package has no hash in index to verify it: " + tark. name)
+			task.real_uri:finish()
+			if not package_verify(task) then
+				WARN("Package has no hash in index to verify it: " + task.name)
 			end
 			transaction.queue_install_downloaded(task.file, task.name, task.package.Version, task.modifier)
 		elseif task.action == "remove" then
