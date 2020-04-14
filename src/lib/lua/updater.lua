@@ -128,9 +128,9 @@ function tasks_to_transaction()
 					error(utils.exception("corruption", "The md5 sum of " .. task.name .. " does not match"))
 				end
 			end
-			if task.package.SHA256Sum then
+			if task.package.SHA256sum then
 				local sum = sha256_file(task.file)
-				if sum ~= task.package.SHA256Sum then
+				if sum ~= task.package.SHA256sum then
 					error(utils.exception("corruption", "The sha256 sum of " .. task.name .. " does not match"))
 				end
 			end
