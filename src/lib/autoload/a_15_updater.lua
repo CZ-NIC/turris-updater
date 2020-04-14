@@ -106,17 +106,30 @@ function prepare(entrypoint)
 				local ok, data = task.real_uri:get()
 				if ok then
 					INFO("Queue install of " .. task.name .. "/" .. task.package.repo.name .. "/" .. task.package.Version)
+					local verified = false
 					if task.package.MD5Sum then
 						local sum = md5(data)
 						if sum ~= task.package.MD5Sum then
 							error(utils.exception("corruption", "The md5 sum of " .. task.name .. " does not match"))
 						end
+						verified = true
 					end
 					if task.package.SHA256Sum then
 						local sum = sha256(data)
 						if sum ~= task.package.SHA256Sum then
 							error(utils.exception("corruption", "The sha256 sum of " .. task.name .. " does not match"))
 						end
+						verified = true
+					end
+					if task.package.SHA256sum then
+						local sum = sha256(data)
+						if sum ~= task.package.SHA256sum then
+							error(utils.exception("corruption", "The sha256 sum of " .. task.name .. " does not match"))
+						end
+						verified = true
+					end
+					if not verified then
+						WARN("Package has no hash in index to verify it: " + task.name)
 					end
 					transaction.queue_install_downloaded(data, task.name, task.package.Version, task.modifier)
 				else
