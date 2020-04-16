@@ -43,9 +43,8 @@ typedef struct download_pem* download_pem_t;
 
 // Download options (additional options configuring security and more)
 struct download_opts {
-	long timeout; // Download timeout (including download retries)
+	long timeout; // Download timeout
 	long connect_timeout; // Timeout for single connection
-	int retries; // Number of full download retries
 	bool follow_redirect; // If HTTP request 3xx should be followed
 	bool ssl_verify; // If SSL should be verified
 	bool ocsp; // If OCSP should be used for certificate verification

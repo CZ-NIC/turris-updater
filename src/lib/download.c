@@ -51,7 +51,6 @@ struct download_i {
 	bool success; // If download was successful. Not valid if done is false.
 	char error[CURL_ERROR_SIZE]; // error message if download fails
 
-	int retries; // Number of reties we have
 	struct downloader *downloader; // parent downloader
 	FILE *output;
 	CURL *curl; // easy curl session
@@ -63,39 +62,28 @@ struct download_pem {
 	STACK_OF(X509_INFO) *info;
 };
 
-static bool download_check_info(struct downloader *downloader) {
+static void download_check_info(struct downloader *downloader) {
 	CURLMsg *msg;
 	int msgs_left;
 	struct download_i *inst;
 	char *url;
-	bool new_handle = false;
 
 	while ((msg = curl_multi_info_read(downloader->cmulti, &msgs_left))) {
 		if (msg->msg != CURLMSG_DONE)
 			continue; // No other message types are defined in libcurl. We check just because of compatibility with possible future versions.
 		ASSERT_CURL(curl_easy_getinfo(msg->easy_handle, CURLINFO_PRIVATE, &inst));
 		ASSERT_CURL(curl_easy_getinfo(msg->easy_handle, CURLINFO_EFFECTIVE_URL, &url));
+		inst->done = true;
 		if (msg->data.result == CURLE_OK) {
 			DBG("Download succesfull (%s)", url);
 			inst->success = true;
-			inst->done = true;
-		} else if (inst->retries > 1) { // retry download
-			DBG("Download failed, trying again %d (%s): %s", inst->retries, url, inst->error);
-			inst->curl = curl_easy_duphandle(msg->easy_handle);
-			ASSERT_CURLM(curl_multi_remove_handle(downloader->cmulti, msg->easy_handle));
-			curl_easy_cleanup(msg->easy_handle);
-			ASSERT_CURLM(curl_multi_add_handle(downloader->cmulti, inst->curl));
-			inst->retries--;
-			new_handle = true;
 		} else {
 			DBG("Download failed (%s): %s", url, inst->error);
 			inst->success = false;
-			inst->done = true;
 			downloader->failed = inst;
 			event_base_loopbreak(downloader->ebase); // break event loop to report error
 		}
 	}
-	return new_handle;
 }
 
 struct download_socket_data {
@@ -110,8 +98,8 @@ static void download_event_cb(int fd, short kind, void *userp) {
 	int running = 0;
 	struct downloader *downloader = sdata->downloader; // in curl_multi_socket_action sdata can be freed so we can't expect it to exist after it
 	ASSERT_CURLM(curl_multi_socket_action(downloader->cmulti, fd, action, &running)); // curl do
-	bool new_handle = download_check_info(downloader);
-	if (!new_handle && running <= 0 && evtimer_pending(downloader->ctimer, NULL)) { // All transfers are done. Stop timer.
+	download_check_info(downloader);
+	if (running <= 0 && evtimer_pending(downloader->ctimer, NULL)) { // All transfers are done. Stop timer.
 		evtimer_del(downloader->ctimer);
 	}
 }
@@ -226,7 +214,6 @@ void downloader_flush(struct downloader *d) {
 void download_opts_def(struct download_opts *opts) {
 	opts->timeout = 3600; // one hour
 	opts->connect_timeout = 60; // one minute
-	opts->retries = 3;
 	opts->follow_redirect = true;
 	opts->ssl_verify = true;
 	opts->ocsp = true;
@@ -316,7 +303,6 @@ struct download_i *download(struct downloader *downloader, const char *url,
 	// TODO TRACE configured options
 	inst->done = false;
 	inst->success = false;
-	inst->retries = opts->retries;
 	inst->downloader = downloader;
 	inst->pems = NULL;
 
