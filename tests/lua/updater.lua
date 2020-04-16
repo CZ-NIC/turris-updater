@@ -19,11 +19,50 @@ along with Updater.  If not, see <http://www.gnu.org/licenses/>.
 
 require 'lunit'
 local updater = require "updater"
+local utils = require "utils"
 local table = table
 
 syscnf.set_root_dir()
 
 module("updater-tests", package.seeall, lunit.testcase)
+
+local datadir = (os.getenv("DATADIR") or "../data")
+
+local verify_task = {
+	name = "pkg",
+	file = datadir .. "/repo/updater.ipk",
+	package = {
+		MD5Sum = "182171ccacfc32a9f684479509ac471a",
+		SHA256sum = "4f54362b30f53ae6862b11ff34d22a8d4510ed2b3e757b1f285dbd1033666e55",
+		SHA256Sum = "4f54362b30f53ae6862b11ff34d22a8d4510ed2b3e757b1f285dbd1033666e55",
+	},
+}
+
+function test_package_verify_valid()
+	assert(updater.package_verify(verify_task))
+end
+
+function test_package_verify_invalid_md5()
+	local old_hash = verify_task.package.MD5Sum
+	verify_task.package.MD5Sum = "00000000000000000000000000000000"
+	assert_exception(function () updater.package_verify(verify_task) end, 'corruption')
+	verify_task.package.MD5Sum = old_hash
+end
+
+function test_package_verify_invalid_sha256()
+	local old_hash = verify_task.package.SHA256sum
+	verify_task.package.SHA256sum = "0000000000000000000000000000000000000000000000000000000000000000"
+	assert_exception(function () updater.package_verify(verify_task) end, 'corruption')
+	verify_task.package.SHA256sum = old_hash
+end
+
+-- This tests non-standard SHA256Sum that was incorectly introduced in updater
+function test_package_verify_invalid_sha256_invalid()
+	local old_hash = verify_task.package.SHA256Sum
+	verify_task.package.SHA256Sum = "0000000000000000000000000000000000000000000000000000000000000000"
+	assert_exception(function () updater.package_verify(verify_task) end, 'corruption')
+	verify_task.package.SHA256Sum = old_hash
+end
 
 function test_task_report()
 	assert_equal('', updater.task_report())
