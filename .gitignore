@@ -5,9 +5,9 @@
 *.a
 *.la
 *.lo
-./libupdater.la
-./pkgtransaction
-./pkgupdate
+/libupdater.la
+/pkgtransaction
+/pkgupdate
 .libs
 # Some stuff for debugging
 /.coverage.info
