@@ -68,7 +68,7 @@ CLEANFILES += $(LUA_FILES_H)
 $(call FILTER,interpreter,$(libupdater_la_OBJECTS)): $(LUA_FILES_H)
 
 $(builddir)/%reldir%/%.lua.h: $(builddir)/%reldir%/%.lua
-	$(AM_V_GEN)$(MKDIR_P) "$(@D)"
+	$(AM_V_at)$(MKDIR_P) "$(@D)"
 	$(AM_V_GEN)$(XXDI) "lua_$(notdir $*)" "$<" "$@"
 
 
