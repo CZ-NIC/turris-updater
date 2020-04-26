@@ -341,6 +341,7 @@ struct download_i *download(struct downloader *downloader, const char *url,
 	CURL_SETOPT(CURLOPT_WRITEDATA, inst);
 	CURL_SETOPT(CURLOPT_ERRORBUFFER, inst->error);
 	CURL_SETOPT(CURLOPT_PRIVATE, inst);
+	CURL_SETOPT(CURLOPT_NOPROGRESS, 0);
 	// TODO We might set XFERINFOFUNCTION here to use it for reporting progress of download to user.
 #undef CURL_SETOPT
 	ASSERT_CURLM(curl_multi_add_handle(downloader->cmulti, inst->curl));
