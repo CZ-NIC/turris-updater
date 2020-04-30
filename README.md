@@ -24,9 +24,6 @@ Build dependencies:
 * libtool
 * perl (with `File::Slurp` module)
 
-Runtime dependencies:
-* usign (for signatures validation)
-
 Dependencies for tests:
 * check (>=0.11)
 * valgrind

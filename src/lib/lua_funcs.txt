@@ -99,7 +99,6 @@ Function `subprocess` is defined as follows:
   predefined constants are as follows:
   - `LST_PKG_SCRIPT` Any script provided by package (pre/post inst/rm)
   - `LST_HOOK` Hook script executed on some updater state
-  - `LST_USIGN` usign binary used for signature validation
 
 * `message` is string describing what this subprocess is to user. It's human
   readable description of executed command.

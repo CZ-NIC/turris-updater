@@ -1,6 +1,3 @@
-[submodule "tests/usign"]
-	path = tests/usign
-	url = git://git.openwrt.org/project/usign.git
 [submodule "tests/lua/lunit"]
 	path = tests/lua/lunit
 	url = http://repo.or.cz/lunit.git
