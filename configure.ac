@@ -18,7 +18,8 @@ AM_CONDITIONAL([BUSYBOX_EMBED], [test -n "$with_embed_busybox"])
 AC_SUBST([BUSYBOX_EMBED], [$with_embed_busybox])
 AS_IF([test -n "$with_embed_busybox"],
   [
-   AC_CHECK_FILE([$with_embed_busybox],,[AC_MSG_ERROR([Invalid argument for --with-embed-busybox])])
+   AS_IF([test -f "$with_embed_busybox"],,
+	 [AC_MSG_ERROR([Invalid argument for --with-embed-busybox])])
    AC_DEFINE_UNQUOTED([BUSYBOX_EMBED], [$with_embed_busybox], [Embded Busybox])
   ])
 
