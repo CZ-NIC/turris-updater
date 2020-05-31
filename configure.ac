@@ -23,7 +23,8 @@ AS_IF([test -n "$with_embed_busybox"],
    AC_DEFINE_UNQUOTED([BUSYBOX_EMBED], [$with_embed_busybox], [Embded Busybox])
   ])
 
-PKG_CHECK_MODULES([LUA], [lua5.1])
+PKG_CHECK_MODULES([LUA], [lua >= 5.1 lua < 5.2],,
+  [PKG_CHECK_MODULES([LUA], [lua5.1])])
 PKG_CHECK_MODULES([LIBEVENT], [libevent >= 2.0])
 PKG_CHECK_MODULES([LIBARCHIVE], [libarchive])
 PKG_CHECK_MODULES([LIBCURL], [libcurl])
