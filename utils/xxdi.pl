@@ -14,12 +14,15 @@
 
 use strict;
 use warnings;
-use File::Slurp qw(slurp);
 
 die "Usage: xddi.pl VARIABLE_NAME INPUT OUTPUT" unless @ARGV == 3;
 
 my $var_name = $ARGV[0];
-my $indata = slurp($ARGV[1]);
+my $indata = do {
+    local $/;
+    open my $f, "<", $ARGV[1] or die "Could not open input $ARGV[1]: $!\n";
+    <$f>;
+};
 my $len_data = length($indata);
 my $num_digits_per_line = 12;
 

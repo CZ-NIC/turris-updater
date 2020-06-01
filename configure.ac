@@ -38,7 +38,6 @@ AC_LINK_IFELSE(
 
 AC_PATH_PROG([PERL], [perl])
 AS_IF([test -z "$PERL"], [AC_MSG_ERROR([Missing perl interpreter])])
-AX_PROG_PERL_MODULES([File::Slurp], , AC_MSG_ERROR(Perl modules File::Slurp is required))
 AC_PATH_PROG([XXDI], [xxdi.pl],, [$ac_abs_confdir/utils])
 AS_IF([test -z "$XXDI"], [AC_MSG_ERROR([Not able to locate xxdi.pl])])
 
