@@ -427,7 +427,7 @@ static bool verify_signature(struct uri *uri) {
 	struct sign_pubkey **pubkeys = list_pubkey_collect(uri->pubkey, 0);
 
 	uint8_t *data;
-	uint8_t data_len;
+	size_t data_len;
 	if (uri->data) {
 		data = uri->data;
 		data_len = uri->data_len;
