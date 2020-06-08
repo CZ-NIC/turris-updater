@@ -28,7 +28,7 @@
 #include <stdarg.h>
 
 struct events;
-struct watched_command *command;
+extern struct watched_command *command;
 
 enum wait_type {
 	WT_CHILD,

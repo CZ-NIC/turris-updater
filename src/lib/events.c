@@ -42,6 +42,8 @@
 #define DOWNLOAD_SLOTS 5
 #define DOWNLOAD_RETRY 3
 
+struct watched_command *command;
+
 struct watched_child {
 	pid_t pid;
 	child_callback_t callback;
