@@ -328,7 +328,7 @@ END_TEST
 
 // We use multiple keys here
 START_TEST(uri_sig_verify_valid) {
-	uri_t u = uri(FILE_LOREM_IPSUM_SHORT, NULL);
+	uri_t u = uri(FILE_LOREM_IPSUM, NULL);
 	ck_assert_ptr_nonnull(u);
 	ck_assert(uri_add_pubkey(u, "/dev/null/missing"));
 	ck_assert(uri_add_pubkey(u, USIGN_KEY_1_PUB));
@@ -340,7 +340,7 @@ END_TEST
 
 // This uses invalid public key
 START_TEST(uri_sig_verify_invalid) {
-	uri_t u = uri(FILE_LOREM_IPSUM_SHORT, NULL);
+	uri_t u = uri(FILE_LOREM_IPSUM, NULL);
 	ck_assert_ptr_nonnull(u);
 	ck_assert(uri_add_pubkey(u, "/dev/null/missing"));
 	ck_assert(uri_add_pubkey(u, USIGN_KEY_2_PUB));
