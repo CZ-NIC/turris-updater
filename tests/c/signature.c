@@ -17,9 +17,40 @@
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "ctest.h"
+#include <stdio.h>
+#include <stdbool.h>
 #include <signature.h>
 #include <util.h>
 #include "test_data.h"
+
+char *lorem_ipsum;
+size_t lorem_ipsum_len;
+char *lorem_ipsum_sig1, *lorem_ipsum_sig2;
+
+static void lorem_ipsum_setup() {
+	lorem_ipsum = readfile(FILE_LOREM_IPSUM);
+	lorem_ipsum_len = strlen(lorem_ipsum);
+	lorem_ipsum_sig1 = readfile(SIG_1_LOREM_IPSUM);
+	lorem_ipsum_sig2 = readfile(SIG_2_LOREM_IPSUM);
+}
+
+static void lorem_ipsum_teardown() {
+	free(lorem_ipsum);
+	free(lorem_ipsum_sig1);
+	free(lorem_ipsum_sig2);
+}
+
+static void lorem_ipsum_short_setup() {
+	lorem_ipsum = LOREM_IPSUM_SHORT;
+	lorem_ipsum_len = LOREM_IPSUM_SHORT_SIZE;
+	lorem_ipsum_sig1 = readfile(SIG_1_LOREM_IPSUM_SHORT);
+	lorem_ipsum_sig2 = readfile(SIG_2_LOREM_IPSUM_SHORT);
+}
+
+static void lorem_ipsum_short_teardown() {
+	free(lorem_ipsum_sig1);
+	free(lorem_ipsum_sig2);
+}
 
 static struct sign_pubkey *load_key(const char *path) {
 	char *data = readfile(path);
@@ -36,16 +67,13 @@ START_TEST(sig_verify_valid) {
 	keys[1] = load_key(USIGN_KEY_2_PUB);
 	keys[2] = NULL;
 
-	char *sig1 = readfile(SIG_1_LOREM_IPSUM_SHORT);
-	char *sig2 = readfile(SIG_2_LOREM_IPSUM_SHORT);
+	ck_assert(sign_verify(lorem_ipsum, lorem_ipsum_len,
+				lorem_ipsum_sig1, strlen(lorem_ipsum_sig1),
+				(const struct sign_pubkey**)keys));
+	ck_assert(sign_verify(lorem_ipsum, lorem_ipsum_len,
+				lorem_ipsum_sig2, strlen(lorem_ipsum_sig2),
+				(const struct sign_pubkey**)keys));
 
-	ck_assert(sign_verify(LOREM_IPSUM_SHORT, strlen(LOREM_IPSUM_SHORT),
-				sig1, strlen(sig1), (const struct sign_pubkey**)keys));
-	ck_assert(sign_verify(LOREM_IPSUM_SHORT, strlen(LOREM_IPSUM_SHORT),
-				sig2, strlen(sig2), (const struct sign_pubkey**)keys));
-
-	free(sig1);
-	free(sig2);
 	sign_pubkey_free(keys[0]);
 	sign_pubkey_free(keys[1]);
 }
@@ -55,12 +83,10 @@ START_TEST(sig_verify_no_keys) {
 	struct sign_pubkey *keys[1];
 	keys[0] = NULL;
 
-	char *sig = readfile(SIG_1_LOREM_IPSUM_SHORT);
-	ck_assert(!sign_verify(LOREM_IPSUM_SHORT, strlen(LOREM_IPSUM_SHORT),
-				sig, strlen(sig), (const struct sign_pubkey**)keys));
+	ck_assert(!sign_verify(lorem_ipsum, lorem_ipsum_len,
+				lorem_ipsum_sig1, strlen(lorem_ipsum_sig1),
+				(const struct sign_pubkey**)keys));
 	ck_assert_int_eq(SIGN_ERR_NO_MATHING_KEY, sign_errno);
-
-	free(sig);
 }
 END_TEST
 
@@ -69,12 +95,11 @@ START_TEST(sig_verify_wrong_key) {
 	keys[0] = load_key(USIGN_KEY_1_PUB);
 	keys[1] = NULL;
 
-	char *sig = readfile(SIG_2_LOREM_IPSUM_SHORT);
-	ck_assert(!sign_verify(LOREM_IPSUM_SHORT, strlen(LOREM_IPSUM_SHORT),
-				sig, strlen(sig), (const struct sign_pubkey**)keys));
+	ck_assert(!sign_verify(lorem_ipsum, lorem_ipsum_len,
+				lorem_ipsum_sig2, strlen(lorem_ipsum_sig2),
+				(const struct sign_pubkey**)keys));
 	ck_assert_int_eq(SIGN_ERR_NO_MATHING_KEY, sign_errno);
 
-	free(sig);
 	sign_pubkey_free(keys[0]);
 }
 END_TEST
@@ -84,13 +109,15 @@ START_TEST(sig_verify_corrupted) {
 	keys[0] = load_key(USIGN_KEY_1_PUB);
 	keys[1] = NULL;
 
-	char *sig = readfile(SIG_1_LOREM_IPSUM_SHORT);
-	const char *msg = LOREM_IPSUM_SHORT "corrupt";
-	ck_assert(!sign_verify(msg, strlen(msg), sig, strlen(sig),
+	char *msg;
+	ck_assert_int_gt(asprintf(&msg, "%s corrupt", lorem_ipsum), 0);
+
+	ck_assert(!sign_verify(msg, strlen(msg),
+				lorem_ipsum_sig1, strlen(lorem_ipsum_sig1),
 				(const struct sign_pubkey**)keys));
 	ck_assert_int_eq(SIGN_ERR_VERIFY_FAIL, sign_errno);
 
-	free(sig);
+	free(msg);
 	sign_pubkey_free(keys[0]);
 }
 END_TEST
@@ -98,12 +125,25 @@ END_TEST
 
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Signature");
-	TCase *sig = tcase_create("signature");
-	tcase_set_timeout(sig, 30);
-	tcase_add_test(sig, sig_verify_valid);
-	tcase_add_test(sig, sig_verify_no_keys);
-	tcase_add_test(sig, sig_verify_wrong_key);
-	tcase_add_test(sig, sig_verify_corrupted);
-	suite_add_tcase(result, sig);
+
+	TCase *sig_short = tcase_create("signature short");
+	tcase_add_checked_fixture(sig_short, lorem_ipsum_short_setup, lorem_ipsum_short_teardown);
+	TCase *sig_long = tcase_create("signature long");
+	tcase_add_checked_fixture(sig_long, lorem_ipsum_setup, lorem_ipsum_teardown);
+
+#define TEST(NAME) do { \
+		tcase_add_test(sig_short, NAME); \
+		tcase_add_test(sig_long, NAME); \
+	} while (false)
+
+	TEST(sig_verify_valid);
+	TEST(sig_verify_no_keys);
+	TEST(sig_verify_wrong_key);
+	TEST(sig_verify_corrupted);
+
+#undef TEST
+
+	suite_add_tcase(result, sig_short);
+	suite_add_tcase(result, sig_long);
 	return result;
 }
