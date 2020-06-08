@@ -122,6 +122,23 @@ START_TEST(sig_verify_corrupted) {
 }
 END_TEST
 
+START_TEST(sig_turris_test) {
+	struct sign_pubkey *keys[3];
+	keys[0] = load_key(USIGN_TURRIS_KEY_PUB);
+	keys[1] = NULL;
+
+	char *data = readfile(BOOTSTRAP_LUA);
+	char *sig = readfile(BOOTSTRA_LUA_SIG);
+
+	ck_assert(sign_verify(data, strlen(data), sig, strlen(sig),
+				(const struct sign_pubkey**)keys));
+
+	free(data);
+	free(sig);
+	sign_pubkey_free(keys[0]);
+}
+END_TEST
+
 
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Signature");
@@ -143,7 +160,11 @@ Suite *gen_test_suite(void) {
 
 #undef TEST
 
+	TCase *sig_turris = tcase_create("signature turris test");
+	tcase_add_test(sig_turris, sig_turris_test);
+
 	suite_add_tcase(result, sig_short);
 	suite_add_tcase(result, sig_long);
+	suite_add_tcase(result, sig_turris);
 	return result;
 }

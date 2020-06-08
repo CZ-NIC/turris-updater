@@ -51,10 +51,15 @@ char *tmpdir_template(const char *identifier);
 // Signatures
 #define USIGN_KEY_1_PUB (aprintf("%s/usign.key1.pub", get_datadir()))
 #define USIGN_KEY_2_PUB (aprintf("%s/usign.key2.pub", get_datadir()))
+#define USIGN_TURRIS_KEY_PUB (aprintf("%s/usign-turris.key.pub", get_datadir()))
 #define SIG_1_LOREM_IPSUM (aprintf("%s/lorem_ipsum.txt.sig", get_datadir()))
 #define SIG_2_LOREM_IPSUM (aprintf("%s/lorem_ipsum.txt.sig2", get_datadir()))
 #define SIG_1_LOREM_IPSUM_SHORT (aprintf("%s/lorem_ipsum_short.txt.sig", get_datadir()))
 #define SIG_2_LOREM_IPSUM_SHORT (aprintf("%s/lorem_ipsum_short.txt.sig2", get_datadir()))
+
+// bootstrap.lua
+#define BOOTSTRAP_LUA (aprintf("%s/bootstrap.lua", get_datadir()))
+#define BOOTSTRA_LUA_SIG (aprintf("%s.sig", BOOTSTRAP_LUA))
 
 // Certificates
 #define FILE_LETS_ENCRYPT_ROOTS aprintf("%s/lets_encrypt_roots.pem", get_datadir())
