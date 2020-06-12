@@ -430,7 +430,7 @@ function script(context, filler, script_uri, extra)
 	local err = sandbox.run_sandboxed(content, script_uri, extra.security, context, merge)
 	if err and err.tp == 'error' then
 		if not err.origin then
-			err.oririn = script_uri
+			err.origin = script_uri
 		end
 		error(err)
 	end
