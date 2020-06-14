@@ -331,17 +331,19 @@ bool uri_downloader_register(uri_t uri, downloader_t downloader) {
 	ensure_output(uri);
 	ensure_default_signature(uri);
 
+	struct download_pem **pems = list_pem_collect(uri->pem, 0);
+
 	struct download_opts opts;
 	download_opts_def(&opts);
 	opts.ssl_verify = uri->ssl_verify;
 	opts.ocsp = uri->ocsp;
-	opts.pems = list_pem_collect(uri->pem, 0);
+	opts.pems = pems;
 	if (uri->ca_pin) {
 		opts.cacert_file = NULL;
 		opts.capath = NULL;
 	}
 	uri->download_instance = download(downloader, uri->uri, uri->output, &opts);
-	free(opts.pems);
+	free(pems);
 
 	if (uri->pubkey && !uri_downloader_register(uri->sig_uri, downloader)) {
 		uri_sub_errno = uri_errno;
