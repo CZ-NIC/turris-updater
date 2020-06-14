@@ -22,8 +22,11 @@
 #include "util.h"
 
 enum sign_errors {
+	SIGN_NO_ERROR = 0,
 	SIGN_ERR_KEY_FORMAT, // Loaded key has invalid format (size does not match)
+	SIGN_ERR_SIG_FORMAT, // KEY_FORMAT error variant for signatures
 	SIGN_ERR_KEY_UNKNOWN, // Key loaded but it has unknown format or type
+	SIGN_ERR_SIG_UNKNOWN, // KEY_UNKNOWN error variant for signatures
 	SIGN_ERR_NO_MATHING_KEY, // Non of provided keys was used to sign provided message
 	SIGN_ERR_VERIFY_FAIL, // Provided message was corrupted (signature does not match)
 };
@@ -53,6 +56,12 @@ void sign_pubkey_free(struct sign_pubkey*);
 // Possible errors: SIGN_ERR_NO_MATHING_KEY, SIGN_ERR_VERIFY_FAIL
 bool sign_verify(const void *data, size_t data_len,
 		const void *sign, size_t sign_len,
-		const struct sign_pubkey**);
+		const struct sign_pubkey* const*);
+
+// Provides string describing signature error
+// number: signature error number
+// Returns string with message describing error. You should not modify this
+// message.
+const char *sign_strerror(enum sign_errors number);
 
 #endif

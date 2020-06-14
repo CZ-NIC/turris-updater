@@ -31,6 +31,16 @@
 
 THREAD_LOCAL enum sign_errors sign_errno;
 
+static const char *error_strings[] = {
+	[SIGN_NO_ERROR] = NULL,
+	[SIGN_ERR_KEY_FORMAT] = "Public key has invalid format",
+	[SIGN_ERR_SIG_FORMAT] = "Signature has invalid format",
+	[SIGN_ERR_KEY_UNKNOWN] = "Public key is invalid or has unknown type",
+	[SIGN_ERR_SIG_UNKNOWN] = "Signature is invalid or has unknown type",
+	[SIGN_ERR_NO_MATHING_KEY] = "No public key with matching signature was provided",
+	[SIGN_ERR_VERIFY_FAIL] = "Data or signature are corrupted",
+};
+
 struct sign_pubkey {
 	char pkalg[2];
 	uint8_t fingerprint[FINGERPRINT_SIZE];
@@ -94,10 +104,14 @@ static bool openssl_error() {
 }
 
 bool sign_verify(const void *data, size_t data_len, const void *sign,
-		size_t sign_len, const struct sign_pubkey **pubkeys) {
+		size_t sign_len, const struct sign_pubkey *const *pubkeys) {
 	struct sig sig;
-	if (!key_load_generic(sign, sign_len, &sig, sizeof sig))
-		return false; // sign_errno is already set by key_load_generic
+	if (!key_load_generic(sign, sign_len, &sig, sizeof sig)) {
+		sign_errno = sign_errno == SIGN_ERR_KEY_FORMAT ? SIGN_ERR_SIG_FORMAT :
+				sign_errno == SIGN_ERR_KEY_UNKNOWN ? SIGN_ERR_SIG_UNKNOWN :
+				sign_errno;
+		return false;
+	}
 
 	// Locate appropriate key by comparing fingerprint
 	while (*pubkeys && memcmp(sig.fingerprint, (*pubkeys)->fingerprint, FINGERPRINT_SIZE))
@@ -132,4 +146,8 @@ cleanup:
 	EVP_MD_CTX_free(mdctx);
 	EVP_PKEY_free(pkey);
 	return res;
+}
+
+const char *sign_strerror(enum sign_errors number) {
+	return error_strings[number];
 }

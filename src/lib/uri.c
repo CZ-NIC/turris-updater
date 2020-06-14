@@ -414,7 +414,7 @@ static bool uri_finish_data(struct uri *uri) {
 static bool verify_signature(struct uri *uri) {
 	if (!uri->pubkey) // no keys means no verification
 		return true;
-	ASSERT_MSG(uri->sig_uri, "Signature uri should be set if public keys are provided");
+	ASSERT_MSG(uri->sig_uri, "Signature uri should be set if public keys are provided (URI: %s)", uri->uri);
 	const uint8_t *sign;
 	size_t sign_len;
 	if (!uri_finish(uri->sig_uri, &sign, &sign_len)) {
@@ -433,11 +433,15 @@ static bool verify_signature(struct uri *uri) {
 		data_len = uri->data_len;
 	} else {
 		data_len = ftell(uri->output);
-		// TODO additional error in assert?
 		ASSERT((data = mmap(NULL, data_len, PROT_READ, MAP_PRIVATE, fileno(uri->output), 0)) != MAP_FAILED);
 	}
 
-	bool verified = sign_verify(data, data_len, sign, sign_len, pubkeys);
+	bool verified = sign_verify(data, data_len, sign, sign_len,
+			(const struct sign_pubkey* const*)pubkeys);
+	if (!verified) {
+		DBG("URI (%s) verify failed; %s", uri->uri, sign_strerror(sign_errno));
+		uri_errno = URI_E_VERIFY_FAIL;
+	}
 
 	if (!uri->data)
 		munmap(data, data_len);
@@ -445,8 +449,6 @@ static bool verify_signature(struct uri *uri) {
 	uri_free(uri->sig_uri);
 	uri->sig_uri = NULL;
 
-	if (!verified)
-		uri_errno = URI_E_VERIFY_FAIL;
 	return verified;
 }
 
