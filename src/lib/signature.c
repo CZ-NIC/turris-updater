@@ -55,13 +55,23 @@ struct sig {
 
 static bool key_load_generic(const uint8_t *data, size_t len, void *key, size_t key_len) {
 	// Skip first line as that contains only just comment
-	size_t index = 0;
-	while (index < len && data[index++] != '\n');
+	const uint8_t *data_start = memchr(data, '\n', len);
+	if (!data_start) {
+		TRACE("Unable to locate new line character to skip first line");
+		sign_errno = SIGN_ERR_KEY_FORMAT;
+		return false;
+	}
+	data_start++;
+	// Found end of the line (if there is more that two lines in key)
+	const uint8_t *data_end = memchr(data_start, '\n', len - (data_start - data));
+	if (!data_end)
+		data_end = data + len;
+	size_t size = data_end - data_start;
 
-	char *buff = malloc(((len - index) * 3 / 4) + 1);
+	char *buff = malloc((size * 3 / 4) + 1);
 	base64_decodestate s;
 	base64_init_decodestate(&s);
-	size_t cnt = base64_decode_block((const void*)(data + index), len - index, buff, &s);
+	size_t cnt = base64_decode_block((const void*)(data_start), size, buff, &s);
 
 	if (cnt != key_len) {
 		free(buff);
@@ -75,7 +85,7 @@ static bool key_load_generic(const uint8_t *data, size_t len, void *key, size_t 
 
 	// Sanity check key (pkalg or in other words two initial bytes)
 	if (strncmp("Ed", key, 2)) {
-		TRACE("Key type mismatch: got '%.2s' but key should be 'Ed'", key);
+		TRACE("Key type mismatch: got '%.2s' but key should be 'Ed'", (char*)key);
 		sign_errno = SIGN_ERR_KEY_UNKNOWN;
 		return false;
 	}
