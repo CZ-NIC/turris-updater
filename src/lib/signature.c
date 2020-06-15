@@ -65,6 +65,7 @@ static bool key_load_generic(const uint8_t *data, size_t len, void *key, size_t 
 
 	if (cnt != key_len) {
 		free(buff);
+		TRACE("Key size mismatch: got %zd but key should be %zd", cnt, key_len);
 		sign_errno = SIGN_ERR_KEY_FORMAT;
 		return false;
 	}
@@ -74,6 +75,7 @@ static bool key_load_generic(const uint8_t *data, size_t len, void *key, size_t 
 
 	// Sanity check key (pkalg or in other words two initial bytes)
 	if (strncmp("Ed", key, 2)) {
+		TRACE("Key type mismatch: got '%.2s' but key should be 'Ed'", key);
 		sign_errno = SIGN_ERR_KEY_UNKNOWN;
 		return false;
 	}
@@ -136,6 +138,8 @@ bool sign_verify(const void *data, size_t data_len, const void *sign,
 			res = true;
 			break;
 		case 0:
+			if (would_log(LL_TRACE))
+				TRACE("Verify failed: %s", ERR_error_string(ERR_get_error(), NULL));
 			sign_errno = SIGN_ERR_VERIFY_FAIL;
 			break;
 		default:
