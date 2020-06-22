@@ -18,6 +18,7 @@
  */
 #include "uri.h"
 #include "signature.h"
+#include "base64.h"
 #include <stdlib.h>
 #include <fcntl.h>
 #include <string.h>
@@ -395,11 +396,13 @@ static bool uri_finish_data(struct uri *uri) {
 		// We ignore any unsupported arguments just for compatibility
 		start = next + 1;
 	}
+	size_t len = strlen(start);
 
 	if (is_base64) {
 		uint8_t *buf;
-		size_t buf_size;
-		base64_decode(start, &buf, &buf_size);
+		size_t buf_size = base64_decode_allocate(start, len, &buf);
+		ASSERT_MSG(base64_decode(start, len, buf),
+			"base64 decode should be successful as we are checking data for validity on URI creation");
 		size_t written = fwrite(buf, 1, buf_size, uri->output);
 		free(buf);
 		if (written != buf_size) {

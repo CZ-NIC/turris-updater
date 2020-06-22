@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+ * Copyright 2016-2020, CZ.NIC z.s.p.o. (http://www.nic.cz/)
  *
  * This file is part of the turris updater.
  *
@@ -31,7 +31,6 @@
 #include <dirent.h>
 #include <signal.h>
 #include <poll.h>
-#include <b64/cdecode.h>
 
 bool dump2file (const char *file, const char *text) {
 	FILE *f = fopen(file, "w");
@@ -104,37 +103,6 @@ void exec_hook(const char *dir, const char *message) {
 		free(namelist[i]);
 	}
 	free(namelist);
-}
-
-static bool base64_is_valid_char(const char c) {
-	return \
-		(c >= '0' && c <= '9') || \
-		(c >= 'A' && c <= 'Z') || \
-		(c >= 'a' && c <= 'z') || \
-		(c == '+' || c == '/' || c == '=');
-}
-
-unsigned base64_valid(const char *data) {
-	// TODO this is only minimal verification, we should do more some times in future
-	int check_off = 0;
-	while (data[check_off] != '\0')
-		if (!base64_is_valid_char(data[check_off++]))
-			return check_off;
-	return 0;
-}
-
-void base64_decode(const char *data, uint8_t **buf, size_t *len) {
-	size_t data_len = strlen(data);
-	size_t buff_len = (data_len * 3 / 4)  + 2;
-	*buf = malloc(sizeof(uint8_t) * buff_len);
-
-	base64_decodestate s;
-	base64_init_decodestate(&s);
-	int cnt = base64_decode_block(data, data_len, (char*)*buf, &s);
-	ASSERT(cnt >= 0);
-	*len = cnt;
-	ASSERT_MSG((*len + 1) < buff_len, "Output buffer was too small, this should not happen!");
-	(*buf)[*len] = '\0'; // Terminate this with \0 so if it is string it can be used as such
 }
 
 static bool cleanup_registered = false;

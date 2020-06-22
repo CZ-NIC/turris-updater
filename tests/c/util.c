@@ -1,5 +1,5 @@
 /*
- * Copyright 2018, CZ.NIC z.s.p.o. (http://www.nic.cz/)
+ * Copyright 2018-2020, CZ.NIC z.s.p.o. (http://www.nic.cz/)
  *
  * This file is part of the turris updater.
  *
@@ -20,25 +20,6 @@
 #include <util.h>
 
 #include <stdbool.h>
-
-#define BASE64_PLAIN "Hello\n"
-#define BASE64_ENCOD "SGVsbG8K"
-
-START_TEST(base64_is_valid) {
-	ck_assert_int_eq(0, base64_valid(BASE64_ENCOD));
-	ck_assert_int_eq(5, base64_valid("SGvs$bG8L"));
-}
-END_TEST
-
-START_TEST(base64) {
-	uint8_t *result;
-	size_t result_len;
-	base64_decode(BASE64_ENCOD, &result, &result_len);
-	ck_assert_int_eq(6, result_len);
-	ck_assert_str_eq(BASE64_PLAIN, (char*)result);
-	free(result);
-}
-END_TEST
 
 static int cleaned;
 
@@ -105,8 +86,6 @@ Suite *gen_test_suite(void) {
 	Suite *result = suite_create("Util");
 	TCase *util = tcase_create("util");
 	tcase_set_timeout(util, 30);
-	tcase_add_test(util, base64_is_valid);
-	tcase_add_test(util, base64);
 	tcase_add_test(util, cleanup_multi);
 	tcase_add_test(util, cleanup_single);
 	tcase_add_test(util, cleanup_by_data);

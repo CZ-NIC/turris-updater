@@ -1,5 +1,6 @@
 # Test binaries
 archive
+base64
 util
 syscnf
 path_utils

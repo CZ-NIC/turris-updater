@@ -3,6 +3,7 @@ lib_LTLIBRARIES += libupdater.la
 libupdater_la_SOURCES = \
 	%reldir%/archive.c \
 	%reldir%/arguments.c \
+	%reldir%/base64.c \
 	%reldir%/download.c \
 	%reldir%/embed_types.c \
 	%reldir%/events.c \
@@ -55,7 +56,7 @@ libupdater_la_LDFLAGS = \
 	$(LIBCRYPTO_LIBS) \
 	$(LIBURIPARSER_LIBS) \
 	$(CODE_COVERAGE_LIBS) \
-	-lb64 -ldl
+	-ldl
 
 ##################################################################################
 

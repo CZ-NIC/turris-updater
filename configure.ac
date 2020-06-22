@@ -30,7 +30,6 @@ PKG_CHECK_MODULES([LIBARCHIVE], [libarchive])
 PKG_CHECK_MODULES([LIBCURL], [libcurl])
 PKG_CHECK_MODULES([LIBCRYPTO], [libcrypto])
 PKG_CHECK_MODULES([LIBURIPARSER], [liburiparser >= 0.9])
-AC_CHECK_HEADERS([b64/cdecode.h],, AC_MSG_ERROR([Missing libb64]))
 AC_LINK_IFELSE(
    [AC_LANG_PROGRAM([#include <argp.h>],[argp_parse(0,1,NULL,0,0,0);])],,
    AC_CHECK_LIB([argp], [argp_parse], , AC_MSG_ERROR([Missing libargp]))
