@@ -1416,6 +1416,10 @@ function test_filter_required()
 		},
 		pkg5 = {
 			Version = "5"
+		},
+		pkg7 = {
+			Version = "7",
+			LinkSignature = "xxxx"
 		}
 	}
 	local requests = {
@@ -1463,7 +1467,19 @@ function test_filter_required()
 			},
 			critical = false,
 			modifier = {}
-		}
+		},
+		{
+			-- Installed with correct version but different LinkSignature
+			action = "require",
+			name = "pkg7",
+			package = {
+				Version = "7",
+				LinkSignature = "XXXXXX",
+				repo = def_repo
+			},
+			critical = false,
+			modifier = {}
+		},
 	}
 	local result = planner.filter_required(status, requests, true)
 	local expected = {
@@ -1479,6 +1495,7 @@ function test_filter_required()
 			modifier = {}
 		},
 		requests[4],
+		requests[5],
 		{
 			action = "remove",
 			name = "pkg4",

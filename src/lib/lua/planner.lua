@@ -599,25 +599,40 @@ local function check_install_version(status, requests)
 	local installed = {}
 	for pkg, desc in pairs(status) do
 		if not desc.Status or desc.Status[3] == "installed" then
-			installed[pkg] = desc.Version or ""
+			installed[pkg] = true
 		end
 	end
 	local unused = utils.clone(installed)
 	local install = {}
 	-- Go through the requests and look which ones are needed and which ones are satisfied
 	for _, request in ipairs(requests) do
-		local installed_version = installed[request.name]
-		local requested_version = utils.multi_index(request, "package", "Version") or ""
 		unused[request.name] = nil
 		if request.action == "require" then
-			if not installed_version or installed_version ~= requested_version then
+			if not installed[request.name] then
 				DBG("Want to install " .. request.name)
 				install[request.name] = request
 			else
-				DBG("Package " .. request.name .. " already installed")
+				local different = nil
+				for _, field in ipairs({"Version", "Architecture", "LinkSignature", "Depends", "Conflicts", "Provides"}) do
+					local installed_field = status[request.name][field] or ""
+					local requested_field = request.package[field] or ""
+					if installed_field ~= requested_field then
+						different = field
+						break
+					end
+				end
+				if different then
+					install[request.name] = request
+					DBG("Want to reinstall " .. request.name ..
+						" because of change in " .. different .. " (" ..
+						tostring(status[request.name][different]) .. " -> " ..
+						tostring(request.package[different]) .. ")")
+				else
+					DBG("Package " .. request.name .. " already installed")
+				end
 			end
 		elseif request.action == "reinstall" then
-			DBG("Want to reinstall " .. request.name)
+			DBG("Want to reinstall " .. request.name .. " as requested")
 			install[request.name] = request
 		else
 			DIE("Unknown action " .. request.action)
