@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Package "reinstall" is now performed not only if `Version` field is different
   but also when `Architecture`, `LinkSignature`, `Depends`, `Conflicts` or
   `Provides` are different.
+- Information about package changes planned to be performed are now printed with
+  wording signaling if that is new package or already installed one and if that is
+  update or downgrade or generic reinstall.
+
 ## [67.0] - 2020-06-23
 ### Added
 - Warning for packages not verified against repository index because missing hash

@@ -80,8 +80,18 @@ function prepare(entrypoint)
 
 	for _, task in ipairs(tasks) do
 		if task.action == "require" then
-			-- TODO downgrade and so on?
-			INFO("Queue install of " .. task.name .. "/" .. task.package.repo.name .. "/" .. task.package.Version)
+			local operation_string = "install"
+			if run_state[task.name] then
+				local cmp = backend.version_cmp(task.package.Version, run_state[task.name].package.Version)
+				if cmp > 0 then
+					operation_string = "upgrade"
+				elseif cmp < 0 then
+					operation_string = "downgrade"
+				else
+					operation_string = "reinstall"
+				end
+			end
+			INFO("Queue " .. operation_string .. " of " .. task.name .. "/" .. task.package.repo.name .. "/" .. task.package.Version)
 		elseif task.action == "remove" then
 			INFO("Queue removal of " .. task.name)
 		else
