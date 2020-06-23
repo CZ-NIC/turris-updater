@@ -8,8 +8,8 @@ VALGRIND_memcheck_FLAGS = \
 	--show-leak-kinds=definite,indirect,possible \
 	--track-fds=yes \
 	--track-origins=yes \
-	--trace-children=yes \
-	--child-silent-after-fork=no
+	--trace-children=no \
+	--child-silent-after-fork=yes
 @VALGRIND_CHECK_RULES@
 
 # Rules generated for valgrind are for some reason called *-am. This is just an alias
