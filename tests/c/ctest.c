@@ -20,11 +20,15 @@
 #include "ctest.h"
 #include <logging.h>
 
-int main(void) {
+int main(int argc, char *argv[]) {
 	log_stderr_level(LL_TRACE);
 
 	Suite *suite = gen_test_suite();
 	SRunner *runner = srunner_create(suite);
+
+	char *valgrind = getenv("VALGRIND");
+	if (valgrind && *valgrind != '\0')
+		srunner_set_fork_status(runner, CK_NOFORK);
 
 	srunner_run_all(runner, CK_NORMAL);
 	int failed = srunner_ntests_failed(runner);
