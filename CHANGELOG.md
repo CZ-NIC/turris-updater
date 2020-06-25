@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [67.0.1] - 2020-06-25
 ### Changed
 - Package "reinstall" is now performed not only if `Version` field is different
   but also when `Architecture`, `LinkSignature`, `Depends`, `Conflicts` or
@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Information about package changes planned to be performed are now printed with
   wording signaling if that is new package or already installed one and if that is
   update or downgrade or generic reinstall.
+
 
 ## [67.0] - 2020-06-23
 ### Added
@@ -29,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Memory leak on archive open error
 - Various compilation warning
 - Invalid error complaining about path being called on on URI of invalid scheme
+
 
 ## [66.0] - 2020-04-27
 ### Changed
