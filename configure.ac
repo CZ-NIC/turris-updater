@@ -19,7 +19,7 @@ AC_SUBST([BUSYBOX_EMBED], [$with_embed_busybox])
 AS_IF([test -n "$with_embed_busybox"],
   [
    AS_IF([test -f "$with_embed_busybox"],,
-	 [AC_MSG_ERROR([Invalid argument for --with-embed-busybox])])
+     [AC_MSG_ERROR([Invalid argument for --with-embed-busybox])])
    AC_DEFINE_UNQUOTED([BUSYBOX_EMBED], [$with_embed_busybox], [Embded Busybox])
   ])
 
@@ -30,6 +30,7 @@ PKG_CHECK_MODULES([LIBARCHIVE], [libarchive])
 PKG_CHECK_MODULES([LIBCURL], [libcurl])
 PKG_CHECK_MODULES([LIBCRYPTO], [libcrypto])
 PKG_CHECK_MODULES([LIBURIPARSER], [liburiparser >= 0.9])
+AC_CHECK_HEADERS([uthash.h], , AC_MSG_ERROR([uthash is required]))
 AC_LINK_IFELSE(
    [AC_LANG_PROGRAM([#include <argp.h>],[argp_parse(0,1,NULL,0,0,0);])],,
    AC_CHECK_LIB([argp], [argp_parse], , AC_MSG_ERROR([Missing libargp]))
