@@ -337,11 +337,12 @@ local function build_plan(pkgs, requests, sat, satmap)
 	"package" or "dep-package" or string (name of package group). ignore_missing
 	is extra option of package allowing ignore of missing dependencies.
 	ignore_missing_pkg is extra option of package allowing to ignore request if
-	there is not target for such package. And parent_str is string used for
-	warning and error messages containing information about who requested given
-	package.
+	there is not target for such package. Argument only_version allows check for
+	specific version. Package is not planned if candidate version not matches. And
+	parent_str is string used for warning and error messages containing
+	information about who requested given package.
 	--]]
-	local function pkg_plan(plan_pkg, ignore_missing, ignore_missing_pkg, parent_str)
+	local function pkg_plan(plan_pkg, ignore_missing, ignore_missing_pkg, only_version, parent_str)
 		local name = plan_pkg.name or plan_pkg -- it can be object of type "package" or "dep-package" or string containing name of package group
 		if not sat[satmap.pkg2sat[name]] then -- This package group is not selected, so we ignore it.
 			-- Note: In special case when package provides its own dependency package group might not be selected and so we should at least return empty table
@@ -368,22 +369,15 @@ local function build_plan(pkgs, requests, sat, satmap)
 			return {plan[planned[name]]}
 		end
 		local pkg = pkgs[name]
-		-- Check for cycles --
-		if inwstack[name] then -- Already working on it. Found cycle.
-			for i = inwstack[name], #wstack, 1 do
-				local inc_name = wstack[i]
-				if not inconsistent[inc_name] then -- Do not warn again
-					WARN("Package " .. inc_name .. " is in cyclic dependency. It might fail its post-install script.")
-				end
-				inconsistent[inc_name] = true
-			end
-			return
-		end
+
 		-- Found selected candidates for this package group
 		local candidates = {}
 		for _, cand in pairs((pkg or {}).candidates or {}) do
 			if sat[satmap.candidate2sat[cand]] then
 				if cand.Package == name then
+					if only_version and not backend.version_match(cand.Version, only_version) then
+						return -- This package should not be planned as candidate not matches version request
+					end
 					-- If we have candidate that is from this package that use is exclusively.
 					candidates = {cand}
 					break -- SAT ensures that there is always only the one such candidate so we ignore the rest
@@ -397,12 +391,34 @@ local function build_plan(pkgs, requests, sat, satmap)
 		if not next(candidates) and not utils.multi_index(pkg, 'modifier', 'virtual') then
 			return -- If no candidates, then we have nothing to be planned. Exception is if this is virtual package.
 		end
+		if only_version and candidates[1].Package ~= name then
+			-- Version dependencies apply only on candidates of same name as package group
+			-- Any other candidate should not be planned now.
+			return
+		end
+
+		-- Check for cycles --
+		if inwstack[name] then -- Already working on it. Found cycle.
+			for i = inwstack[name], #wstack, 1 do
+				local inc_name = wstack[i]
+				if not inconsistent[inc_name] then -- Do not warn again
+					WARN("Package " .. inc_name .. " is in cyclic dependency. It might fail its post-install script.")
+				end
+				inconsistent[inc_name] = true
+			end
+			return
+		end
+
 		-- Recursively add all packages this package depends on --
 		inwstack[name] = #wstack + 1 -- Signal that we are working on this package group.
 		table.insert(wstack, name)
-		for _, p in pkg_dep_iterate(utils.multi_index(pkg, 'modifier', 'deps') or {}) do -- plan package group dependencies
-			pkg_plan(p, ignore_missing or utils.multi_index(pkg, 'modifier', 'optional'), false, "Package " .. name .. " requires package")
+
+		local function plan_deps(deps)
+			for _, p in pkg_dep_iterate(deps or {}) do
+				pkg_plan(p, ignore_missing or utils.multi_index(pkg, 'modifier', 'optional'), false, utils.multi_index(p, 'version'), "Package " .. name .. " requires package")
+			end
 		end
+		plan_deps(utils.multi_index(pkg, 'modifier', 'deps')) -- plan package group dependencies
 		if not next(candidates) then
 			return -- We have no candidate, but we passed previous check because it's virtual
 		end
@@ -411,15 +427,14 @@ local function build_plan(pkgs, requests, sat, satmap)
 		for _, candidate in pairs(candidates) do -- Now plan candidate's dependencies and packages that provides this package
 			if candidate.Package ~= name then
 				-- If Candidate is from other group, then plan that group instead now.
-				utils.arr_append(r, pkg_plan(candidate.Package, ignore_missing, ignore_missing_pkg, parent_str) or {})
+				utils.arr_append(r, pkg_plan(candidate.Package, ignore_missing, ignore_missing_pkg, nil, parent_str) or {})
 				-- Candidate dependencies are planed as part of pkg_plan call here
 			else
 				no_pkg_candidate = false
-				for _, p in pkg_dep_iterate(utils.multi_index(candidate, 'deps') or {}) do
-					pkg_plan(p, ignore_missing or utils.multi_index(pkg, 'modifier', 'optional'), false, "Package " .. name .. " requires package")
-				end
+				plan_deps(utils.multi_index(candidate, 'deps'))
 			end
 		end
+
 		table.remove(wstack, inwstack[name])
 		inwstack[name] = nil -- Our recursive work on this package group ended.
 		if no_pkg_candidate then
@@ -445,14 +460,14 @@ local function build_plan(pkgs, requests, sat, satmap)
 	for name, pkg in pairs(pkgs) do
 		-- pkgs contains all packages so we have to check if package is in sat at all
 		if utils.multi_index(pkg, 'modifier', 'replan') == "immediate" and satmap.pkg2sat[name] and not (satmap.missing[pkg] or satmap.missing[name]) then -- we ignore missing packages, as they wouldn't be planned anyway and error or warning should be given by requests and other packages later on.
-			pkg_plan(name, false, false, 'Planned package with replan enabled'); -- we don't expect to see this parent_str because we are planning this first, but it theoretically can happen so this makes at least some what sense.
+			pkg_plan(name, false, false, nil, 'Planned package with replan enabled'); -- we don't expect to see this parent_str because we are planning this first, but it theoretically can happen so this makes at least some what sense.
 		end
 	end
 
 	for _, req in pairs(requests) do
 		if sat[satmap.req2sat[req]] then -- Plan only if we can satisfy given request
 			if req.tp == "install" then -- And if it is install request, uninstall requests are resolved by not being planned.
-				local pln = pkg_plan(req.package, false, req.optional or opmode.optional_installs, 'Requested package')
+				local pln = pkg_plan(req.package, false, req.optional or opmode.optional_installs, nil, 'Requested package')
 				-- Note that if pln is nil than we ignored missing package. We have to compute with that here
 				if pln then
 					if req.reinstall then

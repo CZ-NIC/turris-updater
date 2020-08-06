@@ -1062,6 +1062,58 @@ function test_critical_request_unsat()
 	assert_exception(function () planner.required_pkgs(pkgs, requests) end, 'inconsistent', nil, { critical = true })
 end
 
+function test_critical_provide_conflict()
+	local pkg_new_candidate = {
+		Package = 'pkg_new',
+		Version = "1.0",
+		deps = {tp = "dep-not", sub = {{tp = 'dep-package', name = "pkg", version = "~.*"}}}, -- This is Conflicts dependency description
+		repo = def_repo
+	}
+	local pkgs = {
+		pkg = {
+			candidates = {
+				{Package = 'pkg', Version = "1.0", deps = {}, repo = def_repo},
+				pkg_new_candidate, -- pkg_new provides pkg so this is candidate for pkg as well as for pkg_new
+			},
+			modifier = {}
+		},
+		pkg_new = {
+			candidates = {pkg_new_candidate},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg_new',
+			},
+			priority = 50,
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg',
+			},
+			critical = true,
+			priority = 50,
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		pkg_new = {
+			action = "require",
+			package = pkg_new_candidate,
+			modifier = {},
+			critical = true,
+			name = "pkg_new"
+		}
+	}
+	assert_plan_dep_order(expected, result)
+end
+
 function test_penalty()
 	local pkgs = {
 		pkg = {

@@ -1157,8 +1157,7 @@ function version_match(v, r)
 	-- We don't expect that version it self have space in it self, any space is removed.
 	local wildmatch, cmp_str, vers = r:gsub('%s*$', ''):match('^%s*(~?)([<>=]*)%s*(.*)$')
 	if wildmatch == '~' then
-		vers = cmp_str .. vers -- We might matched something so prepend it back
-		return v:match(vers) ~= nil
+		return v:match(cmp_str .. vers) ~= nil
 	elseif cmp_str == "" then -- If no compare was located than do plain compare
 		return v == r
 	else
