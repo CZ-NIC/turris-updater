@@ -1,0 +1,14 @@
+Package: pkg2
+Version: 2
+Status: install user installed
+Architecture: all
+Conffiles:
+ /etc/config/pkg 33d19abd69f8cff02a3a43a444c5c0635a7f6f61e2e3038cbfc3a27e1ad03d43
+Installed-Time: 0
+
+Package: pkg1
+Version: 2
+Status: install user installed
+Architecture: all
+Installed-Time: 0
+

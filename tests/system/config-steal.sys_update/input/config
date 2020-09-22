@@ -1,0 +1,2 @@
+Repository("test", "file://%ROOT_DIR%/repo")
+Install("pkg1", "pkg2")

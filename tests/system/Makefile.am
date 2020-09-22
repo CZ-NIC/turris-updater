@@ -27,7 +27,8 @@ TESTS += \
 	%reldir%/replan-no-effect.sys_update \
 	%reldir%/replan.sys_update \
 	%reldir%/simple-update.sys_update \
-	%reldir%/steal-confs.sys_update
+	%reldir%/config-steal.sys_update \
+	%reldir%/config-steal-replace.sys_update
 
 SYS_TRANS_LOG_COMPILER = %reldir%/run
 AM_SYS_TRANS_LOG_FLAGS = "$(builddir)/pkgtransaction"
