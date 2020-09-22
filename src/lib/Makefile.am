@@ -56,7 +56,8 @@ libupdater_la_LDFLAGS = \
 	$(LIBCRYPTO_LIBS) \
 	$(LIBURIPARSER_LIBS) \
 	$(CODE_COVERAGE_LIBS) \
-	-ldl
+	-ldl \
+	-release ${VERSION}
 
 ##################################################################################
 
