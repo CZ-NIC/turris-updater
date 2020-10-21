@@ -27,7 +27,7 @@ local confd_type, _ = stat(conf_dir)
 if confd_type == 'd' then
 	for name, tp in pairs(ls(conf_dir)) do
 		if tp == 'r' and name:match('.*.lua$') then
-			Script('file://' .. conf_dir .. '/' .. name, { security = "Local" })
+			Script('file://' .. conf_dir .. '/' .. name)
 		end
 	end
 else
