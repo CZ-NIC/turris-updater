@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [67.0.3] - 2020-10-21
+### Changed
+- pkgupdate's conf.lua now loads scripts with Full security level instead of Local
+- libupdater is now versioned with release version (there is no API compatibility
+  between versions)
+
 ## [67.0.2] - 2020-08-06
 ### Fixed
 - Warning about cycles for packages providing and at the same time conflicting
