@@ -190,7 +190,6 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 			for _, path in pairs(utils.multi_index(status, op.control.Package, 'ChangedFiles') or {}) do
 				backend.user_path_move(path, true)
 			end
-			local did_merge = backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.old_configs)
 			status[op.control.Package] = op.control
 			backend.pkg_update_alternatives(status, op.control.Package)
 		elseif op.op == "remove" and utils.arr2set(utils.multi_index(status, op.name, 'Status') or {})['installed'] then
