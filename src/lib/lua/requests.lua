@@ -209,7 +209,11 @@ function package(_, pkg_name, extra)
 		if name == "deps" then
 			extra_check_deps("package", name, value)
 		elseif name == "reboot" then
-			if not utils.arr2set({"delayed", "finished", "immediate"})[value] then
+			if value == "immediate" then
+				WARN('Package extra option\'s "reboot" value "immediate" is no longer available. Using "finished" instead.')
+				value = "finished"
+			end
+			if not utils.arr2set({"delayed", "finished"})[value] then
 				error(utils.exception("bad value", "Invalid value " .. value .. " in extra option " .. name .. " for a package"))
 			end
 		elseif (name == "order_after" or name == "order_before") then

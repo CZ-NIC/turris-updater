@@ -407,13 +407,7 @@ reboot::
     version works, so it may be delayed for arbitrary amount of time.
   finished;;
     The reboot needs to be done once the update is finished. It is because the old
-    version no longer works as expected. The whole update may be delayed because
-    the need of this update, so the update happens at a time convenient to the
-    user.
-  immediate;;
-    The reboot needs to be done just after the package is set up. This may be
-    needed when the old version would prevent the rest of the update from
-    happening.
+    version no longer works as expected.
 replan::
   The package has an effect on the updater itself. Therefore, updater have to run
   planning again. When this happens is according to value.

@@ -839,12 +839,6 @@ static int lua_reexec(lua_State *L) {
 	return 0;
 }
 
-static int lua_system_reboot(lua_State *L) {
-	bool stick = lua_toboolean(L, 1);
-	system_reboot(stick);
-	return 0;
-}
-
 static int lua_get_updater_version(lua_State *L) {
 	lua_pushstring(L, PACKAGE_VERSION);
 	return 1;
@@ -895,7 +889,6 @@ static const struct injected_func injected_funcs[] = {
 	{ lua_sha256, "sha256" },
 	{ lua_sha256_file, "sha256_file" },
 	{ lua_reexec, "reexec" },
-	{ lua_system_reboot, "system_reboot" },
 	{ lua_get_updater_version, "get_updater_version" }
 };
 

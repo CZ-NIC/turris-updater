@@ -196,7 +196,7 @@ void system_reboot_disable() {
 	system_reboot_disabled = true;
 }
 
-void system_reboot(bool stick) {
+void system_reboot() {
 	if (system_reboot_disabled) {
 		WARN("System reboot skipped as requested.");
 		return;
@@ -204,13 +204,6 @@ void system_reboot(bool stick) {
 	WARN("Performing system reboot.");
 	if (!fork()) {
 		ASSERT_MSG(execlp("reboot", "reboot", NULL), "Execution of reboot command failed");
-	}
-	if (stick) {
-		sigset_t sigmask;
-		sigfillset(&sigmask);
-		while (1) {
-			ppoll(NULL, 0, NULL, &sigmask);
-		}
 	}
 }
 

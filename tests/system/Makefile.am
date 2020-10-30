@@ -1,7 +1,6 @@
 TESTS += \
 	%reldir%/help.sys_trans \
 	%reldir%/install.sys_trans \
-	%reldir%/reboot-recover.sys_trans \
 	%reldir%/remove.sys_trans \
 	%reldir%/remove-nonexistent.sys_trans \
 	%reldir%/abi-change.sys_update \
@@ -21,7 +20,6 @@ TESTS += \
 	%reldir%/postinst.sys_update \
 	%reldir%/provides-replace.sys_update \
 	%reldir%/provides.sys_update \
-	%reldir%/reboot-recover-update.sys_update \
 	%reldir%/reboot.sys_update \
 	%reldir%/reinstall-all.sys_update \
 	%reldir%/replan-no-effect.sys_update \

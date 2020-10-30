@@ -59,14 +59,15 @@ void cleanup_run_all(void); // Run all cleanup functions explicitly
 // Disable system reboot. If this function is called before system_reboot is than
 // system reboot just prints warning about skipped reboot and returns.
 void system_reboot_disable();
-// Reboot system. Argument stick signals if updater should stick or continue.
-void system_reboot(bool stick);
+// Reboot system.
+void system_reboot();
 
 // Compute the size needed (including \0) to format given message
 size_t printf_len(const char *msg, ...) __attribute__((format(printf, 1, 2)));
 // Like sprintf, but returs the string. Expects there's enough space.
 char *printf_into(char *dst, const char *msg, ...) __attribute__((format(printf, 2, 3)));
-// Like printf, but allocates the data on the stack with alloca and returns. It uses the arguments multiple times, so beware of side effects.
+// Like printf, but allocates the data on the stack with alloca and returns.
+// It uses the arguments multiple times, so beware of side effects.
 #define aprintf(...) printf_into(alloca(printf_len(__VA_ARGS__)), __VA_ARGS__)
 
 // GCC 7+ reports fall troughs but previous versions doesn't understand attribute

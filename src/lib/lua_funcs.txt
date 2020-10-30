@@ -442,9 +442,5 @@ uri_internal_get(name)::
   is name of requested embedded file. Returns file content. If there is
   no file under given name, error is raised.
 
-system_reboot(stick)::
-  Reboots system. Argument `stick` if set to true results in that this
-  newer returns.
-
 get_updater_version()::
   Returns string containing updater's version.

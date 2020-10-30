@@ -1,3 +1,0 @@
-Repository("test", "file://%ROOT_DIR%/repo")
-Package("package", {reboot = "immediate"})
-Install("package")

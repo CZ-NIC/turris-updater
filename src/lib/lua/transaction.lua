@@ -51,7 +51,6 @@ local LS_CLEANUP = LS_CLEANUP
 local update_state = update_state
 local sync = sync
 local log_event = log_event
-local system_reboot = system_reboot
 
 module "transaction"
 
@@ -125,7 +124,6 @@ local function pkg_unpack(operations, status)
 				old_configs = old_configs,
 				changed_files = changed_files,
 				control = control,
-				reboot_immediate = op.reboot == "immediate"
 			})
 			if op.replan then
 				cleanup_actions.reexec = true
@@ -195,11 +193,6 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 			local did_merge = backend.pkg_merge_files(op.dir .. "/data", op.dirs, op.files, op.old_configs)
 			status[op.control.Package] = op.control
 			backend.pkg_update_alternatives(status, op.control.Package)
-			if op.reboot_immediate and did_merge then -- we reboot only if we did merge, if files were already merged then we already rebooted.
-				-- We can't exit this function, so it could finish from journal after reboot. We stuck execution here.
-				-- Note: This causes reexecution of already executed preinst scripts.
-				system_reboot(true)
-			end
 		elseif op.op == "remove" and utils.arr2set(utils.multi_index(status, op.name, 'Status') or {})['installed'] then
 			log_event("R", op.name)
 			utils.table_merge(all_configs, status[op.name].Conffiles or {})

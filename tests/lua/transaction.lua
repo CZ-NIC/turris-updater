@@ -239,7 +239,6 @@ function test_perform_ok()
 						files = { f = true },
 						op = "install",
 						old_configs = { c = "12345678901234567890123456789012" },
-						reboot_immediate = false
 					},
 					{ name = "pkg-rem", op = "remove" }
 				},
@@ -387,7 +386,6 @@ function test_perform_collision()
 						files = { f = true },
 						op = "install",
 						old_configs = { c = "1234567890123456" },
-						reboot_immediate = false
 					},
 					{
 						configs = { c = "1234567890123456" },
@@ -397,7 +395,6 @@ function test_perform_collision()
 						files = { f = true },
 						op = "install",
 						old_configs = { c = "1234567890123456" },
-						reboot_immediate = false
 					}
 				},
 				{"<pkg1dir>", "<pkg2dir>"},
