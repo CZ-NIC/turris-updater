@@ -21,6 +21,14 @@
 #include <stdbool.h>
 #include <lua.h>
 
+// Copy given path to given target. It copies mode, ownership and timestamps.
+// If target exists then it is overwritten.
+bool copy_path(const char *source, const char *target) __attribute__((nonnull));
+
+// Move given path to given target. It preserves mode, ownership and timestamps.
+// If target exists then it is overwritten.
+bool move_path(const char *source, const char *target) __attribute__((nonnull));
+
 // Make sure that path does not exist and if so remove it recursively
 // path: path to be recursively removed
 // Returns true on success otherwise false. On error you can call path_utils_error

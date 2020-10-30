@@ -44,6 +44,51 @@ static void tmp_link(const char *root, const char *path, const char *target) {
 	ck_assert(!symlink(target, aprintf("%s/%s", root, path)));
 }
 
+
+START_TEST(path_move_file) {
+	char *path = tmpdir_template("path_move_file");
+	int file = mkstemp(path);
+	close(file); // only create file (no content required
+
+	char *new_path = aprintf("%s.new", path);
+
+	ck_assert(path_exists(path));
+	ck_assert(!path_exists(new_path));
+
+	move_path(path, new_path);
+
+	ck_assert(!path_exists(path));
+	ck_assert(path_exists(new_path));
+
+	ck_assert(remove_recursive(new_path));
+	free(path);
+}
+END_TEST
+
+START_TEST(path_move_dir) {
+	char *path = tmpdir_template("path_move_dir");
+	ck_assert(mkdtemp(path));
+	char *link = aprintf("%s/some_link", path);
+	ck_assert(!symlink("/dev/null", link));
+
+	char *new_path = aprintf("%s.new", path);
+	char *new_link = aprintf("%s.new/some_link", link);
+
+	ck_assert(path_exists(path));
+	ck_assert(!path_exists(new_path));
+	ck_assert(!path_exists(new_link));
+
+	move_path(path, new_path);
+
+	ck_assert(!path_exists(path));
+	ck_assert(!path_exists(link));
+	ck_assert(path_exists(new_link));
+
+	ck_assert(remove_recursive(new_path));
+	free(path);
+}
+END_TEST
+
 START_TEST(remove_recursive_file) {
 	char *path = tmpdir_template("remove_recursive_file");
 	int file = mkstemp(path);
@@ -226,6 +271,7 @@ END_TEST
 Suite *gen_test_suite(void) {
 	Suite *result = suite_create("path_utils");
 	TCase *tcases = tcase_create("tcase");
+	tcase_add_test(tcases, path_move_file);
 	tcase_add_test(tcases, remove_recursive_file);
 	tcase_add_test(tcases, remove_recursive_link);
 	tcase_add_test(tcases, remove_recursive_dir);

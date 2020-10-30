@@ -36,10 +36,125 @@ static THREAD_LOCAL char *err_path = NULL;
 
 static bool preserve_error(const char *path) {
 	stderrno = errno;
-	if (err_path)
-		free(err_path);
+	free(err_path);
 	err_path = strdup(path);
 	return false;
+}
+
+
+static bool copy_path_internal(const char *source, const char *target);
+
+static bool copy_file(const char *source, struct stat *st, const char *target) {
+	int src_fd = open(source, O_RDONLY);
+	int fd = open(target, O_WRONLY | O_CREAT | O_EXCL, S_IWUSR);
+	char buf[BUFSIZ];
+	while (true) {
+		size_t read = read(src_fd, buf, BUFSIZ);
+		switch (read) {
+			case 0:
+				break;
+			case -1:
+				return preserve_error(source);
+		}
+		if (write(fd, buf, read) == -1)
+			return preserve_error(target);
+	}
+	close(src_fd);
+
+	if (fchmod(fd, st->st_mode) == -1)
+		WARN("Failed to set permissions for file: %s: %s", target, strerror(errno));
+	if (fchown(fd, st->st_uid, st->st_gid) == -1)
+		WARN("Failed to set ownership for file: %s: %s", target, strerror(errno));
+	close(fd);
+}
+
+static bool copy_link(const char *source, struct stat *st, const char *target) {
+	char link_target[st->st_size + 1];
+	assert(readlink(source, &link_target, st->st_size) == st->st_size); // TODO possibly better error handling?
+	if (symlink(link_target, target) == -1)
+		return preserve_error(target);
+	if (lchown(target, st->st_uid, st->st_gid) == -1)
+		WARN("Failed to set ownership for symlink: %s: %s", target, strerror(errno));
+	return true;
+}
+
+static bool copy_directory(const char *source, struct stat *st, const char *target) {
+	// TODO create target directory first
+	if (mkdir(target, st->st_mode) == -1)
+		return preserve_error(target);
+	if (chown(target, st->st_uid, st->st_gid) == -1)
+		WARN("Failed to set ownership for directory: %s: %s", target, strerror(errno));
+
+	if ((DIR *dir = opendir(source)) == NULL)
+		return preserve_error(path);
+	struct dirent *ent;
+	while ((ent = readdir(dir))) {
+		if (is_dot_dotdot(ent->d_name))
+			continue;
+		if (ent->d_type == DT_DIR) {
+			if (!remove_recursive(aprintf("%s/%s", path, ent->d_name)))
+				return false;
+		} else {
+			if (unlinkat(dirfd(dir), ent->d_name, 0) != 0)
+				return preserve_error(aprintf("%s/%s", path, ent->d_name));
+		}
+	}
+	closedir(dir);
+	// TODO
+}
+
+static bool copy_path_internal(const char *source, const char *target) {
+	struct stat st;
+	if (lstat(source, &st) == -1) {
+		// TODO error
+	}
+	switch (st.st_mode & S_IFMT) {
+		case S_IFREG:
+			return copy_file(source, &st, target);
+		case S_IFLNK:
+			return copy_link(source, &st, target);
+		case S_IFDIR:
+			return copy_directory(source, &st, target);
+		case S_IFBLK:
+		case S_IFCHR:
+			mknod(target, st.st_mode, st.st_rdev);
+			chown(target, st.st_uid, st.st_gid);
+			return true;
+		case S_IFIFO:
+			WARN("copy_path: FIFO (named pipe) is not supported.");
+			return true;
+		case S_IFSOCK:
+			WARN("copy_path: UNIX domain socket is not supported.");
+			return true;
+		default:
+			DIE("copy_path: unknown node type: %d", st.st_mode & S_IFMT);
+	}
+}
+
+bool copy_path(const char *source, const char *target) {
+	// Unconditionally remove target, that makes it easier for us
+	remove_recursive(target);
+	// TODO possibly merge and update instead of remove and copy. That can be
+	// cleaner solution for running programs.
+
+	last_operation = "Copy";
+	return copy_path_internal(source, target);
+}
+
+bool move_path(const char *source, const char *target) {
+	last_operation = "Move";
+	if (rename(source, target) == -1) {
+		switch (errno) {
+			case EFAULT:
+				return copy_path(source, target) && remove_recursive(source);
+			case EISDIR:
+			case ENOTDIR:
+				return remove_recursive(target) && move_path(source, target);
+			default:
+				return preserve_error(source);
+		}
+	}
+	return true;
 }
 
 // Matches . and .. file names (used to ignore current and upper directory entry)
