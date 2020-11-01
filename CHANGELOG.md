@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Queue messages for 'upgrade' and 'downgrade' now also print current version in
+  square brackets.
+
 ### Changed
 - Default connection timeout for download was extended from one minute to ten
   minutes.
@@ -12,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Possibility to reboot immediatelly after package installation. Reboot after
   update is deemed sufficient.
+
+### Fixed
+- Queue messages now state 'upgrade', 'downgrade' and 'reinstall' instead of
+  original generic 'install'.
 
 ## [67.0.3] - 2020-10-21
 ### Changed
