@@ -33,16 +33,6 @@ function DIE(...)
 	os.exit(1)
 end
 
-function log_event(action, package)
-	if state_log_enabled() then
-		local f = io.open("/tmp/update-state/log2", "a")
-		if f then
-			f:write(action, " ", package, "\n")
-			f:close()
-		end
-	end
-end
-
 -- Function used from C to generate message from error
 function c_pcall_error_handler(err)
 	local function err2string(msg, err)

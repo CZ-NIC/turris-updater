@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Possibility to reboot immediatelly after package installation. Reboot after
   update is deemed sufficient.
+- `--state-log` argument
+- `--task-log` argument
 
 ### Fixed
 - Queue messages now state 'upgrade', 'downgrade' and 'reinstall' instead of

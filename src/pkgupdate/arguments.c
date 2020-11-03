@@ -31,7 +31,6 @@ static struct argp_option options[] = {
 	{"no-immediate-reboot", OPT_NO_IMMEDIATE_REBOOT, NULL, 0, "Don't reboot immediately. Just ignore immediate reboots. This is usable if you are not running on target machine.", 2},
 	{"out-of-root", OPT_OUT_OF_ROOT, NULL, 0, "We are running updater out of root filesystem. This implies --no-replan and --no-immediate-reboot and is suggested to be used with --root option.", 2},
 	{"task-log", OPT_TASK_LOG, "FILE", 0, "Append list of executed tasks into a log file.", 3},
-	{"state-log", OPT_STATE_LOG, NULL, 0, "Dump state to files in /tmp/updater-state directory", 3},
 	// Following options are internal
 	{"reexec", OPT_REEXEC, NULL, OPTION_HIDDEN, "", 0},
 	{"reboot-finished", OPT_REBOOT_FINISHED, NULL, OPTION_HIDDEN, "", 0},
@@ -67,9 +66,6 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state) {
 			break;
 		case OPT_TASK_LOG:
 			opts->task_log = arg;
-			break;
-		case OPT_STATE_LOG:
-			set_state_log(true);
 			break;
 		case OPT_REEXEC:
 			opts->reexec = true;
