@@ -27,7 +27,6 @@ struct opts {
 	const char *approval_file; // --ask-approval
 	const char **approve; // --approve
 	size_t approve_cnt;
-	const char *task_log; // --task-log
 	bool no_replan; // --no-replan
 	bool no_immediate_reboot; // --no-immediate-reboot
 	const char *config; // CONFIG

@@ -1,5 +1,4 @@
 sed -i -e 's/^Installed-Time: .*/Installed-Time: 0/' "$ROOT_DIR"/usr/lib/opkg/status
 sed -i -e 's/^START	.*/START	0/;s/^END	.*/END	0/' "$ROOT_DIR"/usr/share/updater/changelog
-sed -i -e 's/^[0-9: -]*//' "$ROOT_DIR"/task-log
 rm "$ROOT_DIR"/config
 rm -r "$ROOT_DIR"/repo

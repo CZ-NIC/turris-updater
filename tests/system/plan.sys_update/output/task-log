@@ -1,4 +1,0 @@
-	TRANSACTION START
-	install	4.8-linaro-3	libgcc
-	remove	-	pkg
-	TRANSACTION END

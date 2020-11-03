@@ -1,1 +1,1 @@
-file://$ROOT_DIR/config --batch -R "$ROOT_DIR" --task-log="$ROOT_DIR/task-log"
+file://$ROOT_DIR/config --batch -R "$ROOT_DIR"

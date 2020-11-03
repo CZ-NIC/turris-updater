@@ -28,10 +28,6 @@ local md5_file = md5_file
 local sha256_file = sha256_file
 local sha256 = sha256
 local reexec = reexec
-local LS_CONF = LS_CONF
-local LS_PLAN = LS_PLAN
-local LS_DOWN = LS_DOWN
-local update_state = update_state
 local utils = require "utils"
 local syscnf = require "syscnf"
 local sandbox = require "sandbox"
@@ -61,10 +57,8 @@ local function required_pkgs(entrypoint)
 		-- Note: See requests.script for usage of this value
 		["parent_script_uri"] = entry_uri
 	}
-	update_state(LS_CONF)
 	local err = sandbox.run_sandboxed(entry_chunk, entrypoint, 'Full', nil, merge)
 	if err and err.tp == 'error' then error(err) end
-	update_state(LS_PLAN)
 	-- Go through all the requirements and decide what we need
 	postprocess.run()
 	return planner.required_pkgs(postprocess.available_packages, requests.content_requests)
@@ -136,7 +130,6 @@ end
 -- Download all packages and push tasks to transaction
 function tasks_to_transaction()
 	INFO("Downloading packages")
-	update_state(LS_DOWN)
 	utils.mkdirp(syscnf.pkg_download_dir)
 	-- Start packages download
 	local uri_master = uri:new()
@@ -145,7 +138,6 @@ function tasks_to_transaction()
 			task.file = syscnf.pkg_download_dir .. task.name .. '-' .. task.package.Version .. '.ipk'
 			task.real_uri = uri_master:to_file(task.package.Filename, task.file, task.package.repo.index_uri)
 			task.real_uri:add_pubkey() -- do not verify signatures (there are none)
-			-- TODO on failure: log_event('D', task.name .. " " .. task.package.Version)
 		end
 	end
 	local failed_uri = uri_master:download()

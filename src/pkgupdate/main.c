@@ -38,7 +38,6 @@ static bool results_interpret(struct interpreter *interpreter, size_t result_cou
 		char *msg;
 		ASSERT(interpreter_collect_results(interpreter, "-s", &msg) == -1);
 		ERROR("%s", msg);
-		err_dump(msg);
 	}
 	if (result_count >= 1)
 		ASSERT(interpreter_collect_results(interpreter, "b", &result) == -1);
@@ -114,7 +113,6 @@ int main(int argc, char *argv[]) {
 		.approval_file = NULL,
 		.approve = NULL,
 		.approve_cnt = 0,
-		.task_log = NULL,
 		.no_replan = false,
 		.no_immediate_reboot = false,
 		.config = NULL,
@@ -125,7 +123,6 @@ int main(int argc, char *argv[]) {
 
 	system_detect();
 
-	update_state(LS_INIT);
 	struct events *events = events_new();
 	// Prepare the interpreter and load it with the embedded lua scripts
 	struct interpreter *interpreter = interpreter_create(events);
@@ -152,7 +149,6 @@ int main(int argc, char *argv[]) {
 	if (err) {
 		trans_ok = false;
 		ERROR("%s", err);
-		err_dump(err);
 		GOTO_CLEANUP;
 		goto CLEANUP; // This is to suppress cppcheck redundant assigment warning
 	}
@@ -178,25 +174,9 @@ int main(int argc, char *argv[]) {
 	err = interpreter_call(interpreter, "updater.tasks_to_transaction", NULL, "");
 	ASSERT_MSG(!err, "%s", err);
 	if (!opts.reexec) {
-		update_state(LS_PREUPD);
 		const char *hook_path = aprintf("%s%s", root_dir(), hook_preupdate);
 		setenv("ROOT_DIR", root_dir(), true);
 		exec_hook(hook_path, "Executing preupdate hook");
-	}
-	if (opts.task_log) {
-		FILE *log = fopen(opts.task_log, "a");
-		if (log) {
-			const char *timebuf = time_load();
-			fprintf(log, "%sTRANSACTION START\n", timebuf);
-			err = interpreter_call(interpreter, "updater.task_report", &result_count, "s", timebuf);
-			ASSERT_MSG(!err, "%s", err);
-			const char *content;
-			ASSERT_MSG(result_count == 1, "Wrong number of results of updater.task_report (%zu)", result_count);
-			ASSERT_MSG(interpreter_collect_results(interpreter, "s", &content) == -1, "The result of updater.task_report is not string");
-			fputs(content, log);
-			fclose(log);
-		} else
-			WARN("Couldn't store task log %s: %s", opts.task_log, strerror(errno));
 	}
 	err = interpreter_call(interpreter, "transaction.perform_queue", &result_count, "");
 	ASSERT_MSG(!err, "%s", err);
@@ -214,20 +194,12 @@ int main(int argc, char *argv[]) {
 	}
 	err = interpreter_call(interpreter, "updater.cleanup", NULL, "bb", opts.reboot_finished);
 	ASSERT_MSG(!err, "%s", err);
-	if (opts.task_log) {
-		FILE *log = fopen(opts.task_log, "a");
-		if (log) {
-			fprintf(log, "%sTRANSACTION END\n", time_load());
-			fclose(log);
-		} else
-			WARN("Could not store task log end %s: %s", opts.task_log, strerror(errno));
-	}
-REPLAN_CLEANUP:
-	update_state(LS_POSTUPD);
+REPLAN_CLEANUP: {
 	const char *hook_path = aprintf("%s%s", root_dir(), hook_postupdate);
 	setenv("ROOT_DIR", root_dir(), true);
 	setenv("SUCCESS", trans_ok ? "true" : "false", true);
 	exec_hook(hook_path, "Executing postupdate hook");
+	}
 CLEANUP:
 	free(opts.approve);
 	interpreter_destroy(interpreter);
@@ -235,11 +207,5 @@ CLEANUP:
 	arg_backup_clear();
 	if (opts.reboot_finished)
 		system_reboot(false);
-	if (trans_ok) {
-		update_state(LS_EXIT);
-		return 0;
-	} else {
-		update_state(LS_FAIL);
-		return 1;
-	}
+	return trans_ok ? 0 : 1;
 }

@@ -171,12 +171,6 @@ static int lua_log(lua_State *L) {
 	return 0;
 }
 
-static int lua_update_state(lua_State *L) {
-	enum log_state state = luaL_checkint(L, 1);
-	update_state(state);
-	return 0;
-}
-
 /*
  * Put a value from the stack (at index) into our own table in the registry.
  * Return the index under which it is stored in there. The returned value allocated
@@ -845,13 +839,6 @@ static int lua_get_updater_version(lua_State *L) {
 	return 1;
 }
 
-extern bool state_log_enabled; // defined in util.c
-
-static int lua_state_log_enabled(lua_State *L) {
-	lua_pushboolean(L, state_log_enabled);
-	return 1;
-}
-
 struct injected_func {
 	int (*func)(lua_State *);
 	const char *name;
@@ -859,8 +846,6 @@ struct injected_func {
 
 static const struct injected_func injected_funcs[] = {
 	{ lua_log, "log" },
-	{ lua_state_log_enabled, "state_log_enabled" },
-	{ lua_update_state, "update_state" },
 	{ lua_cleanup_register_handle, "cleanup_register_handle" },
 	{ lua_cleanup_unregister_handle, "cleanup_unregister_handle" },
 	{ lua_run_command, "run_command" },
@@ -897,20 +882,6 @@ struct {
 	int cnst;
 	const char *name;
 } injected_const[] = {
-	{ LS_INIT, "LS_INIT"},
-	{ LS_CONF, "LS_CONF"},
-	{ LS_PLAN, "LS_PLAN"},
-	{ LS_DOWN, "LS_DOWN"},
-	{ LS_PREUPD, "LS_PREUPD"},
-	{ LS_UNPACK, "LS_UNPACK"},
-	{ LS_CHECK, "LS_CHECK"},
-	{ LS_INST, "LS_INST"},
-	{ LS_POST, "LS_POST"},
-	{ LS_REM, "LS_REM"},
-	{ LS_CLEANUP, "LS_CLEANUP"},
-	{ LS_POSTUPD, "LS_POSTUPD"},
-	{ LS_EXIT, "LS_EXIT"},
-	{ LS_FAIL, "LS_FAIL"},
 	{ LST_PKG_SCRIPT, "LST_PKG_SCRIPT"},
 	{ LST_HOOK, "LST_HOOK"},
 };

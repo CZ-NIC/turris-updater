@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   handling. This improves update time for any scripts spawning "daemon" processes
   that do not correctly redirect or close standard outputs.
 
+### Removed
+- `--state-log` argument
+- `--task-log` argument
+
 
 ## [69.1.3] - 2021-06-16
 ### Changed
