@@ -1,4 +1,4 @@
-AC_INIT([updater-ng], [67.0.3], [tech.support@turris.cz])
+AC_INIT([updater-ng], [68.0.0], [tech.support@turris.cz])
 AC_CONFIG_MACRO_DIRS([m4])
 
 AM_INIT_AUTOMAKE([foreign silent-rules subdir-objects -Wall -Wno-portability])
