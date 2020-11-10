@@ -1,0 +1,300 @@
+This document describes files and structured shared with Opkg. This is primarily
+recherche of Opkg to ensure compatibility with it.
+
+== Opkg on-disc structures
+
+In case we decide not to use opkg as the backend (which is somewhat problematic
+with the old updater and doesn't allow some nice features, like transactions), we
+need to migrate from its data structures.
+
+There are two possibilities. Either repeatedly call opkg to provide the
+information (eg. `opkg list-installed`, `opkg files <package>`).  The other
+possibility is to decode its on-disk data structures.
+
+It would also be possible to use something backwards compatible with the opkg
+structures (keep them up to date and use them, but add some more information to
+other files, like journal).
+
+Here's a list of files discovered to be used by opkg to store the database of
+installed packages.
+
+=== Global files
+
+There's `/usr/lib/opkg/status`. This file lists all the installed packages. Each
+one is represented by a block of email-like headers, listing some basic info about
+the package. This is the local status of the package ‒ when it has been installed,
+if it is installed as a dependency or requested by a user, etc. The block could be
+different from router to router even for the same package, unlike the files in the
+per-package files.
+
+It is also important to note that single package can be noted there multiple times
+with different version.
+
+Expected fields are:
+
+Package::
+  Specified name of package.
+Version::
+  This is package version.
+Depends::
+  Comma separated list of dependencies. Every dependency is name of package.
+  Optional version can also be specified. That is done in format `
+Recommends::
+  In general optional dependencies. This is not used in OpenWrt's packages (as of
+  OpenWrt 19.07).
+Suggests::
+  In general optional extensions. This is not used in OpenWrt's packages (as of
+  OpenWrt 19.07).
+Provides::
+  Comma separated list of packages aliases. Optional version can be specified the
+  same way as in case of `Depends`.
+Replaces::
+  List of comma separated packages this package replaces. This is not used in
+  OpenWrt's packages (as of OpenWrt 19.07).
+Conflicts::
+  Comma separated list of conflicting packages. Optional version can be specified
+  the same way as in case of `Depends`.
+Status::
+  This is space separated triplet. Description is in following subsection.
+Essential::
+  The only acceptable value is `yes`. This marks package as essentially required.
+  Removal of such package should not be allowed.
+Architecture::
+  This is package's architecture.
+Conffiles::
+  This is multiline (space indented) where every line is space separated pair of
+  path and MD5 sum.
+Installed-Time::
+  Time of package installation. This is decimal number of time since epoch.
+Auto-Installed::
+  The only acceptable value is `yes`. This is used to label packages as installed
+  only because they are dependency of some other package.
+Alternatives::
+  Space separated list of alternatives. Alternatives are essentially links.
+  Multiple packages can specify same alternative target and the one with highest
+  priority wins target. One alternative is triplet separated by `:`. First field
+  is priority. Second field is link path. Third field is link target.
+
+==== Status triplet
+
+First field specifies wanted state:
+
+unknown::
+  Wanted state is effectively unknown.
+install::
+  Package should be installed. This is the only value commonly expected in
+  `/usr/lib/opkg/status` file as there is commonly no reason to store in index
+  any other state.
+deinstall::
+  Package should be deinstalled but not removed from system.
+purge::
+  Package should be removed from system.
+
+Second field contains comma separated list of flags:
+
+ok::
+  This is default flag. This flag should be used if you do not want to use any
+  other flag. It is ignored.
+hold::
+  This package should not be upgraded to newer version.
+noprune::
+  Old packages from this package should not be removed but rather appended to
+  this package.
+prefer::
+  This version of package is preferred.
+obsolete::
+  This package is older than some other that replaces it.
+user::
+  This package is requested by user.
+
+And the last third field contains status:
+
+not-installed::
+  The package is not in general installed. 
+unpacked::
+  Files of package are present in file-system.
+half-configured::
+  Package is half-configured. This seems to be unused by Opkg at the moment (as
+  of 2020-08-31).
+installed::
+  State when package is installed and configured. This is the desired state.
+half-installed::
+  Package is in some way installed only partially. This seems to be unused by
+  Opkg at the moment (as of 2020-08-31).
+config-files::
+  Package is not installed but config files are present and preserved in system.
+  This seems to be set but accepted by Opkg at the moment (as of 2020-08-31).
+post-inst-failed::
+  Post-install of package failed. Such package is installed but can be
+  potentially in broken state. This seems to be unused by Opkg at the moment (as
+  of 2020-08-31).
+removal-failed::
+  Removal failed in any way. Package is not fully removed. Files can be present
+  in system. This seems to be unused by Opkg at the moment (as of 2020-08-31).
+
+=== Per-package files
+
+There are some files for each installed package in the
+`/usr/lib/opkg/info` directory. The files are named after the package
+names, suffixed by the type of the file (eg. `package-name.type`). The
+types are following:
+
+control::
+  This is the description block taken vanilla from the package. Some of the info
+  is also found in the repository index list. It has email-like header format.
+list::
+  Lists the files owned by the package, one file per line.
+conffiles::
+  Lists the config files owned by the package (files that shall not be overwritten
+  by an upgrade of the package). Note that config files are also listen in `list`
+  file. The file is present only if the package has some config files.
+preinst::
+postinst::
+prerm::
+postrm::
+  Executable scripts that are run in the right moment of installation process.
+  They are present only if the package contains them.
+
+There can be also other files. Those are used commonly by scripts. Opkg does not
+use them but it manages them.
+
+=== Package control files
+
+`control` file contains additional fields that are not stored in
+`/usr/lib/opkg/status` file. It is expected to be at least:
+
+Section::
+  Name of section package is included in.
+Maintainer::
+  Identified of maintainer of given package.
+Source::
+  Path to package in in OpenWrt's build tree (relative to `packages` directory).
+SourceName::
+  Name of source package. That is name used to build given package. This can be
+  different to `Package` value.
+License::
+  License of packaged software.
+LicenseFiles::
+  Path to license files in source. These files are not in general present in
+  resulting package so they are not accessible in running system.
+Description::
+  This can be multi-line user readable description of package.
+Tags::
+  This is list of package tags. This is not in OpenWrt's packages (as far as
+  OpenWrt 19.07).
+Require-User::
+  This is OpenWrt's extension. It is used to create (ensure existence) of
+  appropriate user. Format is space separated list of user-group pairs. Both user
+  and group are specified in format `name=id` where `id` has to be number assigned
+  to given user.
+SourceDateEpoch::
+  Time since epoch of source. Although supported in OpenWrt's build system it is
+  not commonly used in packages.
+CPE-ID::
+  Common Platform Enumeration ID of software in package. This is commonly not
+  present.
+LinkSignature::
+  This is Turris extension. This is used to identify link changes in package
+  without version change. This covers situation when library changes API and all
+  packages depending on it has to be reinstalled because of that.
+
+Compared to `/usr/lib/opkg/status` following fields are on the other hand not
+present:
+
+* Installed-Time
+* Auto-Installed
+
+Field `status` should not be present in general but in some cases it can be with
+triplet: `unknown hold not-installed`.
+
+
+== Opkg sequence
+
+This section describes in which order Opkg does various steps that are part of
+package installation/removal.
+
+Opkg installs and removes packages one by one in their fullest. That is it runs
+full sequence for one package before it moves to next one.
+
+=== Installation
+
+This sequence installs package but won't configure it.
+
+1. Removes any package that is replaced by installed package
+2. Runs `prerm` with `upgrade` argument if there is existing installed version in
+   system
+3. Runs `preinst`. Installation is aborted if this fails.
+4. Backups modified configuration files as well as any file that wasn't marked as
+   configuration file in old version but is now.
+5. Checks for collisions between data files.
+6. Runs `postrm` with `upgrade` argument if there is existing installed version in
+   system.
+7. Removes any obsolete files.
+8. Removes control files from `/usr/lib/opkg/info` directory
+9. Installs new control files to `/usr/lib/opkg/info` directory.
+10. Merges data files to system and generates list of installed files.
+11. Removes files ownership from any conflicting package.
+12. Restores configuration files and renames new one to name with suffix `-opkg`
+    if they differ.
+13. Sets package state to `unpacked` for new version and as `not-installed` to
+    old version if there was any. It also sets `Install-Time`.
+
+=== Configuration
+
+This sequence is executed as subsequent step to installation of packages.
+
+1. Runs `postinst` with `configure` argument.
+2. Updates alternative symbolic links.
+
+=== Removal
+
+This sequence removes package from system in the fullest.
+
+1. Removes any dependent packages unless disabled.
+2. Executes `prerm` script with `remove` argument. Removal is abandoned if that
+   fails.
+3. Removes files from file-system.
+4. Runs `postrm` script with `remove` argument.
+5. Removes control files from `/usr/lib/opkg/info` directory.
+6. Sets package state to `not-installed`.
+7. Updates alternative symbolic links.
+8. Optionally removes orphan packages
+
+
+== Opkg script execution environment
+
+Opkg runs `{pre,post}{inst,rm}` script in defined environment and with defined
+arguments. This gives scripts additional information to be used.
+
+Scripts are executed always using `/bin/sh`.
+
+Every script has these variables defined in environment:
+
+PKG_ROOT::
+  Path to root file-system.
+PKG_UPGRADE::
+  This has either `1` or `0` as a value and specifies if package is being upgraded
+  or not (new installation or removal). This includes downgrade as well.
+
+These scripts are not executed in offline (out of root) mode.
+
+
+== Repository structure
+
+This is format of packages index. This is file describing repository. It is
+commonly expected to be named as `Packages`. It is possible to have it compressed
+as well.
+
+Packages index is list of packages available in repository in repository. It is in
+mail-like format. Fields are same as in package's control file with addition of:
+
+Filename::
+  Package's file name. This is used to assemble URL to get package from
+  repository.
+Size::
+  Size of package in bytes.
+MD5sum::
+  MD5 sum of package file. This is no longer provided by OpenWrt's build system
+  but is still accepted and verified by Opkg.
+SHA256sum::
+  SHA256 sum of package file.
