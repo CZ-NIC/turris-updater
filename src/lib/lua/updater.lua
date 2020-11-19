@@ -123,7 +123,14 @@ function package_verify(task)
 	package_verify_single(md5_file, "MD5Sum")
 	package_verify_single(sha256_file, "SHA256Sum") -- This is supported only by updater (introduced as a fault)
 	package_verify_single(sha256_file, "SHA256sum")
-	return verified
+	if not verified then
+		if task.package.repo.pkg_hash_required then
+			error(utils.exception("corruption",
+				"There is not supported hash in repository index to verify package: " + task.name))
+		else
+			WARN("Package has no hash in index to verify it: " + task.name)
+		end
+	end
 end
 
 -- Download all packages and push tasks to transaction
@@ -151,9 +158,7 @@ function tasks_to_transaction()
 	for _, task in ipairs(tasks) do
 		if task.action == "require" then
 			task.real_uri:finish()
-			if not package_verify(task) then
-				WARN("Package has no hash in index to verify it: " + task.name)
-			end
+			package_verify(task)
 			transaction.queue_install_downloaded(task.file, task.name, task.package.Version, task.modifier)
 		elseif task.action == "remove" then
 			transaction.queue_remove(task.name)

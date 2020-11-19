@@ -35,11 +35,14 @@ local verify_task = {
 		MD5Sum = "182171ccacfc32a9f684479509ac471a",
 		SHA256sum = "4f54362b30f53ae6862b11ff34d22a8d4510ed2b3e757b1f285dbd1033666e55",
 		SHA256Sum = "4f54362b30f53ae6862b11ff34d22a8d4510ed2b3e757b1f285dbd1033666e55",
+		repo = {
+			pkg_hash_required = true
+		}
 	},
 }
 
 function test_package_verify_valid()
-	assert(updater.package_verify(verify_task))
+	updater.package_verify(verify_task)
 end
 
 function test_package_verify_invalid_md5()

@@ -259,6 +259,11 @@ optional::
   any reason or to parse it. This can be due to missing resource or invalid
   verification but in both cases this is not fatal for updater execution and it
   continues without this repository.
+pkg_hash_required::
+  You can set this to `false` to disable error when package has no supported hash
+  in the origin repository index. You want to set this to `false` most likely
+  because you do not need verification of packages (for example in case of
+  `file://` protocol).
 sig::
 pubkey::
 ca::
@@ -595,6 +600,9 @@ no_error_virtual::
   package fulfilled.
 request_condition::
   `Install` and `Uninstall` requests support `condition` extra field.
+fatal_missing_pkg_hash::
+  Missing or no supported hash for package in repository index is considered as
+  fatal error now.
 
 installed
 ~~~~~~~~~

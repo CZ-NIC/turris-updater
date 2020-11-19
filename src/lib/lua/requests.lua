@@ -247,6 +247,7 @@ local allowed_repository_extras = {
 	["index"] = utils.arr2set({"string"}),
 	["priority"] = utils.arr2set({"number"}),
 	["optional"] = utils.arr2set({"boolean"}),
+	["pkg_hash_required"] = utils.arr2set({"boolean"}),
 	["subdirs"] = utils.arr2set({"table"}), -- obsolete
 	["ignore"] = utils.arr2set({"table"}), -- obsolete
 }
@@ -287,6 +288,7 @@ function repository(context, name, repo_uri, extra)
 			repo_uri = repo_uri,
 			name = repo_name,
 			serial = repo_serial,
+			pkg_hash_required = true,
 		}
 		utils.table_merge(repo, extra)
 		repo.priority = extra.priority or 50

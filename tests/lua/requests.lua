@@ -69,6 +69,7 @@ function test_repository()
 			name = "test-repo",
 			repo_uri = "http://example.org/repo",
 			priority = 50,
+			pkg_hash_required = true,
 			serial = 1
 		},
 		["test-repo-2-a"] = {
@@ -77,6 +78,7 @@ function test_repository()
 			repo_uri = "http://example.org/repo-2",
 			subdirs = {'a', 'b'},
 			priority = 60,
+			pkg_hash_required = true,
 			serial = 2
 		},
 		["test-repo-2-b"] = {
@@ -85,6 +87,7 @@ function test_repository()
 			repo_uri = "http://example.org/repo-2",
 			subdirs = {'a', 'b'},
 			priority = 60,
+			pkg_hash_required = true,
 			serial = 3
 		},
 		["test-repo-other"] = {
@@ -93,6 +96,7 @@ function test_repository()
 			repo_uri = "http://example.org/repo-other",
 			index = "https://example.org/repo-other/Packages.gz",
 			priority = 50,
+			pkg_hash_required = true,
 			serial = 4
 		}
 	}, requests.known_repositories)

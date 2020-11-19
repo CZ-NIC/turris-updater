@@ -73,6 +73,7 @@ local example_output = {
 			}
 		},
 		name = "test1",
+		pkg_hash_required = true,
 		priority = 50,
 		repo_uri = "file://" .. datadir .. "/repo",
 		serial = 1,
@@ -123,6 +124,7 @@ function test_get_repos_broken_nonfatal()
 			optional = true,
 			name = "test1",
 			repo_uri = "http://example.org/test1",
+			pkg_hash_required = true,
 			priority = 50,
 			serial = 1,
 			tp = "failed-repository"

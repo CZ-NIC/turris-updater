@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Added
+- extra argument `pkg_hash_required` for `Repository` command
+
+### Changed
+- Execution is now terminated when there is no hash for package being installed in
+  repository index unless `pkg_hash_required` is set to `false` for that
+  repository.
+
 ## [68.0.0] - 2020-11-06
 ### Added
 - Queue messages for 'upgrade' and 'downgrade' now also prints current version in
