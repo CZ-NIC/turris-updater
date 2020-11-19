@@ -138,15 +138,12 @@ function deps_canon(old_deps)
 				sub = sub
 			})
 		elseif old_deps:match('%s') then
-			-- When there is space in parsed name, then there might be version specified
-			local dep = old_deps:gsub('^%s', ''):gsub('%s$', '')
-			local name = dep:match('^%S+')
-			local version = dep:match('%(.+%)$')
-			version = version and version:sub(2,-2):gsub('^%s', ''):gsub('%s$', '')
-			if not version or version == "" then
-				return name -- No version detected, use just name.
-			else
+			local name, version = backend.parse_pkg_specifier(old_deps)
+			if version then
 				return { tp = "dep-package", name = name, version = version }
+			else
+				-- TODO possibly report error if name is nil?
+				return name -- No version detected, use just name.
 			end
 		elseif old_deps == '' then
 			return nil

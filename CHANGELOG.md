@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - extra argument `pkg_hash_required` for `Repository` command
+- support for version limitation of `Install` and `Uninstall` requests in package
+  name (such as `foo (>= 1.0.0)`).
 
 ### Changed
 - Execution is now terminated when there is no hash for package being installed in
   repository index unless `pkg_hash_required` is set to `false` for that
   repository.
+
+### Removed
+- Extra option `version` for `Install` request. You should append version
+  specifier to package name the same way as it is done for dependencies.
 
 ## [68.0.0] - 2020-11-06
 ### Added

@@ -291,6 +291,9 @@ Install
 This command takes multiple package names. It requires that given packages are to
 be present in the system.
 
+Package name can be extended by version specification the same way as descibed for
+dependency description (_check for `requests_version` feature_).
+
 The resolving of extra options acts the same as with `Uninstall`.
 
 Available extra options:
@@ -301,19 +304,6 @@ priority::
   requirement with the higher priority wins. In case of a draw, an
   error is reported. The priority defaults to 50 and must be between 0
   and 100.
-version::
-  Limits the considered versions. This may be a single string or a
-  table with multiple strings. If there are multiple, each is
-  considered a condition and all must pass for a version to be
-  accepted. Using of operators `<`, `<=`, `>`, `>=` is possible. Also,
-  if the version is prefixed with `~`, it acts as a lua string match
-  pattern against the version. So this would accept versions between 3
-  and 7 and ignore the `.0` ones: `{ ">=3.0", "<=7.0", "~^%d+%.[1-9]%d*" }`.
-  The default is no condition, therefore all versions available pass.
-  From the versions that match and satisfy all dependency
-  requirements, the one with highest version is chosen. In case when
-  no available version matches, the currently installed version is
-  also considered as a fallback.
 repository::
   Usually, all repositories are searched according to their
   priorities. If you specify this option as a lua table, only the
@@ -349,6 +339,10 @@ NOTE: There is also obsoleted but still working option `ignore` which if set to
 any boolean true value it is considered as if `optional` extra option would be
 set to `true`.
 
+NOTE: In the past there was also `version` extra option. This was a way to request
+specific version before version could have been specified as an extension to
+package name.
+
 Uninstall
 ~~~~~~~~~
 
@@ -357,7 +351,10 @@ Uninstall
 This command is the opposite of `Install`. This command takes multiple package
 names. It ensures none of the packages is installed.
 
-TIP: This is not needed most cases, since unneeded packages are removed
+Package name can be extended by version specification the same way as descibed for
+dependency description.
+
+TIP: This is not needed in most cases, since unneeded packages are removed
 automatically.
 
 Extra options modify the packages preceding them, but only up to the
@@ -603,6 +600,9 @@ request_condition::
 fatal_missing_pkg_hash::
   Missing or no supported hash for package in repository index is considered as
   fatal error now.
+requests_version::
+  Updater supports versioned `Install` and `Uninstall` requests. Extra argument
+  `version` of `Install` no longer works.
 
 installed
 ~~~~~~~~~

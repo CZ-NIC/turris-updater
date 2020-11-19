@@ -35,6 +35,7 @@ local assert = assert
 local table = table
 local utils = require "utils"
 local uri = require "uri"
+local backend = require "backend"
 local opmode = opmode
 local DBG = DBG
 local WARN = WARN
@@ -326,11 +327,17 @@ local function content_request(cmd, allowed, ...)
 		if extras.condition then
 			extra_check_deps(cmd, "condition", extras.condition)
 		end
+		extra_annul_ignore(extras, 'Install extra option "version" is obsolete and should not be used. Specify version directly to package name instead.', true) -- Note: this is applicable only to Install
 		extra_annul_ignore(extras, 'Install extra option "ignore" is obsolete and should not be used. Use "optional" instead.', true) -- Note: this is applicable only to Install
-		for _, pkg_name in ipairs(batch) do
-			DBG("Request " .. cmd .. " of " .. pkg_name)
+		for _, pkg_spec in ipairs(batch) do
+			local pkg_name, pkg_version = backend.parse_pkg_specifier(pkg_spec)
+			if not pkg_name then
+				error(utils.exception("bad value", "Invalid package specifier for request " .. cmd .. ": " .. tostring(pkg_spec)))
+			end
+			DBG("Request " .. cmd .. " of " .. pkg_spec)
 			local request = {
 				package = new_package(pkg_name, {}),
+				version = pkg_version,
 				tp = cmd
 			}
 			utils.table_merge(request, extras)
@@ -351,12 +358,12 @@ end
 
 local allowed_install_extras = {
 	["priority"] = utils.arr2set({"number"}),
-	["version"] = utils.arr2set({"string"}),
 	["repository"] = utils.arr2set({"string", "table"}),
 	["reinstall"] = utils.arr2set({"boolean"}),
 	["critical"] = utils.arr2set({"boolean"}),
 	["optional"] = utils.arr2set({"boolean"}),
 	["condition"] = utils.arr2set({"string", "table"}),
+	["version"] = utils.arr2set({"string"}), -- obsolete
 	["ignore"] = utils.arr2set({"table"}), -- obsolete
 }
 

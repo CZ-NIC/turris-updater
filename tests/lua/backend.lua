@@ -958,6 +958,23 @@ Depends: libc, ubox, libubox, libuci
 ]]))
 end
 
+function test_parse_pkg_specifier()
+	for _, v in pairs({"foo", "  foo  "}) do
+		assert_equal("foo", B.parse_pkg_specifier(v))
+	end
+	for _, v in pairs({"foo (> 1.2.3)", "foo(> 1.2.3)", " foo (> 1.2.3) ", " foo (> 1.2.3) "}) do
+		local pkg, version = B.parse_pkg_specifier(v)
+		print("here: " .. v .. " vs " .. tostring(pkg))
+		assert_equal("foo", pkg)
+		assert_equal(">1.2.3", version)
+	end
+	assert_nil(B.parse_pkg_specifier(""))
+	assert_equal("foo", B.parse_pkg_specifier("foo ( )"))
+	assert_equal("foo", B.parse_pkg_specifier("foo ()"))
+	assert_nil(B.parse_pkg_specifier("fee foo"))
+	assert_nil(B.parse_pkg_specifier("fee foo (> 1.2.3)"))
+end
+
 function test_version_cmp()
 	assert_equal(0, B.version_cmp("1.2.3", "1.2.3"))
 	assert_equal(-1, B.version_cmp("1.2.3", "1.2.4"))
@@ -990,4 +1007,4 @@ function teardown()
 	syscnf.set_root_dir()
 	utils.cleanup_dirs(tmp_dirs)
 	tmp_dirs = {}
-	end
+end

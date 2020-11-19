@@ -63,7 +63,7 @@ module "backend"
 -- luacheck: globals cmd_timeout cmd_kill_timeout
 -- Functions that we want to access from outside (ex. for testing purposes)
 -- luacheck: globals block_parse block_split block_dump_ordered pkg_status_dump package_postprocess status_parse get_parent config_modified
--- luacheck: globals repo_parse status_dump pkg_unpack pkg_examine collision_check installed_confs steal_configs pkg_merge_files pkg_merge_control pkg_config_info pkg_cleanup_files pkg_update_alternatives pkg_remove_alternatives script_run control_cleanup version_cmp version_match run_state user_path_move get_nonconf_files get_changed_files
+-- luacheck: globals repo_parse status_dump pkg_unpack pkg_examine collision_check installed_confs steal_configs pkg_merge_files pkg_merge_control pkg_config_info pkg_cleanup_files pkg_update_alternatives pkg_remove_alternatives script_run control_cleanup parse_pkg_specifier version_cmp version_match run_state user_path_move get_nonconf_files get_changed_files
 
 --[[
 Configuration of the module. It is supported (yet unlikely to be needed) to modify
@@ -1093,6 +1093,23 @@ function config_modified(file, hash)
 	else
 		return nil
 	end
+end
+
+--[[
+Parse/split package name and version string.
+Returns name and version. Name can be returned as nil and in that case package
+specified is invalid. Version can be nil when name is not and in that case version
+just wasn't specified.
+]]
+function parse_pkg_specifier(spec)
+	local name, version
+	name, version = spec:match("^%s*(%S+)%s*%(([^)]*)%)%s*$")
+	name = name or spec:match("^%s*(%S+)%s*$")
+	if version then
+		version = version:gsub("^%s*([<>=~]*)%s*(%S+)%s*$", "%1%2")
+	end
+	if version and version:match("^%s*$") then version = nil end
+	return name, version
 end
 
 --[[
