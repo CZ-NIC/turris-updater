@@ -207,6 +207,7 @@ int main(int argc, char *argv[]) {
 	ASSERT(interpreter_collect_results(interpreter, "bb", &reboot_delayed, &opts.reboot_finished) == -1);
 	if (reboot_delayed) {
 		const char *hook_path = aprintf("%s%s", root_dir(), hook_reboot_delayed);
+		setenv("ROOT_DIR", root_dir(), true);
 		exec_hook(hook_path, "Executing reboot_required hook");
 	}
 	err = interpreter_call(interpreter, "updater.cleanup", NULL, "bb", opts.reboot_finished);
@@ -222,7 +223,8 @@ int main(int argc, char *argv[]) {
 REPLAN_CLEANUP:
 	update_state(LS_POSTUPD);
 	const char *hook_path = aprintf("%s%s", root_dir(), hook_postupdate);
-	setenv("SUCCESS", trans_ok ? "true" : "false", true); // ROOT_DIR is already set
+	setenv("ROOT_DIR", root_dir(), true);
+	setenv("SUCCESS", trans_ok ? "true" : "false", true);
 	exec_hook(hook_path, "Executing postupdate hook");
 CLEANUP:
 	free(opts.approve);
