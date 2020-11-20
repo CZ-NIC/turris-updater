@@ -60,7 +60,7 @@ END_TEST
 // Half of them are small file and half of them are bigger ones
 // This test requires min. 20MB of memory.
 START_TEST(multiple_downloads) {
-	struct downloader *d = downloader_new(4);
+	struct downloader *d = downloader_new(3);
 	struct download_opts opts;
 	download_opts_def(&opts);
 
@@ -101,7 +101,7 @@ END_TEST
 
 // Check if we can selectivelly free handlers
 START_TEST(free_instances) {
-	struct downloader *d = downloader_new(4);
+	struct downloader *d = downloader_new(3);
 	struct download_opts opts;
 	download_opts_def(&opts);
 
@@ -158,7 +158,7 @@ END_TEST
 
 // Test that even if one of download fail that all other will be downloaded
 START_TEST(invalid_continue) {
-	struct downloader *d = downloader_new(4);
+	struct downloader *d = downloader_new(3);
 	struct download_opts opts;
 	download_opts_def(&opts);
 
