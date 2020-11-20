@@ -45,7 +45,7 @@ START_TEST(timeout) {
 	ck_assert_int_ne(0, subprocvo(1000, fds, "sh", "-c", "while true; do echo Stuff; sleep 1; done", NULL));
 	// Just to test whole process fast we will also try both timeouts at zero
 	subproc_kill_t(0);
-	ck_assert_int_ne(0, subprocvo(0, fds, "sleep", "1", NULL));
+	ck_assert_int_ne(0, subprocvo(1, fds, "sleep", "2", NULL));
 	fclose(devnull);
 }
 END_TEST
