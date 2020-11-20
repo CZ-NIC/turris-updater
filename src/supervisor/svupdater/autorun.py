@@ -78,7 +78,7 @@ def auto_approve_time():
     with EUci() as uci:
         try:
             value = uci.get_integer("updater", "approvals", "auto_grant_seconds")
-            return value // 3600 if value > 0 else None
+            return value // 3600 if value > 0 else 0
         except UciExceptionNotFound:
             return 0
 
