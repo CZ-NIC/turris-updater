@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [69.0.0] - 2020-11-24
 ### Added
 - extra argument `pkg_hash_required` for `Repository` command
 - support for version limitation of `Install` and `Uninstall` requests in package
@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Extra option `version` for `Install` request. You should append version
   specifier to package name the same way as it is done for dependencies.
+
+### Fixed
+- `ROOT_DIR` not being defined for `hook_postinst` and `hook_reboot_required` on
+  replan execution.
 
 ## [68.0.0] - 2020-11-06
 ### Added
