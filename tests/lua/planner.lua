@@ -1472,6 +1472,12 @@ function test_filter_required()
 		pkg7 = {
 			Version = "7",
 			LinkSignature = "xxxx"
+		},
+		pkg8 = {
+			Version = "8",
+			Depends = "xxx (= 0.0.0)",
+			Conflicts = "xxx (= 0.0.0)",
+			Provides = "xxx (= 0.0.0)"
 		}
 	}
 	local requests = {
@@ -1527,6 +1533,19 @@ function test_filter_required()
 			package = {
 				Version = "7",
 				LinkSignature = "XXXXXX",
+				repo = def_repo
+			},
+			critical = false,
+			modifier = {}
+		},
+		{
+			-- Installed with differently formated dependency, conflict and provides
+			action = "require",
+			name = "pkg8",
+			package = {
+				Version = "8",
+				Depends = "xxx (=0.0.0)",
+				Conflicts = "xxx (=0.0.0)",
 				repo = def_repo
 			},
 			critical = false,
