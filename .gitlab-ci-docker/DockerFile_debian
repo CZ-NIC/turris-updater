@@ -14,7 +14,6 @@ RUN \
     libarchive-dev \
     uthash-dev \
     liblua5.1-0-dev \
-    libfile-slurp-perl \
     && \
   apt-get clean
 

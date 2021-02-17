@@ -9,7 +9,7 @@ RUN \
   apk update upgrade && \
   apk add \
       ca-certificates curl git coreutils \
-      make cmake pkgconf gcc perl perl-file-slurp \
+      make cmake pkgconf gcc perl \
       libtool automake autoconf autoconf-archive \
       musl-dev \
       curl-dev libevent-dev uriparser-dev \
