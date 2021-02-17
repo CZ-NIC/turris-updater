@@ -104,26 +104,28 @@ end
 local multierror = utils.exception("multiple", "Multiple exceptions (1)")
 local sub_err = utils.exception("unreachable", "Fake network is down")
 sub_err.why = "missing"
-sub_err.repo = "test1/http://example.org/test1/Packages"
+sub_err.repo = "test1/http://applications-test.turris.cz/missing/Packages"
 multierror.errors = {sub_err}
 
 function test_get_repos_broken_fatal()
 	-- When we can't download the thing, it throws
-	requests.repository({}, "test1", "http://example.org/test1")
+	requests.repository({}, "test1", "http://applications-test.turris.cz/missing")
 	local ok, err = pcall(postprocess.get_repos)
 	assert_false(ok)
-	assert_table_equal(utils.exception('repo missing', "Download failed for repository index test1 (http://example.org/test1/Packages): The requested URL returned error: 404 Not Found"), err)
+	assert_match("Download failed for repository index test1 %(http://applications%-test.turris.cz/missing/Packages%): The requested URL returned error: 404.*", err.msg)
+	err.msg = ""
+	assert_table_equal(utils.exception('repo missing', ""), err)
 end
 
 function test_get_repos_broken_nonfatal()
-	requests.repository({}, "test1", "http://example.org/test1", {optional = true})
+	requests.repository({}, "test1", "http://applications-test.turris.cz/missing", {optional = true})
 	assert_nil(postprocess.get_repos())
 	requests.known_repositories["test1"].index_uri = nil
 	assert_table_equal({
 		["test1"] = {
 			optional = true,
 			name = "test1",
-			repo_uri = "http://example.org/test1",
+			repo_uri = "http://applications-test.turris.cz/missing",
 			pkg_hash_required = true,
 			priority = 50,
 			serial = 1,
