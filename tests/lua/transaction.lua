@@ -167,7 +167,7 @@ function test_perform_empty()
 		},
 		{
 			f = "journal.write",
-			p = {journal.MOVED, test_status, {}, {}}
+			p = {journal.MOVED, test_status, {}, {}, {}}
 		},
 		{
 			f = "backend.pkg_cleanup_files",
@@ -299,7 +299,8 @@ function test_perform_ok()
 					}
 				},
 				{},
-				{c = "12345678901234567890123456789012", remconf = "12345678901234567890123456789012"}
+				{c = "12345678901234567890123456789012", remconf = "12345678901234567890123456789012"},
+				{ ["pkg-name"]=true }
 			}
 		},
 		{

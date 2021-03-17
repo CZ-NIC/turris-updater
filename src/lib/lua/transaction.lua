@@ -173,6 +173,7 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 		end
 	end
 	-- Go through the list once more and perform the prepared operations
+	local upgraded_packages = {}
 	for _, op in ipairs(plan) do
 		if op.op == "install" then
 			log_event("I", op.control.Package .. " " .. op.control.Version)
@@ -181,6 +182,7 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 			if utils.multi_index(status, op.control.Package, "Status", 3) == "installed" then
 				-- There's a previous version. So this is an upgrade.
 				script(errors_collected, op.control.Package, "preinst", true, "upgrade", status[op.control.Package].Version)
+				upgraded_packages[op.control.Package] = true
 			else
 				script(errors_collected, op.control.Package, "preinst", false, "install", op.control.Version)
 			end
@@ -220,10 +222,10 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 	if early_remove[true] then
 		backend.pkg_cleanup_files(early_remove[true], all_configs)
 	end
-	return status, errors_collected, all_configs
+	return status, errors_collected, all_configs, upgraded_packages
 end
 
-local function pkg_scripts(status, plan, removes, to_install, errors_collected, all_configs)
+local function pkg_scripts(status, plan, removes, to_install, errors_collected, all_configs, upgraded_packages)
 	-- Clean up the files from removed or upgraded packages
 	INFO("Removing packages and leftover files")
 	update_state(LS_REM)
@@ -233,8 +235,7 @@ local function pkg_scripts(status, plan, removes, to_install, errors_collected, 
 	INFO("Running post-install and post-rm scripts")
 	for _, op in ipairs(plan) do
 		if op.op == "install" then
-			local is_upgrade = utils.multi_index(status, op.control.Package, "Status", 3) == "installed"
-			script(errors_collected, op.control.Package, "postinst", is_upgrade, "configure")
+			script(errors_collected, op.control.Package, "postinst", upgraded_packages[op.control.Package], "configure")
 		elseif op.op == "remove" and not to_install[op.name] then
 			script(errors_collected, op.name, "postrm", false, "remove")
 		end
@@ -302,9 +303,9 @@ local function perform_internal(operations, journal_status, run_state)
 		operations = nil
 		-- Check for collisions
 		local removes, early_remove = step(journal.CHECKED, pkg_collision_check, false, status, to_remove, to_install)
-		local all_configs
-		status, errors_collected, all_configs = step(journal.MOVED, pkg_move, true, status, plan, early_remove, errors_collected)
-		status, errors_collected = step(journal.SCRIPTS, pkg_scripts, true, status, plan, removes, to_install, errors_collected, all_configs)
+		local all_configs, upgraded_packages
+		status, errors_collected, all_configs, upgraded_packages  = step(journal.MOVED, pkg_move, true, status, plan, early_remove, errors_collected)
+		status, errors_collected = step(journal.SCRIPTS, pkg_scripts, true, status, plan, removes, to_install, errors_collected, all_configs, upgraded_packages)
 	end)
 	-- Make sure the temporary dirs are removed even if it fails. This will probably be slightly different with working journal.
 	utils.cleanup_dirs(dir_cleanups)
