@@ -1,0 +1,6 @@
+#!/bin/sh
+mkdir -p "$PKG_ROOT/pkgscripts"
+{
+	echo "$@"
+	echo "PKG_UPGRADE=$PKG_UPGRADE"
+} >>"$PKG_ROOT/pkgscripts/dep-preinst"

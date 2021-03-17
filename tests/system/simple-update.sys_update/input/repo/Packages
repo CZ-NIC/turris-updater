@@ -6,8 +6,8 @@ Section: none
 Architecture: all
 Installed-Size: 24000
 Filename: dep-package.ipk
-MD5Sum: 9fb97534d5b55bba02865f6308a337f1
-SHA256sum: 8f1a5294ca1b55a53d206c3f1f646e8ac345d4b36fc7f22ee693a11e1d69affc
+MD5Sum: 7ef2e6aa88fffff3058ae52aeafec373
+SHA256sum: faf4797c982bcfad7b6c954db8e42effb44fb5007d0c3d79de4f2d12b12cc7dc
 Description:  Test dependency package. Nothing special here.
 
 Package: test-package
@@ -19,7 +19,7 @@ Section: none
 Architecture: all
 Installed-Size: 24000
 Filename: test-package.ipk
-MD5Sum: 4ab0046955fe9a2a4092530d4c7cd25b
-SHA256sum: 3299c980957e24a2bc291caac29e968b1f5c8c4107bc7475e034168f60ddfdf0
+MD5Sum: a61dc2e35a29f904d5afda8d1067fade
+SHA256sum: a08b5a82dc7d1a737e526bb7ed41141ea78bb9679369dee9b54e910a774cf4d8
 Description:  Test package. Nothing special here.
 
