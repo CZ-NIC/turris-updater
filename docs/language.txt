@@ -17,6 +17,27 @@ is limited to the functions listed here.
 TIP: Using conditions, loops and variables is fully supported
 and sometimes desirable.
 
+Install and Uninstall requests resolution
+-----------------------------------------
+
+The updater language primarily adds various requests. There are two types of them.
+There are requests to install and requests to not install some package. Updater
+later in execution tries to resolve these requests to get list of packages desired
+to be in system.
+
+There can be requests that are exclusive to each other and updater in such case
+has no other option than to not satisfy them. Which request is not satisfied is
+given by this rules in order of priority:
+
+* Specified priority of request where higher means higher priority
+* If request has condition or not. The preferred requests are the direct ones thus
+  without any condition.
+* If request is install or not, just as a rule we prefer install requests.
+* The order of definition in scripts. The request defined earlier is preferred.
+
+The special case are critical install requests, those have to be always met
+otherwise fatal error is raised.
+
 Security levels
 ---------------
 
@@ -603,6 +624,12 @@ fatal_missing_pkg_hash::
 requests_version::
   Updater supports versioned `Install` and `Uninstall` requests. Extra argument
   `version` of `Install` no longer works.
+priority_requests::
+  Requests are now resolved in strict order instead of maximum satisfaction. The
+  most important effect this has is that `Install` requests of same priority no
+  longer collide with `Uninstall` requests and result in error but rather
+  `Install` request is just preferred. This applies also to any indirect
+  collisions trough conditions.
 
 installed
 ~~~~~~~~~

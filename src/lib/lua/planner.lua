@@ -39,7 +39,7 @@ local postprocess = require "postprocess"
 
 module "planner"
 
--- luacheck: globals required_pkgs candidates_choose filter_required pkg_dep_iterate plan_sorter sat_penalize sat_pkg_group sat_dep sat_dep_traverse set_reinstall_all
+-- luacheck: globals required_pkgs sort_requests candidates_choose filter_required pkg_dep_iterate plan_sorter sat_penalize sat_pkg_group sat_dep sat_dep_traverse set_reinstall_all
 
 -- Choose candidates that complies to version requirement.
 function candidates_choose(candidates, pkg_name, version, repository)
@@ -503,6 +503,31 @@ local function build_plan(pkgs, requests, sat, satmap)
 end
 
 --[[
+Sort requests based on various conditions. The planned depends on correct request
+order for correct functionality.
+]]
+function sort_requests(requests)
+	local function compare(a, b)
+		if a.critical ~= b.critical then
+			return a.critical
+		end
+		if a.priority ~= b.priority then
+			return a.priority > b.priority
+		end
+		if (a.condition and b.condition == nil) or (a.condition == nil and b.condition) then
+			-- conditional requests are ordered later
+			return b.condition
+		end
+		if a.tp ~= b.tp then -- type can be instal or unistall and we prefer install
+			return a.tp == "install"
+		end
+		-- otherwise we keep it as it was
+		return false -- Because this is quicksort we have to as last resort return false
+	end
+	table.sort(requests, compare)
+end
+
+--[[
 Take list of available packages (in the format of pkg candidate groups
 produced in postprocess.available_packages) and list of requests what
 to install and remove. Produce list of packages, in the form:
@@ -521,26 +546,11 @@ constructed from package objects during the aggregation, holding additional proc
 info (hooks, etc).
 ]]
 function required_pkgs(pkgs, requests)
+	sort_requests(requests)
+
 	local sat = picosat.new()
 	-- Tables that's mapping packages, requests and candidates with sat variables
 	local satmap = sat_build(sat, pkgs, requests)
-
-	-- Sort all requests to groups by priority
-	local reqs_by_priority = {}
-	local reqs_critical = {}
-	for _, req in pairs(requests) do
-		if req.tp == 'install' and req.critical then
-			table.insert(reqs_critical, req)
-		else
-			assert(req.priority)
-			if not reqs_by_priority[req.priority] then reqs_by_priority[req.priority] = {} end
-			if req.tp ~= (utils.map(reqs_by_priority[req.priority], function(_, r) return r.package.name, r.tp end)[req.package.name] or req.tp) then
-				error(utils.exception('invalid-request', 'Requested both Install and Uninstall with same priority for package ' .. req.package.name))
-			end
-			table.insert(reqs_by_priority[req.priority], req)
-		end
-	end
-	reqs_by_priority = utils.arr_inv(utils.arr_prune(reqs_by_priority))
 
 	-- Executes sat solver and adds clauses for maximal satisfiable set
 	local function clause_max_satisfiable()
@@ -552,24 +562,16 @@ function required_pkgs(pkgs, requests)
 		sat:satisfiable() -- Reset assumptions (TODO isn't there better solution to reset assumptions?)
 	end
 
-	-- Install critical packages requests (set all critical packages to be true)
-	DBG("Resolving critical packages")
-	for _, req in ipairs(reqs_critical) do
-		sat:clause(satmap.req2sat[req])
-	end
-	if not sat:satisfiable() then
-		-- TODO This exception should probably be saying more about why. We can assume variables first and inspect maximal satisfiable set then.
-		error(utils.exception('inconsistent', "Packages marked as critical can't satisfy their dependencies together.", {critical = true}))
-	end
-
 	-- Install and Uninstall requests.
 	DBG("Resolving Install and Uninstall requests")
-	for _, reqs in ipairs(reqs_by_priority) do
-		for _, req in pairs(reqs) do
-			-- Assume all request for this priority
-			sat:assume(satmap.req2sat[req])
+	for _, req in ipairs(requests) do
+		TRACE("Assume request to " .. req.tp .. ": " .. req.package.name)
+		sat:assume(satmap.req2sat[req])
+		if sat:satisfiable() then
+			sat:clause(satmap.req2sat[req])
+		elseif req.critical then
+			error(utils.exception('inconsistent', "Packages request marked as critical can't be satisfied: " .. req.package.name, {critical = true}))
 		end
-		clause_max_satisfiable()
 	end
 
 	-- Deny any packages missing, without candidates or dependency on missing version if possible

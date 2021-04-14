@@ -883,6 +883,354 @@ function test_provides_critical_both()
 	assert_plan_dep_order(expected, result)
 end
 
+function test_condition_false()
+	local pkgs = {
+		pkg1 = {
+			candidates = {{Package = 'pkg1', repo = def_repo}},
+			modifier = {}
+		},
+		pkg2 = {
+			candidates = {{Package = 'pkg2', repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1',
+			},
+			condition = "pkg2",
+			priority = 50
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {}
+	assert_plan_dep_order(expected, result)
+end
+
+function test_condition_true()
+	local pkgs = {
+		pkg1 = {
+			candidates = {{Package = 'pkg1', repo = def_repo}},
+			modifier = {}
+		},
+		pkg2 = {
+			candidates = {{Package = 'pkg2', repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1',
+			},
+			condition = "pkg2",
+			priority = 50
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg2',
+			},
+			priority = 50
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		pkg1 = {
+			action = "require",
+			package = {Package = 'pkg1', repo = def_repo},
+			modifier = {},
+			critical = false,
+			name = "pkg1"
+		},
+		pkg2 = {
+			action = "require",
+			package = {Package = 'pkg2', repo = def_repo},
+			modifier = {},
+			critical = false,
+			name = "pkg2"
+		}
+	}
+	assert_plan_dep_order(expected, result)
+end
+
+function test_condition_unistall_priority_higher()
+	local pkgs = {
+		pkg1 = {
+			candidates = {{Package = 'pkg1', deps = "dep", repo = def_repo}},
+			modifier = {}
+		},
+		pkg2 = {
+			candidates = {{Package = 'pkg2', repo = def_repo}},
+			modifier = {}
+		},
+		dep = {
+			candidates = {{Package = 'dep', repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1',
+			},
+			condition = "pkg2",
+			priority = 50
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg2',
+			},
+			priority = 50
+		},
+		{
+			tp = 'uninstall',
+			package = {
+				tp = 'package',
+				name = 'dep',
+			},
+			priority = 51
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		pkg2 = {
+			action = "require",
+			package = {Package = 'pkg2', repo = def_repo},
+			modifier = {},
+			critical = false,
+			name = "pkg2"
+		}
+	}
+	assert_plan_dep_order(expected, result)
+end
+
+function test_condition_unistall_priority_lower()
+	local pkgs = {
+		pkg1 = {
+			candidates = {{Package = 'pkg1', deps = "dep", repo = def_repo}},
+			modifier = {}
+		},
+		pkg2 = {
+			candidates = {{Package = 'pkg2', repo = def_repo}},
+			modifier = {}
+		},
+		dep = {
+			candidates = {{Package = 'dep', repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1',
+			},
+			condition = "pkg2",
+			priority = 50
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg2',
+			},
+			priority = 50
+		},
+		{
+			tp = 'uninstall',
+			package = {
+				tp = 'package',
+				name = 'dep',
+			},
+			priority = 49
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		pkg1 = {
+			action = "require",
+			package = {Package = 'pkg1', deps = "dep", repo = def_repo},
+			modifier = {},
+			critical = false,
+			name = "pkg1"
+		},
+		pkg2 = {
+			action = "require",
+			package = {Package = 'pkg2', repo = def_repo},
+			modifier = {},
+			critical = false,
+			name = "pkg2"
+		},
+		dep = {
+			action = "require",
+			package = {Package = 'dep', repo = def_repo},
+			modifier = {},
+			critical = false,
+			name = "dep"
+		}
+	}
+	assert_plan_dep_order(expected, result)
+end
+
+function test_dual_condition()
+	local pkgs = {
+		pkg1 = {
+			candidates = {{Package = 'pkg1', deps = "dep", repo = def_repo}},
+			modifier = {}
+		},
+		pkg2 = {
+			candidates = {{Package = 'pkg2', deps = "dep", repo = def_repo}},
+			modifier = {}
+		},
+		dep = {
+			candidates = {{Package = 'dep', repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1',
+			},
+			condition = "dep",
+			priority = 50
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg2',
+			},
+			condition = "dep",
+			priority = 50
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'dep',
+			},
+			priority = 50
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		pkg1 = {
+			action = "require",
+			package = {Package = 'pkg1', deps = "dep", repo = def_repo},
+			modifier = {},
+			critical = false,
+			name = "pkg1"
+		},
+		pkg2 = {
+			action = "require",
+			package = {Package = 'pkg2', deps = "dep", repo = def_repo},
+			modifier = {},
+			critical = false,
+			name = "pkg2"
+		},
+		dep = {
+			action = "require",
+			package = {Package = 'dep', repo = def_repo},
+			modifier = {},
+			critical = false,
+			name = "dep"
+		}
+	}
+	assert_plan_dep_order(expected, result)
+end
+
+--[[ Points about this test case:
+This mirrors case we encountered on real package deployment. The problem we are
+fasing is that we have two packages with same priority being conditional on same
+package. One of them is requested for removal and that results in all packages
+being removed.
+]]
+function test_dual_condition_unistall()
+	local pkgs = {
+		pkg1 = {
+			candidates = {{Package = 'pkg1', deps = "dep", repo = def_repo}},
+			modifier = {}
+		},
+		pkg2 = {
+			candidates = {{Package = 'pkg2', deps = "dep", repo = def_repo}},
+			modifier = {}
+		},
+		dep = {
+			candidates = {{Package = 'dep', repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg1',
+			},
+			condition = "dep",
+			priority = 50
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg2',
+			},
+			condition = "dep",
+			priority = 50
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'dep',
+			},
+			priority = 50
+		},
+		{
+			tp = 'uninstall',
+			package = {
+				tp = 'package',
+				name = 'pkg2',
+			},
+			priority = 51
+		}
+	}
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		pkg1 = {
+			action = "require",
+			package = {Package = 'pkg1', deps = "dep", repo = def_repo},
+			modifier = {},
+			critical = false,
+			name = "pkg1"
+		},
+		dep = {
+			action = "require",
+			package = {Package = 'dep', repo = def_repo},
+			modifier = {},
+			critical = false,
+			name = "dep"
+		}
+	}
+	assert_plan_dep_order(expected, result)
+end
+
 function test_request_unsat()
 	local pkgs = {
 		pkg1 = {
@@ -982,7 +1330,17 @@ function test_request_collision()
 			priority = 50,
 		}
 	}
-	assert_exception(function() planner.required_pkgs(pkgs, requests) end, 'invalid-request')
+	local result = planner.required_pkgs(pkgs, requests)
+	local expected = {
+		pkg1 = {
+			action = "require",
+			package = {Package = 'pkg1', deps = {}, repo = def_repo},
+			modifier = {},
+			critical = false,
+			name = "pkg1"
+		}
+	}
+	assert_plan_dep_order(expected, result)
 end
 
 function test_critical_request()
@@ -1449,6 +1807,93 @@ function test_replan_order()
 		}
 	}
 	assert_table_equal(expected, planner.required_pkgs(pkgs, requests))
+end
+
+function test_sort_requests()
+	local requests = {
+		{
+			tp = 'uninstall',
+			package = {tp = 'package', name = 'pkg0'},
+			priority = 50
+		},
+		{
+			tp = 'install',
+			package = {tp = 'package', name = 'pkg1'},
+			priority = 50
+		},
+		{
+			tp = 'install',
+			package = {tp = 'package', name = 'pkg2'},
+			priority = 50
+		},
+		{
+			tp = 'uninstall',
+			package = {tp = 'package', name = 'pkg2_cond'},
+			condition = "pkg2",
+			priority = 50
+		},
+		{
+			tp = 'install',
+			package = {tp = 'package', name = 'pkg1_cond'},
+			condition = "pkg1",
+			priority = 50
+		},
+		{
+			tp = 'install',
+			package = {tp = 'package', name = 'pkg3'},
+			priority = 51
+		},
+		{
+			tp = 'install',
+			package = {tp = 'package', name = 'pkg4'},
+			priority = 49
+		},
+		{
+			tp = 'uninstall',
+			package = {tp = 'package', name = 'pkg5'},
+			priority = 51
+		},
+		{
+			tp = 'install',
+			package = {tp = 'package', name = 'pkg6'},
+			critical = true,
+			priority = 50
+		},
+		{
+			tp = 'install',
+			package = {tp = 'package', name = 'pkg7'},
+			critical = true,
+			priority = 50
+		},
+		{
+			tp = 'install',
+			package = {tp = 'package', name = 'pkg8'},
+			critical = true,
+			priority = 51
+		},
+		{
+			tp = 'install',
+			package = {tp = 'package', name = 'pkg8'},
+			critical = true,
+			priority = 49
+		},
+	}
+	local expected = {
+		requests[11],
+		requests[9],
+		requests[10],
+		requests[12],
+		requests[6],
+		requests[8],
+		requests[2],
+		requests[3],
+		requests[1],
+		requests[5],
+		requests[4],
+		requests[7],
+	}
+	planner.sort_requests(requests)
+	assert_table_equal(expected, requests)
 end
 
 function test_filter_required()

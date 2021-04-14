@@ -58,6 +58,7 @@ local updater_features = utils.arr2set({
 	'request_condition',
 	'fatal_missing_pkg_hash',
 	'requests_version',
+	'priority_requests',
 })
 
 -- Available functions and "constants" from global environment
