@@ -235,7 +235,7 @@ local function pkg_scripts(status, plan, removes, to_install, errors_collected, 
 	INFO("Running post-install and post-rm scripts")
 	for _, op in ipairs(plan) do
 		if op.op == "install" then
-			script(errors_collected, op.control.Package, "postinst", upgraded_packages[op.control.Package], "configure")
+			script(errors_collected, op.control.Package, "postinst", (upgraded_packages or {})[op.control.Package], "configure")
 		elseif op.op == "remove" and not to_install[op.name] then
 			script(errors_collected, op.name, "postrm", false, "remove")
 		end
