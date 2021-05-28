@@ -21,6 +21,7 @@ TESTS += \
 	%reldir%/provides-replace.sys_update \
 	%reldir%/provides.sys_update \
 	%reldir%/reboot.sys_update \
+	%reldir%/replan-reboot.sys_update \
 	%reldir%/reinstall-all.sys_update \
 	%reldir%/replan-no-effect.sys_update \
 	%reldir%/replan.sys_update \

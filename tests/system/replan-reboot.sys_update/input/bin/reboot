@@ -1,0 +1,2 @@
+#!/bin/sh
+echo Rebooted >> $ROOT_DIR/rebooted

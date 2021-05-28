@@ -203,9 +203,11 @@ int main(int argc, char *argv[]) {
 	trans_ok = results_interpret(interpreter, result_count);
 	err = interpreter_call(interpreter, "updater.pre_cleanup", NULL, "");
 	ASSERT_MSG(!err, "%s", err);
-	bool reboot_delayed;
-	ASSERT(interpreter_collect_results(interpreter, "bb", &reboot_delayed, &opts.reboot_finished) == -1);
-	if (reboot_delayed) {
+	bool reboot_delayed, reboot_finished;
+	ASSERT(interpreter_collect_results(interpreter, "bb", &reboot_delayed, &reboot_finished) == -1);
+	if (reboot_finished)
+		opts.reboot_finished = opts.reboot_finished || reboot_finished;
+	else if (reboot_delayed) {
 		const char *hook_path = aprintf("%s%s", root_dir(), hook_reboot_delayed);
 		setenv("ROOT_DIR", root_dir(), true);
 		exec_hook(hook_path, "Executing reboot_required hook");

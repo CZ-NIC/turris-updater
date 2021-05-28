@@ -1,0 +1,11 @@
+Repository("test", "file://%ROOT_DIR%/repo")
+
+--[[
+With first run this adds request to install package but once it is installed the
+request goes away. Updater should do replan and remove package while reboot should
+happen anyway.
+]]
+if not installed["package"] then
+	Install("package")
+	Package("package", {replan = "finished", reboot = "finished"})
+end

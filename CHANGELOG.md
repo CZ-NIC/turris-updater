@@ -4,10 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+### Fixed
+- Immediate reboot not being performed when combined with replan that actually
+  performs some changes in the system
+
+
 ## [69.1.1] - 2021-04-15
 ### Fixed
 - error on transaction recovery created by updater before version 69.0.1 about
   `upgraded_packages` being nil
+
 
 ## [69.1.0] - 2021-04-15
 ### Changed
@@ -29,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - usage of `example.org` replaced with `application-test.turris.cz` in tests
 
+
 ## [69.0.0] - 2020-11-24
 ### Added
 - extra argument `pkg_hash_required` for `Repository` command
@@ -48,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ROOT_DIR` not being defined for `hook_postinst` and `hook_reboot_required` on
   replan execution.
 
+
 ## [68.0.0] - 2020-11-06
 ### Added
 - Queue messages for 'upgrade' and 'downgrade' now also prints current version in
@@ -65,11 +74,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Queue messages now state 'upgrade', 'downgrade' and 'reinstall' instead of
   original generic 'install'.
 
+
 ## [67.0.3] - 2020-10-21
 ### Changed
 - pkgupdate's conf.lua now loads scripts with Full security level instead of Local
 - libupdater is now versioned with release version (there is no API compatibility
   between versions)
+
 
 ## [67.0.2] - 2020-08-06
 ### Fixed
@@ -77,9 +88,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with some other package
 - Configure script now checks if uthash is available
 
+
 ## [67.0.1.1] - 2020-07-01
 ### Changed
 - Lunit submodule now points to new Github repository
+
 
 ## [67.0.1] - 2020-06-25
 ### Changed
