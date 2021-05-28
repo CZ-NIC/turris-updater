@@ -1809,6 +1809,79 @@ function test_replan_order()
 	assert_table_equal(expected, planner.required_pkgs(pkgs, requests))
 end
 
+-- Replan should happen after last package requesting replan
+function test_replan_later_order()
+	local pkgs = {
+		pkg = {
+			candidates = {{Package = 'pkg', deps = {}, repo = def_repo}},
+			modifier = {}
+		},
+		pkgreplan1 = {
+			candidates = {{Package = 'pkgreplan1', deps = {}, repo = def_repo}},
+			modifier = {
+				deps = 'dep',
+				replan = "immediate"
+			}
+		},
+		pkgreplan2 = {
+			candidates = {{Package = 'pkgreplan2', deps = {}, repo = def_repo}},
+			modifier = {
+				deps = 'dep',
+				replan = "immediate"
+			}
+		},
+		dep = {
+			candidates = {{Package = 'dep', deps = {}, repo = def_repo}},
+			modifier = {}
+		}
+	}
+	local requests = {
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkg',
+			},
+			priority = 50
+		},
+		{
+			tp = 'install',
+			package = {
+				tp = 'package',
+				name = 'pkgreplan',
+			},
+			priority = 50
+		}
+	}
+	local expected = {
+		{
+			action = "require",
+			package = {Package = 'dep', deps = {}, repo = def_repo},
+			modifier = {},
+			critical = false,
+			name = "dep"
+		},
+		{
+			action = "require",
+			package = {Package = 'pkgreplan', deps = {}, repo = def_repo},
+			modifier = {
+				deps = 'dep',
+				replan = "immediate"
+			},
+			critical = false,
+			name = "pkgreplan"
+		},
+		{
+			action = "require",
+			package = {Package = 'pkg', deps = {}, repo = def_repo},
+			modifier = {},
+			critical = false,
+			name = "pkg"
+		}
+	}
+	assert_table_equal(expected, planner.required_pkgs(pkgs, requests))
+end
+
 function test_sort_requests()
 	local requests = {
 		{

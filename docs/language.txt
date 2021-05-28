@@ -443,7 +443,8 @@ replan::
     When this is set it interrupts the update after this package is set up. This
     causes updater to run planning again as soon as the change is made.  This
     should be used only for packages containing updater itself or closely related
-    packages.
+    packages. If there are multiple packages specifying immediate replan then
+	replan happens on last package specifying it.
 abi_change::
   The package changed its ABI (or some other interface) and some other packages
   need to be reinstalled. If this is set to `true` and the package is installed or

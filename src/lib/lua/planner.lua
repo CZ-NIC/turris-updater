@@ -773,7 +773,7 @@ function filter_required(status, requests, allow_replan)
 	local install, unused = check_install_version(status, requests)
 	install = check_abi_change(requests, install)
 	local result = {}
-	local replan = false -- If we are requested to replan after some package, drop the rest of the plan
+	local replan = 0 -- If we are requested to replan after some package, drop the rest of the plan
 	for _, request in ipairs(requests) do
 		if install[request.name] then
 			local req = request
@@ -784,14 +784,16 @@ function filter_required(status, requests, allow_replan)
 			end
 			table.insert(result, req)
 			if request.modifier.replan == "immediate" and allow_replan then
-				replan = true
-				break
+				replan = #result
 			end
 		end
 	end
-	if not replan and not opmode.no_removal then
-		-- We don't remove unused packages just yet if we do immediate replan, we do it after the replanning.
+	if not opmode.no_removal then
 		utils.arr_append(result, check_removal(status, unused))
+	end
+	while replan > 0 and replan < #result do
+		-- Remove all requests after last replan
+		result[#result] = nil
 	end
 	return result
 end
