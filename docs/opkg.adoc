@@ -197,6 +197,12 @@ LinkSignature::
   This is Turris extension. This is used to identify link changes in package
   without version change. This covers situation when library changes API and all
   packages depending on it has to be reinstalled because of that.
+FilesSignature::
+  This is also Turris extension. This is used to identify changes in packages.
+  This covers only list of files not their content and thus it won't trigger
+  reinstall of package if file is changed. This covers situation when
+  configuration changes and new file is added or moved between packages without
+  package bump.
 
 Compared to `/usr/lib/opkg/status` following fields are on the other hand not
 present:

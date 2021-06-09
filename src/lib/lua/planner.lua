@@ -630,7 +630,7 @@ local function check_install_version(status, requests)
 				install[request.name] = request
 			else
 				local different = nil
-				for _, field in ipairs({"Version", "Architecture", "LinkSignature", "Depends", "Conflicts", "Provides"}) do
+				for _, field in ipairs({"Version", "Architecture", "LinkSignature", "FilesSignature", "Depends", "Conflicts", "Provides"}) do
 					local installed_field = status[request.name][field] or ""
 					local requested_field = request.package[field] or ""
 					if installed_field ~= requested_field then

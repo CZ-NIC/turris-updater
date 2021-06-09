@@ -1917,7 +1917,19 @@ function test_filter_required()
 		pkg7 = {
 			Version = "7",
 			LinkSignature = "xxxx"
-		}
+		},
+		pkg8 = {
+			Version = "8",
+			LinkSignature = "xxxx"
+		},
+		pkg9 = {
+			Version = "9",
+			FilesSignature = "xxxx"
+		},
+		pkg10 = {
+			Version = "10",
+			FilesSignature = "xxxx"
+		},
 	}
 	local requests = {
 		{
@@ -1977,6 +1989,42 @@ function test_filter_required()
 			critical = false,
 			modifier = {}
 		},
+		{
+			-- Installed with correct version and same LinkSignature
+			action = "require",
+			name = "pkg8",
+			package = {
+				Version = "8",
+				LinkSignature = "xxxx",
+				repo = def_repo
+			},
+			critical = false,
+			modifier = {}
+		},
+		{
+			-- Installed with correct version but different FilesSignature
+			action = "require",
+			name = "pkg9",
+			package = {
+				Version = "9",
+				FilesSignature = "XXXXXX",
+				repo = def_repo
+			},
+			critical = false,
+			modifier = {}
+		},
+		{
+			-- Installed with correct version and same FilesSignature
+			action = "require",
+			name = "pkg10",
+			package = {
+				Version = "10",
+				FilesSignature = "xxxx",
+				repo = def_repo
+			},
+			critical = false,
+			modifier = {}
+		},
 	}
 	local result = planner.filter_required(status, requests, true)
 	local expected = {
@@ -1993,6 +2041,7 @@ function test_filter_required()
 		},
 		requests[4],
 		requests[5],
+		requests[7],
 		{
 			action = "remove",
 			name = "pkg4",
