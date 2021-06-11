@@ -993,7 +993,7 @@ end
 
 --[[
 Run a pre/post-install/rm script. Returns boolean if the script terminated
-correctly. Its stderr is returned as the second parameter.
+correctly. On failure it returns exit code and stderr as additional values.
 
 If the script doesn't exist, true is returned (and no stderr is provided).
 
@@ -1020,7 +1020,7 @@ function script_run(pkg_name, script_name, is_upgrade, ...)
 				chdir(syscnf.root_dir)
 			end,
 			fname_full, ...)
-		return ecode == 0, output
+		return ecode == 0, ecode, output
 	elseif ftype == 'r' then
 		WARN(fname .. " has wrong permissions " .. perm .. "(not running)")
 	elseif ftype then

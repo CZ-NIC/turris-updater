@@ -1,0 +1,5 @@
+START	0
+PKG	test1		1
+PKG	test2		1
+PKG	test3		1
+END	0

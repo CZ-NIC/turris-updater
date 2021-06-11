@@ -1,0 +1,4 @@
+START	0
+PKG	dep-package		1
+PKG	test-package		2
+END	0

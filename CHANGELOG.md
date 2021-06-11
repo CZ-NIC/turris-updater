@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
+- Change log that leaves minimal trace of changes updater performed stored in
+  system.
 - Support for `FilesSignature` field in packages. On mismatch it trigger
   reinstall.
 

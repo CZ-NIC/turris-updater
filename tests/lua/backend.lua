@@ -878,11 +878,11 @@ function test_script_run()
 	subprocess_kill_timeout(0) -- Run tests faster
 	syscnf.info_dir = datadir .. "/scripts"
 	-- This one doesn't exist. So the call succeeds.
-	local result, stderr = B.script_run("xyz", "preinst", false, "install")
+	local result, ecode, stderr = B.script_run("xyz", "preinst", false, "install")
 	assert(result)
 	assert_nil(stderr)
 	-- This one fails and outputs some of the data passed to it on stderr
-	result, stderr = B.script_run("xyz", "postinst", false, "install")
+	result, ecode, stderr = B.script_run("xyz", "postinst", false, "install")
 	assert_false(result)
 	assert_equal([[
 install
@@ -890,7 +890,7 @@ PKG_ROOT=
 PKG_UPGRADE=0
 ]], stderr)
 	-- This one is same as previous one but reports upgrade
-	result, stderr = B.script_run("xyz", "postinst", true, "upgrade")
+	result, ecode, stderr = B.script_run("xyz", "postinst", true, "upgrade")
 	assert_false(result)
 	assert_equal([[
 upgrade
@@ -898,17 +898,17 @@ PKG_ROOT=
 PKG_UPGRADE=1
 ]], stderr)
 	-- This one doesn't have executable permission, won't be run
-	result, stderr = B.script_run("xyz", "prerm", false, "remove")
+	result, ecode, stderr = B.script_run("xyz", "prerm", false, "remove")
 	assert(result)
 	assert_nil(stderr)
 	-- This one terminates successfully
-	result, stderr = B.script_run("xyz", "postrm", false, "remove")
+	result, ecode, stderr = B.script_run("xyz", "postrm", false, "remove")
 	assert(result)
 	assert_equal("test\n", stderr)
 	-- This one hangs and should timeout, we set shorter timeout just to make test faster
 	local old_cmd_timeout = B.cmd_timeout
 	B.cmd_timeout = 1000
-	result, stderr = B.script_run("hang", "postinst", false, "install")
+	result, ecode, stderr = B.script_run("hang", "postinst", false, "install")
 	assert_false(result)
 	assert_equal("", stderr)
 	B.cmd_timeout = old_cmd_timeout

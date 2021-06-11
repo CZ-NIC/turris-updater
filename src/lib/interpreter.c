@@ -26,6 +26,7 @@
 #include "locks.h"
 #include "arguments.h"
 #include "syscnf.h"
+#include "changelog.h"
 #include "opmode.h"
 #include "uri_lua.h"
 #include "archive.h"
@@ -985,6 +986,7 @@ struct interpreter *interpreter_create(struct events *events) {
 	journal_mod_init(L);
 	locks_mod_init(L);
 	syscnf_mod_init(L);
+	changelog_mod_init(L);
 	opmode_mod_init(L);
 	uri_mod_init(L);
 	archive_mod_init(L);

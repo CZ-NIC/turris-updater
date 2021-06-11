@@ -1,0 +1,4 @@
+START	0
+PKG	pkg_b		1
+PKG	pkg_a	1	
+END	0

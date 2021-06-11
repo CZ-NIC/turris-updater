@@ -50,6 +50,7 @@ const char *root_dir();
 // Updater specific paths
 const char *status_file();
 const char *info_dir();
+const char *changelog_file();
 const char *pkg_unpacked_dir();
 const char *pkg_download_dir();
 const char *opkg_collided_dir();

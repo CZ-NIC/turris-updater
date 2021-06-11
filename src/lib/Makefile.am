@@ -4,6 +4,7 @@ libupdater_la_SOURCES = \
 	%reldir%/archive.c \
 	%reldir%/arguments.c \
 	%reldir%/base64.c \
+	%reldir%/changelog.c \
 	%reldir%/download.c \
 	%reldir%/embed_types.c \
 	%reldir%/events.c \

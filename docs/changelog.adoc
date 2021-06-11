@@ -1,0 +1,89 @@
+= Updater Changelog
+
+It is very beneficial to know at least short history of changes updater performed
+to system. For this purpose the file `/usr/share/updater/changelog` is maintained.
+
+The creation of this file is automatic as in such way any run automatically
+records changes. The disable is possible but that is pretty much just for
+bootstrap purposes.
+
+== File format
+
+Changelog records these events:
+
+- Transaction start and end thus date and time of performed changes
+- Package changes
+- Output from failed scripts (those are script exiting with non-zero code)
+
+The log itself contains columns split by tab where first column identifies line
+type and the rest are attributes in general. The exception are lines starting
+with `|` as those are used for plain text.
+
+=== Transaction start and end
+
+This is written always when update transaction starts and ends respectively. The
+additional info provided is time of transaction start/end since epoch in seconds.
+
+Example:
+
+----
+START	1623398031
+STOP	1623398075
+----
+
+Any other line described in this document are inserted between `START` and `STOP`.
+Note that `STOP` is appended only at the end of transaction.
+
+=== Package change
+
+This notes changes to packages installed in the system. The first attribute is name
+of package. The second attribute is version present in the system and third
+attribute is newly installed version.
+
+Example:
+
+----
+PKG	foo	1.0	1.2
+----
+
+The newly installed packages have second attribute empty and removed packages have
+third attribute empty. Empty attribute is still split by tabs but there is just no
+characters after tab used to split.
+
+An example where package `inst` is installed and `rem` is removed:
+
+----
+PKG	inst		1.0
+PKG	rem	1.0	
+----
+
+=== Script failure
+
+In general it is expected and common that packages installation just going to
+succeed as all that can be done is checked beforehand. The only part that can
+fail and is expected to fail are scripts that are run as part of packages setup.
+The trigger for inclusion of output is non-zero exit code of script.
+
+The script failure report has three attributes. The first attribute is name of
+package, the second attribute is script type and third is the exit code. The
+script type is one of:
+
+- preinst
+- prerm
+- postinst
+- postrm
+
+The script failure report is followed by `stderr` output. The output starts with
+character `|` to identify it. All lines starting with it that are after script
+failure report are lines up to the next line that does not start with `|`.
+
+Example:
+
+----
+SCRIPT	foo	postinst	1
+|The output from postinst script.
+|  This is intentional failure!
+----
+
+Note that due to memory and storage limitations only limited amount of logs are
+preserved. In general the limit is 4KB.

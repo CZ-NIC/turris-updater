@@ -48,8 +48,10 @@ uint16_t magic(uint32_t len) {
 	X(FINISH) \
 	X(UNPACKED) \
 	X(CHECKED) \
+	X(CHANGELOG_START) \
 	X(MOVED) \
 	X(SCRIPTS) \
+	X(CHANGELOG_END) \
 	X(CLEANED)
 
 enum record_type {

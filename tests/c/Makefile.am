@@ -1,6 +1,7 @@
 TESTS += \
 	%reldir%/archive \
 	%reldir%/base64 \
+	%reldir%/changelog \
 	%reldir%/util \
 	%reldir%/syscnf \
 	%reldir%/path_utils \
@@ -13,6 +14,7 @@ TESTS += \
 check_PROGRAMS += \
 	%reldir%/archive \
 	%reldir%/base64 \
+	%reldir%/changelog \
 	%reldir%/util \
 	%reldir%/syscnf \
 	%reldir%/path_utils \
@@ -23,6 +25,7 @@ check_PROGRAMS += \
 	%reldir%/interpreter
 %canon_reldir%_archive_LDADD = %reldir%/libctest.la
 %canon_reldir%_base64_LDADD = %reldir%/libctest.la
+%canon_reldir%_changelog_LDADD = %reldir%/libctest.la
 %canon_reldir%_util_LDADD = %reldir%/libctest.la
 %canon_reldir%_syscnf_LDADD = %reldir%/libctest.la
 %canon_reldir%_path_utils_LDADD = %reldir%/libctest.la
@@ -33,6 +36,7 @@ check_PROGRAMS += \
 %canon_reldir%_interpreter_LDADD = %reldir%/libctest.la
 %canon_reldir%_archive_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)
 %canon_reldir%_base64_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)
+%canon_reldir%_changelog_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)
 %canon_reldir%_util_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)
 %canon_reldir%_syscnf_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)
 %canon_reldir%_path_utils_CFLAGS = -I $(srcdir)/src/lib $(libupdater_la_CFLAGS)

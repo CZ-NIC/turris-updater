@@ -35,6 +35,7 @@ enum e_paths {
 	P_ROOT_DIR,
 	P_FILE_STATUS,
 	P_DIR_INFO,
+	P_FILE_CHANGELOG,
 	P_DIR_PKG_UNPACKED,
 	P_DIR_PKG_DOWNLOAD,
 	P_DIR_OPKG_COLLIDED,
@@ -45,6 +46,7 @@ static const char* const default_paths[] = {
 	[P_ROOT_DIR] = "/",
 	[P_FILE_STATUS] = "/usr/lib/opkg/status",
 	[P_DIR_INFO] = "/usr/lib/opkg/info/",
+	[P_FILE_CHANGELOG] = "/usr/share/updater/changelog",
 	[P_DIR_PKG_UNPACKED] = "/usr/share/updater/unpacked/",
 	[P_DIR_PKG_DOWNLOAD] = "/usr/share/updater/download/",
 	[P_DIR_OPKG_COLLIDED] = "/usr/share/updater/collided/",
@@ -54,6 +56,7 @@ static char* paths[] = {
 	[P_ROOT_DIR] = NULL,
 	[P_FILE_STATUS] = NULL,
 	[P_DIR_INFO] = NULL,
+	[P_FILE_CHANGELOG] = NULL,
 	[P_DIR_PKG_UNPACKED] = NULL,
 	[P_DIR_PKG_DOWNLOAD] = NULL,
 	[P_DIR_OPKG_COLLIDED] = NULL,
@@ -98,6 +101,7 @@ void set_root_dir(const char *root) {
 	set_path(P_ROOT_DIR, pth);
 	set_path(P_FILE_STATUS, pth);
 	set_path(P_DIR_INFO, pth);
+	set_path(P_FILE_CHANGELOG, pth);
 	set_path(P_DIR_PKG_UNPACKED, pth);
 	set_path(P_DIR_PKG_DOWNLOAD, pth);
 	set_path(P_DIR_OPKG_COLLIDED, pth);
@@ -200,6 +204,10 @@ const char *status_file() {
 
 const char *info_dir() {
 	return get_path(P_DIR_INFO);
+}
+
+const char *changelog_file() {
+	return get_path(P_FILE_CHANGELOG);
 }
 
 const char *pkg_unpacked_dir() {

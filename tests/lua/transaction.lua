@@ -128,7 +128,7 @@ local function mocks_install()
 	mock_gen("backend.status_dump")
 	mock_gen("backend.script_run", function (pkgname, suffix)
 		if suffix == "postinst" then
-			return false, "Fake failed postinst"
+			return false, 1, "Fake failed postinst"
 		else
 			return true, ""
 		end
@@ -167,6 +167,10 @@ function test_perform_empty()
 		},
 		{
 			f = "journal.write",
+			p = {journal.CHANGELOG_START}
+		},
+		{
+			f = "journal.write",
 			p = {journal.MOVED, test_status, {}, {}, {}}
 		},
 		{
@@ -176,7 +180,11 @@ function test_perform_empty()
 		{
 			f = "journal.write",
 			p = {journal.SCRIPTS, test_status, {}}
-		}
+		},
+		{
+			f = "journal.write",
+			p = {journal.CHANGELOG_END}
+		},
 	}, outro({}, test_status))
 	assert_table_equal(expected, mocks_called)
 end
@@ -266,6 +274,10 @@ function test_perform_ok()
 			p = {journal.CHECKED, {["d2"] = true}, { }}
 		},
 		{
+			f = "journal.write",
+			p = {journal.CHANGELOG_START}
+		},
+		{
 			f = "backend.pkg_merge_control",
 			p = {"pkg_dir/control", "pkg-name", {f = true}}
 		},
@@ -330,7 +342,11 @@ function test_perform_ok()
 				},
 				{ ["pkg-name"] = { ["postinst"] = "Fake failed postinst" } }
 			}
-		}
+		},
+		{
+			f = "journal.write",
+			p = {journal.CHANGELOG_END}
+		},
 	}, outro({"pkg_dir"}, status_mod))
 	assert_table_equal(expected, mocks_called)
 end
@@ -493,6 +509,7 @@ function test_recover_late()
 				{}
 			} },
 			{ type = journal.CHECKED, params = { {["d2"] = true} } },
+			{ type = journal.CHANGELOG_START, params = {} },
 			{ type = journal.MOVED, params = {
 				{
 					["pkg-name"] = {
@@ -519,7 +536,8 @@ function test_recover_late()
 					}
 				},
 				{ ["pkg-name"] = { ["postinst"] = "Fake failed postinst" } }
-			} }
+			} },
+			{ type = journal.CHANGELOG_END, params = {} },
 		}
 	end)
 	assert_table_equal({

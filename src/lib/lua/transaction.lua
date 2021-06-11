@@ -38,6 +38,7 @@ local backend = require "backend"
 local utils = require "utils"
 local syscnf = require "syscnf"
 local journal = require "journal"
+local changelog = require "changelog"
 local DBG = DBG
 local WARN = WARN
 local INFO = INFO
@@ -57,11 +58,12 @@ module "transaction"
 -- luacheck: globals perform recover perform_queue recover_pretty queue_remove queue_install queue_install_downloaded cleanup_actions
 
 -- Wrap the call to the maintainer script, and store any possible errors for later use
-local function script(errors_collected, name, suffix, is_upgrade, ...)
-	local ok, stderr = backend.script_run(name, suffix, is_upgrade, ...)
+local function script(curchangelog, errors_collected, name, suffix, is_upgrade, ...)
+	local ok, ecode, stderr = backend.script_run(name, suffix, is_upgrade, ...)
 	if not ok then
 		errors_collected[name] = errors_collected[name] or {}
 		errors_collected[name][suffix] = stderr
+		curchangelog:scriptfail(name, suffix, ecode, stderr);
 	end
 end
 
@@ -157,7 +159,23 @@ local function pkg_collision_check(status, to_remove, to_install)
 	return removes, early_remove
 end
 
-local function pkg_move(status, plan, early_remove, errors_collected)
+local function changelog_start(curchangelog, status, plan)
+	curchangelog:transaction_start()
+	for _, op in ipairs(plan) do
+		local name = op.name or op.control.Package
+		curchangelog:package(name,
+			utils.multi_index(status, name, "Version"),
+			utils.multi_index(op, "control", "Version"))
+	end
+	curchangelog:sync()
+end
+
+local function changelog_end(curchangelog)
+	curchangelog:transaction_end()
+	curchangelog:sync()
+end
+
+local function pkg_move(status, plan, early_remove, errors_collected, curchangelog)
 	update_state(LS_INST)
 	INFO("Running pre-install and pre-rm scripts and merging packages to root file system")
 	-- Prepare table of not installed confs for config stealing
@@ -181,10 +199,10 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 			backend.pkg_merge_control(op.dir .. "/control", op.control.Package, op.control.files)
 			if utils.multi_index(status, op.control.Package, "Status", 3) == "installed" then
 				-- There's a previous version. So this is an upgrade.
-				script(errors_collected, op.control.Package, "preinst", true, "upgrade", status[op.control.Package].Version)
+				script(curchangelog, errors_collected, op.control.Package, "preinst", true, "upgrade", status[op.control.Package].Version)
 				upgraded_packages[op.control.Package] = true
 			else
-				script(errors_collected, op.control.Package, "preinst", false, "install", op.control.Version)
+				script(curchangelog, errors_collected, op.control.Package, "preinst", false, "install", op.control.Version)
 			end
 			if early_remove[op.control.Package] then
 				backend.pkg_cleanup_files(early_remove[op.control.Package], all_configs)
@@ -205,7 +223,7 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 					cfiles[f] = nil
 				end
 			end
-			script(errors_collected, op.name, "prerm", false, "remove")
+			script(curchangelog, errors_collected, op.name, "prerm", false, "remove")
 			backend.pkg_remove_alternatives(status, op.name)
 			if next(cfiles) then
 				-- Keep the package info there, with the relevant modified configs
@@ -225,7 +243,7 @@ local function pkg_move(status, plan, early_remove, errors_collected)
 	return status, errors_collected, all_configs, upgraded_packages
 end
 
-local function pkg_scripts(status, plan, removes, to_install, errors_collected, all_configs, upgraded_packages)
+local function pkg_scripts(status, plan, removes, to_install, errors_collected, all_configs, upgraded_packages, curchangelog)
 	-- Clean up the files from removed or upgraded packages
 	INFO("Removing packages and leftover files")
 	update_state(LS_REM)
@@ -235,9 +253,9 @@ local function pkg_scripts(status, plan, removes, to_install, errors_collected, 
 	INFO("Running post-install and post-rm scripts")
 	for _, op in ipairs(plan) do
 		if op.op == "install" then
-			script(errors_collected, op.control.Package, "postinst", (upgraded_packages or {})[op.control.Package], "configure")
+			script(curchangelog, errors_collected, op.control.Package, "postinst", (upgraded_packages or {})[op.control.Package], "configure")
 		elseif op.op == "remove" and not to_install[op.name] then
-			script(errors_collected, op.name, "postrm", false, "remove")
+			script(curchangelog, errors_collected, op.name, "postrm", false, "remove")
 		end
 	end
 	return status, errors_collected
@@ -303,9 +321,15 @@ local function perform_internal(operations, journal_status, run_state)
 		operations = nil
 		-- Check for collisions
 		local removes, early_remove = step(journal.CHECKED, pkg_collision_check, false, status, to_remove, to_install)
+
+		local curchangelog = changelog.open()
 		local all_configs, upgraded_packages
-		status, errors_collected, all_configs, upgraded_packages  = step(journal.MOVED, pkg_move, true, status, plan, early_remove, errors_collected)
-		status, errors_collected = step(journal.SCRIPTS, pkg_scripts, true, status, plan, removes, to_install, errors_collected, all_configs, upgraded_packages)
+		step(journal.CHANGELOG_START, changelog_start, false, curchangelog, status, plan)
+		status, errors_collected, all_configs, upgraded_packages  = step(journal.MOVED, pkg_move, true, status, plan, early_remove, errors_collected, curchangelog)
+		status, errors_collected = step(journal.SCRIPTS, pkg_scripts, true, status, plan, removes, to_install, errors_collected, all_configs, upgraded_packages, curchangelog)
+		step(journal.CHANGELOG_END, changelog_end, false, curchangelog)
+		curchangelog:close()
+
 	end)
 	-- Make sure the temporary dirs are removed even if it fails. This will probably be slightly different with working journal.
 	utils.cleanup_dirs(dir_cleanups)

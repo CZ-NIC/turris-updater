@@ -1,0 +1,4 @@
+START	0
+PKG	libtest	1	2
+PKG	apptest	1	1
+END	0

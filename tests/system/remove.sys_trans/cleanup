@@ -1,0 +1,2 @@
+# Reset the time at changelog
+sed -i -e 's/^START	.*/START	0/;s/^END	.*/END	0/' "$ROOT_DIR"/usr/share/updater/changelog

@@ -2,6 +2,8 @@
 sed -i -e 's/^[0-9][0-9]*/0/' "$ROOT_DIR"/etc/cron.d/updater
 # Reset the time at when we installed it
 sed -i -e 's/^Installed-Time: .*/Installed-Time: 0/' "$ROOT_DIR"/usr/lib/opkg/status
+# Reset the time at changelog
+sed -i -e 's/^START	.*/START	0/;s/^END	.*/END	0/' "$ROOT_DIR"/usr/share/updater/changelog
 # Sort files in list
 for file in "$ROOT_DIR"/usr/lib/opkg/info/*.list; do
 	LC_ALL=C sort -d -o "$file".out "$file"
