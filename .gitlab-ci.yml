@@ -4,14 +4,14 @@ variables:
 stages:
   - build
   - test
-  - pages
+  - coverage
 
 ## Build stage ###################################################################
 .build:
   stage: build
   script:
     - ./bootstrap
-    - ./configure --disable-tests --disable-docs
+    - ./configure
     - make
   artifacts:
     when: on_failure
@@ -37,7 +37,7 @@ build-alpine:
   image: registry.nic.cz/turris/updater/updater:tests
   before_script:
       - ./bootstrap
-      - ./configure
+      - ./configure --enable-tests --enable-linters
 
 .test-check:
   extends: .test
@@ -59,8 +59,6 @@ valgrind-memcheck:
   script:
     - make check-valgrind-memcheck
 
-# TODO possibly run sgcheck?
-
 lint-c:
   extends: .test
   allow_failure: true
@@ -72,3 +70,20 @@ lint-lua:
   allow_failure: true
   script:
     - make lint-lua
+
+## Code Coverage stage ###########################################################
+coverage:
+  stage: coverage
+  needs: [check]
+  image: registry.nic.cz/turris/updater/updater:tests
+  script:
+    - ./bootstrap
+    - ./configure --enable-tests --enable-code-coverage
+    - make check-code-coverage V=1
+    - mv updater-*-coverage updater-coverage
+  coverage: '/lines\.\.\.\.\.\.: (\d+.\d+%)/'
+  artifacts:
+    expire_in: 1 month
+    expose_as: 'Code Coverage'
+    paths:
+    - 'updater-coverage/'

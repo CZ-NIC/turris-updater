@@ -9,4 +9,4 @@ pkgtransaction_CFLAGS = \
 
 pkgtransaction_LDADD = libupdater.la
 
-lint_sources += $(pkgtransaction_SOURCES)
+linted_sources += $(pkgtransaction_SOURCES)

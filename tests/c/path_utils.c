@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "ctest.h"
+#include <check.h>
 #include "test_data.h"
 #include <stdlib.h>
 #include <unistd.h>
@@ -24,6 +24,9 @@
 #include <sys/stat.h>
 #include <path_utils.h>
 #include <util.h>
+
+void unittests_add_suite(Suite*);
+
 
 static bool path_exists(const char *path) {
 	return faccessat(AT_FDCWD, path, F_OK, AT_SYMLINK_NOFOLLOW) == 0;
@@ -223,18 +226,21 @@ START_TEST(dir_tree_list_unpack_links) {
 END_TEST
 
 
-Suite *gen_test_suite(void) {
-	Suite *result = suite_create("path_utils");
-	TCase *tcases = tcase_create("tcase");
-	tcase_add_test(tcases, remove_recursive_file);
-	tcase_add_test(tcases, remove_recursive_link);
-	tcase_add_test(tcases, remove_recursive_dir);
-	tcase_add_test(tcases, mkdir_p_2level);
-	tcase_add_test(tcases, mkdir_p_file);
-	tcase_add_test(tcases, dir_tree_list_empty_dir);
-	tcase_add_test(tcases, dir_tree_list_unpack_dirs);
-	tcase_add_test(tcases, dir_tree_list_unpack_non_dirs);
-	tcase_add_test(tcases, dir_tree_list_unpack_links);
-	suite_add_tcase(result, tcases);
-	return result;
+__attribute__((constructor))
+static void suite() {
+	Suite *suite = suite_create("path_utils");
+
+	TCase *basic_case = tcase_create("basic");
+	tcase_add_test(basic_case, remove_recursive_file);
+	tcase_add_test(basic_case, remove_recursive_link);
+	tcase_add_test(basic_case, remove_recursive_dir);
+	tcase_add_test(basic_case, mkdir_p_2level);
+	tcase_add_test(basic_case, mkdir_p_file);
+	tcase_add_test(basic_case, dir_tree_list_empty_dir);
+	tcase_add_test(basic_case, dir_tree_list_unpack_dirs);
+	tcase_add_test(basic_case, dir_tree_list_unpack_non_dirs);
+	tcase_add_test(basic_case, dir_tree_list_unpack_links);
+	suite_add_tcase(suite, basic_case);
+
+	unittests_add_suite(suite);
 }

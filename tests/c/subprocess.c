@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "ctest.h"
+#include <check.h>
 #include <subprocess.h>
 
 #include <stdint.h>
@@ -25,6 +25,9 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <fcntl.h>
+
+void unittests_add_suite(Suite*);
+
 
 START_TEST(exit_code) {
 	ck_assert(subprocv(-1, "true", NULL) == 0);
@@ -133,16 +136,19 @@ START_TEST(callback) {
 }
 END_TEST
 
-Suite *gen_test_suite(void) {
-	Suite *result = suite_create("Subprocess");
-	TCase *subproc = tcase_create("subproc");
-	tcase_set_timeout(subproc, 30);
-	tcase_add_test(subproc, exit_code);
-	tcase_add_test(subproc, timeout);
-	tcase_add_test(subproc, termination);
-	tcase_add_test(subproc, output);
-	tcase_add_test(subproc, callback);
-	suite_add_tcase(
-			result, subproc);
-	return result;
+
+__attribute__((constructor))
+static void suite() {
+	Suite *suite = suite_create("subprocess");
+
+	TCase *basic_case = tcase_create("basic");
+	tcase_set_timeout(basic_case, 30);
+	tcase_add_test(basic_case, exit_code);
+	tcase_add_test(basic_case, timeout);
+	tcase_add_test(basic_case, termination);
+	tcase_add_test(basic_case, output);
+	tcase_add_test(basic_case, callback);
+	suite_add_tcase(suite, basic_case);
+
+	unittests_add_suite(suite);
 }

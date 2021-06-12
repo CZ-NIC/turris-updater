@@ -1,0 +1,20 @@
+lint_V = $(lint_V_@AM_V@)
+lint_V_ = $(lint_V_@AM_DEFAULT_V@)
+lint_V_0 = @echo LINT $@;
+
+lint: lint-c
+lint-c: $(filter %.c %.h, $(linted_sources))
+	$(lint_V)$(CPPCHECK) --error-exitcode=1 \
+		--enable=warning \
+		--std=c11 \
+		--suppress=allocaCalled \
+		--suppress=obsoleteFunctionsalloca \
+		--suppress=memleakOnRealloc \
+		--template='{file}:{line},{severity},{id},{message}' \
+		--inline-suppr \
+		 $^
+
+lint: lint-lua
+lint-lua: $(filter %.lua, $(linted_sources))
+	$(lint_V)$(LUACHECK) --config "%reldir%/luacheck.config" $^
+

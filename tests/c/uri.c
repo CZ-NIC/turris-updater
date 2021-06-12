@@ -16,9 +16,12 @@
  * You should have received a copy of the GNU General Public License
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "ctest.h"
+#include <check.h>
 #include <uri.h>
 #include "test_data.h"
+
+void unittests_add_suite(Suite*);
+
 
 #define FIXED_OUT_FILE aprintf("%s/updater-uri-output-file.", get_tmpdir())
 #define TEMP_OUT_FILE aprintf("%s/updater-uri-output-file-XXXXXX", get_tmpdir())
@@ -350,28 +353,32 @@ START_TEST(uri_sig_verify_invalid) {
 }
 END_TEST
 
-Suite *gen_test_suite(void) {
-	Suite *result = suite_create("Uri");
-	TCase *uri = tcase_create("uri");
-	tcase_set_timeout(uri, 30);
-	tcase_add_test(uri, uri_parse);
-	tcase_add_test(uri, uri_parse_relative_file);
-	tcase_add_test(uri, uri_scheme_check);
-	tcase_add_test(uri, uri_local);
-	tcase_add_test(uri, uri_unix_path);
-	tcase_add_test(uri, uri_to_buffer_data);
-	tcase_add_test(uri, uri_to_buffer_file);
-	tcase_add_test(uri, uri_to_buffer_http);
-	tcase_add_test(uri, uri_to_buffer_https);
-	tcase_add_test(uri, uri_to_file_file);
-	tcase_add_test(uri, uri_to_file_https);
-	tcase_add_test(uri, uri_to_temp_file_file);
-	tcase_add_test(uri, uri_to_temp_file_https);
-	tcase_add_test(uri, uri_cert_pinning_correct);
-	tcase_add_test(uri, uri_cert_pinning_incorrect);
-	tcase_add_test(uri, uri_cert_no_ca_verify);
-	tcase_add_test(uri, uri_sig_verify_valid);
-	tcase_add_test(uri, uri_sig_verify_invalid);
-	suite_add_tcase(result, uri);
-	return result;
+
+__attribute__((constructor))
+static void suite() {
+	Suite *suite = suite_create("uri");
+
+	TCase *uri_case = tcase_create("uri");
+	tcase_set_timeout(uri_case, 30);
+	tcase_add_test(uri_case, uri_parse);
+	tcase_add_test(uri_case, uri_parse_relative_file);
+	tcase_add_test(uri_case, uri_scheme_check);
+	tcase_add_test(uri_case, uri_local);
+	tcase_add_test(uri_case, uri_unix_path);
+	tcase_add_test(uri_case, uri_to_buffer_data);
+	tcase_add_test(uri_case, uri_to_buffer_file);
+	tcase_add_test(uri_case, uri_to_buffer_http);
+	tcase_add_test(uri_case, uri_to_buffer_https);
+	tcase_add_test(uri_case, uri_to_file_file);
+	tcase_add_test(uri_case, uri_to_file_https);
+	tcase_add_test(uri_case, uri_to_temp_file_file);
+	tcase_add_test(uri_case, uri_to_temp_file_https);
+	tcase_add_test(uri_case, uri_cert_pinning_correct);
+	tcase_add_test(uri_case, uri_cert_pinning_incorrect);
+	tcase_add_test(uri_case, uri_cert_no_ca_verify);
+	tcase_add_test(uri_case, uri_sig_verify_valid);
+	tcase_add_test(uri_case, uri_sig_verify_invalid);
+	suite_add_tcase(suite, uri_case);
+
+	unittests_add_suite(suite);
 }

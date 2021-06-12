@@ -16,8 +16,8 @@
  * You should have received a copy of the GNU General Public License
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "ctest.h"
 #include "test_data.h"
+#include <check.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <logging.h>

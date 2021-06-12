@@ -16,8 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
-
-#include "ctest.h"
+#include <check.h>
 #include <interpreter.h>
 #include <util.h>
 #include <events.h>
@@ -28,6 +27,9 @@
 #include <dirent.h>
 #include <errno.h>
 #include <unistd.h>
+
+void unittests_add_suite(Suite*);
+
 
 struct loading_case {
 	// Just a name of the test
@@ -286,18 +288,22 @@ START_INTERPRETER_TEST(call_registry) {
 }
 END_INTERPRETER_TEST
 
-Suite *gen_test_suite(void) {
-	Suite *result = suite_create("Lua interpreter");
-	TCase *interpreter = tcase_create("loading");
+
+__attribute__((constructor))
+static void suite() {
+	Suite *suite = suite_create("interpreter");
+
+	TCase *loading_case = tcase_create("loading");
 	// Run the tests ‒ each test case takes 2*i and 2*i + 1 indices
-	tcase_add_loop_test(interpreter, loading, 0, 2 * sizeof loading_cases / sizeof *loading_cases);
-	tcase_add_test(interpreter, call_error);
-	tcase_add_test(interpreter, call_error_multi);
-	tcase_add_test(interpreter, call_noparams);
-	tcase_add_test(interpreter, call_method);
-	tcase_add_test(interpreter, call_echo);
-	tcase_add_test(interpreter, test_mkdtemp);
-	tcase_add_test(interpreter, call_registry);
-	suite_add_tcase(result, interpreter);
-	return result;
+	tcase_add_loop_test(loading_case, loading, 0, 2 * sizeof loading_cases / sizeof *loading_cases);
+	tcase_add_test(loading_case, call_error);
+	tcase_add_test(loading_case, call_error_multi);
+	tcase_add_test(loading_case, call_noparams);
+	tcase_add_test(loading_case, call_method);
+	tcase_add_test(loading_case, call_echo);
+	tcase_add_test(loading_case, test_mkdtemp);
+	tcase_add_test(loading_case, call_registry);
+	suite_add_tcase(suite, loading_case);
+
+	unittests_add_suite(suite);
 }

@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "ctest.h"
+#include <check.h>
 #include <syscnf.h>
 #include <util.h>
 #include "test_data.h"
@@ -24,6 +24,9 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <pwd.h>
+
+void unittests_add_suite(Suite*);
+
 
 #define SUFFIX_STATUS_FILE "usr/lib/opkg/status"
 #define SUFFIX_INFO_DIR "usr/lib/opkg/info/"
@@ -115,22 +118,27 @@ START_TEST(os_release_mox) {
 END_TEST
 
 
-Suite *gen_test_suite(void) {
-	Suite *result = suite_create("Syscnf");
-	TCase *paths = tcase_create("patsh");
-	tcase_add_checked_fixture(paths, NULL, paths_teardown);
-	tcase_add_test(paths, default_paths);
-	tcase_add_test(paths, absolute_paths);
-	tcase_add_test(paths, relative_paths);
-	tcase_add_test(paths, tilde_paths);
-	suite_add_tcase(result, paths);
-	TCase *sysinfo_omnia = tcase_create("sysinfo-omnia");
-	tcase_add_checked_fixture(sysinfo_omnia, sysinfo_setup_omnia, paths_teardown);
-	tcase_add_test(sysinfo_omnia, os_release_omnia);
-	suite_add_tcase(result, sysinfo_omnia);
-	TCase *sysinfo_mox = tcase_create("sysinfo-mox");
-	tcase_add_checked_fixture(sysinfo_mox, sysinfo_setup_mox, paths_teardown);
-	tcase_add_test(sysinfo_mox, os_release_mox);
-	suite_add_tcase(result, sysinfo_mox);
-	return result;
+__attribute__((constructor))
+static void suite() {
+	Suite *suite = suite_create("syscnf");
+
+	TCase *paths_case = tcase_create("paths");
+	tcase_add_checked_fixture(paths_case, NULL, paths_teardown);
+	tcase_add_test(paths_case, default_paths);
+	tcase_add_test(paths_case, absolute_paths);
+	tcase_add_test(paths_case, relative_paths);
+	tcase_add_test(paths_case, tilde_paths);
+	suite_add_tcase(suite, paths_case);
+
+	TCase *omnia_case = tcase_create("omnia");
+	tcase_add_checked_fixture(omnia_case, sysinfo_setup_omnia, paths_teardown);
+	tcase_add_test(omnia_case, os_release_omnia);
+	suite_add_tcase(suite, omnia_case);
+
+	TCase *mox_case = tcase_create("mox");
+	tcase_add_checked_fixture(mox_case, sysinfo_setup_mox, paths_teardown);
+	tcase_add_test(mox_case, os_release_mox);
+	suite_add_tcase(suite, mox_case);
+
+	unittests_add_suite(suite);
 }

@@ -16,9 +16,11 @@
  * You should have received a copy of the GNU General Public License
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "ctest.h"
+#include <check.h>
 #include <base64.h>
 #include <stdlib.h>
+
+void unittests_add_suite(Suite*);
 
 #define BASE64_PLAIN "Hello\n"
 #define BASE64_ENCOD "SGVsbG8K"
@@ -42,11 +44,15 @@ START_TEST(base64) {
 END_TEST
 
 
-Suite *gen_test_suite(void) {
-	Suite *result = suite_create("base64");
-	TCase *cs = tcase_create("base64");
-	tcase_add_test(cs, base64_is_valid);
-	tcase_add_test(cs, base64);
-	suite_add_tcase(result, cs);
-	return result;
+__attribute__((constructor))
+static void suite() {
+	Suite *suite = suite_create("base64");
+
+	TCase *base64_case = tcase_create("base64");
+	tcase_add_test(base64_case, base64_is_valid);
+	tcase_add_test(base64_case, base64);
+	suite_add_tcase(suite, base64_case);
+
+	unittests_add_suite(suite);
 }
+

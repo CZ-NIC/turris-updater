@@ -16,8 +16,8 @@
  * You should have received a copy of the GNU General Public License
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "ctest.h"
 #include "test_data.h"
+#include <check.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -29,6 +29,9 @@
 #include <archive.h>
 #include <util.h>
 #include <path_utils.h>
+
+void unittests_add_suite(Suite*);
+
 
 START_TEST(decompress_buffer) {
 	// This was generated using shell command
@@ -183,19 +186,23 @@ START_TEST(unpack_package_valid) {
 END_TEST
 
 
-Suite *gen_test_suite(void) {
-	Suite *result = suite_create("Unpack");
-	TCase *tcases = tcase_create("tcase");
-	tcase_add_test(tcases, decompress_buffer);
-	tcase_add_test(tcases, decompress_lorem_ipsum_short_plain);
-	tcase_add_test(tcases, decompress_lorem_ipsum_short_gz);
-	tcase_add_test(tcases, decompress_lorem_ipsum_short_xz);
-	tcase_add_test(tcases, decompress_lorem_ipsum);
-	suite_add_tcase(result, tcases);
-	TCase *tunpack_package = tcase_create("unpack_package");
-	tcase_add_checked_fixture(tunpack_package, unpack_package_setup,
+__attribute__((constructor))
+static void suite() {
+	Suite *suite = suite_create("archive");
+
+	TCase *decompress_case = tcase_create("decompress");
+	tcase_add_test(decompress_case, decompress_buffer);
+	tcase_add_test(decompress_case, decompress_lorem_ipsum_short_plain);
+	tcase_add_test(decompress_case, decompress_lorem_ipsum_short_gz);
+	tcase_add_test(decompress_case, decompress_lorem_ipsum_short_xz);
+	tcase_add_test(decompress_case, decompress_lorem_ipsum);
+	suite_add_tcase(suite, decompress_case);
+
+	TCase *unpack_case = tcase_create("unpack");
+	tcase_add_checked_fixture(unpack_case, unpack_package_setup,
 			unpack_package_teardown);
-	tcase_add_test(tunpack_package, unpack_package_valid);
-	suite_add_tcase(result, tunpack_package);
-	return result;
+	tcase_add_test(unpack_case, unpack_package_valid);
+	suite_add_tcase(suite, unpack_case);
+
+	unittests_add_suite(suite);
 }

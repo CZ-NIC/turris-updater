@@ -303,10 +303,8 @@ static int lua_decompress(lua_State *L) {
 	size_t size = 0, len = 0;
 	char *data = NULL;
 	while (!feof(f)) {
-		if (size <= (len + 1)) {
-			size += BUFSIZ;
-			data = realloc(data, size * sizeof *data);
-		}
+		if (size <= (len + 1))
+			data = realloc(data, (size += BUFSIZ) * sizeof *data);
 		len += fread(data + len, 1, size - len - 1, f);
 	}
 	data[len] = '\0';

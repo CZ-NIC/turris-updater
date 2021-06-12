@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "ctest.h"
+#include <check.h>
 #include <download.h>
 #include <syscnf.h>
 #include "test_data.h"
@@ -24,6 +24,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+void unittests_add_suite(Suite*);
 
 
 START_TEST(downloader_empty) {
@@ -284,21 +286,24 @@ START_TEST(pem_cert_pinning) {
 END_TEST
 
 
-Suite *gen_test_suite(void) {
-	Suite *result = suite_create("Download");
-	TCase *down = tcase_create("download");
-	tcase_set_timeout(down, 120);
-	tcase_add_checked_fixture(down, system_detect, NULL); // To fill in agent with meaningful values
-	tcase_add_test(down, downloader_empty);
-	tcase_add_test(down, simple_download);
-	tcase_add_test(down, multiple_downloads);
-	tcase_add_test(down, free_instances);
-	tcase_add_test(down, invalid);
-	tcase_add_test(down, invalid_continue);
-	tcase_add_test(down, cert_pinning);
-	tcase_add_test(down, cert_invalid);
-	tcase_add_test(down, cert_pinning_empty);
-	tcase_add_test(down, pem_cert_pinning);
-	suite_add_tcase(result, down);
-	return result;
+__attribute__((constructor))
+static void suite() {
+	Suite *suite = suite_create("download");
+
+	TCase *download_case = tcase_create("download");
+	tcase_set_timeout(download_case, 120);
+	tcase_add_checked_fixture(download_case, system_detect, NULL); // To fill in agent with meaningful values
+	tcase_add_test(download_case, downloader_empty);
+	tcase_add_test(download_case, simple_download);
+	tcase_add_test(download_case, multiple_downloads);
+	tcase_add_test(download_case, free_instances);
+	tcase_add_test(download_case, invalid);
+	tcase_add_test(download_case, invalid_continue);
+	tcase_add_test(download_case, cert_pinning);
+	tcase_add_test(download_case, cert_invalid);
+	tcase_add_test(download_case, cert_pinning_empty);
+	tcase_add_test(download_case, pem_cert_pinning);
+	suite_add_tcase(suite, download_case);
+
+	unittests_add_suite(suite);
 }

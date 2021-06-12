@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "ctest.h"
+#include <check.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -26,6 +26,8 @@
 #include <path_utils.h>
 #include <logging.h>
 #include "test_data.h"
+
+void unittests_add_suite(Suite*);
 
 static char *tmpdir;
 
@@ -92,11 +94,14 @@ START_TEST(simple) {
 END_TEST
 
 
-Suite *gen_test_suite(void) {
-	Suite *result = suite_create("Changelog");
-	TCase *tcase = tcase_create("tcase");
-	tcase_add_checked_fixture(tcase, root_setup, root_teardown);
-	tcase_add_test(tcase, simple);
-	suite_add_tcase(result, tcase);
-	return result;
+__attribute__((constructor))
+static void suite() {
+	Suite *suite = suite_create("changelog");
+
+	TCase *full_case = tcase_create("full");
+	tcase_add_checked_fixture(full_case, root_setup, root_teardown);
+	tcase_add_test(full_case, simple);
+	suite_add_tcase(suite, full_case);
+
+	unittests_add_suite(suite);
 }

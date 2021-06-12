@@ -16,12 +16,15 @@
  * You should have received a copy of the GNU General Public License
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "ctest.h"
+#include <check.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <signature.h>
 #include <util.h>
 #include "test_data.h"
+
+void unittests_add_suite(Suite*);
+
 
 char *lorem_ipsum;
 size_t lorem_ipsum_len;
@@ -140,31 +143,30 @@ START_TEST(sig_turris_test) {
 END_TEST
 
 
-Suite *gen_test_suite(void) {
-	Suite *result = suite_create("Signature");
+__attribute__((constructor))
+static void suite() {
+	Suite *suite = suite_create("signature");
 
-	TCase *sig_short = tcase_create("signature short");
-	tcase_add_checked_fixture(sig_short, lorem_ipsum_short_setup, lorem_ipsum_short_teardown);
-	TCase *sig_long = tcase_create("signature long");
-	tcase_add_checked_fixture(sig_long, lorem_ipsum_setup, lorem_ipsum_teardown);
+	TCase *short_case = tcase_create("short");
+	tcase_add_checked_fixture(short_case, lorem_ipsum_short_setup, lorem_ipsum_short_teardown);
+	suite_add_tcase(suite, short_case);
+	TCase *long_case = tcase_create("long");
+	tcase_add_checked_fixture(long_case, lorem_ipsum_setup, lorem_ipsum_teardown);
+	suite_add_tcase(suite, long_case);
 
-#define TEST(NAME) do { \
-		tcase_add_test(sig_short, NAME); \
-		tcase_add_test(sig_long, NAME); \
-	} while (false)
-
+#define TEST(NAME) ({ \
+		tcase_add_test(short_case, NAME); \
+		tcase_add_test(long_case, NAME); \
+	})
 	TEST(sig_verify_valid);
 	TEST(sig_verify_no_keys);
 	TEST(sig_verify_wrong_key);
 	TEST(sig_verify_corrupted);
-
 #undef TEST
 
-	TCase *sig_turris = tcase_create("signature turris test");
-	tcase_add_test(sig_turris, sig_turris_test);
+	TCase *turris_case = tcase_create("turris");
+	tcase_add_test(turris_case, sig_turris_test);
+	suite_add_tcase(suite, turris_case);
 
-	suite_add_tcase(result, sig_short);
-	suite_add_tcase(result, sig_long);
-	suite_add_tcase(result, sig_turris);
-	return result;
+	unittests_add_suite(suite);
 }

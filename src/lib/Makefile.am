@@ -42,20 +42,20 @@ LIBUPDATER_LUA_FILES = \
 
 libupdater_la_CFLAGS = \
 	-iquote "$(builddir)/%reldir%" \
-	$(LUA_CFLAGS) \
-	$(LIBEVENT_CFLAGS) \
-	$(LIBARCHIVE_CFLAGS) \
-	$(LIBCURL_CLAGS) \
-	$(LIBCRYPTO_CFLAGS) \
-	$(LIBURIPARSER_CFLAGS) \
+	$(lua_CFLAGS) \
+	$(libevent_CFLAGS) \
+	$(libarchive_CFLAGS) \
+	$(libcurl_CLAGS) \
+	$(libcrypto_CFLAGS) \
+	$(liburiparser_CFLAGS) \
 	$(CODE_COVERAGE_CFLAGS)
 libupdater_la_LDFLAGS = \
-	$(LUA_LIBS) \
-	$(LIBEVENT_LIBS) \
-	$(LIBARCHIVE_LIBS) \
-	$(LIBCURL_LIBS) \
-	$(LIBCRYPTO_LIBS) \
-	$(LIBURIPARSER_LIBS) \
+	$(lua_LIBS) \
+	$(libevent_LIBS) \
+	$(libarchive_LIBS) \
+	$(libcurl_LIBS) \
+	$(libcrypto_LIBS) \
+	$(liburiparser_LIBS) \
 	$(CODE_COVERAGE_LIBS) \
 	-ldl \
 	-release ${VERSION}
@@ -85,6 +85,6 @@ $(builddir)/%reldir%/busybox_exec.h: $(BUSYBOX_EMBED)
 
 endif
 
-lint_sources += \
+linted_sources += \
 	$(filter-out %/picosat.c,$(libupdater_la_SOURCES)) \
 	$(filter-out %/dumper.lua %/stacktraceplus.lua,$(LIBUPDATER_LUA_FILES))

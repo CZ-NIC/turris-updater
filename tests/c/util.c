@@ -16,10 +16,13 @@
  * You should have received a copy of the GNU General Public License
  * along with Updater.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "ctest.h"
+#include <check.h>
 #include <util.h>
 
 #include <stdbool.h>
+
+void unittests_add_suite(Suite*);
+
 
 static int cleaned;
 
@@ -82,13 +85,16 @@ START_TEST(cleanup_by_data) {
 END_TEST
 
 
-Suite *gen_test_suite(void) {
-	Suite *result = suite_create("Util");
-	TCase *util = tcase_create("util");
-	tcase_set_timeout(util, 30);
-	tcase_add_test(util, cleanup_multi);
-	tcase_add_test(util, cleanup_single);
-	tcase_add_test(util, cleanup_by_data);
-	suite_add_tcase(result, util);
-	return result;
+__attribute__((constructor))
+static void suite() {
+	Suite *suite = suite_create("util");
+
+	TCase *util_case = tcase_create("util");
+	tcase_set_timeout(util_case, 30);
+	tcase_add_test(util_case, cleanup_multi);
+	tcase_add_test(util_case, cleanup_single);
+	tcase_add_test(util_case, cleanup_by_data);
+	suite_add_tcase(suite, util_case);
+
+	unittests_add_suite(suite);
 }
