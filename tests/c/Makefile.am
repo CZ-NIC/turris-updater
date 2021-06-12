@@ -6,7 +6,6 @@ check_PROGRAMS += %reldir%/unittests-lib
 	%reldir%/unittests.c \
 	%reldir%/test_data.h %reldir%/test_data.c \
 	%reldir%/archive.c \
-	%reldir%/base64c. \
 	%reldir%/changelog.c \
 	%reldir%/download.c \
 	%reldir%/interpreter.c \

@@ -3,7 +3,6 @@ lib_LTLIBRARIES += libupdater.la
 libupdater_la_SOURCES = \
 	%reldir%/archive.c \
 	%reldir%/arguments.c \
-	%reldir%/base64.c \
 	%reldir%/changelog.c \
 	%reldir%/download.c \
 	%reldir%/embed_types.c \
@@ -48,6 +47,7 @@ libupdater_la_CFLAGS = \
 	$(libcurl_CLAGS) \
 	$(libcrypto_CFLAGS) \
 	$(liburiparser_CFLAGS) \
+	$(base64c_CFLAGS) \
 	$(CODE_COVERAGE_CFLAGS)
 libupdater_la_LDFLAGS = \
 	$(lua_LIBS) \
@@ -56,6 +56,7 @@ libupdater_la_LDFLAGS = \
 	$(libcurl_LIBS) \
 	$(libcrypto_LIBS) \
 	$(liburiparser_LIBS) \
+	$(base64c_LIBS) \
 	$(CODE_COVERAGE_LIBS) \
 	-ldl \
 	-release ${VERSION}

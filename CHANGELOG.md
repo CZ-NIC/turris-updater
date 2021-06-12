@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   handling. This improves update time for any scripts spawning "daemon" processes
   that do not correctly redirect or close standard outputs.
 
+### Changed
+- Internal implementation of base64 replaced with base64c library.
+
 ### Removed
 - `--state-log` argument
 - `--task-log` argument

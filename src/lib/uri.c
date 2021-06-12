@@ -18,13 +18,13 @@
  */
 #include "uri.h"
 #include "signature.h"
-#include "base64.h"
 #include <stdlib.h>
 #include <fcntl.h>
 #include <string.h>
 #include <strings.h>
 #include <sys/mman.h>
 #include <uriparser/Uri.h>
+#include <base64c.h>
 
 
 THREAD_LOCAL enum uri_error uri_errno = 0;
@@ -400,12 +400,10 @@ static bool uri_finish_data(struct uri *uri) {
 
 	if (is_base64) {
 		uint8_t *buf;
-		size_t buf_size = base64_decode_allocate(start, len, &buf);
-		ASSERT_MSG(base64_decode(start, len, buf),
-			"base64 decode should be successful as we are checking data for validity on URI creation");
-		size_t written = fwrite(buf, 1, buf_size, uri->output);
+		size_t bufsiz = base64_mdecode(start, len, &buf);
+		size_t written = fwrite(buf, 1, bufsiz, uri->output);
 		free(buf);
-		if (written != buf_size) {
+		if (written != bufsiz) {
 			uri_errno = URI_E_OUTPUT_WRITE_FAIL;
 			return false;
 		}

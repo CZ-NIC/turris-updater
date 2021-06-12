@@ -35,6 +35,7 @@ PKG_CHECK_MODULES([libarchive], [libarchive])
 PKG_CHECK_MODULES([libcurl], [libcurl])
 PKG_CHECK_MODULES([libcrypto], [libcrypto])
 PKG_CHECK_MODULES([liburiparser], [liburiparser >= 0.9])
+PKG_CHECK_MODULES([base64c], [base64c])
 AC_CHECK_HEADERS([uthash.h], , AC_MSG_ERROR([uthash is required]))
 AC_LINK_IFELSE(
    [AC_LANG_PROGRAM([#include <argp.h>],[argp_parse(0,1,NULL,0,0,0);])],,

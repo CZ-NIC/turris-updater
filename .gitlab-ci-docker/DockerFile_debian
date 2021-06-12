@@ -17,6 +17,15 @@ RUN \
     && \
   apt-get clean
 
+# Compile base64c
+RUN \
+  git clone --branch "v0.2.1" "https://gitlab.nic.cz/turris/base64c.git" && \
+  cd base64c && \
+  ./bootstrap && ./configure --prefix=/usr && make install && \
+  cd .. && \
+  rm -rf base64c
+
+
 CMD [ "bash" ]
 
 # vim: ft=dockerfile

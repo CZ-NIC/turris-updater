@@ -13,6 +13,7 @@ Binary dependencies:
 * uthash
 * liburiparser
 * libarchive
+* base64c
 * (argp-standalone on non-glibc systems)
 
 Build dependencies:

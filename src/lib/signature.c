@@ -22,7 +22,7 @@
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
-#include "base64.h"
+#include <base64c.h>
 #include "logging.h"
 
 #define PUBLIC_KEY_SIZE 32
@@ -68,13 +68,13 @@ static bool key_load_generic(const uint8_t *data, size_t len, void *key, size_t 
 		data_end = data + len;
 	size_t size = data_end - data_start;
 
-	uint8_t *buff;
-	size_t cnt = base64_decode_allocate((const char*)data_start, size, &buff);
-	if (!base64_decode((const char*)data_start, size, buff)) {
+	if (base64_verify((const char*)data_start, size)) {
 		TRACE("Key decode failed for key: %.*s", (int)size, data_start);
 		sign_errno = SIGN_ERR_KEY_FORMAT;
 		return false;
 	}
+	uint8_t *buff;
+	size_t cnt = base64_mdecode((const char*)data_start, size, &buff);
 
 	if (cnt != key_len) {
 		free(buff);
