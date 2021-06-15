@@ -37,10 +37,9 @@ PKG_CHECK_MODULES([libcrypto], [libcrypto])
 PKG_CHECK_MODULES([liburiparser], [liburiparser >= 0.9])
 PKG_CHECK_MODULES([base64c], [base64c])
 AC_CHECK_HEADERS([uthash.h], , AC_MSG_ERROR([uthash is required]))
-AC_LINK_IFELSE(
-   [AC_LANG_PROGRAM([#include <argp.h>],[argp_parse(0,1,NULL,0,0,0);])],,
-   AC_CHECK_LIB([argp], [argp_parse], , AC_MSG_ERROR([Missing libargp]))
-  )
+AC_ARG_VAR(argp_LIBS, [linker flags for argp, overriding detection])
+AS_IF([test -z "$argp_LIBS"],
+	AC_SEARCH_LIBS([argp_parse], [argp], [argp_LIBS="-largp"]))
 
 AC_PATH_PROG([PERL], [perl])
 AS_IF([test -z "$PERL"], [AC_MSG_ERROR([Missing perl interpreter])])
