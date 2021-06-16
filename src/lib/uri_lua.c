@@ -214,15 +214,20 @@ static int lua_uri_finish(lua_State *L) {
 	struct uri_lua *uri = luaL_checkudata(L, 1, URI_META);
 	const uint8_t *buf;
 	size_t len;
-	if (!uri_finish(uri->uri, &buf, &len)) {
-		if (uri_errno == URI_E_SIG_FAIL) {
-			return luaL_error(L, "Unable to finish URI (%s): %s: %s: %s",
-					uri_uri(uri->uri), uri_error_msg(uri_errno),
-					uri_uri(uri_sub_err_uri), uri_error_msg(uri_sub_errno));
-		} else
-			return luaL_error(L, "Unable to finish URI (%s): %s",
-					uri_uri(uri->uri), uri_error_msg(uri_errno));
-	}
+	if (!uri_finish(uri->uri, &buf, &len))
+		switch (uri_errno) {
+			case URI_E_DOWNLOAD_FAIL:
+				return luaL_error(L, "Unable to finish URI (%s): %s: %s",
+						uri_uri(uri->uri), uri_error_msg(uri_errno),
+						uri_download_error(uri->uri));
+			case URI_E_SIG_FAIL:
+				return luaL_error(L, "Unable to finish URI (%s): %s: %s: %s",
+						uri_uri(uri->uri), uri_error_msg(uri_errno),
+						uri_uri(uri_sub_err_uri), uri_error_msg(uri_sub_errno));
+			default:
+				return luaL_error(L, "Unable to finish URI (%s): %s",
+						uri_uri(uri->uri), uri_error_msg(uri_errno));
+		}
 	if (!buf)
 		return 0;
 	lua_pushlstring(L, (const char*)buf, len);

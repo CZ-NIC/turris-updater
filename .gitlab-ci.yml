@@ -63,10 +63,12 @@ valgrind-memcheck:
 
 lint-c:
   extends: .test
+  allow_failure: true
   script:
     - make lint-c
 
 lint-lua:
   extends: .test
+  allow_failure: true
   script:
     - make lint-lua
