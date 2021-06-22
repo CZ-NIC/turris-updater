@@ -327,7 +327,9 @@ local function content_request(cmd, allowed, ...)
 		if extras.condition then
 			extra_check_deps(cmd, "condition", extras.condition)
 		end
-		extra_annul_ignore(extras, 'Install extra option "version" is obsolete and should not be used. Specify version directly to package name instead.', true) -- Note: this is applicable only to Install
+		if extras.version then
+			WARN('Install extra option "version" is obsolete and should not be used. Specify version directly to package name instead.')
+		end
 		extra_annul_ignore(extras, 'Install extra option "ignore" is obsolete and should not be used. Use "optional" instead.', true) -- Note: this is applicable only to Install
 		for _, pkg_spec in ipairs(batch) do
 			local pkg_name, pkg_version = backend.parse_pkg_specifier(pkg_spec)
