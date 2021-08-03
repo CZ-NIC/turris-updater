@@ -29,6 +29,7 @@
 #include <sys/select.h>
 #include <time.h>
 #include <sys/wait.h>
+#include <sys/signalfd.h>
 
 static int kill_timeout = 60000;
 
@@ -122,9 +123,18 @@ int subprocloc(int timeout, FILE *fd[2], subproc_callback callback, void *data, 
 	ASSERT(close(p_out[1]) != -1);
 	ASSERT(close(p_err[1]) != -1);
 
+	sigset_t sigset;
+	sigemptyset(&sigset);
+	sigaddset(&sigset, SIGCHLD);
+	sigset_t oldset;
+	ASSERT(sigprocmask(SIG_BLOCK, &sigset, &oldset) == 0);
+	int sigfd = signalfd(-1, &sigset, SFD_CLOEXEC);
+	ASSERT(sigfd >= 0);
+
 	struct pollfd pfds[] = {
 		{ .fd = p_out[0], .events = POLLIN },
-		{ .fd = p_err[0], .events = POLLIN }
+		{ .fd = p_err[0], .events = POLLIN },
+		{ .fd = sigfd, .events = POLLIN },
 	};
 	time_t t_start = time(NULL);
 	bool term_sent = false;
@@ -135,7 +145,9 @@ int subprocloc(int timeout, FILE *fd[2], subproc_callback callback, void *data, 
 			poll_timeout = rem_t < 0 ? 0 : rem_t;
 		}
 		// We ignore interrupt errors as those are really not an errors
-		ASSERT_MSG(poll(pfds, 2, poll_timeout) != -1 || errno == EINTR, "Subprocess poll failed with error: %s", strerror(errno));
+		ASSERT_MSG(
+			poll(pfds, sizeof(pfds) / sizeof(*pfds), poll_timeout) != -1 || errno == EINTR,
+			"Subprocess poll failed with error: %s", strerror(errno));
 		int dead = 0;
 		for (int i = 0; i < 2; i++) {
 			if (pfds[i].revents & POLLIN) {
@@ -148,6 +160,15 @@ int subprocloc(int timeout, FILE *fd[2], subproc_callback callback, void *data, 
 				dead++;
 			ASSERT(!(pfds[i].revents & POLLERR) && !(pfds[i].revents & POLLNVAL));
 		}
+		if (pfds[2].revents & POLLIN) {
+			struct signalfd_siginfo siginfo;
+			while (read(sigfd, &siginfo, sizeof(siginfo)) > 0)
+				if (siginfo.ssi_pid == pid) {
+					dead = 2; // process terminated, consider both pipes closed
+					break;
+				}
+		}
+		ASSERT(!(pfds[2].revents & POLLERR) && !(pfds[2].revents & POLLNVAL));
 		if (dead >= 2)
 			break; // Both feeds are dead so break this loop
 		if (timeout >= 0 && 1000*(time(NULL) - t_start) >= timeout) {
@@ -166,6 +187,8 @@ int subprocloc(int timeout, FILE *fd[2], subproc_callback callback, void *data, 
 
 	ASSERT(close(p_out[0]) != -1);
 	ASSERT(close(p_err[0]) != -1);
+	ASSERT(close(sigfd) != -1);
+	ASSERT(sigprocmask(SIG_SETMASK, &oldset, NULL) == 0);
 
 	int wstatus;
 	ASSERT(waitpid(pid, &wstatus, 0) != -1);

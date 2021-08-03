@@ -50,6 +50,16 @@ START_TEST(timeout) {
 }
 END_TEST
 
+// Test that we detect process termination without waiting for timeout.
+START_TEST(termination) {
+	FILE *devnull = fopen("/dev/null", "w");
+	FILE *fds[] = {devnull, devnull};
+	subproc_kill_t(10000);
+	time_t prev = time(NULL);
+	ck_assert_int_eq(0, subprocvo(10000, fds, "sh", "-c", "nohup sleep 100 &", NULL));
+	ck_assert_int_lt(time(NULL) - prev, 10);
+}
+
 struct buffs {
 	FILE *fds[2];
 	char *b_out, *b_err;
@@ -129,6 +139,7 @@ Suite *gen_test_suite(void) {
 	tcase_set_timeout(subproc, 30);
 	tcase_add_test(subproc, exit_code);
 	tcase_add_test(subproc, timeout);
+	tcase_add_test(subproc, termination);
 	tcase_add_test(subproc, output);
 	tcase_add_test(subproc, callback);
 	suite_add_tcase(

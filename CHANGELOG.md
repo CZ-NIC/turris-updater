@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for `FilesSignature` field in packages. On mismatch it trigger
   reinstall.
 
+### Fixed
+- Subprocess call is now terminated way earlier thanks to `SIGCHLD` signal
+  handling. This improves update time for any scripts spawning "daemon" processes
+  that do not correctly redirect or close standard outputs.
+
 
 ## [69.1.3] - 2021-06-16
 ### Changed
