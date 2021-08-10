@@ -21,20 +21,20 @@ stages:
 
 build-debian-stable:
   extends: .build
-  image: registry.labs.nic.cz/turris/updater/updater:debian
+  image: registry.nic.cz/turris/updater/updater:debian
 
 build-debian-unstable:
   extends: .build
-  image: registry.labs.nic.cz/turris/updater/updater:tests
+  image: registry.nic.cz/turris/updater/updater:tests
 
 build-alpine:
   extends: .build
-  image: registry.labs.nic.cz/turris/updater/updater:alpine
+  image: registry.nic.cz/turris/updater/updater:alpine
 
 ## Test stage ####################################################################
 .test:
   stage: test
-  image: registry.labs.nic.cz/turris/updater/updater:tests
+  image: registry.nic.cz/turris/updater/updater:tests
   before_script:
       - ./bootstrap
       - ./configure
