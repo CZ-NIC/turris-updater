@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 cd "$(dirname "$(readlink -f "$0")")"
-registry="registry.labs.nic.cz/turris/updater/updater"
+registry="registry.nic.cz/turris/updater/updater"
 
 img() {
 	local file="DockerFile_$1"
