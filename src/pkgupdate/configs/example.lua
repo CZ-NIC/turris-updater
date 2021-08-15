@@ -8,7 +8,7 @@ Note that this is Lua 5.1 so you can write any Lua code to these configuration
 files and it will be executed as part of updater execution.
 
 Full reference to language it self can be found here:
-https://turris.pages.nic.cz/updater/docs/language.html
+https://gitlab.nic.cz/turris/updater/updater/-/blob/master/docs/language.txt
 ]]
 
 --[[
