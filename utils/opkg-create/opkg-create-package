@@ -3,31 +3,48 @@
 #   Where DIR is directory where package template is stored
 #  Output package is placed to current directory and is in format NAME.ipk where
 #  NAME is package name from control file
+set -eu
+shopt -s nullglob
 
-ORG=`pwd`
+orig="$(pwd)"
+[ -n "${1:-}" ] && cd "$1"
 
-[ -n "$1" ] && cd $1
+name="$(sed -n 's/^Package:\s*\([^\s]\+\)\s*/\1/p' ./control)"
 
-NAME=`grep -E "^Package:" control/control | sed 's/^Package:[ ]*//;s/[ ]*$//'`
+declare -a control_optional
+for file in "conffiles" "preinst" "prerm" "postinst" "postrm"; do
+	if [ -f "$file" ]; then
+		control_optional+=("./$file")
+	fi
+done
 
-# First lets generate files-md5sum file
-find data -type f | xargs sha256sum > control/files-sha256
-sed -i 's/ data/ /' control/files-sha256
-
-# create control.tar.gz
-cd control
-tar -czf ../control.tar.gz .
-rm files-sha256
-cd ..
+# Generate sum files
+if [ -n "$(find data -type f)" ]; then
+	find data -type f -print0 | xargs -0 md5sum \
+		| sed 's/ data/ /' > files-md5sum
+	find data -type f -print0 | xargs -0 sha256sum \
+		| sed 's/ data/ /' > files-sha256
+else
+	touch files-{md5sum,sha256}
+fi
+# Create control.tar.gz
+tar -czf control.tar.gz \
+	./control \
+	./files-md5sum \
+	./files-sha256 \
+	"${control_optional[@]}"
+rm files-{md5sum,sha256}
 
 # package data
-cd data
-tar -czf ../data.tar.gz .
-cd ..
+tar -czf data.tar.gz -C data .
 
 # create package
 echo 2 > debian-binary
-tar -czf $ORG/$NAME.ipk ./debian-binary ./control.tar.gz ./data.tar.gz
+tar -czf "$orig/$name.ipk" \
+	./debian-binary \
+	./control.tar.gz \
+	./data.tar.gz
+
 rm debian-binary
 rm control.tar.gz
 rm data.tar.gz

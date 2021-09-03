@@ -1,21 +1,20 @@
 #!/bin/bash
 # Usage: Just start this script in directory where you have all your packages
+set -eu
 
-# At beginning remove previous Packages
-if [ -f Packages ]; then rm Packages; fi
-
+rm -f Packages
 touch Packages
-for PKG in `ls *.ipk`; do
-	tar -xzf $PKG ./control.tar.gz
-	tar -xzf control.tar.gz ./control
-	rm control.tar.gz
+for pkg in *.ipk; do
+	control="$(tar -xOzf "$pkg" ./control.tar.gz | tar -xOzf - ./control)"
 
-	DESCLINE=`grep -nE "^Description:" control | grep -oE "^[0-9]+"`
-	sed "$DESCLINE,\$d" control >> Packages
-	echo "Filename: $PKG" >> Packages
-	echo "MD5Sum: $(md5sum $PKG | awk '{print $1}')" >> Packages
-	echo "SHA256sum: $(sha256sum $PKG | awk '{print $1}')" >> Packages
-	sed "1,$(expr $DESCLINE - 1)d" control >> Packages
-
-	rm control
+	{
+		sed -n '/^Description:/q;p' <<<"$control"
+		echo "Filename: $pkg"
+		echo "MD5Sum: $(md5sum "$pkg" | cut -f1 -d' ')"
+		sha256="$(sha256sum "$pkg" | cut -f1 -d' ')"
+		echo "SHA256sum: $sha256"
+		echo "SHA256Sum: $sha256"
+		sed -n '/^Description:/,$p' <<<"$control"
+		echo
+	} >> Packages
 done
