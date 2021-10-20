@@ -17,4 +17,5 @@ for pkg in *.ipk; do
 		sed -n '/^Description:/,$p' <<<"$control"
 		echo
 	} >> Packages
+	gzip -fk Packages
 done
